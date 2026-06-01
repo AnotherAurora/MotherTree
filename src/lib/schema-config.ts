@@ -1,0 +1,331 @@
+import type { EnumName, TableName } from "@/lib/database.types";
+import { formatLabel } from "@/lib/utils";
+
+export type FieldType =
+  | "id"
+  | "text"
+  | "number"
+  | "boolean"
+  | "textarea"
+  | "enum"
+  | "foreignKey"
+  | "timestamp";
+
+export type ForeignKeyRef = {
+  table: TableName;
+  displayColumn: string;
+  /** Composite label for complex parent rows */
+  labelKind?: "manifestation";
+};
+
+export type FieldConfig = {
+  name: string;
+  label: string;
+  type: FieldType;
+  enumName?: EnumName;
+  foreignKey?: ForeignKeyRef;
+  /** Hide from create/edit forms */
+  formHidden?: boolean;
+  /** Hide from list table */
+  listHidden?: boolean;
+  required?: boolean;
+};
+
+export type TableConfig = {
+  name: TableName;
+  label: string;
+  description: string;
+  /** Column used when this table appears in FK dropdowns */
+  displayColumn: string;
+  softDelete: boolean;
+  /** Order in sidebar (lower = higher) */
+  order: number;
+  fields: FieldConfig[];
+};
+
+const timestampFields = (
+  includeDeleted = true,
+): FieldConfig[] => [
+  {
+    name: "created_at",
+    label: "Created At",
+    type: "timestamp",
+    formHidden: true,
+    listHidden: true,
+  },
+  {
+    name: "updated_at",
+    label: "Updated At",
+    type: "timestamp",
+    formHidden: true,
+    listHidden: true,
+  },
+  ...(includeDeleted
+    ? [
+        {
+          name: "deleted_at",
+          label: "Deleted At",
+          type: "timestamp" as const,
+          formHidden: true,
+          listHidden: true,
+        },
+      ]
+    : []),
+];
+
+export const TABLE_CONFIGS: TableConfig[] = [
+  {
+    name: "tag",
+    label: "Tags",
+    description: "Core tag definitions used across interactions and demands.",
+    displayColumn: "tag_name",
+    softDelete: true,
+    order: 1,
+    fields: [
+      { name: "id", label: "ID", type: "id", required: true },
+      { name: "tag_name", label: "Tag Name", type: "text", required: true },
+      ...timestampFields(),
+    ],
+  },
+  {
+    name: "awakener",
+    label: "Awakeners",
+    description: "Character stats and realm assignments.",
+    displayColumn: "name",
+    softDelete: false,
+    order: 2,
+    fields: [
+      { name: "id", label: "ID", type: "id", required: true },
+      { name: "name", label: "Name", type: "text", required: true },
+      { name: "realm", label: "Realm", type: "enum", enumName: "realm" },
+      { name: "con", label: "CON", type: "number" },
+      { name: "atk", label: "ATK", type: "number" },
+      { name: "def", label: "DEF", type: "number" },
+      { name: "skey", label: "SKEY", type: "number" },
+      { name: "damage_amp", label: "Damage Amp", type: "number" },
+      { name: "crit_rate", label: "Crit Rate", type: "number" },
+      { name: "crit_dmg", label: "Crit Damage", type: "number" },
+      { name: "realm_mastery", label: "Realm Mastery", type: "number" },
+      { name: "aliemus_regen", label: "Aliemus Regen", type: "number" },
+      { name: "sigil_yield", label: "Sigil Yield", type: "number" },
+      { name: "death_resist", label: "Death Resist", type: "number" },
+      {
+        name: "created_at",
+        label: "Created At",
+        type: "timestamp",
+        formHidden: true,
+        listHidden: true,
+      },
+      {
+        name: "updated_at",
+        label: "Updated At",
+        type: "timestamp",
+        formHidden: true,
+        listHidden: true,
+      },
+    ],
+  },
+  {
+    name: "desire",
+    label: "Desires",
+    description: "Team desire definitions for path planning.",
+    displayColumn: "name",
+    softDelete: true,
+    order: 3,
+    fields: [
+      { name: "id", label: "ID", type: "id", required: true },
+      { name: "name", label: "Name", type: "text", required: true },
+      ...timestampFields(),
+    ],
+  },
+  {
+    name: "awakener_tag_manifestation",
+    label: "Manifestations",
+    description: "Awakener–tag pairings with graded values and requirements.",
+    displayColumn: "id",
+    softDelete: true,
+    order: 4,
+    fields: [
+      { name: "id", label: "ID", type: "id", required: true },
+      {
+        name: "awakener_id",
+        label: "Awakener",
+        type: "foreignKey",
+        required: true,
+        foreignKey: { table: "awakener", displayColumn: "name" },
+      },
+      {
+        name: "tag_id",
+        label: "Tag",
+        type: "foreignKey",
+        required: true,
+        foreignKey: { table: "tag", displayColumn: "tag_name" },
+      },
+      { name: "base_graded_value", label: "Base Graded Value", type: "number" },
+      { name: "grading_logic", label: "Grading Logic", type: "textarea" },
+      { name: "stat_modifier", label: "Stat Modifier", type: "number" },
+      { name: "base_hits", label: "Base Hits", type: "number" },
+      { name: "required_e", label: "Required E", type: "number" },
+      {
+        name: "required_realm",
+        label: "Required Realm",
+        type: "enum",
+        enumName: "realm",
+      },
+      ...timestampFields(),
+    ],
+  },
+  {
+    name: "tag_default_interaction",
+    label: "Tag Interactions",
+    description: "Default interaction rules between modifier and target tags.",
+    displayColumn: "id",
+    softDelete: true,
+    order: 5,
+    fields: [
+      { name: "id", label: "ID", type: "id", required: true },
+      {
+        name: "modifier_tag_id",
+        label: "Modifier Tag",
+        type: "foreignKey",
+        foreignKey: { table: "tag", displayColumn: "tag_name" },
+      },
+      {
+        name: "target_tag_id",
+        label: "Target Tag",
+        type: "foreignKey",
+        foreignKey: { table: "tag", displayColumn: "tag_name" },
+      },
+      {
+        name: "interaction_type",
+        label: "Interaction Type",
+        type: "enum",
+        enumName: "interaction",
+      },
+      { name: "interaction_value", label: "Interaction Value", type: "number" },
+      ...timestampFields(),
+    ],
+  },
+  {
+    name: "manifestation_interaction_override",
+    label: "Interaction Overrides",
+    description: "Per-manifestation overrides for tag synergy math.",
+    displayColumn: "id",
+    softDelete: true,
+    order: 6,
+    fields: [
+      { name: "id", label: "ID", type: "id", required: true },
+      {
+        name: "manifestation_id",
+        label: "Manifestation",
+        type: "foreignKey",
+        foreignKey: {
+          table: "awakener_tag_manifestation",
+          displayColumn: "id",
+          labelKind: "manifestation",
+        },
+      },
+      {
+        name: "modifier_tag_id",
+        label: "Modifier Tag",
+        type: "foreignKey",
+        foreignKey: { table: "tag", displayColumn: "tag_name" },
+      },
+      {
+        name: "override_multiplier",
+        label: "Override Multiplier",
+        type: "number",
+      },
+      { name: "is_disabled", label: "Disabled", type: "boolean" },
+      ...timestampFields(),
+    ],
+  },
+  {
+    name: "desire_demand",
+    label: "Desire Demands",
+    description: "Tag demand curves tied to a desire.",
+    displayColumn: "id",
+    softDelete: true,
+    order: 7,
+    fields: [
+      { name: "id", label: "ID", type: "id", required: true },
+      {
+        name: "desire_id",
+        label: "Desire",
+        type: "foreignKey",
+        required: true,
+        foreignKey: { table: "desire", displayColumn: "name" },
+      },
+      {
+        name: "tag_id",
+        label: "Tag",
+        type: "foreignKey",
+        required: true,
+        foreignKey: { table: "tag", displayColumn: "tag_name" },
+      },
+      {
+        name: "base_priority_weight",
+        label: "Base Priority Weight",
+        type: "number",
+      },
+      { name: "target_value", label: "Target Value", type: "number" },
+      {
+        name: "curve",
+        label: "Curve",
+        type: "enum",
+        enumName: "curve_type",
+      },
+      { name: "decay_rate", label: "Decay Rate", type: "number" },
+      ...timestampFields(),
+    ],
+  },
+  {
+    name: "path",
+    label: "Paths",
+    description: "Links between an awakener and a desire.",
+    displayColumn: "id",
+    softDelete: false,
+    order: 8,
+    fields: [
+      { name: "id", label: "ID", type: "id", required: true },
+      {
+        name: "awakener_id",
+        label: "Awakener",
+        type: "foreignKey",
+        required: true,
+        foreignKey: { table: "awakener", displayColumn: "name" },
+      },
+      {
+        name: "desire_id",
+        label: "Desire",
+        type: "foreignKey",
+        required: true,
+        foreignKey: { table: "desire", displayColumn: "name" },
+      },
+    ],
+  },
+];
+
+export const TABLE_CONFIG_MAP = Object.fromEntries(
+  TABLE_CONFIGS.map((config) => [config.name, config]),
+) as Record<TableName, TableConfig>;
+
+export function isValidTableName(name: string): name is TableName {
+  return name in TABLE_CONFIG_MAP;
+}
+
+export function getListFields(config: TableConfig) {
+  return config.fields.filter((field) => !field.listHidden);
+}
+
+export function getFormFields(config: TableConfig) {
+  return config.fields.filter((field) => !field.formHidden);
+}
+
+export function getTableTitle(tableName: TableName) {
+  return TABLE_CONFIG_MAP[tableName].label;
+}
+
+export function getFieldLabel(fieldName: string) {
+  return formatLabel(fieldName);
+}
