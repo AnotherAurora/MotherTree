@@ -15,7 +15,7 @@ A clean, modern admin dashboard for managing MotherTree game data stored in Supa
 - List, Create, Update, and Soft-Delete (where `deleted_at` exists)
 - Searchable foreign-key dropdowns with human-readable labels
 - Strict enum dropdowns matching exact database casing
-- Auto-suggest next ID (tables use manual integer IDs)
+- Auto-increment primary keys (Postgres `IDENTITY` — no manual ID entry)
 - Environment-variable based Supabase configuration
 
 ## Tables

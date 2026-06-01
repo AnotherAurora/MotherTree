@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Loader2, Sparkles } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { EnumSelect } from "@/components/admin/enum-select";
 import { ForeignKeyCombobox } from "@/components/admin/foreign-key-combobox";
@@ -19,7 +19,6 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   createRecord,
   getForeignKeyOptions,
-  getNextId,
   updateRecord,
   type ForeignKeyOption,
 } from "@/lib/actions/crud";
@@ -96,15 +95,6 @@ export function RecordFormDialog({
       .finally(() => setLoadingOptions(false));
   }, [open, config, record]);
 
-  async function handleSuggestId() {
-    const result = await getNextId(config.name);
-    if (result.success) {
-      setValues((current) => ({ ...current, id: result.data }));
-    } else {
-      toast.error(result.error);
-    }
-  }
-
   function updateValue(name: string, value: unknown) {
     setValues((current) => ({ ...current, [name]: value }));
   }
@@ -152,26 +142,6 @@ export function RecordFormDialog({
 
   function renderField(field: FieldConfig) {
     const value = values[field.name];
-
-    if (field.type === "id") {
-      return (
-        <div className="flex gap-2">
-          <Input
-            type="number"
-            value={value == null ? "" : String(value)}
-            onChange={(event) => updateValue(field.name, event.target.value)}
-            disabled={isEditing}
-            required={field.required}
-          />
-          {!isEditing && (
-            <Button type="button" variant="outline" onClick={handleSuggestId}>
-              <Sparkles className="h-4 w-4" />
-              Next ID
-            </Button>
-          )}
-        </div>
-      );
-    }
 
     if (field.type === "foreignKey" && field.foreignKey) {
       return (

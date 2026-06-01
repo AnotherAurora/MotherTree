@@ -86,32 +86,6 @@ export async function listRecords(
   }
 }
 
-export async function getNextId(
-  tableName: string,
-): Promise<ActionResult<number>> {
-  const config = getConfig(tableName);
-  if (!config) return { success: false, error: "Unknown table" };
-
-  try {
-    const supabase = createAdminClient();
-    const { data, error } = await supabase
-      .from(config.name)
-      .select("id")
-      .order("id", { ascending: false })
-      .limit(1);
-
-    if (error) return { success: false, error: error.message };
-
-    const maxId = data?.[0]?.id ?? 0;
-    return { success: true, data: maxId + 1 };
-  } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to get next ID",
-    };
-  }
-}
-
 export async function getForeignKeyOptions(
   tableName: string,
   displayColumn: string,
@@ -176,6 +150,7 @@ export async function createRecord(
   try {
     const supabase = createAdminClient();
     const record: Record<string, unknown> = { ...payload };
+    delete record.id;
 
     if (config.fields.some((field) => field.name === "created_at")) {
       record.created_at = nowIso();
