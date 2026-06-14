@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { DotSeparatedInput } from "@/components/admin/dot-separated-input";
 import { EnumSelect } from "@/components/admin/enum-select";
 import { ForeignKeyCombobox } from "@/components/admin/foreign-key-combobox";
 import { Button } from "@/components/ui/button";
@@ -60,6 +61,14 @@ export function RecordFormDialog({
   const [loading, setLoading] = React.useState(false);
   const [loadingOptions, setLoadingOptions] = React.useState(false);
 
+  // Only reset the form when the dialog opens or the edit target changes —
+  // not when parent re-renders pass a new config object reference after create.
+  const formSessionKey = open
+    ? isEditing
+      ? `edit:${String(record?.id ?? "")}`
+      : "create"
+    : "closed";
+
   React.useEffect(() => {
     if (!open) return;
     setValues(getInitialValues(config, record));
@@ -93,7 +102,9 @@ export function RecordFormDialog({
         setFkOptions(next);
       })
       .finally(() => setLoadingOptions(false));
-  }, [open, config, record]);
+    // formSessionKey captures open/create-vs-edit transitions; config/record are read at that point only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- avoid reset on parent re-render after create
+  }, [formSessionKey]);
 
   function updateValue(name: string, value: unknown) {
     setValues((current) => ({ ...current, [name]: value }));
@@ -116,6 +127,18 @@ export function RecordFormDialog({
         value = Boolean(value);
       }
 
+      if (field.type === "dotSeparated" && value != null && value !== "") {
+        const parts = String(value)
+          .split(".")
+          .map((part) => part.trim());
+        if (parts.some((part) => !part)) {
+          toast.error(`${field.label}: every segment must be filled`);
+          setLoading(false);
+          return;
+        }
+        value = parts.join(".");
+      }
+
       if (field.required && (value == null || value === "")) {
         toast.error(`${field.label} is required`);
         setLoading(false);
@@ -133,8 +156,13 @@ export function RecordFormDialog({
 
     if (result.success) {
       toast.success(isEditing ? "Record updated" : "Record created");
-      onOpenChange(false);
       onSuccess();
+      const stayOpen = !isEditing && config.keepOpenOnCreate;
+      if (stayOpen) {
+        setValues((current) => ({ ...current, ...payload }));
+      } else {
+        onOpenChange(false);
+      }
     } else {
       toast.error(result.error);
     }
@@ -195,6 +223,15 @@ export function RecordFormDialog({
           step="any"
           value={value == null ? "" : String(value)}
           onChange={(event) => updateValue(field.name, event.target.value)}
+        />
+      );
+    }
+
+    if (field.type === "dotSeparated") {
+      return (
+        <DotSeparatedInput
+          value={value == null ? "" : String(value)}
+          onChange={(next) => updateValue(field.name, next)}
         />
       );
     }

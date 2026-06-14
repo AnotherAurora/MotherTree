@@ -6,7 +6,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "import:awakeners": "tsx scripts/import-awakeners.ts",
+    "import:awakeners:execute": "tsx scripts/import-awakeners.ts --execute",
+    "db:types": "tsx scripts/generate-database-types.ts",
+    "db:pull": "npx supabase db pull"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.15",
@@ -35,6 +39,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
     "tailwindcss": "^4",
+    "tsx": "^4.20.3",
     "typescript": "^5"
   }
 }

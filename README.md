@@ -88,8 +88,10 @@ git push -u origin main
 When your schema changes, regenerate types from Supabase:
 
 ```bash
-npx supabase gen types typescript --project-id brsxrctacuhllumnfwgx > src/lib/database.types.ts
+npm run db:types
 ```
+
+This writes `src/lib/database.types.generated.ts`. App helpers (`TableName`, `ENUM_VALUES`, etc.) live in `src/lib/database.types.ts` and are preserved across regens.
 
 Or use the Supabase MCP `generate_typescript_types` tool in Cursor.
 

@@ -1,7 +1,15 @@
 "use client";
 
 import * as React from "react";
-import { Loader2, Pencil, Plus, Trash2 } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  Loader2,
+  Pencil,
+  Plus,
+  Trash2,
+} from "lucide-react";
 import { toast } from "sonner";
 import { RecordFormDialog } from "@/components/admin/record-form-dialog";
 import { Button } from "@/components/ui/button";
@@ -17,13 +25,20 @@ import {
   resolveForeignKeyLabels,
   softDeleteRecord,
 } from "@/lib/actions/crud";
-import type { TableConfig } from "@/lib/schema-config";
+import type { FieldConfig, TableConfig } from "@/lib/schema-config";
 import { getListFields } from "@/lib/schema-config";
 
 type TableManagerProps = {
   config: TableConfig;
   initialRecords: Record<string, unknown>[];
   initialFkLabels: Record<string, string>;
+};
+
+type SortDirection = "asc" | "desc";
+
+type SortState = {
+  field: string | null;
+  direction: SortDirection;
 };
 
 function formatCellValue(
@@ -39,6 +54,73 @@ function formatCellValue(
   if (typeof value === "boolean") return value ? "Yes" : "No";
   if (typeof value === "number") return value.toString();
   return String(value);
+}
+
+function getSortValue(
+  record: Record<string, unknown>,
+  field: FieldConfig,
+  fkLabels: Record<string, string>,
+): string | number | boolean | null {
+  const raw = record[field.name];
+
+  if (raw == null || raw === "") return null;
+
+  if (field.type === "foreignKey") {
+    return fkLabels[`${field.name}:${raw}`] ?? String(raw);
+  }
+
+  if (field.type === "number" || field.type === "id") {
+    const num = Number(raw);
+    return Number.isNaN(num) ? String(raw) : num;
+  }
+
+  if (field.type === "boolean") return Boolean(raw);
+
+  return String(raw);
+}
+
+function compareSortValues(
+  a: string | number | boolean | null,
+  b: string | number | boolean | null,
+  direction: SortDirection,
+) {
+  if (a == null && b == null) return 0;
+  if (a == null) return 1;
+  if (b == null) return -1;
+
+  let cmp = 0;
+  if (typeof a === "number" && typeof b === "number") {
+    cmp = a - b;
+  } else if (typeof a === "boolean" && typeof b === "boolean") {
+    cmp = Number(a) - Number(b);
+  } else {
+    cmp = String(a).localeCompare(String(b), undefined, {
+      numeric: true,
+      sensitivity: "base",
+    });
+  }
+
+  return direction === "asc" ? cmp : -cmp;
+}
+
+function sortRecords(
+  records: Record<string, unknown>[],
+  listFields: FieldConfig[],
+  sort: SortState,
+  fkLabels: Record<string, string>,
+) {
+  if (!sort.field) return records;
+
+  const field = listFields.find((item) => item.name === sort.field);
+  if (!field) return records;
+
+  return [...records].sort((a, b) =>
+    compareSortValues(
+      getSortValue(a, field, fkLabels),
+      getSortValue(b, field, fkLabels),
+      sort.direction,
+    ),
+  );
 }
 
 export function TableManager({
@@ -57,8 +139,33 @@ export function TableManager({
     Record<string, unknown> | null
   >(null);
   const [deletingId, setDeletingId] = React.useState<number | null>(null);
+  const [sort, setSort] = React.useState<SortState>({
+    field: null,
+    direction: "asc",
+  });
 
   const listFields = getListFields(config);
+
+  React.useEffect(() => {
+    setSort({ field: null, direction: "asc" });
+  }, [config.name]);
+
+  const sortedRecords = React.useMemo(
+    () => sortRecords(records, listFields, sort, fkLabels),
+    [records, listFields, sort, fkLabels],
+  );
+
+  function toggleSort(fieldName: string) {
+    setSort((current) => {
+      if (current.field !== fieldName) {
+        return { field: fieldName, direction: "asc" };
+      }
+      if (current.direction === "asc") {
+        return { field: fieldName, direction: "desc" };
+      }
+      return { field: null, direction: "asc" };
+    });
+  }
 
   async function refresh() {
     setLoading(true);
@@ -166,21 +273,50 @@ export function TableManager({
               <table className="min-w-full divide-y divide-zinc-200 text-sm">
                 <thead className="bg-zinc-50">
                   <tr>
-                    {listFields.map((field) => (
-                      <th
-                        key={field.name}
-                        className="px-4 py-3 text-left font-medium text-zinc-600"
-                      >
-                        {field.label}
-                      </th>
-                    ))}
+                    {listFields.map((field) => {
+                      const isActive = sort.field === field.name;
+                      const SortIcon = isActive
+                        ? sort.direction === "asc"
+                          ? ArrowUp
+                          : ArrowDown
+                        : ArrowUpDown;
+
+                      return (
+                        <th
+                          key={field.name}
+                          className="px-4 py-3 text-left font-medium text-zinc-600"
+                        >
+                          <div className="flex items-center gap-1">
+                            <span>{field.label}</span>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 shrink-0"
+                              onClick={() => toggleSort(field.name)}
+                              aria-label={
+                                isActive
+                                  ? `Sorted by ${field.label} ${sort.direction === "asc" ? "ascending" : "descending"}`
+                                  : `Sort by ${field.label}`
+                              }
+                            >
+                              <SortIcon
+                                className={
+                                  isActive ? "h-4 w-4" : "h-4 w-4 opacity-40"
+                                }
+                              />
+                            </Button>
+                          </div>
+                        </th>
+                      );
+                    })}
                     <th className="px-4 py-3 text-right font-medium text-zinc-600">
                       Actions
                     </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-100 bg-white">
-                  {records.map((record) => {
+                  {sortedRecords.map((record) => {
                     const isDeleted = Boolean(record.deleted_at);
                     return (
                       <tr
