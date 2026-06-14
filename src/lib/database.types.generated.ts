@@ -322,6 +322,7 @@ export type Database = {
           created_at: string | null
           default_factor: number | null
           deleted_at: string | null
+          exclusion_suffix: number | null
           id: number
           math_operation: Database["public"]["Enums"]["operation_type"]
           modifier_tag_id: number | null
@@ -333,6 +334,7 @@ export type Database = {
           created_at?: string | null
           default_factor?: number | null
           deleted_at?: string | null
+          exclusion_suffix?: number | null
           id?: number
           math_operation?: Database["public"]["Enums"]["operation_type"]
           modifier_tag_id?: number | null
@@ -344,6 +346,7 @@ export type Database = {
           created_at?: string | null
           default_factor?: number | null
           deleted_at?: string | null
+          exclusion_suffix?: number | null
           id?: number
           math_operation?: Database["public"]["Enums"]["operation_type"]
           modifier_tag_id?: number | null
@@ -352,6 +355,13 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "tag_default_interaction_exclusion_suffix_fkey"
+            columns: ["exclusion_suffix"]
+            isOneToOne: false
+            referencedRelation: "tag"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "tag_default_interaction_modifier_tag_id_fkey"
             columns: ["modifier_tag_id"]
@@ -381,6 +391,7 @@ export type Database = {
         | "add_to_base_value"
         | "add_to_multiplier"
         | "compound_multiplier"
+        | "add_hits"
       realm:
         | "chaos"
         | "caro"
@@ -522,6 +533,7 @@ export const Constants = {
         "add_to_base_value",
         "add_to_multiplier",
         "compound_multiplier",
+        "add_hits",
       ],
       realm: [
         "chaos",

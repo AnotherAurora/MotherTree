@@ -8,6 +8,8 @@ import {
   type TableConfig,
 } from "@/lib/schema-config";
 import { createAdminClient } from "@/lib/supabase/admin";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/lib/database.types";
 
 export type ForeignKeyOption = {
   value: number;
@@ -30,6 +32,61 @@ function getConfig(tableName: string): TableConfig | null {
 
 function nowIso() {
   return new Date().toISOString();
+}
+
+function mapDbError(
+  config: TableConfig,
+  error: { code?: string; message: string },
+): string {
+  if (error.code === "23505" && config.uniqueConstraints?.length) {
+    const match = config.uniqueConstraints.find((constraint) => constraint.message);
+    return match?.message ?? "Duplicate record";
+  }
+
+  return error.message;
+}
+
+async function assertUniqueConstraints(
+  supabase: SupabaseClient<Database>,
+  config: TableConfig,
+  payload: Record<string, unknown>,
+  excludeId?: number,
+): Promise<ActionResult> {
+  if (!config.uniqueConstraints?.length) {
+    return { success: true, data: undefined };
+  }
+
+  for (const constraint of config.uniqueConstraints) {
+    let query = supabase.from(config.name).select("id");
+
+    for (const field of constraint.fields) {
+      const value = payload[field];
+      if (value == null) {
+        query = query.is(field, null);
+      } else {
+        query = query.eq(field, value);
+      }
+    }
+
+    if (constraint.ignoreDeleted) {
+      query = query.is("deleted_at", null);
+    }
+
+    if (excludeId != null) {
+      query = query.neq("id", excludeId);
+    }
+
+    const { data, error } = await query.limit(1);
+    if (error) return { success: false, error: error.message };
+    if (data && data.length > 0) {
+      return {
+        success: false,
+        error: constraint.message ?? "Duplicate record",
+      };
+    }
+  }
+
+  return { success: true, data: undefined };
 }
 
 async function buildManifestationLabels(
@@ -159,13 +216,20 @@ export async function createRecord(
       record.updated_at = nowIso();
     }
 
+    const uniqueCheck = await assertUniqueConstraints(
+      supabase,
+      config,
+      record,
+    );
+    if (!uniqueCheck.success) return uniqueCheck;
+
     const { data, error } = await supabase
       .from(config.name)
       .insert(record as never)
       .select("*")
       .single();
 
-    if (error) return { success: false, error: error.message };
+    if (error) return { success: false, error: mapDbError(config, error) };
 
     revalidateTable(config.name);
     return { success: true, data: data as Record<string, unknown> };
@@ -194,6 +258,14 @@ export async function updateRecord(
       record.updated_at = nowIso();
     }
 
+    const uniqueCheck = await assertUniqueConstraints(
+      supabase,
+      config,
+      record,
+      id,
+    );
+    if (!uniqueCheck.success) return uniqueCheck;
+
     const { data, error } = await supabase
       .from(config.name)
       .update(record as never)
@@ -201,7 +273,7 @@ export async function updateRecord(
       .select("*")
       .single();
 
-    if (error) return { success: false, error: error.message };
+    if (error) return { success: false, error: mapDbError(config, error) };
 
     revalidateTable(config.name);
     return { success: true, data: data as Record<string, unknown> };
