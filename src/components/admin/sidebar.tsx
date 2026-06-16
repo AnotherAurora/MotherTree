@@ -29,7 +29,9 @@ const ICONS: Partial<Record<TableName, ComponentType<{ className?: string }>>> =
 
 export function Sidebar() {
   const pathname = usePathname();
-  const sorted = [...TABLE_CONFIGS].sort((a, b) => a.order - b.order);
+  const sorted = [...TABLE_CONFIGS]
+    .filter((config) => !config.sidebarHidden)
+    .sort((a, b) => a.order - b.order);
 
   return (
     <aside className="flex h-full w-64 shrink-0 flex-col border-r border-zinc-200 bg-zinc-950 text-zinc-100">

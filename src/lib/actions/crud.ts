@@ -16,6 +16,14 @@ export type ForeignKeyOption = {
   label: string;
 };
 
+export type InteractionOverrideInput = {
+  id?: number;
+  modifier_tag_id: number | null;
+  math_operation: string | null;
+  override_default_factor: number | null;
+  is_disabled: boolean;
+};
+
 export type ActionResult<T = void> =
   | { success: true; data: T }
   | { success: false; error: string };
@@ -116,9 +124,42 @@ async function buildManifestationLabels(
   return labels;
 }
 
+async function attachManifestationOverrideCounts(
+  supabase: SupabaseClient<Database>,
+  records: Record<string, unknown>[],
+): Promise<Record<string, unknown>[]> {
+  const ids = records
+    .map((record) => Number(record.id))
+    .filter((id) => !Number.isNaN(id));
+
+  if (ids.length === 0) {
+    return records.map((record) => ({ ...record, override_count: 0 }));
+  }
+
+  const { data, error } = await supabase
+    .from("manifestation_interaction_override")
+    .select("manifestation_id")
+    .in("manifestation_id", ids)
+    .is("deleted_at", null);
+
+  if (error) throw error;
+
+  const counts = new Map<number, number>();
+  for (const row of data ?? []) {
+    if (row.manifestation_id == null) continue;
+    const manifestationId = Number(row.manifestation_id);
+    counts.set(manifestationId, (counts.get(manifestationId) ?? 0) + 1);
+  }
+
+  return records.map((record) => ({
+    ...record,
+    override_count: counts.get(Number(record.id)) ?? 0,
+  }));
+}
+
 export async function listRecords(
   tableName: string,
-  includeDeleted = false,
+  deletedOnly = false,
 ): Promise<ActionResult<Record<string, unknown>[]>> {
   const config = getConfig(tableName);
   if (!config) return { success: false, error: "Unknown table" };
@@ -127,14 +168,22 @@ export async function listRecords(
     const supabase = createAdminClient();
     let query = supabase.from(config.name).select("*").order("id");
 
-    if (config.softDelete && !includeDeleted) {
-      query = query.is("deleted_at", null);
+    if (config.softDelete) {
+      query = deletedOnly
+        ? query.not("deleted_at", "is", null)
+        : query.is("deleted_at", null);
     }
 
     const { data, error } = await query;
     if (error) return { success: false, error: error.message };
 
-    return { success: true, data: (data ?? []) as Record<string, unknown>[] };
+    let records = (data ?? []) as Record<string, unknown>[];
+
+    if (config.name === "awakener_tag_manifestation") {
+      records = await attachManifestationOverrideCounts(supabase, records);
+    }
+
+    return { success: true, data: records };
   } catch (error) {
     return {
       success: false,
@@ -285,6 +334,204 @@ export async function updateRecord(
   }
 }
 
+export async function listInteractionOverrides(
+  manifestationId: number,
+): Promise<ActionResult<Record<string, unknown>[]>> {
+  try {
+    const supabase = createAdminClient();
+    const { data, error } = await supabase
+      .from("manifestation_interaction_override")
+      .select("*")
+      .eq("manifestation_id", manifestationId)
+      .is("deleted_at", null)
+      .order("id");
+
+    if (error) return { success: false, error: error.message };
+
+    return { success: true, data: (data ?? []) as Record<string, unknown>[] };
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to load interaction overrides",
+    };
+  }
+}
+
+function buildOverrideRecord(
+  manifestationId: number,
+  override: InteractionOverrideInput,
+): Record<string, unknown> {
+  return {
+    manifestation_id: manifestationId,
+    modifier_tag_id: override.modifier_tag_id,
+    math_operation: override.math_operation,
+    override_default_factor: override.override_default_factor,
+    is_disabled: override.is_disabled,
+  };
+}
+
+export async function saveManifestationWithOverrides(
+  payload: Record<string, unknown>,
+  overrides: InteractionOverrideInput[],
+  manifestationId?: number,
+): Promise<ActionResult<Record<string, unknown>>> {
+  const config = getConfig("awakener_tag_manifestation");
+  if (!config) return { success: false, error: "Unknown table" };
+
+  try {
+    const supabase = createAdminClient();
+
+    let savedManifestationId = manifestationId;
+
+    if (savedManifestationId != null) {
+      const record: Record<string, unknown> = { ...payload };
+      delete record.id;
+
+      if (config.fields.some((field) => field.name === "updated_at")) {
+        record.updated_at = nowIso();
+      }
+
+      const uniqueCheck = await assertUniqueConstraints(
+        supabase,
+        config,
+        record,
+        savedManifestationId,
+      );
+      if (!uniqueCheck.success) return uniqueCheck;
+
+      const { data, error } = await supabase
+        .from("awakener_tag_manifestation")
+        .update(record as never)
+        .eq("id", savedManifestationId)
+        .select("*")
+        .single();
+
+      if (error) return { success: false, error: mapDbError(config, error) };
+      if (!data) {
+        return { success: false, error: "Manifestation record not found" };
+      }
+    } else {
+      const record: Record<string, unknown> = { ...payload };
+      delete record.id;
+
+      if (config.fields.some((field) => field.name === "created_at")) {
+        record.created_at = nowIso();
+      }
+      if (config.fields.some((field) => field.name === "updated_at")) {
+        record.updated_at = nowIso();
+      }
+
+      const uniqueCheck = await assertUniqueConstraints(
+        supabase,
+        config,
+        record,
+      );
+      if (!uniqueCheck.success) return uniqueCheck;
+
+      const { data, error } = await supabase
+        .from("awakener_tag_manifestation")
+        .insert(record as never)
+        .select("*")
+        .single();
+
+      if (error) return { success: false, error: mapDbError(config, error) };
+      savedManifestationId = Number(data.id);
+    }
+
+    const overrideConfig = getConfig("manifestation_interaction_override");
+    if (!overrideConfig) {
+      return { success: false, error: "Unknown override table" };
+    }
+
+    const { data: existingRows, error: existingError } = await supabase
+      .from("manifestation_interaction_override")
+      .select("id")
+      .eq("manifestation_id", savedManifestationId)
+      .is("deleted_at", null);
+
+    if (existingError) {
+      return { success: false, error: existingError.message };
+    }
+
+    const existingIds = new Set(
+      (existingRows ?? []).map((row) => Number(row.id)),
+    );
+    const submittedIds = new Set(
+      overrides
+        .map((override) => override.id)
+        .filter((id): id is number => id != null),
+    );
+
+    for (const existingId of existingIds) {
+      if (submittedIds.has(existingId)) continue;
+
+      const { error } = await supabase
+        .from("manifestation_interaction_override")
+        .update({
+          deleted_at: nowIso(),
+          updated_at: nowIso(),
+        } as never)
+        .eq("id", existingId);
+
+      if (error) return { success: false, error: error.message };
+    }
+
+    for (const override of overrides) {
+      const overrideRecord = buildOverrideRecord(
+        savedManifestationId,
+        override,
+      );
+
+      if (override.id != null) {
+        overrideRecord.updated_at = nowIso();
+        const { error } = await supabase
+          .from("manifestation_interaction_override")
+          .update(overrideRecord as never)
+          .eq("id", override.id);
+
+        if (error) return { success: false, error: error.message };
+        continue;
+      }
+
+      overrideRecord.created_at = nowIso();
+      overrideRecord.updated_at = nowIso();
+
+      const { error } = await supabase
+        .from("manifestation_interaction_override")
+        .insert(overrideRecord as never);
+
+      if (error) return { success: false, error: error.message };
+    }
+
+    revalidateTable("awakener_tag_manifestation");
+    revalidateTable("manifestation_interaction_override");
+
+    const { data: manifestation, error: loadError } = await supabase
+      .from("awakener_tag_manifestation")
+      .select("*")
+      .eq("id", savedManifestationId)
+      .single();
+
+    if (loadError) return { success: false, error: loadError.message };
+
+    return {
+      success: true,
+      data: manifestation as Record<string, unknown>,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to save manifestation",
+    };
+  }
+}
+
 export async function softDeleteRecord(
   tableName: string,
   id: number,
@@ -320,6 +567,70 @@ export async function softDeleteRecord(
     return {
       success: false,
       error: error instanceof Error ? error.message : "Failed to delete record",
+    };
+  }
+}
+
+export async function restoreRecord(
+  tableName: string,
+  id: number,
+): Promise<ActionResult> {
+  const config = getConfig(tableName);
+  if (!config) return { success: false, error: "Unknown table" };
+  if (!config.softDelete) {
+    return { success: false, error: "This table does not support soft delete" };
+  }
+
+  try {
+    const supabase = createAdminClient();
+    const { error } = await supabase
+      .from(config.name)
+      .update({
+        deleted_at: null,
+        updated_at: nowIso(),
+      } as never)
+      .eq("id", id)
+      .not("deleted_at", "is", null);
+
+    if (error) return { success: false, error: error.message };
+
+    revalidateTable(config.name);
+    return { success: true, data: undefined };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to restore record",
+    };
+  }
+}
+
+export async function permanentDeleteRecord(
+  tableName: string,
+  id: number,
+): Promise<ActionResult> {
+  const config = getConfig(tableName);
+  if (!config) return { success: false, error: "Unknown table" };
+
+  try {
+    const supabase = createAdminClient();
+    let query = supabase.from(config.name).delete().eq("id", id);
+
+    if (config.softDelete) {
+      query = query.not("deleted_at", "is", null);
+    }
+
+    const { error } = await query;
+    if (error) return { success: false, error: error.message };
+
+    revalidateTable(config.name);
+    return { success: true, data: undefined };
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to permanently delete record",
     };
   }
 }

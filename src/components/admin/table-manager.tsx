@@ -8,9 +8,11 @@ import {
   Loader2,
   Pencil,
   Plus,
+  RotateCcw,
   Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
+import { ManifestationFormDialog } from "@/components/admin/manifestation-form-dialog";
 import { RecordFormDialog } from "@/components/admin/record-form-dialog";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,7 +24,9 @@ import {
 } from "@/components/ui/card";
 import {
   listRecords,
+  permanentDeleteRecord,
   resolveForeignKeyLabels,
+  restoreRecord,
   softDeleteRecord,
 } from "@/lib/actions/crud";
 import type { FieldConfig, TableConfig } from "@/lib/schema-config";
@@ -132,13 +136,14 @@ export function TableManager({
     React.useState<Record<string, unknown>[]>(initialRecords);
   const [fkLabels, setFkLabels] =
     React.useState<Record<string, string>>(initialFkLabels);
-  const [includeDeleted, setIncludeDeleted] = React.useState(false);
+  const [showDeletedOnly, setShowDeletedOnly] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [editingRecord, setEditingRecord] = React.useState<
     Record<string, unknown> | null
   >(null);
   const [deletingId, setDeletingId] = React.useState<number | null>(null);
+  const [restoringId, setRestoringId] = React.useState<number | null>(null);
   const [sort, setSort] = React.useState<SortState>({
     field: null,
     direction: "asc",
@@ -167,9 +172,9 @@ export function TableManager({
     });
   }
 
-  async function refresh() {
+  async function refresh(deletedOnly = showDeletedOnly) {
     setLoading(true);
-    const result = await listRecords(config.name, includeDeleted);
+    const result = await listRecords(config.name, deletedOnly);
     if (!result.success) {
       toast.error(result.error);
       setLoading(false);
@@ -207,6 +212,42 @@ export function TableManager({
     }
   }
 
+  async function handleRestore(id: number) {
+    if (!window.confirm("Restore this record?")) return;
+
+    setRestoringId(id);
+    const result = await restoreRecord(config.name, id);
+    setRestoringId(null);
+
+    if (result.success) {
+      toast.success("Record restored");
+      await refresh();
+    } else {
+      toast.error(result.error);
+    }
+  }
+
+  async function handlePermanentDelete(id: number) {
+    if (
+      !window.confirm(
+        "Permanently delete this record? This cannot be undone.",
+      )
+    ) {
+      return;
+    }
+
+    setDeletingId(id);
+    const result = await permanentDeleteRecord(config.name, id);
+    setDeletingId(null);
+
+    if (result.success) {
+      toast.success("Record permanently deleted");
+      await refresh();
+    } else {
+      toast.error(result.error);
+    }
+  }
+
   function openCreate() {
     setEditingRecord(null);
     setDialogOpen(true);
@@ -230,13 +271,14 @@ export function TableManager({
               <label className="flex items-center gap-2 text-sm text-zinc-600">
                 <input
                   type="checkbox"
-                  checked={includeDeleted}
+                  checked={showDeletedOnly}
                   onChange={async (event) => {
-                    setIncludeDeleted(event.target.checked);
+                    const deletedOnly = event.target.checked;
+                    setShowDeletedOnly(deletedOnly);
                     setLoading(true);
                     const result = await listRecords(
                       config.name,
-                      event.target.checked,
+                      deletedOnly,
                     );
                     if (result.success) {
                       const labelResult = await resolveForeignKeyLabels(
@@ -252,10 +294,12 @@ export function TableManager({
                 Show deleted
               </label>
             )}
-            <Button onClick={openCreate}>
-              <Plus className="h-4 w-4" />
-              Add
-            </Button>
+            {!showDeletedOnly && (
+              <Button onClick={openCreate}>
+                <Plus className="h-4 w-4" />
+                Add
+              </Button>
+            )}
           </div>
         </CardHeader>
         <CardContent>
@@ -266,7 +310,9 @@ export function TableManager({
             </div>
           ) : records.length === 0 ? (
             <div className="rounded-lg border border-dashed border-zinc-200 py-16 text-center text-zinc-500">
-              No records yet. Create your first {config.label.toLowerCase()} entry.
+              {showDeletedOnly
+                ? "No deleted records."
+                : `No records yet. Create your first ${config.label.toLowerCase()} entry.`}
             </div>
           ) : (
             <div className="overflow-x-auto rounded-lg border border-zinc-200">
@@ -334,27 +380,64 @@ export function TableManager({
                         ))}
                         <td className="px-4 py-3 text-right">
                           <div className="flex justify-end gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => openEdit(record)}
-                            >
-                              <Pencil className="h-3.5 w-3.5" />
-                              Edit
-                            </Button>
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              disabled={deletingId === Number(record.id)}
-                              onClick={() => handleDelete(Number(record.id))}
-                            >
-                              {deletingId === Number(record.id) ? (
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                              ) : (
-                                <Trash2 className="h-3.5 w-3.5" />
-                              )}
-                              {config.softDelete ? "Soft delete" : "Delete"}
-                            </Button>
+                            {showDeletedOnly ? (
+                              <>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  disabled={restoringId === Number(record.id)}
+                                  onClick={() =>
+                                    handleRestore(Number(record.id))
+                                  }
+                                >
+                                  {restoringId === Number(record.id) ? (
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                  ) : (
+                                    <RotateCcw className="h-3.5 w-3.5" />
+                                  )}
+                                  Restore
+                                </Button>
+                                <Button
+                                  variant="destructive"
+                                  size="sm"
+                                  disabled={deletingId === Number(record.id)}
+                                  onClick={() =>
+                                    handlePermanentDelete(Number(record.id))
+                                  }
+                                >
+                                  {deletingId === Number(record.id) ? (
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                  ) : (
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  )}
+                                  Delete permanently
+                                </Button>
+                              </>
+                            ) : (
+                              <>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => openEdit(record)}
+                                >
+                                  <Pencil className="h-3.5 w-3.5" />
+                                  Edit
+                                </Button>
+                                <Button
+                                  variant="destructive"
+                                  size="sm"
+                                  disabled={deletingId === Number(record.id)}
+                                  onClick={() => handleDelete(Number(record.id))}
+                                >
+                                  {deletingId === Number(record.id) ? (
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                  ) : (
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  )}
+                                  {config.softDelete ? "Soft delete" : "Delete"}
+                                </Button>
+                              </>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -367,13 +450,23 @@ export function TableManager({
         </CardContent>
       </Card>
 
-      <RecordFormDialog
-        config={config}
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        record={editingRecord}
-        onSuccess={refresh}
-      />
+      {config.name === "awakener_tag_manifestation" ? (
+        <ManifestationFormDialog
+          config={config}
+          open={dialogOpen}
+          onOpenChange={setDialogOpen}
+          record={editingRecord}
+          onSuccess={refresh}
+        />
+      ) : (
+        <RecordFormDialog
+          config={config}
+          open={dialogOpen}
+          onOpenChange={setDialogOpen}
+          record={editingRecord}
+          onSuccess={refresh}
+        />
+      )}
     </>
   );
 }

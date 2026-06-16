@@ -25,6 +25,7 @@ export type Database = {
           damage_amp: number | null
           death_resist: number | null
           def: number | null
+          deleted_at: string | null
           id: number
           name: string | null
           realm: Database["public"]["Enums"]["realm"] | null
@@ -43,6 +44,7 @@ export type Database = {
           damage_amp?: number | null
           death_resist?: number | null
           def?: number | null
+          deleted_at?: string | null
           id?: number
           name?: string | null
           realm?: Database["public"]["Enums"]["realm"] | null
@@ -61,6 +63,7 @@ export type Database = {
           damage_amp?: number | null
           death_resist?: number | null
           def?: number | null
+          deleted_at?: string | null
           id?: number
           name?: string | null
           realm?: Database["public"]["Enums"]["realm"] | null
@@ -74,7 +77,6 @@ export type Database = {
       awakener_tag_manifestation: {
         Row: {
           awakener_id: number
-          base_graded_value: number | null
           base_hits: number | null
           created_at: string | null
           deleted_at: string | null
@@ -82,14 +84,15 @@ export type Database = {
           id: number
           required_e: number | null
           required_realm: Database["public"]["Enums"]["realm"] | null
+          scaling_stat: Database["public"]["Enums"]["awakener_stat"] | null
           source_type: Database["public"]["Enums"]["source_type"] | null
           stat_modifier: number | null
           tag_id: number
+          target_type: Database["public"]["Enums"]["target_type"] | null
           updated_at: string | null
         }
         Insert: {
           awakener_id: number
-          base_graded_value?: number | null
           base_hits?: number | null
           created_at?: string | null
           deleted_at?: string | null
@@ -97,14 +100,15 @@ export type Database = {
           id?: number
           required_e?: number | null
           required_realm?: Database["public"]["Enums"]["realm"] | null
+          scaling_stat?: Database["public"]["Enums"]["awakener_stat"] | null
           source_type?: Database["public"]["Enums"]["source_type"] | null
           stat_modifier?: number | null
           tag_id: number
+          target_type?: Database["public"]["Enums"]["target_type"] | null
           updated_at?: string | null
         }
         Update: {
           awakener_id?: number
-          base_graded_value?: number | null
           base_hits?: number | null
           created_at?: string | null
           deleted_at?: string | null
@@ -112,9 +116,11 @@ export type Database = {
           id?: number
           required_e?: number | null
           required_realm?: Database["public"]["Enums"]["realm"] | null
+          scaling_stat?: Database["public"]["Enums"]["awakener_stat"] | null
           source_type?: Database["public"]["Enums"]["source_type"] | null
           stat_modifier?: number | null
           tag_id?: number
+          target_type?: Database["public"]["Enums"]["target_type"] | null
           updated_at?: string | null
         }
         Relationships: [
@@ -219,8 +225,10 @@ export type Database = {
           id: number
           is_disabled: boolean | null
           manifestation_id: number | null
+          math_operation: Database["public"]["Enums"]["operation_type"] | null
           modifier_tag_id: number | null
-          override_multiplier: number | null
+          override_default_factor: number | null
+          target_type: Database["public"]["Enums"]["target_type"] | null
           updated_at: string | null
         }
         Insert: {
@@ -229,8 +237,10 @@ export type Database = {
           id?: number
           is_disabled?: boolean | null
           manifestation_id?: number | null
+          math_operation?: Database["public"]["Enums"]["operation_type"] | null
           modifier_tag_id?: number | null
-          override_multiplier?: number | null
+          override_default_factor?: number | null
+          target_type?: Database["public"]["Enums"]["target_type"] | null
           updated_at?: string | null
         }
         Update: {
@@ -239,8 +249,10 @@ export type Database = {
           id?: number
           is_disabled?: boolean | null
           manifestation_id?: number | null
+          math_operation?: Database["public"]["Enums"]["operation_type"] | null
           modifier_tag_id?: number | null
-          override_multiplier?: number | null
+          override_default_factor?: number | null
+          target_type?: Database["public"]["Enums"]["target_type"] | null
           updated_at?: string | null
         }
         Relationships: [
@@ -386,12 +398,25 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
+      awakener_stat:
+        | "con"
+        | "atk"
+        | "def"
+        | "skey"
+        | "damage_amp"
+        | "crit_rate"
+        | "crit_dmg"
+        | "realm_mastery"
+        | "aliemus_regen"
+        | "sigil_yield"
+        | "death_resist"
       curve_type: "linear" | "exponential" | "logarithmic"
       operation_type:
         | "add_to_base_value"
         | "add_to_multiplier"
         | "compound_multiplier"
         | "add_hits"
+        | "subtract"
       realm:
         | "chaos"
         | "caro"
@@ -401,6 +426,7 @@ export type Database = {
         | "ultra"
         | "singularity ultra"
       source_type: "card" | "exalt" | "tentacle"
+      target_type: "self" | "single" | "aoe"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -528,12 +554,26 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      awakener_stat: [
+        "con",
+        "atk",
+        "def",
+        "skey",
+        "damage_amp",
+        "crit_rate",
+        "crit_dmg",
+        "realm_mastery",
+        "aliemus_regen",
+        "sigil_yield",
+        "death_resist",
+      ],
       curve_type: ["linear", "exponential", "logarithmic"],
       operation_type: [
         "add_to_base_value",
         "add_to_multiplier",
         "compound_multiplier",
         "add_hits",
+        "subtract",
       ],
       realm: [
         "chaos",
@@ -545,6 +585,7 @@ export const Constants = {
         "singularity ultra",
       ],
       source_type: ["card", "exalt", "tentacle"],
+      target_type: ["self", "single", "aoe"],
     },
   },
 } as const
