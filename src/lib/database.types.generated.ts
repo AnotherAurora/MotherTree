@@ -80,8 +80,9 @@ export type Database = {
           base_hits: number | null
           created_at: string | null
           deleted_at: string | null
-          grading_logic: string | null
           id: number
+          metadata: string | null
+          ramp_turns: number | null
           required_e: number | null
           required_realm: Database["public"]["Enums"]["realm"] | null
           scaling_stat: Database["public"]["Enums"]["awakener_stat"] | null
@@ -96,8 +97,9 @@ export type Database = {
           base_hits?: number | null
           created_at?: string | null
           deleted_at?: string | null
-          grading_logic?: string | null
           id?: number
+          metadata?: string | null
+          ramp_turns?: number | null
           required_e?: number | null
           required_realm?: Database["public"]["Enums"]["realm"] | null
           scaling_stat?: Database["public"]["Enums"]["awakener_stat"] | null
@@ -112,8 +114,9 @@ export type Database = {
           base_hits?: number | null
           created_at?: string | null
           deleted_at?: string | null
-          grading_logic?: string | null
           id?: number
+          metadata?: string | null
+          ramp_turns?: number | null
           required_e?: number | null
           required_realm?: Database["public"]["Enums"]["realm"] | null
           scaling_stat?: Database["public"]["Enums"]["awakener_stat"] | null
@@ -425,7 +428,7 @@ export type Database = {
         | "divine aequor"
         | "ultra"
         | "singularity ultra"
-      source_type: "card" | "exalt" | "tentacle"
+      source_type: "command card" | "exalt" | "tentacle" | "rouse"
       target_type: "self" | "single" | "aoe"
     }
     CompositeTypes: {
@@ -584,7 +587,7 @@ export const Constants = {
         "ultra",
         "singularity ultra",
       ],
-      source_type: ["card", "exalt", "tentacle"],
+      source_type: ["command card", "exalt", "tentacle", "rouse"],
       target_type: ["self", "single", "aoe"],
     },
   },

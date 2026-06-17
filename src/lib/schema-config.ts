@@ -34,6 +34,7 @@ export type FieldConfig = {
   /** Populated at read time, not stored on the table */
   computed?: boolean;
   required?: boolean;
+  defaultValue?: string | number | boolean | null;
 };
 
 export type ChildTableConfig = {
@@ -182,10 +183,11 @@ export const TABLE_CONFIGS: TableConfig[] = [
         formHidden: true,
         computed: true,
       },
-      { name: "grading_logic", label: "Grading Logic", type: "textarea" },
+      { name: "metadata", label: "Metadata", type: "textarea" },
       { name: "scaling_stat", label: "Scaling Stat", type: "enum", enumName: "awakener_stat" },
-      { name: "stat_modifier", label: "Stat Modifier", type: "number" },
+      { name: "stat_modifier", label: "Stat Modifier / Buff Amount", type: "number" },
       { name: "base_hits", label: "Base Hits", type: "number" },
+      { name: "ramp_turns", label: "Ramp Turns", type: "number", defaultValue: 1 },
       { name: "required_e", label: "Required E", type: "number" },
       { name: "required_realm", label: "Required Realm", type: "enum", enumName: "realm" },
       { name: "source_type",

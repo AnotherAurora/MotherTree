@@ -213,21 +213,17 @@ export async function getForeignKeyOptions(
 
     const rows = (data ?? []) as Record<string, unknown>[];
 
+    let options: ForeignKeyOption[];
+
     if (labelKind === "manifestation") {
       const ids = rows.map((row) => Number(row.id));
       const labels = await buildManifestationLabels(ids);
-      return {
-        success: true,
-        data: rows.map((row) => ({
-          value: Number(row.id),
-          label: labels.get(Number(row.id)) ?? `#${row.id}`,
-        })),
-      };
-    }
-
-    return {
-      success: true,
-      data: rows.map((row) => {
+      options = rows.map((row) => ({
+        value: Number(row.id),
+        label: labels.get(Number(row.id)) ?? `#${row.id}`,
+      }));
+    } else {
+      options = rows.map((row) => {
         const display = row[displayColumn];
         const id = Number(row.id);
         const label =
@@ -235,8 +231,12 @@ export async function getForeignKeyOptions(
             ? `${String(display)} (#${id})`
             : `#${id}`;
         return { value: id, label };
-      }),
-    };
+      });
+    }
+
+    options.sort((a, b) => a.label.localeCompare(b.label));
+
+    return { success: true, data: options };
   } catch (error) {
     return {
       success: false,

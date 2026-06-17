@@ -46,7 +46,7 @@ function getInitialValues(
 ) {
   const values: Record<string, unknown> = {};
   for (const field of getFormFields(config)) {
-    values[field.name] = record?.[field.name] ?? null;
+    values[field.name] = record?.[field.name] ?? field.defaultValue ?? null;
   }
   return values;
 }
