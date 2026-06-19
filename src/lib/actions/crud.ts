@@ -14,6 +14,7 @@ import type { Database } from "@/lib/database.types";
 export type ForeignKeyOption = {
   value: number;
   label: string;
+  filterValue?: number;
 };
 
 export type InteractionOverrideInput = {
@@ -198,6 +199,7 @@ export async function getForeignKeyOptions(
   tableName: string,
   displayColumn: string,
   labelKind?: "manifestation",
+  filterColumn?: string,
 ): Promise<ActionResult<ForeignKeyOption[]>> {
   const config = getConfig(tableName);
   if (!config) return { success: false, error: "Unknown parent table" };
@@ -223,6 +225,9 @@ export async function getForeignKeyOptions(
       options = rows.map((row) => ({
         value: Number(row.id),
         label: labels.get(Number(row.id)) ?? `#${row.id}`,
+        ...(filterColumn
+          ? { filterValue: Number(row[filterColumn]) }
+          : {}),
       }));
     } else {
       options = rows.map((row) => {
@@ -230,9 +235,17 @@ export async function getForeignKeyOptions(
         const id = Number(row.id);
         const label =
           display != null && String(display).trim() !== ""
-            ? `${String(display)} (#${id})`
+            ? filterColumn
+              ? String(display)
+              : `${String(display)} (#${id})`
             : `#${id}`;
-        return { value: id, label };
+        return {
+          value: id,
+          label,
+          ...(filterColumn
+            ? { filterValue: Number(row[filterColumn]) }
+            : {}),
+        };
       });
     }
 

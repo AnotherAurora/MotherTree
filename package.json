@@ -2,13 +2,12 @@
   "name": "mother-tree",
   "version": "0.1.0",
   "private": true,
+  "repository": "github:AnotherAurora/MotherTree",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "import:awakeners": "tsx scripts/import-awakeners.ts",
-    "import:awakeners:execute": "tsx scripts/import-awakeners.ts --execute",
     "db:types": "tsx scripts/generate-database-types.ts",
     "db:pull": "npx supabase db pull"
   },

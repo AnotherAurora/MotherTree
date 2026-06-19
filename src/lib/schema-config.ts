@@ -17,6 +17,8 @@ export type ForeignKeyRef = {
   displayColumn: string;
   /** Composite label for complex parent rows */
   labelKind?: "manifestation";
+  /** Filter options to rows where column equals the named form field value */
+  filterBy?: { column: string; formField: string };
 };
 
 export type FieldConfig = {
@@ -181,6 +183,16 @@ export const TABLE_CONFIGS: TableConfig[] = [
         computed: true,
       },
       { name: "metadata", label: "Metadata", type: "textarea" },
+      {
+        name: "replaces_manifestation_id",
+        label: "Replaces Manifestation",
+        type: "foreignKey",
+        foreignKey: {
+          table: "awakener_tag_manifestation",
+          displayColumn: "metadata",
+          filterBy: { column: "awakener_id", formField: "awakener_id" },
+        },
+      },
       { name: "dependency_stat", label: "Dependency Stat", type: "enum", enumName: "awakener_stat" },
       { name: "value_scalar", label: "Value Scalar", type: "number" },
       { name: "base_hits", label: "Base Hits", type: "number" },

@@ -70,8 +70,18 @@ export function Sidebar() {
         })}
       </nav>
 
-      <div className="border-t border-zinc-800 px-5 py-4 text-xs text-zinc-500">
-        Supabase-backed CRUD for game data
+      <div className="border-t border-zinc-800 px-5 py-4 text-xs leading-relaxed text-zinc-500">
+        <p>Data from{" "}
+          <a
+            href="https://github.com/dansa/SKeyDB"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-zinc-400 underline-offset-2 hover:text-zinc-300 hover:underline"
+          >
+            SKeyDB
+          </a>
+        </p>
+        <p className="mt-1 text-zinc-600">CC BY-NC-SA 4.0</p>
       </div>
     </aside>
   );

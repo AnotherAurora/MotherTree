@@ -143,6 +143,7 @@ export function ManifestationFormDialog({
           fk.table,
           fk.displayColumn,
           fk.labelKind,
+          fk.filterBy?.column,
         );
         return {
           fieldName: field.name,
@@ -163,6 +164,52 @@ export function ManifestationFormDialog({
     // formSessionKey captures open/create-vs-edit transitions; config/record are read at that point only.
     // eslint-disable-next-line react-hooks/exhaustive-deps -- avoid reset on parent re-render after create
   }, [formSessionKey]);
+
+  React.useEffect(() => {
+    if (loadingOptions) return;
+
+    const replacesId = values.replaces_manifestation_id;
+    if (replacesId == null) return;
+
+    const awakenerId = values.awakener_id;
+    const allOptions = fkOptions.replaces_manifestation_id ?? [];
+    const currentId = record?.id == null ? null : Number(record.id);
+
+    const isValid =
+      awakenerId != null &&
+      allOptions.some(
+        (option) =>
+          option.value === Number(replacesId) &&
+          option.filterValue === Number(awakenerId) &&
+          option.value !== currentId,
+      );
+
+    if (!isValid) {
+      setValues((current) => ({ ...current, replaces_manifestation_id: null }));
+    }
+  }, [
+    values.awakener_id,
+    values.replaces_manifestation_id,
+    fkOptions.replaces_manifestation_id,
+    record?.id,
+    loadingOptions,
+  ]);
+
+  function getFilteredFkOptions(field: FieldConfig): ForeignKeyOption[] {
+    const allOptions = fkOptions[field.name] ?? [];
+    const filterBy = field.foreignKey?.filterBy;
+    if (!filterBy) return allOptions;
+
+    const filterSource = values[filterBy.formField];
+    if (filterSource == null || filterSource === "") return [];
+
+    const currentId = record?.id == null ? null : Number(record.id);
+    return allOptions.filter(
+      (option) =>
+        option.filterValue === Number(filterSource) &&
+        option.value !== currentId,
+    );
+  }
 
   function updateValue(name: string, value: unknown) {
     setValues((current) => ({ ...current, [name]: value }));
@@ -269,7 +316,7 @@ export function ManifestationFormDialog({
         <ForeignKeyCombobox
           value={value == null ? null : Number(value)}
           onChange={(next) => updateValue(field.name, next)}
-          options={fkOptions[field.name] ?? []}
+          options={getFilteredFkOptions(field)}
           disabled={loadingOptions}
           placeholder={`Select ${field.label.toLowerCase()}...`}
         />

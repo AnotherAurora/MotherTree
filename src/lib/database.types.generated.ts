@@ -87,6 +87,7 @@ export type Database = {
           id: number
           metadata: string | null
           ramp_turns: number | null
+          replaces_manifestation_id: number | null
           required_e: number | null
           required_realm: Database["public"]["Enums"]["realm"] | null
           source_type: Database["public"]["Enums"]["source_type"] | null
@@ -107,6 +108,7 @@ export type Database = {
           id?: number
           metadata?: string | null
           ramp_turns?: number | null
+          replaces_manifestation_id?: number | null
           required_e?: number | null
           required_realm?: Database["public"]["Enums"]["realm"] | null
           source_type?: Database["public"]["Enums"]["source_type"] | null
@@ -127,6 +129,7 @@ export type Database = {
           id?: number
           metadata?: string | null
           ramp_turns?: number | null
+          replaces_manifestation_id?: number | null
           required_e?: number | null
           required_realm?: Database["public"]["Enums"]["realm"] | null
           source_type?: Database["public"]["Enums"]["source_type"] | null
@@ -141,6 +144,13 @@ export type Database = {
             columns: ["awakener_id"]
             isOneToOne: false
             referencedRelation: "awakener"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "awakener_tag_manifestation_replaces_manifestation_id_fkey"
+            columns: ["replaces_manifestation_id"]
+            isOneToOne: false
+            referencedRelation: "awakener_tag_manifestation"
             referencedColumns: ["id"]
           },
           {

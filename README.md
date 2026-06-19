@@ -2,6 +2,8 @@
 
 A clean, modern admin dashboard for managing MotherTree game data stored in Supabase PostgreSQL.
 
+Game data in the database is sourced from [SKeyDB](https://github.com/dansa/SKeyDB). See [DATA-NOTICE.md](DATA-NOTICE.md) for attribution and licensing terms.
+
 ## Stack
 
 - **Next.js 16** (App Router, Server Actions)
@@ -114,3 +116,11 @@ Or use the Supabase MCP `generate_typescript_types` tool in Cursor.
 | `npm run build` | Production build |
 | `npm run start` | Start production server |
 | `npm run lint` | Run ESLint |
+
+## Credits
+
+> Contains SKeyDB community data/content for Morimens, created by dansa and SKeyDB contributors: https://github.com/dansa/SKeyDB
+
+SKeyDB data is licensed under [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/). See [DATA-NOTICE.md](DATA-NOTICE.md) and SKeyDB's [DATA-LICENSE.md](https://github.com/dansa/SKeyDB/blob/main/DATA-LICENSE.md).
+
+This project does not imply endorsement by SKeyDB, dansa, Qookka Games, or Morimens.
