@@ -43,9 +43,10 @@ export function ForeignKeyCombobox({
           role="combobox"
           aria-expanded={open}
           disabled={disabled}
+          title={selected?.label}
           className="w-full justify-between font-normal"
         >
-          <span className="truncate">
+          <span className="min-w-0 truncate">
             {selected ? selected.label : placeholder}
           </span>
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -97,7 +98,9 @@ export function ForeignKeyCombobox({
                     value === option.value ? "opacity-100" : "opacity-0",
                   )}
                 />
-                <span className="truncate">{option.label}</span>
+                <span className="min-w-0 flex-1 truncate" title={option.label}>
+                  {option.label}
+                </span>
               </button>
             ))
           )}

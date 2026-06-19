@@ -78,53 +78,62 @@ export type Database = {
         Row: {
           awakener_id: number
           base_hits: number | null
+          buff_target_type_restriction:
+            | Database["public"]["Enums"]["source_type"]
+            | null
           created_at: string | null
           deleted_at: string | null
+          dependency_stat: Database["public"]["Enums"]["awakener_stat"] | null
           id: number
           metadata: string | null
           ramp_turns: number | null
           required_e: number | null
           required_realm: Database["public"]["Enums"]["realm"] | null
-          scaling_stat: Database["public"]["Enums"]["awakener_stat"] | null
           source_type: Database["public"]["Enums"]["source_type"] | null
-          stat_modifier: number | null
           tag_id: number
           target_type: Database["public"]["Enums"]["target_type"] | null
           updated_at: string | null
+          value_scalar: number | null
         }
         Insert: {
           awakener_id: number
           base_hits?: number | null
+          buff_target_type_restriction?:
+            | Database["public"]["Enums"]["source_type"]
+            | null
           created_at?: string | null
           deleted_at?: string | null
+          dependency_stat?: Database["public"]["Enums"]["awakener_stat"] | null
           id?: number
           metadata?: string | null
           ramp_turns?: number | null
           required_e?: number | null
           required_realm?: Database["public"]["Enums"]["realm"] | null
-          scaling_stat?: Database["public"]["Enums"]["awakener_stat"] | null
           source_type?: Database["public"]["Enums"]["source_type"] | null
-          stat_modifier?: number | null
           tag_id: number
           target_type?: Database["public"]["Enums"]["target_type"] | null
           updated_at?: string | null
+          value_scalar?: number | null
         }
         Update: {
           awakener_id?: number
           base_hits?: number | null
+          buff_target_type_restriction?:
+            | Database["public"]["Enums"]["source_type"]
+            | null
           created_at?: string | null
           deleted_at?: string | null
+          dependency_stat?: Database["public"]["Enums"]["awakener_stat"] | null
           id?: number
           metadata?: string | null
           ramp_turns?: number | null
           required_e?: number | null
           required_realm?: Database["public"]["Enums"]["realm"] | null
-          scaling_stat?: Database["public"]["Enums"]["awakener_stat"] | null
           source_type?: Database["public"]["Enums"]["source_type"] | null
-          stat_modifier?: number | null
           tag_id?: number
           target_type?: Database["public"]["Enums"]["target_type"] | null
           updated_at?: string | null
+          value_scalar?: number | null
         }
         Relationships: [
           {
@@ -225,6 +234,7 @@ export type Database = {
         Row: {
           created_at: string | null
           deleted_at: string | null
+          dependency_stat: Database["public"]["Enums"]["awakener_stat"] | null
           id: number
           is_disabled: boolean | null
           manifestation_id: number | null
@@ -237,6 +247,7 @@ export type Database = {
         Insert: {
           created_at?: string | null
           deleted_at?: string | null
+          dependency_stat?: Database["public"]["Enums"]["awakener_stat"] | null
           id?: number
           is_disabled?: boolean | null
           manifestation_id?: number | null
@@ -249,6 +260,7 @@ export type Database = {
         Update: {
           created_at?: string | null
           deleted_at?: string | null
+          dependency_stat?: Database["public"]["Enums"]["awakener_stat"] | null
           id?: number
           is_disabled?: boolean | null
           manifestation_id?: number | null
@@ -428,7 +440,7 @@ export type Database = {
         | "divine aequor"
         | "ultra"
         | "singularity ultra"
-      source_type: "command card" | "exalt" | "tentacle" | "rouse"
+      source_type: "command card" | "exalt" | "tentacle" | "rouse" | "talent"
       target_type: "self" | "single" | "aoe"
     }
     CompositeTypes: {
@@ -587,7 +599,7 @@ export const Constants = {
         "ultra",
         "singularity ultra",
       ],
-      source_type: ["command card", "exalt", "tentacle", "rouse"],
+      source_type: ["command card", "exalt", "tentacle", "rouse", "talent"],
       target_type: ["self", "single", "aoe"],
     },
   },

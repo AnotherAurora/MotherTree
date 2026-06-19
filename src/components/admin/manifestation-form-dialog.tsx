@@ -57,6 +57,8 @@ function createEmptyOverride(): OverrideDraft {
     modifier_tag_id: null,
     math_operation: null,
     override_default_factor: null,
+    target_type: null,
+    dependency_stat: null,
     is_disabled: false,
   };
 }
@@ -73,6 +75,9 @@ function toOverrideDraft(row: Record<string, unknown>): OverrideDraft {
       row.override_default_factor == null
         ? null
         : Number(row.override_default_factor),
+    target_type: row.target_type == null ? null : String(row.target_type),
+    dependency_stat:
+      row.dependency_stat == null ? null : String(row.dependency_stat),
     is_disabled: Boolean(row.is_disabled),
   };
 }
@@ -95,6 +100,7 @@ export function ManifestationFormDialog({
   >({});
   const [loading, setLoading] = React.useState(false);
   const [loadingOptions, setLoadingOptions] = React.useState(false);
+  const [createMore, setCreateMore] = React.useState(false);
 
   const formSessionKey = open
     ? isEditing
@@ -105,6 +111,7 @@ export function ManifestationFormDialog({
   React.useEffect(() => {
     if (!open) return;
 
+    setCreateMore(false);
     setValues(getInitialValues(config, record));
     setOverrides([]);
 
@@ -244,7 +251,11 @@ export function ManifestationFormDialog({
     if (result.success) {
       toast.success(isEditing ? "Record updated" : "Record created");
       onSuccess();
-      onOpenChange(false);
+      if (!isEditing && createMore) {
+        setValues((current) => ({ ...current, ...payload }));
+      } else {
+        onOpenChange(false);
+      }
     } else {
       toast.error(result.error);
     }
@@ -504,18 +515,31 @@ export function ManifestationFormDialog({
             </div>
           )}
 
-          <div className="flex justify-end gap-2 border-t border-zinc-200 pt-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={loading || loadingOptions}>
-              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-              {isEditing ? "Save changes" : "Create record"}
-            </Button>
+          <div className="flex items-center gap-2 border-t border-zinc-200 pt-2">
+            {!isEditing && (
+              <label className="flex items-center gap-2 text-sm text-zinc-600">
+                <input
+                  type="checkbox"
+                  checked={createMore}
+                  onChange={(event) => setCreateMore(event.target.checked)}
+                  className="h-4 w-4 rounded border-zinc-300"
+                />
+                Create more
+              </label>
+            )}
+            <div className="ml-auto flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={loading || loadingOptions}>
+                {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+                {isEditing ? "Save changes" : "Create record"}
+              </Button>
+            </div>
           </div>
         </form>
       </DialogContent>

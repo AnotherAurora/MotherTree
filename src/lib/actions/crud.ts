@@ -21,6 +21,8 @@ export type InteractionOverrideInput = {
   modifier_tag_id: number | null;
   math_operation: string | null;
   override_default_factor: number | null;
+  target_type: string | null;
+  dependency_stat: string | null;
   is_disabled: boolean;
 };
 
@@ -369,6 +371,8 @@ function buildOverrideRecord(
     modifier_tag_id: override.modifier_tag_id,
     math_operation: override.math_operation,
     override_default_factor: override.override_default_factor,
+    target_type: override.target_type,
+    dependency_stat: override.dependency_stat,
     is_disabled: override.is_disabled,
   };
 }

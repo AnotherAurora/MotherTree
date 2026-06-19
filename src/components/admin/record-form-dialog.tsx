@@ -60,6 +60,7 @@ export function RecordFormDialog({
   >({});
   const [loading, setLoading] = React.useState(false);
   const [loadingOptions, setLoadingOptions] = React.useState(false);
+  const [createMore, setCreateMore] = React.useState(false);
 
   // Only reset the form when the dialog opens or the edit target changes —
   // not when parent re-renders pass a new config object reference after create.
@@ -71,6 +72,7 @@ export function RecordFormDialog({
 
   React.useEffect(() => {
     if (!open) return;
+    setCreateMore(false);
     setValues(getInitialValues(config, record));
 
     const fkFields = getFormFields(config).filter(
@@ -157,8 +159,7 @@ export function RecordFormDialog({
     if (result.success) {
       toast.success(isEditing ? "Record updated" : "Record created");
       onSuccess();
-      const stayOpen = !isEditing && config.keepOpenOnCreate;
-      if (stayOpen) {
+      if (!isEditing && createMore) {
         setValues((current) => ({ ...current, ...payload }));
       } else {
         onOpenChange(false);
@@ -265,18 +266,31 @@ export function RecordFormDialog({
             </div>
           ))}
 
-          <div className="flex justify-end gap-2 pt-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={loading || loadingOptions}>
-              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-              {isEditing ? "Save changes" : "Create record"}
-            </Button>
+          <div className="flex items-center gap-2 pt-2">
+            {!isEditing && (
+              <label className="flex items-center gap-2 text-sm text-zinc-600">
+                <input
+                  type="checkbox"
+                  checked={createMore}
+                  onChange={(event) => setCreateMore(event.target.checked)}
+                  className="h-4 w-4 rounded border-zinc-300"
+                />
+                Create more
+              </label>
+            )}
+            <div className="ml-auto flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={loading || loadingOptions}>
+                {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+                {isEditing ? "Save changes" : "Create record"}
+              </Button>
+            </div>
           </div>
         </form>
       </DialogContent>
