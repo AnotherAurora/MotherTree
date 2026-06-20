@@ -25,7 +25,7 @@ Game data in the database is sourced from [SKeyDB](https://github.com/dansa/SKey
 | Table | Soft Delete |
 |-------|-------------|
 | Tags | Yes |
-| Awakeners | No (hard delete) |
+| Awakeners | Yes |
 | Desires | Yes |
 | Manifestations | Yes |
 | Tag Interactions | Yes |

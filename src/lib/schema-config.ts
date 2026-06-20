@@ -335,7 +335,7 @@ export const TABLE_CONFIGS: TableConfig[] = [
         label: "Override Default Factor",
         type: "number",
       },
-      {
+       {
         name: "target_type",
         label: "Target Type",
         type: "enum",

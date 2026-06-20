@@ -71,7 +71,16 @@ export function Sidebar() {
       </nav>
 
       <div className="border-t border-zinc-800 px-5 py-4 text-xs leading-relaxed text-zinc-500">
-        <p>Data from{" "}
+        <a
+          href="https://github.com/AnotherAurora/MotherTree"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-zinc-400 underline-offset-2 hover:text-zinc-300 hover:underline"
+        >
+          Source on GitHub
+        </a>
+        <p className="mt-3">
+          Data from{" "}
           <a
             href="https://github.com/dansa/SKeyDB"
             target="_blank"
