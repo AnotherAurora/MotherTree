@@ -12,6 +12,31 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       awakener: {
@@ -79,7 +104,7 @@ export type Database = {
           awakener_id: number
           base_hits: number | null
           buff_target_type_restriction:
-            | Database["public"]["Enums"]["source_type_old"]
+            | Database["public"]["Enums"]["source_type"]
             | null
           created_at: string | null
           deleted_at: string | null
@@ -100,7 +125,7 @@ export type Database = {
           awakener_id: number
           base_hits?: number | null
           buff_target_type_restriction?:
-            | Database["public"]["Enums"]["source_type_old"]
+            | Database["public"]["Enums"]["source_type"]
             | null
           created_at?: string | null
           deleted_at?: string | null
@@ -121,7 +146,7 @@ export type Database = {
           awakener_id?: number
           base_hits?: number | null
           buff_target_type_restriction?:
-            | Database["public"]["Enums"]["source_type_old"]
+            | Database["public"]["Enums"]["source_type"]
             | null
           created_at?: string | null
           deleted_at?: string | null
@@ -451,13 +476,6 @@ export type Database = {
         | "ultra"
         | "singularity ultra"
       source_type: "command card" | "exalt" | "tentacle" | "rouse" | "talent"
-      source_type_old:
-        | "command card"
-        | "exalt"
-        | "tentacle"
-        | "rouse"
-        | "talent"
-        | "self"
       target_type: "self" | "single" | "aoe"
     }
     CompositeTypes: {
@@ -584,6 +602,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       awakener_stat: [
@@ -617,14 +638,6 @@ export const Constants = {
         "singularity ultra",
       ],
       source_type: ["command card", "exalt", "tentacle", "rouse", "talent"],
-      source_type_old: [
-        "command card",
-        "exalt",
-        "tentacle",
-        "rouse",
-        "talent",
-        "self",
-      ],
       target_type: ["self", "single", "aoe"],
     },
   },
