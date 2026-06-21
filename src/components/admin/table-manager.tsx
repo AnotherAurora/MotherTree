@@ -14,6 +14,7 @@ import {
 import { toast } from "sonner";
 import { ManifestationFormDialog } from "@/components/admin/manifestation-form-dialog";
 import { RecordFormDialog } from "@/components/admin/record-form-dialog";
+import { TagTreeView } from "@/components/admin/tag-tree-view";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -44,6 +45,16 @@ type SortState = {
   field: string | null;
   direction: SortDirection;
 };
+
+type ListViewMode = "table" | "tree";
+
+const TAG_LIST_VIEW_STORAGE_KEY = "mother-tree:tag-list-view";
+
+function readStoredListViewMode(): ListViewMode {
+  if (typeof window === "undefined") return "tree";
+  const stored = window.localStorage.getItem(TAG_LIST_VIEW_STORAGE_KEY);
+  return stored === "table" ? "table" : "tree";
+}
 
 function formatCellValue(
   fieldName: string,
@@ -148,6 +159,21 @@ export function TableManager({
     field: null,
     direction: "asc",
   });
+  const treeListView = config.listViews?.tree;
+  const [listViewMode, setListViewMode] = React.useState<ListViewMode>("tree");
+
+  React.useEffect(() => {
+    if (treeListView) {
+      setListViewMode(readStoredListViewMode());
+    }
+  }, [treeListView]);
+
+  function setListViewModeAndPersist(mode: ListViewMode) {
+    setListViewMode(mode);
+    if (treeListView) {
+      window.localStorage.setItem(TAG_LIST_VIEW_STORAGE_KEY, mode);
+    }
+  }
 
   const listFields = getListFields(config);
 
@@ -267,6 +293,32 @@ export function TableManager({
             <CardDescription>{config.description}</CardDescription>
           </div>
           <div className="flex items-center gap-2">
+            {treeListView && (
+              <div className="flex rounded-lg border border-zinc-200 p-0.5">
+                <Button
+                  type="button"
+                  variant={listViewMode === "table" ? "default" : "ghost"}
+                  size="sm"
+                  className={
+                    listViewMode === "table" ? undefined : "text-zinc-500"
+                  }
+                  onClick={() => setListViewModeAndPersist("table")}
+                >
+                  Table
+                </Button>
+                <Button
+                  type="button"
+                  variant={listViewMode === "tree" ? "default" : "ghost"}
+                  size="sm"
+                  className={
+                    listViewMode === "tree" ? undefined : "text-zinc-500"
+                  }
+                  onClick={() => setListViewModeAndPersist("tree")}
+                >
+                  Tree
+                </Button>
+              </div>
+            )}
             {config.softDelete && (
               <label className="flex items-center gap-2 text-sm text-zinc-600">
                 <input
@@ -314,6 +366,19 @@ export function TableManager({
                 ? "No deleted records."
                 : `No records yet. Create your first ${config.label.toLowerCase()} entry.`}
             </div>
+          ) : listViewMode === "tree" && treeListView ? (
+            <TagTreeView
+              config={config}
+              records={records}
+              pathField={treeListView.pathField}
+              showDeletedOnly={showDeletedOnly}
+              deletingId={deletingId}
+              restoringId={restoringId}
+              onEdit={openEdit}
+              onDelete={handleDelete}
+              onRestore={handleRestore}
+              onPermanentDelete={handlePermanentDelete}
+            />
           ) : (
             <div className="overflow-x-auto rounded-lg border border-zinc-200">
               <table className="min-w-full divide-y divide-zinc-200 text-sm">
