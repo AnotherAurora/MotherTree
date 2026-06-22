@@ -322,10 +322,28 @@ export async function updateRecord(
       record.updated_at = nowIso();
     }
 
+    let constraintPayload = record;
+    if (config.uniqueConstraints?.length) {
+      const { data: existing, error: fetchError } = await supabase
+        .from(config.name)
+        .select("*")
+        .eq("id", id)
+        .single();
+
+      if (fetchError) {
+        return { success: false, error: fetchError.message };
+      }
+
+      constraintPayload = {
+        ...(existing as Record<string, unknown>),
+        ...record,
+      };
+    }
+
     const uniqueCheck = await assertUniqueConstraints(
       supabase,
       config,
-      record,
+      constraintPayload,
       id,
     );
     if (!uniqueCheck.success) return uniqueCheck;

@@ -37,6 +37,8 @@ export type FieldConfig = {
   computed?: boolean;
   required?: boolean;
   defaultValue?: string | number | boolean | null;
+  /** Allow click-to-edit directly in the list table */
+  inlineEditable?: boolean;
 };
 
 export type ChildTableConfig = {
@@ -200,15 +202,66 @@ export const TABLE_CONFIGS: TableConfig[] = [
           filterBy: { column: "awakener_id", formField: "awakener_id" },
         },
       },
-      { name: "dependency_stat", label: "Dependency Stat", type: "enum", enumName: "awakener_stat" },
-      { name: "value_scalar", label: "Value Scalar", type: "number" },
-      { name: "base_hits", label: "Base Hits", type: "number" },
-      { name: "ramp_turns", label: "Ramp Turns", type: "number", defaultValue: 1 },
-      { name: "required_e", label: "Required E", type: "number" },
-      { name: "required_realm", label: "Required Realm", type: "enum", enumName: "realm" },
-      { name: "source_type",label: "Source Type", type: "enum", enumName: "source_type" },
-      { name: "target_type",label: "Target Type", type: "enum", enumName: "target_type" },
-      { name: "buff_target_type_restriction",label: "Buff Restriction", type: "enum", enumName: "source_type" },
+      {
+        name: "dependency_stat",
+        label: "Dependency Stat",
+        type: "enum",
+        enumName: "awakener_stat",
+        inlineEditable: true,
+      },
+      {
+        name: "value_scalar",
+        label: "Value Scalar",
+        type: "number",
+        inlineEditable: true,
+      },
+      {
+        name: "base_hits",
+        label: "Base Hits",
+        type: "number",
+        inlineEditable: true,
+      },
+      {
+        name: "ramp_turns",
+        label: "Ramp Turns",
+        type: "number",
+        defaultValue: 1,
+        inlineEditable: true,
+      },
+      {
+        name: "required_e",
+        label: "Required E",
+        type: "number",
+        inlineEditable: true,
+      },
+      {
+        name: "required_realm",
+        label: "Required Realm",
+        type: "enum",
+        enumName: "realm",
+        inlineEditable: true,
+      },
+      {
+        name: "source_type",
+        label: "Source Type",
+        type: "enum",
+        enumName: "source_type",
+        inlineEditable: true,
+      },
+      {
+        name: "target_type",
+        label: "Target Type",
+        type: "enum",
+        enumName: "target_type",
+        inlineEditable: true,
+      },
+      {
+        name: "buff_target_type_restriction",
+        label: "Buff Restriction",
+        type: "enum",
+        enumName: "source_type",
+        inlineEditable: true,
+      },
       ...timestampFields(),
     ],
     childTables: [
@@ -295,13 +348,20 @@ export const TABLE_CONFIGS: TableConfig[] = [
         type: "enum",
         enumName: "operation_type",
         required: true,
+        inlineEditable: true,
       },
-      { name: "default_factor", label: "Default Factor", type: "number" },
+      {
+        name: "default_factor",
+        label: "Default Factor",
+        type: "number",
+        inlineEditable: true,
+      },
       {
         name: "source_type",
         label: "Source Type",
         type: "enum",
         enumName: "source_type",
+        inlineEditable: true,
       },
       ...timestampFields(),
     ],

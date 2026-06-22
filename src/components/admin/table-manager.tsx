@@ -13,6 +13,10 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { ManifestationFormDialog } from "@/components/admin/manifestation-form-dialog";
+import {
+  EditableCell,
+  formatCellDisplayValue,
+} from "@/components/admin/editable-cell";
 import { RecordFormDialog } from "@/components/admin/record-form-dialog";
 import { TagTreeView } from "@/components/admin/tag-tree-view";
 import { Button } from "@/components/ui/button";
@@ -61,15 +65,13 @@ function formatCellValue(
   value: unknown,
   fkLabels: Record<string, string>,
 ) {
-  if (value == null || value === "") return "—";
-
-  const fkLabel = fkLabels[`${fieldName}:${value}`];
-  if (fkLabel) return fkLabel;
-
-  if (typeof value === "boolean") return value ? "Yes" : "No";
-  if (typeof value === "number") return value.toString();
-  return String(value);
+  return formatCellDisplayValue(fieldName, value, fkLabels);
 }
+
+type EditingCellState = {
+  recordId: number;
+  fieldName: string;
+} | null;
 
 function getSortValue(
   record: Record<string, unknown>,
@@ -159,6 +161,7 @@ export function TableManager({
     field: null,
     direction: "asc",
   });
+  const [editingCell, setEditingCell] = React.useState<EditingCellState>(null);
   const treeListView = config.listViews?.tree;
   const [listViewMode, setListViewMode] = React.useState<ListViewMode>("tree");
 
@@ -179,6 +182,7 @@ export function TableManager({
 
   React.useEffect(() => {
     setSort({ field: null, direction: "asc" });
+    setEditingCell(null);
   }, [config.name]);
 
   const sortedRecords = React.useMemo(
@@ -280,8 +284,17 @@ export function TableManager({
   }
 
   function openEdit(record: Record<string, unknown>) {
+    setEditingCell(null);
     setEditingRecord(record);
     setDialogOpen(true);
+  }
+
+  function handleInlineUpdate(updated: Record<string, unknown>) {
+    setRecords((current) =>
+      current.map((record) =>
+        record.id === updated.id ? updated : record,
+      ),
+    );
   }
 
   return (
@@ -433,13 +446,40 @@ export function TableManager({
                       <tr
                         key={String(record.id)}
                         className={isDeleted ? "bg-zinc-50 text-zinc-400" : ""}
+                        onDoubleClick={() => {
+                          if (!showDeletedOnly && !isDeleted) {
+                            openEdit(record);
+                          }
+                        }}
                       >
                         {listFields.map((field) => (
                           <td key={field.name} className="px-4 py-3 align-top">
-                            {formatCellValue(
-                              field.name,
-                              record[field.name],
-                              fkLabels,
+                            {field.inlineEditable && !showDeletedOnly && !isDeleted ? (
+                              <EditableCell
+                                tableName={config.name}
+                                recordId={Number(record.id)}
+                                field={field}
+                                value={record[field.name]}
+                                fkLabels={fkLabels}
+                                isActive={
+                                  editingCell?.recordId === Number(record.id) &&
+                                  editingCell.fieldName === field.name
+                                }
+                                onActivate={() =>
+                                  setEditingCell({
+                                    recordId: Number(record.id),
+                                    fieldName: field.name,
+                                  })
+                                }
+                                onDeactivate={() => setEditingCell(null)}
+                                onUpdate={handleInlineUpdate}
+                              />
+                            ) : (
+                              formatCellValue(
+                                field.name,
+                                record[field.name],
+                                fkLabels,
+                              )
                             )}
                           </td>
                         ))}
