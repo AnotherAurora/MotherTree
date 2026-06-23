@@ -9,9 +9,18 @@ import {
   RotateCcw,
   Trash2,
 } from "lucide-react";
+import {
+  EditableCell,
+  formatCellDisplayValue,
+} from "@/components/admin/editable-cell";
 import { Button } from "@/components/ui/button";
-import type { TableConfig } from "@/lib/schema-config";
+import type { FieldConfig, TableConfig } from "@/lib/schema-config";
 import { buildTagTree, collectTreePaths, type TagTreeNode } from "@/lib/tag-tree";
+
+export type EditingCellState = {
+  recordId: number;
+  fieldName: string;
+} | null;
 
 type TagTreeViewProps = {
   config: TableConfig;
@@ -20,6 +29,11 @@ type TagTreeViewProps = {
   showDeletedOnly: boolean;
   deletingId: number | null;
   restoringId: number | null;
+  inlineFields: FieldConfig[];
+  editingCell: EditingCellState;
+  onEditingCellChange: (state: EditingCellState) => void;
+  onInlineUpdate: (updated: Record<string, unknown>) => void;
+  fkLabels: Record<string, string>;
   onEdit: (record: Record<string, unknown>) => void;
   onDelete: (id: number) => void;
   onRestore: (id: number) => void;
@@ -35,6 +49,11 @@ type TreeRowProps = {
   onToggle: (path: string) => void;
   showDeletedOnly: boolean;
   config: TableConfig;
+  inlineFields: FieldConfig[];
+  editingCell: EditingCellState;
+  onEditingCellChange: (state: EditingCellState) => void;
+  onInlineUpdate: (updated: Record<string, unknown>) => void;
+  fkLabels: Record<string, string>;
   deletingId: number | null;
   restoringId: number | null;
   onEdit: (record: Record<string, unknown>) => void;
@@ -83,6 +102,11 @@ function TreeRow({
   onToggle,
   showDeletedOnly,
   config,
+  inlineFields,
+  editingCell,
+  onEditingCellChange,
+  onInlineUpdate,
+  fkLabels,
   deletingId,
   restoringId,
   onEdit,
@@ -121,21 +145,42 @@ function TreeRow({
             <span className="inline-block w-5 shrink-0" />
           )}
           <span className="font-medium text-zinc-900">{node.segment}</span>
-          {record && (
-            <>
-              <span className="text-zinc-400">·</span>
-              <span className="font-mono text-xs text-zinc-500">
-                #{String(record.id)}
-              </span>
-              <span className="truncate font-mono text-xs text-zinc-400">
-                {node.fullPath}
-              </span>
-            </>
-          )}
           {!record && hasChildren && (
             <span className="text-xs text-zinc-400">(folder)</span>
           )}
         </div>
+        {record &&
+          inlineFields.map((field) => (
+            <div key={field.name} className="w-24 shrink-0 self-center">
+              {field.inlineEditable && !showDeletedOnly && !isDeleted ? (
+                <EditableCell
+                  tableName={config.name}
+                  recordId={Number(record.id)}
+                  field={field}
+                  value={record[field.name]}
+                  fkLabels={fkLabels}
+                  isActive={
+                    editingCell?.recordId === Number(record.id) &&
+                    editingCell.fieldName === field.name
+                  }
+                  onActivate={() =>
+                    onEditingCellChange({
+                      recordId: Number(record.id),
+                      fieldName: field.name,
+                    })
+                  }
+                  onDeactivate={() => onEditingCellChange(null)}
+                  onUpdate={onInlineUpdate}
+                />
+              ) : (
+                formatCellDisplayValue(
+                  field.name,
+                  record[field.name],
+                  fkLabels,
+                )
+              )}
+            </div>
+          ))}
         {record && (
           <div className="flex shrink-0 gap-2">
             {showDeletedOnly ? (
@@ -208,6 +253,11 @@ function TreeRow({
             onToggle={onToggle}
             showDeletedOnly={showDeletedOnly}
             config={config}
+            inlineFields={inlineFields}
+            editingCell={editingCell}
+            onEditingCellChange={onEditingCellChange}
+            onInlineUpdate={onInlineUpdate}
+            fkLabels={fkLabels}
             deletingId={deletingId}
             restoringId={restoringId}
             onEdit={onEdit}
@@ -227,6 +277,11 @@ export function TagTreeView({
   showDeletedOnly,
   deletingId,
   restoringId,
+  inlineFields,
+  editingCell,
+  onEditingCellChange,
+  onInlineUpdate,
+  fkLabels,
   onEdit,
   onDelete,
   onRestore,
@@ -277,6 +332,17 @@ export function TagTreeView({
           Collapse all
         </Button>
       </div>
+      {inlineFields.length > 0 && (
+        <div className="flex items-center gap-2 border-b border-zinc-200 bg-zinc-50 py-2 pl-4 pr-4 text-xs font-medium text-zinc-600">
+          <div className="flex-1" />
+          {inlineFields.map((field) => (
+            <div key={field.name} className="w-24 shrink-0">
+              {field.label}
+            </div>
+          ))}
+          <div className="w-[168px] shrink-0 text-right">Actions</div>
+        </div>
+      )}
       <div>
         {tree.map((node, index) => (
           <TreeRow
@@ -289,6 +355,11 @@ export function TagTreeView({
             onToggle={togglePath}
             showDeletedOnly={showDeletedOnly}
             config={config}
+            inlineFields={inlineFields}
+            editingCell={editingCell}
+            onEditingCellChange={onEditingCellChange}
+            onInlineUpdate={onInlineUpdate}
+            fkLabels={fkLabels}
             deletingId={deletingId}
             restoringId={restoringId}
             onEdit={onEdit}

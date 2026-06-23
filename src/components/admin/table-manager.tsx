@@ -179,6 +179,7 @@ export function TableManager({
   }
 
   const listFields = getListFields(config);
+  const inlineFields = listFields.filter((field) => field.inlineEditable);
 
   React.useEffect(() => {
     setSort({ field: null, direction: "asc" });
@@ -387,6 +388,11 @@ export function TableManager({
               showDeletedOnly={showDeletedOnly}
               deletingId={deletingId}
               restoringId={restoringId}
+              inlineFields={inlineFields}
+              editingCell={editingCell}
+              onEditingCellChange={setEditingCell}
+              onInlineUpdate={handleInlineUpdate}
+              fkLabels={fkLabels}
               onEdit={openEdit}
               onDelete={handleDelete}
               onRestore={handleRestore}

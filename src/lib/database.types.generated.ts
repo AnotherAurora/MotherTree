@@ -360,6 +360,7 @@ export type Database = {
           created_at: string | null
           deleted_at: string | null
           id: number
+          layer: Database["public"]["Enums"]["layer"] | null
           tag_name: string
           updated_at: string | null
         }
@@ -367,6 +368,7 @@ export type Database = {
           created_at?: string | null
           deleted_at?: string | null
           id?: number
+          layer?: Database["public"]["Enums"]["layer"] | null
           tag_name: string
           updated_at?: string | null
         }
@@ -374,6 +376,7 @@ export type Database = {
           created_at?: string | null
           deleted_at?: string | null
           id?: number
+          layer?: Database["public"]["Enums"]["layer"] | null
           tag_name?: string
           updated_at?: string | null
         }
@@ -461,6 +464,7 @@ export type Database = {
         | "sigil_yield"
         | "death_resist"
       curve_type: "linear" | "exponential" | "logarithmic"
+      layer: "x" | "y" | "z" | "f"
       operation_type:
         | "add_to_base_value"
         | "add_to_multiplier"
@@ -621,6 +625,7 @@ export const Constants = {
         "death_resist",
       ],
       curve_type: ["linear", "exponential", "logarithmic"],
+      layer: ["x", "y", "z", "f"],
       operation_type: [
         "add_to_base_value",
         "add_to_multiplier",
