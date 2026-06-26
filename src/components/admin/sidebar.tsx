@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import type { ComponentType } from "react";
 import {
   Database,
+  FlaskConical,
   GitBranch,
   Heart,
   Layers,
@@ -47,6 +48,25 @@ export function Sidebar() {
       </div>
 
       <nav className="flex-1 space-y-1 overflow-y-auto p-3">
+        <p className="px-3 pb-1 pt-2 text-xs font-medium uppercase tracking-wider text-zinc-500">
+          Tools
+        </p>
+        <Link
+          href="/simulator"
+          className={cn(
+            "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors",
+            pathname === "/simulator"
+              ? "bg-white text-zinc-950"
+              : "text-zinc-300 hover:bg-zinc-900 hover:text-white",
+          )}
+        >
+          <FlaskConical className="h-4 w-4 shrink-0" />
+          <span>Recommendation Simulator Debugger</span>
+        </Link>
+
+        <p className="px-3 pb-1 pt-4 text-xs font-medium uppercase tracking-wider text-zinc-500">
+          Tables
+        </p>
         {sorted.map((config) => {
           const href = `/tables/${config.name}`;
           const active = pathname === href;
