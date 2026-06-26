@@ -122,7 +122,7 @@ function TreeRow({
   return (
     <>
       <div
-        className={`flex items-stretch gap-2 border-b border-zinc-100 py-2.5 pl-4 pr-4 text-sm ${
+        className={`flex items-stretch gap-2 border-b border-border py-2.5 pl-4 pr-4 text-sm ${
           isDeleted ? "bg-zinc-50 text-zinc-400" : "bg-white"
         }`}
       >
@@ -323,8 +323,8 @@ export function TagTreeView({
   }
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-zinc-200">
-      <div className="flex items-center justify-end gap-2 border-b border-zinc-200 bg-zinc-50 px-4 py-2">
+    <div className="overflow-x-auto rounded-lg border border-border">
+      <div className="flex items-center justify-end gap-2 border-b border-border bg-zinc-50 px-4 py-2">
         <Button type="button" variant="ghost" size="sm" onClick={expandAll}>
           Expand all
         </Button>
@@ -333,7 +333,7 @@ export function TagTreeView({
         </Button>
       </div>
       {inlineFields.length > 0 && (
-        <div className="flex items-center gap-2 border-b border-zinc-200 bg-zinc-50 py-2 pl-4 pr-4 text-xs font-medium text-zinc-600">
+        <div className="flex items-center gap-2 border-b border-border bg-zinc-50 py-2 pl-4 pr-4 text-xs font-medium text-zinc-600">
           <div className="flex-1" />
           {inlineFields.map((field) => (
             <div key={field.name} className="w-24 shrink-0">

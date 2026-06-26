@@ -39,7 +39,7 @@ export function SimulatorSidebar({
           </CardTitle>
         </CardHeader>
         <CardContent className="pt-0">
-          <div className="max-h-[200px] min-h-[200px] overflow-y-auto rounded-lg border border-zinc-200 bg-zinc-50 p-3">
+          <div className="max-h-[200px] min-h-[200px] overflow-y-auto rounded-lg border border-border bg-zinc-50 p-3">
             <ul className="space-y-2 font-mono text-xs text-zinc-600">
               {SUMMARY_LINES.map((line) => (
                 <li key={line}>{line}</li>
@@ -67,7 +67,7 @@ export function SimulatorSidebar({
           </div>
         </CardHeader>
         <CardContent className="flex-1 pt-0">
-          <div className="min-h-[120px] overflow-y-auto rounded-lg border border-zinc-200 bg-zinc-50 p-3">
+          <div className="min-h-[120px] overflow-y-auto rounded-lg border border-border bg-zinc-50 p-3">
             {banList.length > 0 ? (
               <div className="flex flex-wrap gap-1.5">
                 {banList.map((tag) => (

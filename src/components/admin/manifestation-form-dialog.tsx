@@ -340,7 +340,7 @@ export function ManifestationFormDialog({
             type="checkbox"
             checked={Boolean(value)}
             onChange={(event) => updateValue(field.name, event.target.checked)}
-            className="h-4 w-4 rounded border-zinc-300"
+            className="h-4 w-4 rounded border-border"
           />
           Enabled
         </label>
@@ -437,7 +437,7 @@ export function ManifestationFormDialog({
                 event.target.checked,
               )
             }
-            className="h-4 w-4 rounded border-zinc-300"
+            className="h-4 w-4 rounded border-border"
           />
           Disabled
         </label>
@@ -490,7 +490,7 @@ export function ManifestationFormDialog({
           </div>
 
           {childConfig && (
-            <div className="space-y-3 border-t border-zinc-200 pt-4">
+            <div className="space-y-3 border-t border-border pt-4">
               <div className="flex items-center justify-between gap-2">
                 <div>
                   <h3 className="text-sm font-medium text-zinc-900">
@@ -513,7 +513,7 @@ export function ManifestationFormDialog({
               </div>
 
               {overrides.length === 0 ? (
-                <p className="rounded-lg border border-dashed border-zinc-200 px-4 py-6 text-center text-sm text-zinc-500">
+                <p className="rounded-lg border border-dashed border-border px-4 py-6 text-center text-sm text-zinc-500">
                   No interaction overrides. Add one if this manifestation needs
                   custom synergy rules.
                 </p>
@@ -522,7 +522,7 @@ export function ManifestationFormDialog({
                   {overrides.map((override, index) => (
                     <div
                       key={override.clientKey}
-                      className="space-y-3 rounded-lg border border-zinc-200 bg-zinc-50 p-4"
+                      className="space-y-3 rounded-lg border border-border bg-zinc-50 p-4"
                     >
                       <div className="flex items-center justify-between gap-2">
                         <p className="text-sm font-medium text-zinc-700">
@@ -562,14 +562,14 @@ export function ManifestationFormDialog({
             </div>
           )}
 
-          <div className="flex items-center gap-2 border-t border-zinc-200 pt-2">
+          <div className="flex items-center gap-2 border-t border-border pt-2">
             {!isEditing && (
               <label className="flex items-center gap-2 text-sm text-zinc-600">
                 <input
                   type="checkbox"
                   checked={createMore}
                   onChange={(event) => setCreateMore(event.target.checked)}
-                  className="h-4 w-4 rounded border-zinc-300"
+                  className="h-4 w-4 rounded border-border"
                 />
                 Create more
               </label>

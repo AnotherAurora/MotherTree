@@ -201,7 +201,7 @@ export function RecordFormDialog({
             type="checkbox"
             checked={Boolean(value)}
             onChange={(event) => updateValue(field.name, event.target.checked)}
-            className="h-4 w-4 rounded border-zinc-300"
+            className="h-4 w-4 rounded border-border"
           />
           Enabled
         </label>
@@ -273,7 +273,7 @@ export function RecordFormDialog({
                   type="checkbox"
                   checked={createMore}
                   onChange={(event) => setCreateMore(event.target.checked)}
-                  className="h-4 w-4 rounded border-zinc-300"
+                  className="h-4 w-4 rounded border-border"
                 />
                 Create more
               </label>

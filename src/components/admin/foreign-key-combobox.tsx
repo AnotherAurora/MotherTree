@@ -53,7 +53,7 @@ export function ForeignKeyCombobox({
         </Button>
       </PopoverTrigger>
       <PopoverContent className="p-0" align="start">
-        <div className="border-b border-zinc-100 p-2">
+        <div className="border-b border-border p-2">
           <input
             className="flex h-8 w-full rounded-md bg-transparent px-2 text-sm outline-none placeholder:text-zinc-400"
             placeholder="Search..."

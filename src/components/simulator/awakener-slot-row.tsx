@@ -71,7 +71,7 @@ export function AwakenerSlotRow({ index, slot, onChange }: AwakenerSlotRowProps)
           <Label className="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-500">
             Related Tag List
           </Label>
-          <div className="flex-1 overflow-y-auto rounded-lg border border-zinc-200 bg-zinc-50 p-3">
+          <div className="flex-1 overflow-y-auto rounded-lg border border-border bg-zinc-50 p-3">
             {tags.length > 0 ? (
               <div className="flex flex-wrap gap-1.5">
                 {tags.map((tag) => (

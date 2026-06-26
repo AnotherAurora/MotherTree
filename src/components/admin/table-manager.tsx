@@ -308,7 +308,7 @@ export function TableManager({
           </div>
           <div className="flex items-center gap-2">
             {treeListView && (
-              <div className="flex rounded-lg border border-zinc-200 p-0.5">
+              <div className="flex rounded-lg border border-border p-0.5">
                 <Button
                   type="button"
                   variant={listViewMode === "table" ? "default" : "ghost"}
@@ -375,7 +375,7 @@ export function TableManager({
               Loading records...
             </div>
           ) : records.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-zinc-200 py-16 text-center text-zinc-500">
+            <div className="rounded-lg border border-dashed border-border py-16 text-center text-zinc-500">
               {showDeletedOnly
                 ? "No deleted records."
                 : `No records yet. Create your first ${config.label.toLowerCase()} entry.`}
@@ -399,8 +399,8 @@ export function TableManager({
               onPermanentDelete={handlePermanentDelete}
             />
           ) : (
-            <div className="overflow-x-auto rounded-lg border border-zinc-200">
-              <table className="min-w-full divide-y divide-zinc-200 text-sm">
+            <div className="overflow-x-auto rounded-lg border border-border">
+              <table className="min-w-full divide-y divide-border text-sm">
                 <thead className="bg-zinc-50">
                   <tr>
                     {listFields.map((field) => {
@@ -445,7 +445,7 @@ export function TableManager({
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-zinc-100 bg-white">
+                <tbody className="divide-y divide-border bg-white">
                   {sortedRecords.map((record) => {
                     const isDeleted = Boolean(record.deleted_at);
                     return (

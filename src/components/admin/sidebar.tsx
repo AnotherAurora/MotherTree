@@ -35,7 +35,7 @@ export function Sidebar() {
     .sort((a, b) => a.order - b.order);
 
   return (
-    <aside className="flex h-full w-64 shrink-0 flex-col border-r border-zinc-200 bg-zinc-950 text-zinc-100">
+    <aside className="flex h-full w-64 shrink-0 flex-col border-r border-border bg-zinc-950 text-zinc-100">
       <div className="border-b border-zinc-800 px-5 py-6">
         <Link href="/" className="block">
           <p className="text-xs uppercase tracking-[0.2em] text-zinc-400">
