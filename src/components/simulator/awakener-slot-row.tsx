@@ -1,27 +1,113 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { ForeignKeyCombobox } from "@/components/admin/foreign-key-combobox";
+import { EnumSelect } from "@/components/admin/enum-select";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { EnumSelect } from "@/components/admin/enum-select";
 import {
-  AWAKENER_OPTIONS,
-  AWAKENER_TAGS,
   COVENANT_OPTIONS,
   WHEEL_OPTIONS,
   type SlotState,
 } from "@/components/simulator/mock-data";
+import type { ForeignKeyOption } from "@/lib/actions/crud";
+import {
+  getAwakenerRelatedTags,
+  type AwakenerRelatedTags,
+} from "@/lib/actions/simulator";
 
 type AwakenerSlotRowProps = {
   index: number;
   slot: SlotState;
+  awakenerOptions: ForeignKeyOption[];
+  getCachedTags: (awakenerId: number) => AwakenerRelatedTags | undefined;
+  setCachedTags: (awakenerId: number, tags: AwakenerRelatedTags) => void;
   onChange: (slot: SlotState) => void;
 };
 
-export function AwakenerSlotRow({ index, slot, onChange }: AwakenerSlotRowProps) {
-  const tags =
-    slot.awakener && AWAKENER_TAGS[slot.awakener]
-      ? AWAKENER_TAGS[slot.awakener]
-      : [];
+function TagSection({
+  title,
+  tags,
+}: {
+  title: string;
+  tags: string[];
+}) {
+  return (
+    <div className="space-y-1.5">
+      <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-400">
+        {title}
+      </p>
+      {tags.length > 0 ? (
+        <div className="flex flex-wrap gap-1.5">
+          {tags.map((tag) => (
+            <span
+              key={tag}
+              className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-700"
+            >
+              {tag}
+            </span>
+          ))}
+        </div>
+      ) : (
+        <p className="text-xs text-zinc-400">None</p>
+      )}
+    </div>
+  );
+}
+
+export function AwakenerSlotRow({
+  index,
+  slot,
+  awakenerOptions,
+  getCachedTags,
+  setCachedTags,
+  onChange,
+}: AwakenerSlotRowProps) {
+  const [relatedTags, setRelatedTags] = useState<AwakenerRelatedTags | null>(
+    null,
+  );
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (slot.awakenerId == null) {
+      setRelatedTags(null);
+      setLoading(false);
+      setError(null);
+      return;
+    }
+
+    const cached = getCachedTags(slot.awakenerId);
+    if (cached) {
+      setRelatedTags(cached);
+      setLoading(false);
+      setError(null);
+      return;
+    }
+
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    setRelatedTags(null);
+
+    getAwakenerRelatedTags(slot.awakenerId).then((result) => {
+      if (cancelled) return;
+
+      if (result.success) {
+        setCachedTags(slot.awakenerId!, result.data);
+        setRelatedTags(result.data);
+        setError(null);
+      } else {
+        setRelatedTags(null);
+        setError(result.error);
+      }
+      setLoading(false);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [slot.awakenerId, getCachedTags, setCachedTags]);
 
   return (
     <Card>
@@ -31,10 +117,10 @@ export function AwakenerSlotRow({ index, slot, onChange }: AwakenerSlotRowProps)
             <Label className="text-xs text-zinc-500">
               Awakener {index + 1}
             </Label>
-            <EnumSelect
-              value={slot.awakener}
-              onChange={(awakener) => onChange({ ...slot, awakener })}
-              options={AWAKENER_OPTIONS}
+            <ForeignKeyCombobox
+              value={slot.awakenerId}
+              onChange={(awakenerId) => onChange({ ...slot, awakenerId })}
+              options={awakenerOptions}
               placeholder="Select awakener..."
             />
           </div>
@@ -72,22 +158,26 @@ export function AwakenerSlotRow({ index, slot, onChange }: AwakenerSlotRowProps)
             Related Tag List
           </Label>
           <div className="flex-1 overflow-y-auto rounded-lg border border-border bg-zinc-50 p-3">
-            {tags.length > 0 ? (
-              <div className="flex flex-wrap gap-1.5">
-                {tags.map((tag) => (
-                  <span
-                    key={tag}
-                    className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-700"
-                  >
-                    {tag}
-                  </span>
-                ))}
-              </div>
-            ) : (
+            {slot.awakenerId == null ? (
               <p className="text-sm text-zinc-400">
                 Select an awakener to view related tags
               </p>
-            )}
+            ) : loading ? (
+              <p className="text-sm text-zinc-400">Loading tags...</p>
+            ) : error ? (
+              <p className="text-sm text-red-600">{error}</p>
+            ) : relatedTags ? (
+              <div className="space-y-4">
+                <TagSection
+                  title="Manifestation Tags"
+                  tags={relatedTags.manifestationTags}
+                />
+                <TagSection
+                  title="Override Modifier Tags"
+                  tags={relatedTags.overrideTags}
+                />
+              </div>
+            ) : null}
           </div>
         </div>
       </CardContent>

@@ -5,17 +5,6 @@ export const POSSE_OPTIONS = [
   "Crit Amplify",
 ] as const;
 
-export const AWAKENER_OPTIONS = [
-  "Albemuth",
-  "Doll",
-  "Farrah",
-  "Helot",
-  "Mephistopheles",
-  "Nymphaea",
-  "Salvador",
-  "Tulu",
-] as const;
-
 export const WHEEL_OPTIONS = [
   "command card",
   "exalt",
@@ -31,49 +20,6 @@ export const COVENANT_OPTIONS = [
   "Covenant III",
   "Covenant IV",
 ] as const;
-
-export const AWAKENER_TAGS: Record<string, string[]> = {
-  Albemuth: [
-    "Support.STR Up",
-    "Damage.Physical",
-    "Buff.Crit Rate",
-  ],
-  Doll: [
-    "Damage.Magic",
-    "Debuff.Vulnerable",
-    "Support.DEF Up",
-  ],
-  Farrah: [
-    "Damage.Physical",
-    "Buff.Aliemus Regen",
-    "Support.Heal",
-  ],
-  Helot: [
-    "Tank.Shield",
-    "Support.DEF Up",
-    "Damage.Physical",
-  ],
-  Mephistopheles: [
-    "Damage.Magic",
-    "Debuff.Burn",
-    "Buff.Damage Amp",
-  ],
-  Nymphaea: [
-    "Support.Heal",
-    "Buff.Realm Mastery",
-    "Damage.Magic",
-  ],
-  Salvador: [
-    "Damage.Physical",
-    "Buff.Crit DMG",
-    "Support.STR Up",
-  ],
-  Tulu: [
-    "Damage.Magic",
-    "Debuff.Slow",
-    "Buff.SKEY Up",
-  ],
-};
 
 export const RADAR_AXES = [
   { label: "CON", value: 72 },
@@ -99,14 +45,14 @@ export const INITIAL_BAN_LIST = [
 ] as const;
 
 export const EMPTY_SLOT = {
-  awakener: null,
+  awakenerId: null,
   covenant: null,
   wheel1: null,
   wheel2: null,
 } as const;
 
 export type SlotState = {
-  awakener: string | null;
+  awakenerId: number | null;
   covenant: string | null;
   wheel1: string | null;
   wheel2: string | null;
@@ -114,7 +60,7 @@ export type SlotState = {
 
 export function createEmptySlots(count = 4): SlotState[] {
   return Array.from({ length: count }, () => ({
-    awakener: null,
+    awakenerId: null,
     covenant: null,
     wheel1: null,
     wheel2: null,
