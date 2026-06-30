@@ -10,21 +10,30 @@ import {
   type DefaultInteraction,
   type InteractionOverride,
   type Manifestation,
+  type Layer,
   type Tag,
   type TeamData,
   type TeamDataInput,
 } from "@/lib/team-data/types";
 
-type TagRef = { id: number; tag_name: string | null } | null;
+type TagRef = {
+  id: number;
+  tag_name: string | null;
+  layer: Layer | null;
+} | null;
 
-function parseTagRef(tag: TagRef): { id: number; tagName: string } | null {
+function parseTagRef(tag: TagRef): Tag | null {
   if (!tag?.id) return null;
-  return { id: tag.id, tagName: tag.tag_name ?? `#${tag.id}` };
+  return {
+    id: tag.id,
+    tagName: tag.tag_name ?? `#${tag.id}`,
+    layer: tag.layer ?? null,
+  };
 }
 
 function collectTags(
   tagsById: Record<number, Tag>,
-  ...refs: Array<{ id: number; tagName: string } | null>
+  ...refs: Array<Tag | null>
 ) {
   for (const ref of refs) {
     if (ref) tagsById[ref.id] = ref;
@@ -65,7 +74,7 @@ const MANIFESTATION_SELECT = `
   required_enlightenment,
   required_realm,
   replaces_manifestation_id,
-  tag:tag_id(id, tag_name)
+  tag:tag_id(id, tag_name, layer)
 `;
 
 async function fetchManifestationsForAwakener(
@@ -104,9 +113,9 @@ export async function fetchTeamData(
       math_operation,
       default_factor,
       source_type,
-      modifier_tag:tag!modifier_tag_id(id, tag_name),
-      target_tag:tag!target_tag_id(id, tag_name),
-      exclusion_tag:tag!exclusion_suffix(id, tag_name)
+      modifier_tag:tag!modifier_tag_id(id, tag_name, layer),
+      target_tag:tag!target_tag_id(id, tag_name, layer),
+      exclusion_tag:tag!exclusion_suffix(id, tag_name, layer)
     `,
     )
     .is("deleted_at", null);
@@ -189,7 +198,7 @@ export async function fetchTeamData(
         target_type,
         dependency_stat,
         is_disabled,
-        modifier_tag:tag!modifier_tag_id(id, tag_name)
+        modifier_tag:tag!modifier_tag_id(id, tag_name, layer)
       `,
       )
       .in("manifestation_id", manifestationIds)

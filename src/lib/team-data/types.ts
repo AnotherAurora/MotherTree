@@ -1,6 +1,7 @@
 import type { Database } from "@/lib/database.types";
 
 export type AwakenerStat = Database["public"]["Enums"]["awakener_stat"];
+export type Layer = Database["public"]["Enums"]["layer"];
 export type OperationType = Database["public"]["Enums"]["operation_type"];
 export type Realm = Database["public"]["Enums"]["realm"];
 export type SourceType = Database["public"]["Enums"]["source_type"];
@@ -19,6 +20,7 @@ export type TeamDataInput = {
 export type Tag = {
   id: number;
   tagName: string;
+  layer: Layer | null;
 };
 
 export type Awakener = {
