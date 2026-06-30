@@ -1,14 +1,20 @@
 "use server";
 
 import type { ActionResult, ForeignKeyOption } from "@/lib/actions/crud";
+import {
+  applyManifestationReplacements,
+  effectiveEnlightenment,
+} from "@/lib/damage/resolve-manifestations";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export type AwakenerRelatedTagOverride = {
+  id: number;
   modifierTagName: string;
   isDisabled: boolean;
 };
 
 export type AwakenerRelatedTagManifestation = {
+  id: number;
   tagName: string;
   interactionOverrides: AwakenerRelatedTagOverride[];
 };
@@ -58,17 +64,43 @@ export async function getAwakenerRelatedTags(
   try {
     const supabase = createAdminClient();
 
-    const { data: manifestations, error: manifestationError } = await supabase
-      .from("awakener_tag_manifestation")
-      .select("id, tag:tag_id(tag_name)")
-      .eq("awakener_id", awakenerId)
-      .is("deleted_at", null);
+    const awakenerResult = await supabase
+      .from("awakener")
+      .select("id, enlightenment")
+      .eq("id", awakenerId)
+      .is("deleted_at", null)
+      .maybeSingle();
 
-    if (manifestationError) {
-      return { success: false, error: manifestationError.message };
+    if (awakenerResult.error) {
+      return { success: false, error: awakenerResult.error.message };
+    }
+    if (awakenerResult.data == null) {
+      return { success: false, error: "Awakener not found" };
     }
 
-    const manifestationRows = manifestations ?? [];
+    const manifestationResult = await supabase
+      .from("awakener_tag_manifestation")
+      .select(
+        "id, awakener_id, required_enlightenment, replaces_manifestation_id, tag:tag_id(tag_name)",
+      )
+      .eq("awakener_id", awakenerId)
+      .lte(
+        "required_enlightenment",
+        effectiveEnlightenment(awakenerResult.data.enlightenment),
+      )
+      .is("deleted_at", null);
+
+    if (manifestationResult.error) {
+      return { success: false, error: manifestationResult.error.message };
+    }
+
+    const manifestationRows = applyManifestationReplacements(
+      (manifestationResult.data ?? []).map((row) => ({
+        ...row,
+        replacesManifestationId: row.replaces_manifestation_id,
+      })),
+    );
+
     const manifestationIds = manifestationRows.map((row) => row.id);
 
     const overridesByManifestationId = new Map<
@@ -80,7 +112,7 @@ export async function getAwakenerRelatedTags(
       const { data: overrides, error: overrideError } = await supabase
         .from("manifestation_interaction_override")
         .select(
-          "manifestation_id, modifier_tag:modifier_tag_id(tag_name), is_disabled",
+          "id, manifestation_id, modifier_tag:modifier_tag_id(tag_name), is_disabled",
         )
         .in("manifestation_id", manifestationIds)
         .is("deleted_at", null);
@@ -97,6 +129,7 @@ export async function getAwakenerRelatedTags(
         const modifierTagName = tag?.tag_name ?? "Unknown";
 
         const override: AwakenerRelatedTagOverride = {
+          id: row.id,
           modifierTagName,
           isDisabled: row.is_disabled === true,
         };
@@ -120,6 +153,7 @@ export async function getAwakenerRelatedTags(
         );
 
         return {
+          id: row.id,
           tagName: tag?.tag_name ?? "Unknown",
           interactionOverrides,
         };

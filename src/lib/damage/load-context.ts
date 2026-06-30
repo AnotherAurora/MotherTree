@@ -1,6 +1,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
 import {
+  applyManifestationReplacements,
+  effectiveEnlightenment,
+} from "@/lib/damage/resolve-manifestations";
+import {
   createEmptyDamageContext,
   type DamageAwakener,
   type DamageContext,
@@ -48,6 +52,41 @@ function uniqueAwakenerIds(input: DamageContextInput): number[] {
   return [...ids];
 }
 
+const MANIFESTATION_SELECT = `
+  id,
+  awakener_id,
+  tag_id,
+  value_scalar,
+  base_hits,
+  dependency_stat,
+  source_type,
+  target_type,
+  ramp_turns,
+  required_enlightenment,
+  required_realm,
+  replaces_manifestation_id,
+  tag:tag_id(id, tag_name)
+`;
+
+async function fetchManifestationsForAwakener(
+  supabase: SupabaseClient<Database>,
+  awakenerId: number,
+  enlightenment: number | null,
+) {
+  const { data, error } = await supabase
+    .from("awakener_tag_manifestation")
+    .select(MANIFESTATION_SELECT)
+    .eq("awakener_id", awakenerId)
+    .lte("required_enlightenment", effectiveEnlightenment(enlightenment))
+    .is("deleted_at", null);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data ?? [];
+}
+
 export async function fetchDamageContext(
   supabase: SupabaseClient<Database>,
   input: DamageContextInput,
@@ -56,28 +95,6 @@ export async function fetchDamageContext(
   if (awakenerIds.length === 0) {
     return createEmptyDamageContext();
   }
-
-  const manifestationsQuery = supabase
-    .from("awakener_tag_manifestation")
-    .select(
-      `
-      id,
-      awakener_id,
-      tag_id,
-      value_scalar,
-      base_hits,
-      dependency_stat,
-      source_type,
-      target_type,
-      ramp_turns,
-      required_enlightenment,
-      required_realm,
-      replaces_manifestation_id,
-      tag:tag_id(id, tag_name)
-    `,
-    )
-    .in("awakener_id", awakenerIds)
-    .is("deleted_at", null);
 
   const defaultInteractionsQuery = supabase
     .from("tag_default_interaction")
@@ -94,28 +111,43 @@ export async function fetchDamageContext(
     )
     .is("deleted_at", null);
 
-  const [awakenerResult, manifestationResult, defaultInteractionResult] =
-    await Promise.all([
-      supabase
-        .from("awakener")
-        .select(
-          "id, name, realm, con, atk, def, skey, damage_amp, crit_rate, crit_dmg, realm_mastery, aliemus_regen, sigil_yield, death_resist, enlightenment",
-        )
-        .in("id", awakenerIds)
-        .is("deleted_at", null),
-      manifestationsQuery,
-      defaultInteractionsQuery,
-    ]);
+  const [awakenerResult, defaultInteractionResult] = await Promise.all([
+    supabase
+      .from("awakener")
+      .select(
+        "id, name, realm, con, atk, def, skey, damage_amp, crit_rate, crit_dmg, realm_mastery, aliemus_regen, sigil_yield, death_resist, enlightenment",
+      )
+      .in("id", awakenerIds)
+      .is("deleted_at", null),
+    defaultInteractionsQuery,
+  ]);
 
   if (awakenerResult.error) {
     throw new Error(awakenerResult.error.message);
   }
-  if (manifestationResult.error) {
-    throw new Error(manifestationResult.error.message);
-  }
   if (defaultInteractionResult.error) {
     throw new Error(defaultInteractionResult.error.message);
   }
+
+  const awakenerRows = awakenerResult.data ?? [];
+  const rawManifestationRows = (
+    await Promise.all(
+      awakenerRows.map((awakener) =>
+        fetchManifestationsForAwakener(
+          supabase,
+          awakener.id,
+          awakener.enlightenment,
+        ),
+      ),
+    )
+  ).flat();
+
+  const manifestationRows = applyManifestationReplacements(
+    rawManifestationRows.map((row) => ({
+      ...row,
+      replacesManifestationId: row.replaces_manifestation_id,
+    })),
+  );
 
   const awakeners: DamageAwakener[] = (awakenerResult.data ?? []).map(
     (row) => ({
@@ -138,7 +170,6 @@ export async function fetchDamageContext(
   );
 
   const tagsById: Record<number, DamageTag> = {};
-  const manifestationRows = manifestationResult.data ?? [];
 
   const overridesByManifestationId = new Map<
     number,

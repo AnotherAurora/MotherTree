@@ -38,7 +38,7 @@ function ManifestationTagSection({
         <div className="flex flex-wrap gap-1.5 pl-2">
           {manifestation.interactionOverrides.map((override) => (
             <span
-              key={`${manifestation.tagName}-${override.modifierTagName}-${override.isDisabled}`}
+              key={override.id}
               className={
                 override.isDisabled
                   ? "rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-400 line-through"
@@ -171,9 +171,9 @@ export function AwakenerSlotRow({
             ) : relatedTags ? (
               relatedTags.manifestations.length > 0 ? (
                 <div className="space-y-4">
-                  {relatedTags.manifestations.map((manifestation, manifestationIndex) => (
+                  {relatedTags.manifestations.map((manifestation) => (
                     <ManifestationTagSection
-                      key={`${manifestation.tagName}-${manifestationIndex}`}
+                      key={manifestation.id}
                       manifestation={manifestation}
                     />
                   ))}
