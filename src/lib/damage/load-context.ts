@@ -31,7 +31,10 @@ function buildSummary(context: Omit<DamageContext, "summary">) {
   return {
     awakenerCount: context.awakeners.length,
     manifestationCount: context.manifestations.length,
-    overrideCount: context.overrides.length,
+    overrideCount: context.manifestations.reduce(
+      (n, m) => n + m.interactionOverrides.length,
+      0,
+    ),
     defaultInteractionCount: context.defaultInteractions.length,
     tagCount: Object.keys(context.tagsById).length,
   };
@@ -67,7 +70,7 @@ export async function fetchDamageContext(
       source_type,
       target_type,
       ramp_turns,
-      required_e,
+      required_enlightenment,
       required_realm,
       replaces_manifestation_id,
       tag:tag_id(id, tag_name)
@@ -96,7 +99,7 @@ export async function fetchDamageContext(
       supabase
         .from("awakener")
         .select(
-          "id, name, realm, con, atk, def, skey, damage_amp, crit_rate, crit_dmg, realm_mastery, aliemus_regen, sigil_yield, death_resist",
+          "id, name, realm, con, atk, def, skey, damage_amp, crit_rate, crit_dmg, realm_mastery, aliemus_regen, sigil_yield, death_resist, enlightenment",
         )
         .in("id", awakenerIds)
         .is("deleted_at", null),
@@ -130,35 +133,19 @@ export async function fetchDamageContext(
       aliemusRegen: row.aliemus_regen,
       sigilYield: row.sigil_yield,
       deathResist: row.death_resist,
+      enlightenment: row.enlightenment,
     }),
   );
 
   const tagsById: Record<number, DamageTag> = {};
-  const manifestations: DamageManifestation[] = [];
+  const manifestationRows = manifestationResult.data ?? [];
 
-  for (const row of manifestationResult.data ?? []) {
-    const tag = parseTagRef(row.tag as TagRef);
-    if (tag) collectTags(tagsById, tag);
+  const overridesByManifestationId = new Map<
+    number,
+    DamageInteractionOverride[]
+  >();
 
-    manifestations.push({
-      id: row.id,
-      awakenerId: row.awakener_id,
-      tagId: tag?.id ?? row.tag_id,
-      tagName: tag?.tagName ?? "Unknown",
-      valueScalar: row.value_scalar,
-      baseHits: row.base_hits,
-      dependencyStat: row.dependency_stat,
-      sourceType: row.source_type,
-      targetType: row.target_type,
-      rampTurns: row.ramp_turns,
-      requiredE: row.required_e,
-      requiredRealm: row.required_realm,
-      replacesManifestationId: row.replaces_manifestation_id,
-    });
-  }
-
-  const manifestationIds = manifestations.map((m) => m.id);
-  let overrides: DamageInteractionOverride[] = [];
+  const manifestationIds = manifestationRows.map((row) => row.id);
 
   if (manifestationIds.length > 0) {
     const overrideResult = await supabase
@@ -183,13 +170,15 @@ export async function fetchDamageContext(
       throw new Error(overrideResult.error.message);
     }
 
-    overrides = (overrideResult.data ?? []).map((row) => {
+    for (const row of overrideResult.data ?? []) {
+      const manifestationId = row.manifestation_id;
+      if (manifestationId == null) continue;
+
       const modifierTag = parseTagRef(row.modifier_tag as TagRef);
       if (modifierTag) collectTags(tagsById, modifierTag);
 
-      return {
+      const override: DamageInteractionOverride = {
         id: row.id,
-        manifestationId: row.manifestation_id,
         modifierTagId: row.modifier_tag_id,
         modifierTagName: modifierTag?.tagName ?? "Unknown",
         mathOperation: row.math_operation,
@@ -198,6 +187,37 @@ export async function fetchDamageContext(
         dependencyStat: row.dependency_stat,
         isDisabled: row.is_disabled === true,
       };
+
+      const existing = overridesByManifestationId.get(manifestationId);
+      if (existing) {
+        existing.push(override);
+      } else {
+        overridesByManifestationId.set(manifestationId, [override]);
+      }
+    }
+  }
+
+  const manifestations: DamageManifestation[] = [];
+
+  for (const row of manifestationRows) {
+    const tag = parseTagRef(row.tag as TagRef);
+    if (tag) collectTags(tagsById, tag);
+
+    manifestations.push({
+      id: row.id,
+      awakenerId: row.awakener_id,
+      tagId: tag?.id ?? row.tag_id,
+      tagName: tag?.tagName ?? "Unknown",
+      valueScalar: row.value_scalar,
+      baseHits: row.base_hits,
+      dependencyStat: row.dependency_stat,
+      sourceType: row.source_type,
+      targetType: row.target_type,
+      rampTurns: row.ramp_turns,
+      requiredEnlightenment: row.required_enlightenment,
+      requiredRealm: row.required_realm,
+      replacesManifestationId: row.replaces_manifestation_id,
+      interactionOverrides: overridesByManifestationId.get(row.id) ?? [],
     });
   }
 
@@ -226,7 +246,6 @@ export async function fetchDamageContext(
   const partial = {
     awakeners,
     manifestations,
-    overrides,
     defaultInteractions,
     tagsById,
   };

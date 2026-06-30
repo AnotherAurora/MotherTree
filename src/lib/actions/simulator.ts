@@ -3,22 +3,23 @@
 import type { ActionResult, ForeignKeyOption } from "@/lib/actions/crud";
 import { createAdminClient } from "@/lib/supabase/admin";
 
+export type AwakenerRelatedTagOverride = {
+  modifierTagName: string;
+  isDisabled: boolean;
+};
+
+export type AwakenerRelatedTagManifestation = {
+  tagName: string;
+  interactionOverrides: AwakenerRelatedTagOverride[];
+};
+
 export type AwakenerRelatedTags = {
-  manifestationTags: string[];
-  overrideTags: string[];
+  manifestations: AwakenerRelatedTagManifestation[];
 };
 
 export type SimulatorAwakenerOption = ForeignKeyOption & {
   realm: string | null;
 };
-
-function uniqueSortedTagNames(names: Iterable<string | null | undefined>): string[] {
-  const unique = new Set<string>();
-  for (const name of names) {
-    if (name) unique.add(name);
-  }
-  return [...unique].sort((a, b) => a.localeCompare(b));
-}
 
 export async function getSimulatorAwakenerOptions(): Promise<
   ActionResult<SimulatorAwakenerOption[]>
@@ -67,21 +68,20 @@ export async function getAwakenerRelatedTags(
       return { success: false, error: manifestationError.message };
     }
 
-    const manifestationIds: number[] = [];
-    const manifestationTagNames: string[] = [];
+    const manifestationRows = manifestations ?? [];
+    const manifestationIds = manifestationRows.map((row) => row.id);
 
-    for (const row of manifestations ?? []) {
-      manifestationIds.push(row.id);
-      const tag = row.tag as { tag_name: string | null } | null;
-      if (tag?.tag_name) manifestationTagNames.push(tag.tag_name);
-    }
-
-    const overrideTagNames: string[] = [];
+    const overridesByManifestationId = new Map<
+      number,
+      AwakenerRelatedTagOverride[]
+    >();
 
     if (manifestationIds.length > 0) {
       const { data: overrides, error: overrideError } = await supabase
         .from("manifestation_interaction_override")
-        .select("modifier_tag:modifier_tag_id(tag_name), is_disabled")
+        .select(
+          "manifestation_id, modifier_tag:modifier_tag_id(tag_name), is_disabled",
+        )
         .in("manifestation_id", manifestationIds)
         .is("deleted_at", null);
 
@@ -90,18 +90,47 @@ export async function getAwakenerRelatedTags(
       }
 
       for (const row of overrides ?? []) {
-        if (row.is_disabled === true) continue;
+        const manifestationId = row.manifestation_id;
+        if (manifestationId == null) continue;
+
         const tag = row.modifier_tag as { tag_name: string | null } | null;
-        if (tag?.tag_name) overrideTagNames.push(tag.tag_name);
+        const modifierTagName = tag?.tag_name ?? "Unknown";
+
+        const override: AwakenerRelatedTagOverride = {
+          modifierTagName,
+          isDisabled: row.is_disabled === true,
+        };
+
+        const existing = overridesByManifestationId.get(manifestationId);
+        if (existing) {
+          existing.push(override);
+        } else {
+          overridesByManifestationId.set(manifestationId, [override]);
+        }
       }
     }
 
+    const result: AwakenerRelatedTagManifestation[] = manifestationRows.map(
+      (row) => {
+        const tag = row.tag as { tag_name: string | null } | null;
+        const interactionOverrides = [
+          ...(overridesByManifestationId.get(row.id) ?? []),
+        ].sort((a, b) =>
+          a.modifierTagName.localeCompare(b.modifierTagName),
+        );
+
+        return {
+          tagName: tag?.tag_name ?? "Unknown",
+          interactionOverrides,
+        };
+      },
+    );
+
+    result.sort((a, b) => a.tagName.localeCompare(b.tagName));
+
     return {
       success: true,
-      data: {
-        manifestationTags: uniqueSortedTagNames(manifestationTagNames),
-        overrideTags: uniqueSortedTagNames(overrideTagNames),
-      },
+      data: { manifestations: result },
     };
   } catch (error) {
     return {

@@ -51,6 +51,7 @@ export type Database = {
           death_resist: number | null
           def: number | null
           deleted_at: string | null
+          enlightenment: number | null
           id: number
           name: string | null
           realm: Database["public"]["Enums"]["realm"] | null
@@ -70,6 +71,7 @@ export type Database = {
           death_resist?: number | null
           def?: number | null
           deleted_at?: string | null
+          enlightenment?: number | null
           id?: number
           name?: string | null
           realm?: Database["public"]["Enums"]["realm"] | null
@@ -89,6 +91,7 @@ export type Database = {
           death_resist?: number | null
           def?: number | null
           deleted_at?: string | null
+          enlightenment?: number | null
           id?: number
           name?: string | null
           realm?: Database["public"]["Enums"]["realm"] | null
@@ -113,7 +116,7 @@ export type Database = {
           metadata: string | null
           ramp_turns: number | null
           replaces_manifestation_id: number | null
-          required_e: number | null
+          required_enlightenment: number | null
           required_realm: Database["public"]["Enums"]["realm"] | null
           source_type: Database["public"]["Enums"]["source_type"] | null
           tag_id: number
@@ -134,7 +137,7 @@ export type Database = {
           metadata?: string | null
           ramp_turns?: number | null
           replaces_manifestation_id?: number | null
-          required_e?: number | null
+          required_enlightenment?: number | null
           required_realm?: Database["public"]["Enums"]["realm"] | null
           source_type?: Database["public"]["Enums"]["source_type"] | null
           tag_id: number
@@ -155,7 +158,7 @@ export type Database = {
           metadata?: string | null
           ramp_turns?: number | null
           replaces_manifestation_id?: number | null
-          required_e?: number | null
+          required_enlightenment?: number | null
           required_realm?: Database["public"]["Enums"]["realm"] | null
           source_type?: Database["public"]["Enums"]["source_type"] | null
           tag_id?: number

@@ -32,7 +32,7 @@ export function RecommendationSimulator({
 }: RecommendationSimulatorProps) {
   const [posse, setPosse] = useState<string | null>(null);
   const [path, setPath] = useState("");
-  const [slots, setSlots] = useState<SlotState[]>(createEmptySlots);
+  const [slots, setSlots] = useState<SlotState[]>(() => createEmptySlots());
   const [banList, setBanList] = useState<string[]>([...INITIAL_BAN_LIST]);
   const [damageContext, setDamageContext] = useState<DamageContext | null>(
     null,

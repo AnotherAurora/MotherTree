@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { EnumSelect } from "@/components/admin/enum-select";
@@ -34,6 +35,15 @@ export function SimulatorHeader({
   loadingContext,
   loadContextDisabled,
 }: SimulatorHeaderProps) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const isLoadContextDisabled =
+    mounted && (loadContextDisabled || loadingContext);
+
   return (
     <div className="space-y-4 rounded-xl border border-border bg-white p-4 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -68,7 +78,7 @@ export function SimulatorHeader({
             size="lg"
             variant="secondary"
             onClick={onLoadContext}
-            disabled={loadContextDisabled || loadingContext}
+            disabled={isLoadContextDisabled}
           >
             {loadingContext ? "Loading..." : "Load damage context"}
           </Button>

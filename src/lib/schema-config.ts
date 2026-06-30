@@ -152,6 +152,7 @@ export const TABLE_CONFIGS: TableConfig[] = [
       { name: "aliemus_regen", label: "Aliemus Regen", type: "number" },
       { name: "sigil_yield", label: "Sigil Yield", type: "number" },
       { name: "death_resist", label: "Death Resist", type: "number" },
+      { name: "enlightenment", label: "Enlightenment", type: "number" },
       ...timestampFields(),
     ],
   },
@@ -236,9 +237,10 @@ export const TABLE_CONFIGS: TableConfig[] = [
         inlineEditable: true,
       },
       {
-        name: "required_e",
-        label: "Required E",
+        name: "required_enlightenment",
+        label: "Required Enlightenment",
         type: "number",
+        defaultValue: 0,
         inlineEditable: true,
       },
       {

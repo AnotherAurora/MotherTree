@@ -36,6 +36,18 @@ export type DamageAwakener = {
   aliemusRegen: number | null;
   sigilYield: number | null;
   deathResist: number | null;
+  enlightenment: number | null;
+};
+
+export type DamageInteractionOverride = {
+  id: number;
+  modifierTagId: number | null;
+  modifierTagName: string;
+  mathOperation: OperationType | null;
+  overrideDefaultFactor: number | null;
+  targetType: TargetType | null;
+  dependencyStat: AwakenerStat | null;
+  isDisabled: boolean;
 };
 
 export type DamageManifestation = {
@@ -49,21 +61,10 @@ export type DamageManifestation = {
   sourceType: SourceType | null;
   targetType: TargetType | null;
   rampTurns: number | null;
-  requiredE: number | null;
+  requiredEnlightenment: number | null;
   requiredRealm: Realm | null;
   replacesManifestationId: number | null;
-};
-
-export type DamageInteractionOverride = {
-  id: number;
-  manifestationId: number | null;
-  modifierTagId: number | null;
-  modifierTagName: string;
-  mathOperation: OperationType | null;
-  overrideDefaultFactor: number | null;
-  targetType: TargetType | null;
-  dependencyStat: AwakenerStat | null;
-  isDisabled: boolean;
+  interactionOverrides: DamageInteractionOverride[];
 };
 
 export type DamageDefaultInteraction = {
@@ -90,7 +91,6 @@ export type DamageContextSummary = {
 export type DamageContext = {
   awakeners: DamageAwakener[];
   manifestations: DamageManifestation[];
-  overrides: DamageInteractionOverride[];
   defaultInteractions: DamageDefaultInteraction[];
   tagsById: Record<number, DamageTag>;
   summary: DamageContextSummary;
@@ -100,7 +100,6 @@ export function createEmptyDamageContext(): DamageContext {
   return {
     awakeners: [],
     manifestations: [],
-    overrides: [],
     defaultInteractions: [],
     tagsById: {},
     summary: {

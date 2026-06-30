@@ -13,6 +13,7 @@ import {
 import type { ForeignKeyOption } from "@/lib/actions/crud";
 import {
   getAwakenerRelatedTags,
+  type AwakenerRelatedTagManifestation,
   type AwakenerRelatedTags,
 } from "@/lib/actions/simulator";
 
@@ -25,31 +26,32 @@ type AwakenerSlotRowProps = {
   onChange: (slot: SlotState) => void;
 };
 
-function TagSection({
-  title,
-  tags,
+function ManifestationTagSection({
+  manifestation,
 }: {
-  title: string;
-  tags: string[];
+  manifestation: AwakenerRelatedTagManifestation;
 }) {
   return (
     <div className="space-y-1.5">
-      <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-400">
-        {title}
-      </p>
-      {tags.length > 0 ? (
-        <div className="flex flex-wrap gap-1.5">
-          {tags.map((tag) => (
+      <p className="text-xs font-medium text-zinc-700">{manifestation.tagName}</p>
+      {manifestation.interactionOverrides.length > 0 ? (
+        <div className="flex flex-wrap gap-1.5 pl-2">
+          {manifestation.interactionOverrides.map((override) => (
             <span
-              key={tag}
-              className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-700"
+              key={`${manifestation.tagName}-${override.modifierTagName}-${override.isDisabled}`}
+              className={
+                override.isDisabled
+                  ? "rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-400 line-through"
+                  : "rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-700"
+              }
+              title={override.isDisabled ? "Disabled override" : undefined}
             >
-              {tag}
+              {override.modifierTagName}
             </span>
           ))}
         </div>
       ) : (
-        <p className="text-xs text-zinc-400">None</p>
+        <p className="pl-2 text-xs text-zinc-400">None</p>
       )}
     </div>
   );
@@ -167,16 +169,18 @@ export function AwakenerSlotRow({
             ) : error ? (
               <p className="text-sm text-red-600">{error}</p>
             ) : relatedTags ? (
-              <div className="space-y-4">
-                <TagSection
-                  title="Manifestation Tags"
-                  tags={relatedTags.manifestationTags}
-                />
-                <TagSection
-                  title="Override Modifier Tags"
-                  tags={relatedTags.overrideTags}
-                />
-              </div>
+              relatedTags.manifestations.length > 0 ? (
+                <div className="space-y-4">
+                  {relatedTags.manifestations.map((manifestation, manifestationIndex) => (
+                    <ManifestationTagSection
+                      key={`${manifestation.tagName}-${manifestationIndex}`}
+                      manifestation={manifestation}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-zinc-400">None</p>
+              )
             ) : null}
           </div>
         </div>
