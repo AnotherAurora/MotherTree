@@ -11,6 +11,9 @@ type SimulatorHeaderProps = {
   path: string;
   onPosseChange: (value: string | null) => void;
   onClearPath: () => void;
+  onLoadContext: () => void;
+  loadingContext: boolean;
+  loadContextDisabled: boolean;
 };
 
 function DisplayValue({ value }: { value: string }) {
@@ -27,6 +30,9 @@ export function SimulatorHeader({
   path,
   onPosseChange,
   onClearPath,
+  onLoadContext,
+  loadingContext,
+  loadContextDisabled,
 }: SimulatorHeaderProps) {
   return (
     <div className="space-y-4 rounded-xl border border-border bg-white p-4 shadow-sm">
@@ -57,6 +63,14 @@ export function SimulatorHeader({
           </Button>
           <Button size="lg" disabled title="Not wired yet">
             Recommend
+          </Button>
+          <Button
+            size="lg"
+            variant="secondary"
+            onClick={onLoadContext}
+            disabled={loadContextDisabled || loadingContext}
+          >
+            {loadingContext ? "Loading..." : "Load damage context"}
           </Button>
         </div>
 

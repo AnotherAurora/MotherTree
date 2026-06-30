@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   buildAwakenerOptionMap,
   filterAwakenerOptionsForSlot,
@@ -14,6 +14,10 @@ import {
 } from "@/components/simulator/mock-data";
 import { SimulatorHeader } from "@/components/simulator/simulator-header";
 import { SimulatorSidebar } from "@/components/simulator/simulator-sidebar";
+import {
+  loadDamageContext,
+  type DamageContext,
+} from "@/lib/actions/damage";
 import type {
   AwakenerRelatedTags,
   SimulatorAwakenerOption,
@@ -30,6 +34,11 @@ export function RecommendationSimulator({
   const [path, setPath] = useState("");
   const [slots, setSlots] = useState<SlotState[]>(createEmptySlots);
   const [banList, setBanList] = useState<string[]>([...INITIAL_BAN_LIST]);
+  const [damageContext, setDamageContext] = useState<DamageContext | null>(
+    null,
+  );
+  const [contextError, setContextError] = useState<string | null>(null);
+  const [loadingContext, setLoadingContext] = useState(false);
   const tagCacheRef = useRef(new Map<number, AwakenerRelatedTags>());
 
   const optionMap = useMemo(
@@ -54,6 +63,16 @@ export function RecommendationSimulator({
       ),
     [awakenerOptions, slots, optionMap],
   );
+
+  const loadContextDisabled = useMemo(
+    () => !slots.some((slot) => slot.awakenerId != null),
+    [slots],
+  );
+
+  useEffect(() => {
+    setDamageContext(null);
+    setContextError(null);
+  }, [slots]);
 
   function handleSlotChange(index: number, slot: SlotState) {
     setSlots((prev) => prev.map((s, i) => (i === index ? slot : s)));
@@ -82,6 +101,28 @@ export function RecommendationSimulator({
     setBanList([]);
   }
 
+  async function handleLoadContext() {
+    setLoadingContext(true);
+    setContextError(null);
+
+    const result = await loadDamageContext({
+      slots: slots.map((slot) => ({
+        awakenerId: slot.awakenerId,
+        wheel1: slot.wheel1,
+        wheel2: slot.wheel2,
+      })),
+    });
+
+    setLoadingContext(false);
+
+    if (result.success) {
+      setDamageContext(result.data);
+    } else {
+      setDamageContext(null);
+      setContextError(result.error);
+    }
+  }
+
   return (
     <div className="mx-auto max-w-7xl space-y-6">
       <div>
@@ -101,6 +142,9 @@ export function RecommendationSimulator({
         path={path}
         onPosseChange={setPosse}
         onClearPath={handleClearPath}
+        onLoadContext={handleLoadContext}
+        loadingContext={loadingContext}
+        loadContextDisabled={loadContextDisabled}
       />
 
       <div className="flex flex-col gap-6 lg:flex-row">
@@ -123,6 +167,9 @@ export function RecommendationSimulator({
             banList={banList}
             onRemoveBan={handleRemoveBan}
             onClearAllBans={handleClearAllBans}
+            damageContext={damageContext}
+            contextError={contextError}
+            awakenerOptions={awakenerOptions}
           />
         </div>
       </div>
