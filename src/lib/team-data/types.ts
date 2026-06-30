@@ -6,22 +6,22 @@ export type Realm = Database["public"]["Enums"]["realm"];
 export type SourceType = Database["public"]["Enums"]["source_type"];
 export type TargetType = Database["public"]["Enums"]["target_type"];
 
-export type DamageContextSlotInput = {
+export type TeamDataSlotInput = {
   awakenerId: number | null;
   wheel1: string | null;
   wheel2: string | null;
 };
 
-export type DamageContextInput = {
-  slots: DamageContextSlotInput[];
+export type TeamDataInput = {
+  slots: TeamDataSlotInput[];
 };
 
-export type DamageTag = {
+export type Tag = {
   id: number;
   tagName: string;
 };
 
-export type DamageAwakener = {
+export type Awakener = {
   id: number;
   name: string | null;
   realm: Realm | null;
@@ -39,7 +39,7 @@ export type DamageAwakener = {
   enlightenment: number | null;
 };
 
-export type DamageInteractionOverride = {
+export type InteractionOverride = {
   id: number;
   modifierTagId: number | null;
   modifierTagName: string;
@@ -50,7 +50,7 @@ export type DamageInteractionOverride = {
   isDisabled: boolean;
 };
 
-export type DamageManifestation = {
+export type Manifestation = {
   id: number;
   awakenerId: number;
   tagId: number;
@@ -64,10 +64,10 @@ export type DamageManifestation = {
   requiredEnlightenment: number | null;
   requiredRealm: Realm | null;
   replacesManifestationId: number | null;
-  interactionOverrides: DamageInteractionOverride[];
+  interactionOverrides: InteractionOverride[];
 };
 
-export type DamageDefaultInteraction = {
+export type DefaultInteraction = {
   id: number;
   modifierTagId: number | null;
   modifierTagName: string;
@@ -80,7 +80,7 @@ export type DamageDefaultInteraction = {
   sourceType: SourceType | null;
 };
 
-export type DamageContextSummary = {
+export type TeamDataSummary = {
   awakenerCount: number;
   manifestationCount: number;
   overrideCount: number;
@@ -88,15 +88,15 @@ export type DamageContextSummary = {
   tagCount: number;
 };
 
-export type DamageContext = {
-  awakeners: DamageAwakener[];
-  manifestations: DamageManifestation[];
-  defaultInteractions: DamageDefaultInteraction[];
-  tagsById: Record<number, DamageTag>;
-  summary: DamageContextSummary;
+export type TeamData = {
+  awakeners: Awakener[];
+  manifestations: Manifestation[];
+  defaultInteractions: DefaultInteraction[];
+  tagsById: Record<number, Tag>;
+  summary: TeamDataSummary;
 };
 
-export function createEmptyDamageContext(): DamageContext {
+export function createEmptyTeamData(): TeamData {
   return {
     awakeners: [],
     manifestations: [],

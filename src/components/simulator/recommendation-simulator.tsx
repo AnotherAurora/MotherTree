@@ -14,10 +14,7 @@ import {
 } from "@/components/simulator/mock-data";
 import { SimulatorHeader } from "@/components/simulator/simulator-header";
 import { SimulatorSidebar } from "@/components/simulator/simulator-sidebar";
-import {
-  loadDamageContext,
-  type DamageContext,
-} from "@/lib/actions/damage";
+import { loadTeamData, type TeamData } from "@/lib/actions/team-data";
 import type {
   AwakenerRelatedTags,
   SimulatorAwakenerOption,
@@ -34,11 +31,9 @@ export function RecommendationSimulator({
   const [path, setPath] = useState("");
   const [slots, setSlots] = useState<SlotState[]>(() => createEmptySlots());
   const [banList, setBanList] = useState<string[]>([...INITIAL_BAN_LIST]);
-  const [damageContext, setDamageContext] = useState<DamageContext | null>(
-    null,
-  );
-  const [contextError, setContextError] = useState<string | null>(null);
-  const [loadingContext, setLoadingContext] = useState(false);
+  const [teamData, setTeamData] = useState<TeamData | null>(null);
+  const [teamDataError, setTeamDataError] = useState<string | null>(null);
+  const [loadingTeamData, setLoadingTeamData] = useState(false);
   const tagCacheRef = useRef(new Map<number, AwakenerRelatedTags>());
 
   const optionMap = useMemo(
@@ -64,14 +59,14 @@ export function RecommendationSimulator({
     [awakenerOptions, slots, optionMap],
   );
 
-  const loadContextDisabled = useMemo(
+  const loadTeamDataDisabled = useMemo(
     () => !slots.some((slot) => slot.awakenerId != null),
     [slots],
   );
 
   useEffect(() => {
-    setDamageContext(null);
-    setContextError(null);
+    setTeamData(null);
+    setTeamDataError(null);
   }, [slots]);
 
   function handleSlotChange(index: number, slot: SlotState) {
@@ -101,11 +96,11 @@ export function RecommendationSimulator({
     setBanList([]);
   }
 
-  async function handleLoadContext() {
-    setLoadingContext(true);
-    setContextError(null);
+  async function handleLoadTeamData() {
+    setLoadingTeamData(true);
+    setTeamDataError(null);
 
-    const result = await loadDamageContext({
+    const result = await loadTeamData({
       slots: slots.map((slot) => ({
         awakenerId: slot.awakenerId,
         wheel1: slot.wheel1,
@@ -113,13 +108,13 @@ export function RecommendationSimulator({
       })),
     });
 
-    setLoadingContext(false);
+    setLoadingTeamData(false);
 
     if (result.success) {
-      setDamageContext(result.data);
+      setTeamData(result.data);
     } else {
-      setDamageContext(null);
-      setContextError(result.error);
+      setTeamData(null);
+      setTeamDataError(result.error);
     }
   }
 
@@ -142,9 +137,9 @@ export function RecommendationSimulator({
         path={path}
         onPosseChange={setPosse}
         onClearPath={handleClearPath}
-        onLoadContext={handleLoadContext}
-        loadingContext={loadingContext}
-        loadContextDisabled={loadContextDisabled}
+        onLoadTeamData={handleLoadTeamData}
+        loadingTeamData={loadingTeamData}
+        loadTeamDataDisabled={loadTeamDataDisabled}
       />
 
       <div className="flex flex-col gap-6 lg:flex-row">
@@ -167,8 +162,8 @@ export function RecommendationSimulator({
             banList={banList}
             onRemoveBan={handleRemoveBan}
             onClearAllBans={handleClearAllBans}
-            damageContext={damageContext}
-            contextError={contextError}
+            teamData={teamData}
+            teamDataError={teamDataError}
             awakenerOptions={awakenerOptions}
           />
         </div>

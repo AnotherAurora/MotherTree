@@ -12,9 +12,9 @@ type SimulatorHeaderProps = {
   path: string;
   onPosseChange: (value: string | null) => void;
   onClearPath: () => void;
-  onLoadContext: () => void;
-  loadingContext: boolean;
-  loadContextDisabled: boolean;
+  onLoadTeamData: () => void;
+  loadingTeamData: boolean;
+  loadTeamDataDisabled: boolean;
 };
 
 function DisplayValue({ value }: { value: string }) {
@@ -31,9 +31,9 @@ export function SimulatorHeader({
   path,
   onPosseChange,
   onClearPath,
-  onLoadContext,
-  loadingContext,
-  loadContextDisabled,
+  onLoadTeamData,
+  loadingTeamData,
+  loadTeamDataDisabled,
 }: SimulatorHeaderProps) {
   const [mounted, setMounted] = useState(false);
 
@@ -41,8 +41,8 @@ export function SimulatorHeader({
     setMounted(true);
   }, []);
 
-  const isLoadContextDisabled =
-    mounted && (loadContextDisabled || loadingContext);
+  const isLoadTeamDataDisabled =
+    mounted && (loadTeamDataDisabled || loadingTeamData);
 
   return (
     <div className="space-y-4 rounded-xl border border-border bg-white p-4 shadow-sm">
@@ -77,10 +77,10 @@ export function SimulatorHeader({
           <Button
             size="lg"
             variant="secondary"
-            onClick={onLoadContext}
-            disabled={isLoadContextDisabled}
+            onClick={onLoadTeamData}
+            disabled={isLoadTeamDataDisabled}
           >
-            {loadingContext ? "Loading..." : "Load damage context"}
+            {loadingTeamData ? "Loading team data..." : "Load team data"}
           </Button>
         </div>
 

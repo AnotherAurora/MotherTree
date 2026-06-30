@@ -4,7 +4,7 @@ import type { ActionResult, ForeignKeyOption } from "@/lib/actions/crud";
 import {
   applyManifestationReplacements,
   effectiveEnlightenment,
-} from "@/lib/damage/resolve-manifestations";
+} from "@/lib/team-data/resolve-manifestations";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export type AwakenerRelatedTagOverride = {

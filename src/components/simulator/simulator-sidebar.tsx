@@ -10,20 +10,20 @@ import {
 } from "@/components/ui/card";
 import { RadarChartPlaceholder } from "@/components/simulator/radar-chart-placeholder";
 import { RADAR_AXES, SUMMARY_LINES } from "@/components/simulator/mock-data";
-import type { DamageContext } from "@/lib/actions/damage";
+import type { TeamData } from "@/lib/actions/team-data";
 import type { SimulatorAwakenerOption } from "@/lib/actions/simulator";
 
 type SimulatorSidebarProps = {
   banList: string[];
   onRemoveBan: (tag: string) => void;
   onClearAllBans: () => void;
-  damageContext: DamageContext | null;
-  contextError: string | null;
+  teamData: TeamData | null;
+  teamDataError: string | null;
   awakenerOptions: SimulatorAwakenerOption[];
 };
 
 function formatManifestationLine(
-  manifestation: DamageContext["manifestations"][number],
+  manifestation: TeamData["manifestations"][number],
   awakenerName: string,
 ): string {
   const scalar = manifestation.valueScalar ?? "—";
@@ -36,8 +36,8 @@ export function SimulatorSidebar({
   banList,
   onRemoveBan,
   onClearAllBans,
-  damageContext,
-  contextError,
+  teamData,
+  teamDataError,
   awakenerOptions,
 }: SimulatorSidebarProps) {
   const awakenerNameById = useMemo(() => {
@@ -45,43 +45,43 @@ export function SimulatorSidebar({
     for (const option of awakenerOptions) {
       map.set(option.value, option.label);
     }
-    if (damageContext) {
-      for (const awakener of damageContext.awakeners) {
+    if (teamData) {
+      for (const awakener of teamData.awakeners) {
         map.set(awakener.id, awakener.name ?? `#${awakener.id}`);
       }
     }
     return map;
-  }, [awakenerOptions, damageContext]);
+  }, [awakenerOptions, teamData]);
 
   const manifestationLines = useMemo(() => {
-    if (!damageContext) return [];
-    return damageContext.manifestations.map((manifestation) =>
+    if (!teamData) return [];
+    return teamData.manifestations.map((manifestation) =>
       formatManifestationLine(
         manifestation,
         awakenerNameById.get(manifestation.awakenerId) ??
           `#${manifestation.awakenerId}`,
       ),
     );
-  }, [damageContext, awakenerNameById]);
+  }, [teamData, awakenerNameById]);
 
   return (
     <div className="flex flex-col gap-4">
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium">Damage Context</CardTitle>
+          <CardTitle className="text-sm font-medium">Team Data</CardTitle>
         </CardHeader>
         <CardContent className="pt-0">
           <div className="max-h-[220px] min-h-[120px] overflow-y-auto rounded-lg border border-border bg-zinc-50 p-3">
-            {contextError ? (
-              <p className="text-sm text-red-600">{contextError}</p>
-            ) : damageContext ? (
+            {teamDataError ? (
+              <p className="text-sm text-red-600">{teamDataError}</p>
+            ) : teamData ? (
               <div className="space-y-2 font-mono text-xs text-zinc-600">
                 <p>
-                  Awakeners: {damageContext.summary.awakenerCount} |
-                  Manifestations: {damageContext.summary.manifestationCount} |
-                  Overrides: {damageContext.summary.overrideCount} |
+                  Awakeners: {teamData.summary.awakenerCount} |
+                  Manifestations: {teamData.summary.manifestationCount} |
+                  Overrides: {teamData.summary.overrideCount} |
                   Interactions:{" "}
-                  {damageContext.summary.defaultInteractionCount}
+                  {teamData.summary.defaultInteractionCount}
                 </p>
                 {manifestationLines.length > 0 ? (
                   <ul className="space-y-1.5">
@@ -95,7 +95,7 @@ export function SimulatorSidebar({
               </div>
             ) : (
               <p className="text-sm text-zinc-400">
-                Press Load damage context to fetch data
+                Select awakeners, then load team data
               </p>
             )}
           </div>

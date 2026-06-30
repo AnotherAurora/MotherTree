@@ -3,17 +3,17 @@ import type { Database } from "@/lib/database.types";
 import {
   applyManifestationReplacements,
   effectiveEnlightenment,
-} from "@/lib/damage/resolve-manifestations";
+} from "@/lib/team-data/resolve-manifestations";
 import {
-  createEmptyDamageContext,
-  type DamageAwakener,
-  type DamageContext,
-  type DamageContextInput,
-  type DamageDefaultInteraction,
-  type DamageInteractionOverride,
-  type DamageManifestation,
-  type DamageTag,
-} from "@/lib/damage/types";
+  createEmptyTeamData,
+  type Awakener,
+  type DefaultInteraction,
+  type InteractionOverride,
+  type Manifestation,
+  type Tag,
+  type TeamData,
+  type TeamDataInput,
+} from "@/lib/team-data/types";
 
 type TagRef = { id: number; tag_name: string | null } | null;
 
@@ -23,7 +23,7 @@ function parseTagRef(tag: TagRef): { id: number; tagName: string } | null {
 }
 
 function collectTags(
-  tagsById: Record<number, DamageTag>,
+  tagsById: Record<number, Tag>,
   ...refs: Array<{ id: number; tagName: string } | null>
 ) {
   for (const ref of refs) {
@@ -31,7 +31,7 @@ function collectTags(
   }
 }
 
-function buildSummary(context: Omit<DamageContext, "summary">) {
+function buildSummary(context: Omit<TeamData, "summary">) {
   return {
     awakenerCount: context.awakeners.length,
     manifestationCount: context.manifestations.length,
@@ -44,7 +44,7 @@ function buildSummary(context: Omit<DamageContext, "summary">) {
   };
 }
 
-function uniqueAwakenerIds(input: DamageContextInput): number[] {
+function uniqueAwakenerIds(input: TeamDataInput): number[] {
   const ids = new Set<number>();
   for (const slot of input.slots) {
     if (slot.awakenerId != null) ids.add(slot.awakenerId);
@@ -87,13 +87,13 @@ async function fetchManifestationsForAwakener(
   return data ?? [];
 }
 
-export async function fetchDamageContext(
+export async function fetchTeamData(
   supabase: SupabaseClient<Database>,
-  input: DamageContextInput,
-): Promise<DamageContext> {
+  input: TeamDataInput,
+): Promise<TeamData> {
   const awakenerIds = uniqueAwakenerIds(input);
   if (awakenerIds.length === 0) {
-    return createEmptyDamageContext();
+    return createEmptyTeamData();
   }
 
   const defaultInteractionsQuery = supabase
@@ -149,31 +149,29 @@ export async function fetchDamageContext(
     })),
   );
 
-  const awakeners: DamageAwakener[] = (awakenerResult.data ?? []).map(
-    (row) => ({
-      id: row.id,
-      name: row.name,
-      realm: row.realm,
-      con: row.con,
-      atk: row.atk,
-      def: row.def,
-      skey: row.skey,
-      damageAmp: row.damage_amp,
-      critRate: row.crit_rate,
-      critDmg: row.crit_dmg,
-      realmMastery: row.realm_mastery,
-      aliemusRegen: row.aliemus_regen,
-      sigilYield: row.sigil_yield,
-      deathResist: row.death_resist,
-      enlightenment: row.enlightenment,
-    }),
-  );
+  const awakeners: Awakener[] = (awakenerResult.data ?? []).map((row) => ({
+    id: row.id,
+    name: row.name,
+    realm: row.realm,
+    con: row.con,
+    atk: row.atk,
+    def: row.def,
+    skey: row.skey,
+    damageAmp: row.damage_amp,
+    critRate: row.crit_rate,
+    critDmg: row.crit_dmg,
+    realmMastery: row.realm_mastery,
+    aliemusRegen: row.aliemus_regen,
+    sigilYield: row.sigil_yield,
+    deathResist: row.death_resist,
+    enlightenment: row.enlightenment,
+  }));
 
-  const tagsById: Record<number, DamageTag> = {};
+  const tagsById: Record<number, Tag> = {};
 
   const overridesByManifestationId = new Map<
     number,
-    DamageInteractionOverride[]
+    InteractionOverride[]
   >();
 
   const manifestationIds = manifestationRows.map((row) => row.id);
@@ -208,7 +206,7 @@ export async function fetchDamageContext(
       const modifierTag = parseTagRef(row.modifier_tag as TagRef);
       if (modifierTag) collectTags(tagsById, modifierTag);
 
-      const override: DamageInteractionOverride = {
+      const override: InteractionOverride = {
         id: row.id,
         modifierTagId: row.modifier_tag_id,
         modifierTagName: modifierTag?.tagName ?? "Unknown",
@@ -228,7 +226,7 @@ export async function fetchDamageContext(
     }
   }
 
-  const manifestations: DamageManifestation[] = [];
+  const manifestations: Manifestation[] = [];
 
   for (const row of manifestationRows) {
     const tag = parseTagRef(row.tag as TagRef);
@@ -252,7 +250,7 @@ export async function fetchDamageContext(
     });
   }
 
-  const defaultInteractions: DamageDefaultInteraction[] = (
+  const defaultInteractions: DefaultInteraction[] = (
     defaultInteractionResult.data ?? []
   ).map((row) => {
     const modifierTag = parseTagRef(row.modifier_tag as TagRef);
