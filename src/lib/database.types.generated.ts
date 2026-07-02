@@ -194,6 +194,8 @@ export type Database = {
         Row: {
           created_at: string | null
           deleted_at: string | null
+          description: string | null
+          desire_type: Database["public"]["Enums"]["desire_type"] | null
           id: number
           name: string | null
           updated_at: string | null
@@ -201,6 +203,8 @@ export type Database = {
         Insert: {
           created_at?: string | null
           deleted_at?: string | null
+          description?: string | null
+          desire_type?: Database["public"]["Enums"]["desire_type"] | null
           id?: number
           name?: string | null
           updated_at?: string | null
@@ -208,11 +212,55 @@ export type Database = {
         Update: {
           created_at?: string | null
           deleted_at?: string | null
+          description?: string | null
+          desire_type?: Database["public"]["Enums"]["desire_type"] | null
           id?: number
           name?: string | null
           updated_at?: string | null
         }
         Relationships: []
+      }
+      desire_anchored_awakener: {
+        Row: {
+          awakener_id: number
+          created_at: string | null
+          deleted_at: string | null
+          desire_id: number
+          id: number
+          updated_at: string | null
+        }
+        Insert: {
+          awakener_id: number
+          created_at?: string | null
+          deleted_at?: string | null
+          desire_id: number
+          id?: number
+          updated_at?: string | null
+        }
+        Update: {
+          awakener_id?: number
+          created_at?: string | null
+          deleted_at?: string | null
+          desire_id?: number
+          id?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "desire_anchored_awakener_awakener_id_fkey"
+            columns: ["awakener_id"]
+            isOneToOne: false
+            referencedRelation: "awakener"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "desire_anchored_awakener_desire_id_fkey"
+            columns: ["desire_id"]
+            isOneToOne: false
+            referencedRelation: "desire"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       desire_demand: {
         Row: {
@@ -467,6 +515,7 @@ export type Database = {
         | "sigil_yield"
         | "death_resist"
       curve_type: "linear" | "exponential" | "logarithmic"
+      desire_type: "general" | "specific"
       layer: "x" | "y" | "z" | "f"
       operation_type:
         | "add_to_base_value"
@@ -628,6 +677,7 @@ export const Constants = {
         "death_resist",
       ],
       curve_type: ["linear", "exponential", "logarithmic"],
+      desire_type: ["general", "specific"],
       layer: ["x", "y", "z", "f"],
       operation_type: [
         "add_to_base_value",
