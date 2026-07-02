@@ -28,6 +28,7 @@ Each dated folder contains:
 | `manifestation_interaction_override.json` | All rows from `manifestation_interaction_override` |
 | `desire_demand.json` | All rows from `desire_demand` |
 | `path.json` | All rows from `path` |
+| `desire_anchored_awakener.json` | All rows from `desire_anchored_awakener` |
 
 Exports include soft-deleted rows (`deleted_at` is not null).
 

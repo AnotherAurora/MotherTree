@@ -27,6 +27,11 @@ export type InteractionOverrideInput = {
   is_disabled: boolean;
 };
 
+export type AnchoredAwakenerInput = {
+  id?: number;
+  awakener_id: number | null;
+};
+
 export type ActionResult<T = void> =
   | { success: true; data: T }
   | { success: false; error: string };
@@ -160,6 +165,38 @@ async function attachManifestationOverrideCounts(
   }));
 }
 
+async function attachDesireAnchoredAwakenerCounts(
+  supabase: SupabaseClient<Database>,
+  records: Record<string, unknown>[],
+): Promise<Record<string, unknown>[]> {
+  const ids = records
+    .map((record) => Number(record.id))
+    .filter((id) => !Number.isNaN(id));
+
+  if (ids.length === 0) {
+    return records.map((record) => ({ ...record, anchored_awakener_count: 0 }));
+  }
+
+  const { data, error } = await supabase
+    .from("desire_anchored_awakener")
+    .select("desire_id")
+    .in("desire_id", ids)
+    .is("deleted_at", null);
+
+  if (error) throw error;
+
+  const counts = new Map<number, number>();
+  for (const row of data ?? []) {
+    const desireId = Number(row.desire_id);
+    counts.set(desireId, (counts.get(desireId) ?? 0) + 1);
+  }
+
+  return records.map((record) => ({
+    ...record,
+    anchored_awakener_count: counts.get(Number(record.id)) ?? 0,
+  }));
+}
+
 export async function listRecords(
   tableName: string,
   deletedOnly = false,
@@ -184,6 +221,10 @@ export async function listRecords(
 
     if (config.name === "awakener_tag_manifestation") {
       records = await attachManifestationOverrideCounts(supabase, records);
+    }
+
+    if (config.name === "desire") {
+      records = await attachDesireAnchoredAwakenerCounts(supabase, records);
     }
 
     return { success: true, data: records };
@@ -563,6 +604,196 @@ export async function saveManifestationWithOverrides(
         error instanceof Error
           ? error.message
           : "Failed to save manifestation",
+    };
+  }
+}
+
+export async function listDesireAnchoredAwakeners(
+  desireId: number,
+): Promise<ActionResult<Record<string, unknown>[]>> {
+  try {
+    const supabase = createAdminClient();
+    const { data, error } = await supabase
+      .from("desire_anchored_awakener")
+      .select("*")
+      .eq("desire_id", desireId)
+      .is("deleted_at", null)
+      .order("id");
+
+    if (error) return { success: false, error: error.message };
+
+    return { success: true, data: (data ?? []) as Record<string, unknown>[] };
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to load anchored awakeners",
+    };
+  }
+}
+
+function buildAnchoredAwakenerRecord(
+  desireId: number,
+  anchor: AnchoredAwakenerInput,
+): Record<string, unknown> {
+  return {
+    desire_id: desireId,
+    awakener_id: anchor.awakener_id,
+  };
+}
+
+export async function saveDesireWithAnchoredAwakeners(
+  payload: Record<string, unknown>,
+  anchors: AnchoredAwakenerInput[],
+  desireId?: number,
+): Promise<ActionResult<Record<string, unknown>>> {
+  const config = getConfig("desire");
+  if (!config) return { success: false, error: "Unknown table" };
+
+  try {
+    const supabase = createAdminClient();
+
+    let savedDesireId = desireId;
+
+    if (savedDesireId != null) {
+      const record: Record<string, unknown> = { ...payload };
+      delete record.id;
+
+      if (config.fields.some((field) => field.name === "updated_at")) {
+        record.updated_at = nowIso();
+      }
+
+      const uniqueCheck = await assertUniqueConstraints(
+        supabase,
+        config,
+        record,
+        savedDesireId,
+      );
+      if (!uniqueCheck.success) return uniqueCheck;
+
+      const { data, error } = await supabase
+        .from("desire")
+        .update(record as never)
+        .eq("id", savedDesireId)
+        .select("*")
+        .single();
+
+      if (error) return { success: false, error: mapDbError(config, error) };
+      if (!data) {
+        return { success: false, error: "Desire record not found" };
+      }
+    } else {
+      const record: Record<string, unknown> = { ...payload };
+      delete record.id;
+
+      if (config.fields.some((field) => field.name === "created_at")) {
+        record.created_at = nowIso();
+      }
+      if (config.fields.some((field) => field.name === "updated_at")) {
+        record.updated_at = nowIso();
+      }
+
+      const uniqueCheck = await assertUniqueConstraints(
+        supabase,
+        config,
+        record,
+      );
+      if (!uniqueCheck.success) return uniqueCheck;
+
+      const { data, error } = await supabase
+        .from("desire")
+        .insert(record as never)
+        .select("*")
+        .single();
+
+      if (error) return { success: false, error: mapDbError(config, error) };
+      savedDesireId = Number(data.id);
+    }
+
+    const anchorConfig = getConfig("desire_anchored_awakener");
+    if (!anchorConfig) {
+      return { success: false, error: "Unknown anchored awakener table" };
+    }
+
+    const { data: existingRows, error: existingError } = await supabase
+      .from("desire_anchored_awakener")
+      .select("id")
+      .eq("desire_id", savedDesireId)
+      .is("deleted_at", null);
+
+    if (existingError) {
+      return { success: false, error: existingError.message };
+    }
+
+    const existingIds = new Set(
+      (existingRows ?? []).map((row) => Number(row.id)),
+    );
+    const submittedIds = new Set(
+      anchors
+        .map((anchor) => anchor.id)
+        .filter((id): id is number => id != null),
+    );
+
+    for (const existingId of existingIds) {
+      if (submittedIds.has(existingId)) continue;
+
+      const { error } = await supabase
+        .from("desire_anchored_awakener")
+        .update({
+          deleted_at: nowIso(),
+          updated_at: nowIso(),
+        } as never)
+        .eq("id", existingId);
+
+      if (error) return { success: false, error: error.message };
+    }
+
+    for (const anchor of anchors) {
+      const anchorRecord = buildAnchoredAwakenerRecord(savedDesireId, anchor);
+
+      if (anchor.id != null) {
+        anchorRecord.updated_at = nowIso();
+        const { error } = await supabase
+          .from("desire_anchored_awakener")
+          .update(anchorRecord as never)
+          .eq("id", anchor.id);
+
+        if (error) return { success: false, error: error.message };
+        continue;
+      }
+
+      anchorRecord.created_at = nowIso();
+      anchorRecord.updated_at = nowIso();
+
+      const { error } = await supabase
+        .from("desire_anchored_awakener")
+        .insert(anchorRecord as never);
+
+      if (error) return { success: false, error: error.message };
+    }
+
+    revalidateTable("desire");
+    revalidateTable("desire_anchored_awakener");
+
+    const { data: desire, error: loadError } = await supabase
+      .from("desire")
+      .select("*")
+      .eq("id", savedDesireId)
+      .single();
+
+    if (loadError) return { success: false, error: loadError.message };
+
+    return {
+      success: true,
+      data: desire as Record<string, unknown>,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : "Failed to save desire",
     };
   }
 }

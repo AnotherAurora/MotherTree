@@ -12,6 +12,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
+import { DesireFormDialog } from "@/components/admin/desire-form-dialog";
 import { ManifestationFormDialog } from "@/components/admin/manifestation-form-dialog";
 import {
   EditableCell,
@@ -563,6 +564,14 @@ export function TableManager({
 
       {config.name === "awakener_tag_manifestation" ? (
         <ManifestationFormDialog
+          config={config}
+          open={dialogOpen}
+          onOpenChange={setDialogOpen}
+          record={editingRecord}
+          onSuccess={refresh}
+        />
+      ) : config.name === "desire" ? (
+        <DesireFormDialog
           config={config}
           open={dialogOpen}
           onOpenChange={setDialogOpen}

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ComponentType } from "react";
 import {
+  Anchor,
   Database,
   FlaskConical,
   GitBranch,
@@ -26,6 +27,7 @@ const ICONS: Partial<Record<TableName, ComponentType<{ className?: string }>>> =
   manifestation_interaction_override: GitBranch,
   desire_demand: Database,
   path: GitBranch,
+  desire_anchored_awakener: Anchor,
 };
 
 export function Sidebar() {

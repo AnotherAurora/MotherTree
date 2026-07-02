@@ -15,6 +15,7 @@ const TABLES: TableName[] = [
   "manifestation_interaction_override",
   "desire_demand",
   "path",
+  "desire_anchored_awakener",
 ];
 
 type ManifestTable = {
@@ -77,7 +78,7 @@ async function fetchAllRows<T extends TableName>(
       throw new Error(`Failed to export ${table}: ${error.message}`);
     }
 
-    const page = data ?? [];
+    const page = (data ?? []) as unknown as Database["public"]["Tables"][T]["Row"][];
     rows.push(...page);
 
     if (page.length < PAGE_SIZE) {

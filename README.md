@@ -13,7 +13,7 @@ Game data in the database is sourced from [SKeyDB](https://github.com/dansa/SKey
 
 ## Features
 
-- Sidebar navigation for all 8 database tables
+- Sidebar navigation for all 9 database tables
 - List, Create, Update, and Soft-Delete (where `deleted_at` exists)
 - Searchable foreign-key dropdowns with human-readable labels
 - Strict enum dropdowns matching exact database casing
@@ -32,6 +32,7 @@ Game data in the database is sourced from [SKeyDB](https://github.com/dansa/SKey
 | Interaction Overrides | Yes |
 | Desire Demands | Yes |
 | Paths | No (hard delete) |
+| Anchored Awakeners | Yes |
 
 ## Setup
 
@@ -102,11 +103,12 @@ Or use the Supabase MCP `generate_typescript_types` tool in Cursor.
 1. **Tags** — foundation for interactions
 2. **Awakeners** — character stats
 3. **Desires** — team goals
-4. **Manifestations** — awakener + tag pairings
-5. **Tag Interactions** — default synergy rules
-6. **Interaction Overrides** — per-manifestation tweaks
-7. **Desire Demands** — tag priority curves
-8. **Paths** — awakener ↔ desire links
+4. **Anchored Awakeners** — awakeners tied to a desire
+5. **Manifestations** — awakener + tag pairings
+6. **Tag Interactions** — default synergy rules
+7. **Interaction Overrides** — per-manifestation tweaks
+8. **Desire Demands** — tag priority curves
+9. **Paths** — awakener ↔ desire links
 
 ## Scripts
 
@@ -116,6 +118,9 @@ Or use the Supabase MCP `generate_typescript_types` tool in Cursor.
 | `npm run build` | Production build |
 | `npm run start` | Start production server |
 | `npm run lint` | Run ESLint |
+| `npm run db:types` | Regenerate TypeScript types from Supabase |
+| `npm run db:dump` | Export database rows to `sample-data/dumps/` |
+| `npm run db:pull` | Pull remote schema into local migrations |
 
 ## Credits
 
