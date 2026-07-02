@@ -9,6 +9,7 @@
     "start": "next start",
     "lint": "eslint",
     "db:types": "tsx scripts/generate-database-types.ts",
+    "db:dump": "tsx --env-file=.env.local scripts/export-sample-data.ts",
     "db:pull": "npx supabase db pull"
   },
   "dependencies": {
