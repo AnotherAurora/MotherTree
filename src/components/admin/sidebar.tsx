@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { TableName } from "@/lib/database.types";
-import { TABLE_CONFIGS } from "@/lib/schema-config";
+import { SIDEBAR_NAV_GROUPS, TABLE_CONFIG_MAP } from "@/lib/schema-config";
 
 const ICONS: Partial<Record<TableName, ComponentType<{ className?: string }>>> = {
   tag: Tags,
@@ -30,11 +30,35 @@ const ICONS: Partial<Record<TableName, ComponentType<{ className?: string }>>> =
   desire_anchored_awakener: Anchor,
 };
 
+function SidebarNavLink({
+  href,
+  active,
+  icon: Icon,
+  label,
+}: {
+  href: string;
+  active: boolean;
+  icon: ComponentType<{ className?: string }>;
+  label: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className={cn(
+        "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors",
+        active
+          ? "bg-white text-zinc-950"
+          : "text-zinc-300 hover:bg-zinc-900 hover:text-white",
+      )}
+    >
+      <Icon className="h-4 w-4 shrink-0" />
+      <span>{label}</span>
+    </Link>
+  );
+}
+
 export function Sidebar() {
   const pathname = usePathname();
-  const sorted = [...TABLE_CONFIGS]
-    .filter((config) => !config.sidebarHidden)
-    .sort((a, b) => a.order - b.order);
 
   return (
     <aside className="flex h-full w-64 shrink-0 flex-col border-r border-border bg-zinc-950 text-zinc-100">
@@ -53,43 +77,37 @@ export function Sidebar() {
         <p className="px-3 pb-1 pt-2 text-xs font-medium uppercase tracking-wider text-zinc-500">
           Tools
         </p>
-        <Link
+        <SidebarNavLink
           href="/simulator"
-          className={cn(
-            "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors",
-            pathname === "/simulator"
-              ? "bg-white text-zinc-950"
-              : "text-zinc-300 hover:bg-zinc-900 hover:text-white",
-          )}
-        >
-          <FlaskConical className="h-4 w-4 shrink-0" />
-          <span>Recommendation Simulator Debugger</span>
-        </Link>
+          active={pathname === "/simulator"}
+          icon={FlaskConical}
+          label="Recommendation Simulator Debugger"
+        />
 
-        <p className="px-3 pb-1 pt-4 text-xs font-medium uppercase tracking-wider text-zinc-500">
-          Tables
-        </p>
-        {sorted.map((config) => {
-          const href = `/tables/${config.name}`;
-          const active = pathname === href;
-          const Icon = ICONS[config.name] ?? Database;
+        {SIDEBAR_NAV_GROUPS.map((group) => (
+          <div key={group.label}>
+            <p className="px-3 pb-1 pt-4 text-xs font-medium uppercase tracking-wider text-zinc-500">
+              {group.label}
+            </p>
+            {group.tables.map((tableName) => {
+              const config = TABLE_CONFIG_MAP[tableName];
+              if (config.sidebarHidden) return null;
 
-          return (
-            <Link
-              key={config.name}
-              href={href}
-              className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors",
-                active
-                  ? "bg-white text-zinc-950"
-                  : "text-zinc-300 hover:bg-zinc-900 hover:text-white",
-              )}
-            >
-              <Icon className="h-4 w-4 shrink-0" />
-              <span>{config.label}</span>
-            </Link>
-          );
-        })}
+              const href = `/tables/${tableName}`;
+              const Icon = ICONS[tableName] ?? Database;
+
+              return (
+                <SidebarNavLink
+                  key={tableName}
+                  href={href}
+                  active={pathname === href}
+                  icon={Icon}
+                  label={config.label}
+                />
+              );
+            })}
+          </div>
+        ))}
       </nav>
 
       <div className="border-t border-zinc-800 px-5 py-4 text-xs leading-relaxed text-zinc-500">

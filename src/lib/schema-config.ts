@@ -560,6 +560,27 @@ export const TABLE_CONFIG_MAP = Object.fromEntries(
   TABLE_CONFIGS.map((config) => [config.name, config]),
 ) as Record<TableName, TableConfig>;
 
+export type SidebarNavGroup = {
+  label: string;
+  tables: TableName[];
+};
+
+export const SIDEBAR_NAV_GROUPS: SidebarNavGroup[] = [
+  { label: "Awakeners", tables: ["awakener"] },
+  { label: "Tags", tables: ["tag", "tag_default_interaction"] },
+  {
+    label: "Manifestations",
+    tables: [
+      "awakener_tag_manifestation",
+      "manifestation_interaction_override",
+    ],
+  },
+  {
+    label: "Desires",
+    tables: ["path", "desire", "desire_demand", "desire_anchored_awakener"],
+  },
+];
+
 export function isValidTableName(name: string): name is TableName {
   return name in TABLE_CONFIG_MAP;
 }
