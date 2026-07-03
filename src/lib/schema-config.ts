@@ -267,10 +267,10 @@ export const TABLE_CONFIGS: TableConfig[] = [
         inlineEditable: true,
       },
       {
-        name: "ramp_turns",
-        label: "Ramp Turns",
-        type: "number",
-        defaultValue: 1,
+        name: "is_accumulating",
+        label: "Is Accumulating",
+        type: "boolean",
+        defaultValue: false,
         inlineEditable: true,
       },
       {

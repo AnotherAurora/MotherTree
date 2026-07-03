@@ -62,7 +62,7 @@ export type Manifestation = {
   dependencyStat: AwakenerStat | null;
   sourceType: SourceType | null;
   targetType: TargetType | null;
-  rampTurns: number | null;
+  isAccumulating: boolean;
   requiredEnlightenment: number | null;
   requiredRealm: Realm | null;
   replacesManifestationId: number | null;

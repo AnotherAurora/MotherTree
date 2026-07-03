@@ -113,8 +113,8 @@ export type Database = {
           deleted_at: string | null
           dependency_stat: Database["public"]["Enums"]["awakener_stat"] | null
           id: number
+          is_accumulating: boolean
           metadata: string | null
-          ramp_turns: number | null
           replaces_manifestation_id: number | null
           required_enlightenment: number | null
           required_realm: Database["public"]["Enums"]["realm"] | null
@@ -134,8 +134,8 @@ export type Database = {
           deleted_at?: string | null
           dependency_stat?: Database["public"]["Enums"]["awakener_stat"] | null
           id?: number
+          is_accumulating?: boolean
           metadata?: string | null
-          ramp_turns?: number | null
           replaces_manifestation_id?: number | null
           required_enlightenment?: number | null
           required_realm?: Database["public"]["Enums"]["realm"] | null
@@ -155,8 +155,8 @@ export type Database = {
           deleted_at?: string | null
           dependency_stat?: Database["public"]["Enums"]["awakener_stat"] | null
           id?: number
+          is_accumulating?: boolean
           metadata?: string | null
-          ramp_turns?: number | null
           replaces_manifestation_id?: number | null
           required_enlightenment?: number | null
           required_realm?: Database["public"]["Enums"]["realm"] | null
@@ -183,6 +183,97 @@ export type Database = {
           },
           {
             foreignKeyName: "awakener_tag_manifestation_tag_id_fkey"
+            columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "tag"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      covenant: {
+        Row: {
+          created_at: string | null
+          deleted_at: string | null
+          id: number
+          name: string
+          stat: Database["public"]["Enums"]["awakener_stat"] | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          deleted_at?: string | null
+          id?: number
+          name: string
+          stat?: Database["public"]["Enums"]["awakener_stat"] | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          deleted_at?: string | null
+          id?: number
+          name?: string
+          stat?: Database["public"]["Enums"]["awakener_stat"] | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      covenant_tag_manifestation: {
+        Row: {
+          covenant_id: number | null
+          created_at: string | null
+          deleted_at: string | null
+          id: number
+          metadata: string | null
+          replaces_manifestation_id: number | null
+          required_realm: Database["public"]["Enums"]["realm"] | null
+          tag_id: number | null
+          target_type: Database["public"]["Enums"]["target_type"] | null
+          updated_at: string | null
+          value_scalar: number | null
+        }
+        Insert: {
+          covenant_id?: number | null
+          created_at?: string | null
+          deleted_at?: string | null
+          id?: number
+          metadata?: string | null
+          replaces_manifestation_id?: number | null
+          required_realm?: Database["public"]["Enums"]["realm"] | null
+          tag_id?: number | null
+          target_type?: Database["public"]["Enums"]["target_type"] | null
+          updated_at?: string | null
+          value_scalar?: number | null
+        }
+        Update: {
+          covenant_id?: number | null
+          created_at?: string | null
+          deleted_at?: string | null
+          id?: number
+          metadata?: string | null
+          replaces_manifestation_id?: number | null
+          required_realm?: Database["public"]["Enums"]["realm"] | null
+          tag_id?: number | null
+          target_type?: Database["public"]["Enums"]["target_type"] | null
+          updated_at?: string | null
+          value_scalar?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "covenant_tag_manifestation_covenant_id_fkey"
+            columns: ["covenant_id"]
+            isOneToOne: false
+            referencedRelation: "covenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "covenant_tag_manifestation_replaces_manifestation_id_fkey"
+            columns: ["replaces_manifestation_id"]
+            isOneToOne: false
+            referencedRelation: "covenant_tag_manifestation"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "covenant_tag_manifestation_tag_id_fkey"
             columns: ["tag_id"]
             isOneToOne: false
             referencedRelation: "tag"
@@ -406,6 +497,91 @@ export type Database = {
           },
         ]
       }
+      posse: {
+        Row: {
+          created_at: string | null
+          deleted_at: string | null
+          id: number
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          deleted_at?: string | null
+          id?: number
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          deleted_at?: string | null
+          id?: number
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      posse_tag_manifestation: {
+        Row: {
+          created_at: string | null
+          deleted_at: string | null
+          id: number
+          posse_id: number | null
+          required_awakener: number | null
+          required_realm: Database["public"]["Enums"]["realm"] | null
+          tag_id: number | null
+          target_type: Database["public"]["Enums"]["target_type"] | null
+          updated_at: string | null
+          value_scalar: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          deleted_at?: string | null
+          id?: number
+          posse_id?: number | null
+          required_awakener?: number | null
+          required_realm?: Database["public"]["Enums"]["realm"] | null
+          tag_id?: number | null
+          target_type?: Database["public"]["Enums"]["target_type"] | null
+          updated_at?: string | null
+          value_scalar?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          deleted_at?: string | null
+          id?: number
+          posse_id?: number | null
+          required_awakener?: number | null
+          required_realm?: Database["public"]["Enums"]["realm"] | null
+          tag_id?: number | null
+          target_type?: Database["public"]["Enums"]["target_type"] | null
+          updated_at?: string | null
+          value_scalar?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "posse_tag_manifestation_posse_id_fkey"
+            columns: ["posse_id"]
+            isOneToOne: false
+            referencedRelation: "posse"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "posse_tag_manifestation_required_awakener_fkey"
+            columns: ["required_awakener"]
+            isOneToOne: false
+            referencedRelation: "awakener"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "posse_tag_manifestation_tag_id_fkey"
+            columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "tag"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tag: {
         Row: {
           created_at: string | null
@@ -523,6 +699,7 @@ export type Database = {
         | "compound_multiplier"
         | "add_hits"
         | "subtract"
+      rarity: "SSR" | "SR" | "R" | "N"
       realm:
         | "chaos"
         | "caro"
@@ -686,6 +863,7 @@ export const Constants = {
         "add_hits",
         "subtract",
       ],
+      rarity: ["SSR", "SR", "R", "N"],
       realm: [
         "chaos",
         "caro",
