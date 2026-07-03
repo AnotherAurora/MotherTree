@@ -29,6 +29,12 @@ Each dated folder contains:
 | `desire_demand.json` | All rows from `desire_demand` |
 | `path.json` | All rows from `path` |
 | `desire_anchored_awakener.json` | All rows from `desire_anchored_awakener` |
+| `posse.json` | All rows from `posse` |
+| `posse_tag_manifestation.json` | All rows from `posse_tag_manifestation` |
+| `wheel.json` | All rows from `wheel` |
+| `wheel_tag_manifestation.json` | All rows from `wheel_tag_manifestation` |
+| `covenant.json` | All rows from `covenant` |
+| `covenant_tag_manifestation.json` | All rows from `covenant_tag_manifestation` |
 
 Exports include soft-deleted rows (`deleted_at` is not null).
 

@@ -16,6 +16,12 @@ const TABLES: TableName[] = [
   "desire_demand",
   "path",
   "desire_anchored_awakener",
+  "posse",
+  "posse_tag_manifestation",
+  "wheel",
+  "wheel_tag_manifestation",
+  "covenant",
+  "covenant_tag_manifestation",
 ];
 
 type ManifestTable = {

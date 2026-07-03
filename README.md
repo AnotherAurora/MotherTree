@@ -109,6 +109,12 @@ Or use the Supabase MCP `generate_typescript_types` tool in Cursor.
 7. **Interaction Overrides** — per-manifestation tweaks
 8. **Desire Demands** — tag priority curves
 9. **Paths** — awakener ↔ desire links
+10. **Posse** — posse definitions
+11. **Posse Manifestations** — posse + tag pairings
+12. **Wheels** — wheel gear with rarity/stat
+13. **Wheel Manifestations** — wheel + tag pairings
+14. **Covenants** — covenant gear with stat
+15. **Covenant Manifestations** — covenant + tag pairings
 
 ## Scripts
 

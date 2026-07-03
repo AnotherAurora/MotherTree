@@ -5,13 +5,16 @@ import { usePathname } from "next/navigation";
 import type { ComponentType } from "react";
 import {
   Anchor,
+  CircleDot,
   Database,
   FlaskConical,
   GitBranch,
   Heart,
   Layers,
+  ScrollText,
   Sparkles,
   Tags,
+  Users,
   Zap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -28,6 +31,12 @@ const ICONS: Partial<Record<TableName, ComponentType<{ className?: string }>>> =
   desire_demand: Database,
   path: GitBranch,
   desire_anchored_awakener: Anchor,
+  posse: Users,
+  posse_tag_manifestation: Layers,
+  wheel: CircleDot,
+  wheel_tag_manifestation: Layers,
+  covenant: ScrollText,
+  covenant_tag_manifestation: Layers,
 };
 
 function SidebarNavLink({

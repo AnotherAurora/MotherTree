@@ -197,6 +197,7 @@ export type Database = {
           id: number
           name: string
           stat: Database["public"]["Enums"]["awakener_stat"] | null
+          stat_amount: number | null
           updated_at: string | null
         }
         Insert: {
@@ -205,6 +206,7 @@ export type Database = {
           id?: number
           name: string
           stat?: Database["public"]["Enums"]["awakener_stat"] | null
+          stat_amount?: number | null
           updated_at?: string | null
         }
         Update: {
@@ -213,6 +215,7 @@ export type Database = {
           id?: number
           name?: string
           stat?: Database["public"]["Enums"]["awakener_stat"] | null
+          stat_amount?: number | null
           updated_at?: string | null
         }
         Relationships: []
@@ -223,6 +226,7 @@ export type Database = {
           created_at: string | null
           deleted_at: string | null
           id: number
+          is_accumulating: boolean
           metadata: string | null
           replaces_manifestation_id: number | null
           required_realm: Database["public"]["Enums"]["realm"] | null
@@ -236,6 +240,7 @@ export type Database = {
           created_at?: string | null
           deleted_at?: string | null
           id?: number
+          is_accumulating?: boolean
           metadata?: string | null
           replaces_manifestation_id?: number | null
           required_realm?: Database["public"]["Enums"]["realm"] | null
@@ -249,6 +254,7 @@ export type Database = {
           created_at?: string | null
           deleted_at?: string | null
           id?: number
+          is_accumulating?: boolean
           metadata?: string | null
           replaces_manifestation_id?: number | null
           required_realm?: Database["public"]["Enums"]["realm"] | null
@@ -526,6 +532,7 @@ export type Database = {
           created_at: string | null
           deleted_at: string | null
           id: number
+          metadata: string | null
           posse_id: number | null
           required_awakener: number | null
           required_realm: Database["public"]["Enums"]["realm"] | null
@@ -538,6 +545,7 @@ export type Database = {
           created_at?: string | null
           deleted_at?: string | null
           id?: number
+          metadata?: string | null
           posse_id?: number | null
           required_awakener?: number | null
           required_realm?: Database["public"]["Enums"]["realm"] | null
@@ -550,6 +558,7 @@ export type Database = {
           created_at?: string | null
           deleted_at?: string | null
           id?: number
+          metadata?: string | null
           posse_id?: number | null
           required_awakener?: number | null
           required_realm?: Database["public"]["Enums"]["realm"] | null
@@ -670,6 +679,108 @@ export type Database = {
           },
         ]
       }
+      wheel: {
+        Row: {
+          created_at: string | null
+          deleted_at: string | null
+          enlightenment: number | null
+          id: number
+          name: string
+          rarity: Database["public"]["Enums"]["rarity"] | null
+          stat: Database["public"]["Enums"]["awakener_stat"] | null
+          stat_amount: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          deleted_at?: string | null
+          enlightenment?: number | null
+          id?: number
+          name: string
+          rarity?: Database["public"]["Enums"]["rarity"] | null
+          stat?: Database["public"]["Enums"]["awakener_stat"] | null
+          stat_amount?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          deleted_at?: string | null
+          enlightenment?: number | null
+          id?: number
+          name?: string
+          rarity?: Database["public"]["Enums"]["rarity"] | null
+          stat?: Database["public"]["Enums"]["awakener_stat"] | null
+          stat_amount?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      wheel_tag_manifestation: {
+        Row: {
+          buff_target_type_restriction:
+            | Database["public"]["Enums"]["source_type"]
+            | null
+          created_at: string | null
+          deleted_at: string | null
+          dependency_stat: Database["public"]["Enums"]["awakener_stat"] | null
+          id: number
+          metadata: string | null
+          required_realm: Database["public"]["Enums"]["realm"] | null
+          tag_id: number | null
+          target_type: Database["public"]["Enums"]["target_type"] | null
+          updated_at: string | null
+          value_scalar: number | null
+          wheel_id: number | null
+        }
+        Insert: {
+          buff_target_type_restriction?:
+            | Database["public"]["Enums"]["source_type"]
+            | null
+          created_at?: string | null
+          deleted_at?: string | null
+          dependency_stat?: Database["public"]["Enums"]["awakener_stat"] | null
+          id?: number
+          metadata?: string | null
+          required_realm?: Database["public"]["Enums"]["realm"] | null
+          tag_id?: number | null
+          target_type?: Database["public"]["Enums"]["target_type"] | null
+          updated_at?: string | null
+          value_scalar?: number | null
+          wheel_id?: number | null
+        }
+        Update: {
+          buff_target_type_restriction?:
+            | Database["public"]["Enums"]["source_type"]
+            | null
+          created_at?: string | null
+          deleted_at?: string | null
+          dependency_stat?: Database["public"]["Enums"]["awakener_stat"] | null
+          id?: number
+          metadata?: string | null
+          required_realm?: Database["public"]["Enums"]["realm"] | null
+          tag_id?: number | null
+          target_type?: Database["public"]["Enums"]["target_type"] | null
+          updated_at?: string | null
+          value_scalar?: number | null
+          wheel_id?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wheel_tag_manifestation_tag_id_fkey"
+            columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "tag"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wheel_tag_manifestation_wheel_id_fkey"
+            columns: ["wheel_id"]
+            isOneToOne: false
+            referencedRelation: "wheel"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -682,7 +793,7 @@ export type Database = {
         | "con"
         | "atk"
         | "def"
-        | "skey"
+        | "keyflare_regen"
         | "damage_amp"
         | "crit_rate"
         | "crit_dmg"
@@ -844,7 +955,7 @@ export const Constants = {
         "con",
         "atk",
         "def",
-        "skey",
+        "keyflare_regen",
         "damage_amp",
         "crit_rate",
         "crit_dmg",
