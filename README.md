@@ -103,18 +103,19 @@ Or use the Supabase MCP `generate_typescript_types` tool in Cursor.
 1. **Tags** — foundation for interactions
 2. **Awakeners** — character stats
 3. **Desires** — team goals
-4. **Anchored Awakeners** — awakeners tied to a desire
-5. **Manifestations** — awakener + tag pairings
-6. **Tag Interactions** — default synergy rules
-7. **Interaction Overrides** — per-manifestation tweaks
-8. **Desire Demands** — tag priority curves
-9. **Paths** — awakener ↔ desire links
-10. **Posse** — posse definitions
-11. **Posse Manifestations** — posse + tag pairings
-12. **Wheels** — wheel gear with rarity/stat
-13. **Wheel Manifestations** — wheel + tag pairings
-14. **Covenants** — covenant gear with stat
-15. **Covenant Manifestations** — covenant + tag pairings
+4. **Desire Templates** — loadout presets linked to a desire
+5. **Anchored Awakeners** — awakeners tied to a desire
+6. **Manifestations** — awakener + tag pairings
+7. **Tag Interactions** — default synergy rules
+8. **Interaction Overrides** — per-manifestation tweaks
+9. **Desire Demands** — tag priority curves
+10. **Paths** — awakener ↔ desire links
+11. **Posse** — posse definitions
+12. **Posse Manifestations** — posse + tag pairings
+13. **Wheels** — wheel gear with rarity/stat
+14. **Wheel Manifestations** — wheel + tag pairings
+15. **Covenants** — covenant gear with stat
+16. **Covenant Manifestations** — covenant + tag pairings
 
 ## Scripts
 

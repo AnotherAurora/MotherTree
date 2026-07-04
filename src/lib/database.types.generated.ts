@@ -413,6 +413,208 @@ export type Database = {
           },
         ]
       }
+      desire_template: {
+        Row: {
+          created_at: string | null
+          deleted_at: string | null
+          desire_id: number
+          id: number
+          posse_id: number | null
+          slot1_awakener_id: number | null
+          slot1_covenant_id: number | null
+          slot1_wheel1_id: number | null
+          slot1_wheel2_id: number | null
+          slot2_awakener_id: number | null
+          slot2_covenant_id: number | null
+          slot2_wheel1_id: number | null
+          slot2_wheel2_id: number | null
+          slot3_awakener_id: number | null
+          slot3_covenant_id: number | null
+          slot3_wheel1_id: number | null
+          slot3_wheel2_id: number | null
+          slot4_awakener_id: number | null
+          slot4_covenant_id: number | null
+          slot4_wheel1_id: number | null
+          slot4_wheel2_id: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          deleted_at?: string | null
+          desire_id: number
+          id?: number
+          posse_id?: number | null
+          slot1_awakener_id?: number | null
+          slot1_covenant_id?: number | null
+          slot1_wheel1_id?: number | null
+          slot1_wheel2_id?: number | null
+          slot2_awakener_id?: number | null
+          slot2_covenant_id?: number | null
+          slot2_wheel1_id?: number | null
+          slot2_wheel2_id?: number | null
+          slot3_awakener_id?: number | null
+          slot3_covenant_id?: number | null
+          slot3_wheel1_id?: number | null
+          slot3_wheel2_id?: number | null
+          slot4_awakener_id?: number | null
+          slot4_covenant_id?: number | null
+          slot4_wheel1_id?: number | null
+          slot4_wheel2_id?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          deleted_at?: string | null
+          desire_id?: number
+          id?: number
+          posse_id?: number | null
+          slot1_awakener_id?: number | null
+          slot1_covenant_id?: number | null
+          slot1_wheel1_id?: number | null
+          slot1_wheel2_id?: number | null
+          slot2_awakener_id?: number | null
+          slot2_covenant_id?: number | null
+          slot2_wheel1_id?: number | null
+          slot2_wheel2_id?: number | null
+          slot3_awakener_id?: number | null
+          slot3_covenant_id?: number | null
+          slot3_wheel1_id?: number | null
+          slot3_wheel2_id?: number | null
+          slot4_awakener_id?: number | null
+          slot4_covenant_id?: number | null
+          slot4_wheel1_id?: number | null
+          slot4_wheel2_id?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "desire_template_desire_id_fkey"
+            columns: ["desire_id"]
+            isOneToOne: false
+            referencedRelation: "desire"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "desire_template_posse_id_fkey"
+            columns: ["posse_id"]
+            isOneToOne: false
+            referencedRelation: "posse"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "desire_template_slot1_awakener_id_fkey"
+            columns: ["slot1_awakener_id"]
+            isOneToOne: false
+            referencedRelation: "awakener"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "desire_template_slot1_covenant_id_fkey"
+            columns: ["slot1_covenant_id"]
+            isOneToOne: false
+            referencedRelation: "covenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "desire_template_slot1_wheel1_id_fkey"
+            columns: ["slot1_wheel1_id"]
+            isOneToOne: false
+            referencedRelation: "wheel"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "desire_template_slot1_wheel2_id_fkey"
+            columns: ["slot1_wheel2_id"]
+            isOneToOne: false
+            referencedRelation: "wheel"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "desire_template_slot2_awakener_id_fkey"
+            columns: ["slot2_awakener_id"]
+            isOneToOne: false
+            referencedRelation: "awakener"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "desire_template_slot2_covenant_id_fkey"
+            columns: ["slot2_covenant_id"]
+            isOneToOne: false
+            referencedRelation: "covenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "desire_template_slot2_wheel1_id_fkey"
+            columns: ["slot2_wheel1_id"]
+            isOneToOne: false
+            referencedRelation: "wheel"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "desire_template_slot2_wheel2_id_fkey"
+            columns: ["slot2_wheel2_id"]
+            isOneToOne: false
+            referencedRelation: "wheel"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "desire_template_slot3_awakener_id_fkey"
+            columns: ["slot3_awakener_id"]
+            isOneToOne: false
+            referencedRelation: "awakener"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "desire_template_slot3_covenant_id_fkey"
+            columns: ["slot3_covenant_id"]
+            isOneToOne: false
+            referencedRelation: "covenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "desire_template_slot3_wheel1_id_fkey"
+            columns: ["slot3_wheel1_id"]
+            isOneToOne: false
+            referencedRelation: "wheel"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "desire_template_slot3_wheel2_id_fkey"
+            columns: ["slot3_wheel2_id"]
+            isOneToOne: false
+            referencedRelation: "wheel"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "desire_template_slot4_awakener_id_fkey"
+            columns: ["slot4_awakener_id"]
+            isOneToOne: false
+            referencedRelation: "awakener"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "desire_template_slot4_covenant_id_fkey"
+            columns: ["slot4_covenant_id"]
+            isOneToOne: false
+            referencedRelation: "covenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "desire_template_slot4_wheel1_id_fkey"
+            columns: ["slot4_wheel1_id"]
+            isOneToOne: false
+            referencedRelation: "wheel"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "desire_template_slot4_wheel2_id_fkey"
+            columns: ["slot4_wheel2_id"]
+            isOneToOne: false
+            referencedRelation: "wheel"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       manifestation_interaction_override: {
         Row: {
           created_at: string | null
@@ -532,6 +734,7 @@ export type Database = {
           created_at: string | null
           deleted_at: string | null
           id: number
+          is_accumulating: boolean
           metadata: string | null
           posse_id: number | null
           required_awakener: number | null
@@ -545,6 +748,7 @@ export type Database = {
           created_at?: string | null
           deleted_at?: string | null
           id?: number
+          is_accumulating?: boolean
           metadata?: string | null
           posse_id?: number | null
           required_awakener?: number | null
@@ -558,6 +762,7 @@ export type Database = {
           created_at?: string | null
           deleted_at?: string | null
           id?: number
+          is_accumulating?: boolean
           metadata?: string | null
           posse_id?: number | null
           required_awakener?: number | null
@@ -724,6 +929,7 @@ export type Database = {
           deleted_at: string | null
           dependency_stat: Database["public"]["Enums"]["awakener_stat"] | null
           id: number
+          is_accumulating: boolean
           metadata: string | null
           required_realm: Database["public"]["Enums"]["realm"] | null
           tag_id: number | null
@@ -740,6 +946,7 @@ export type Database = {
           deleted_at?: string | null
           dependency_stat?: Database["public"]["Enums"]["awakener_stat"] | null
           id?: number
+          is_accumulating?: boolean
           metadata?: string | null
           required_realm?: Database["public"]["Enums"]["realm"] | null
           tag_id?: number | null
@@ -756,6 +963,7 @@ export type Database = {
           deleted_at?: string | null
           dependency_stat?: Database["public"]["Enums"]["awakener_stat"] | null
           id?: number
+          is_accumulating?: boolean
           metadata?: string | null
           required_realm?: Database["public"]["Enums"]["realm"] | null
           tag_id?: number | null

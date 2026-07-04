@@ -10,6 +10,7 @@ const TABLES: TableName[] = [
   "tag",
   "awakener",
   "desire",
+  "desire_template",
   "awakener_tag_manifestation",
   "tag_default_interaction",
   "manifestation_interaction_override",
