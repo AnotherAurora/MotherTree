@@ -15,6 +15,7 @@ import type {
   SimulatorGearOptions,
   SlotState,
 } from "@/lib/simulator/types";
+import { effectiveEnlightenment } from "@/lib/team-data/resolve-manifestations";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export type {
@@ -129,10 +130,14 @@ export async function getSimulatorGearOptions(): Promise<
 
     const [posseResult, wheelResult, covenantResult] = await Promise.all([
       supabase.from("posse").select("id, name").is("deleted_at", null).order("name"),
-      supabase.from("wheel").select("id, name").is("deleted_at", null).order("name"),
+      supabase
+        .from("wheel")
+        .select("id, name, rarity, enlightenment")
+        .is("deleted_at", null)
+        .order("name"),
       supabase
         .from("covenant")
-        .select("id, name")
+        .select("id, name, team_unique")
         .is("deleted_at", null)
         .order("name"),
     ]);
@@ -153,10 +158,13 @@ export async function getSimulatorGearOptions(): Promise<
         wheel: (wheelResult.data ?? []).map((w) => ({
           value: w.id,
           label: w.name ?? `#${w.id}`,
+          rarity: w.rarity,
+          enlightenment: effectiveEnlightenment(w.enlightenment),
         })),
         covenant: (covenantResult.data ?? []).map((c) => ({
           value: c.id,
           label: c.name ?? `#${c.id}`,
+          teamUnique: c.team_unique,
         })),
       },
     };

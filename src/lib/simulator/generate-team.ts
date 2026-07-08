@@ -4,6 +4,13 @@ import {
   scoreComposition,
   type SimulatorCatalog,
 } from "@/lib/simulator/catalog";
+import {
+  buildCovenantOptionMap,
+  buildWheelOptionMap,
+  getSelectedTeamUniqueCovenantIds,
+  getSelectedWheelIds,
+  wouldViolateSsrRarityPair,
+} from "@/lib/simulator/gear-selection";
 import type {
   BanEntry,
   SlotState,
@@ -170,10 +177,51 @@ function topGearCandidates(
       ? catalog.covenantOptions
       : catalog.wheelOptions;
 
+  const covenantMap = buildCovenantOptionMap(catalog.covenantOptions);
+  const wheelMap = buildWheelOptionMap(catalog.wheelOptions);
+  const wheelExclude =
+    entityType === "wheel"
+      ? { slotIndex, field: field as "wheel1Id" | "wheel2Id" }
+      : undefined;
+
   const scored: Array<{ id: number; score: number }> = [];
 
   for (const option of options) {
     if (isEntityBanned(banSet, entityType, option.value)) continue;
+
+    if (entityType === "covenant") {
+      const covenant = covenantMap.get(option.value);
+      if (
+        covenant?.teamUnique &&
+        getSelectedTeamUniqueCovenantIds(slots, covenantMap, slotIndex).has(
+          option.value,
+        )
+      ) {
+        continue;
+      }
+    }
+
+    if (entityType === "wheel") {
+      if (
+        getSelectedWheelIds(slots, wheelExclude).has(option.value)
+      ) {
+        continue;
+      }
+
+      const slot = slots[slotIndex];
+      const siblingWheelId =
+        field === "wheel1Id" ? slot?.wheel2Id : slot?.wheel1Id;
+      const siblingWheel =
+        siblingWheelId != null ? wheelMap.get(siblingWheelId) : undefined;
+      const candidateWheel = wheelMap.get(option.value);
+      if (
+        candidateWheel &&
+        wouldViolateSsrRarityPair(candidateWheel, siblingWheel)
+      ) {
+        continue;
+      }
+    }
+
     const trialSlots = slots.map((s, i) =>
       i === slotIndex ? { ...s, [field]: option.value } : s,
     );

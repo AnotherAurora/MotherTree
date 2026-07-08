@@ -52,10 +52,17 @@ export type GearOption = {
   label: string;
 };
 
+export type CovenantGearOption = GearOption & { teamUnique: boolean };
+
+export type WheelGearOption = GearOption & {
+  rarity: "SSR" | "SR" | "R" | "N" | null;
+  enlightenment: number;
+};
+
 export type SimulatorGearOptions = {
   posse: GearOption[];
-  wheel: GearOption[];
-  covenant: GearOption[];
+  wheel: WheelGearOption[];
+  covenant: CovenantGearOption[];
 };
 
 export type TeamComposition = {

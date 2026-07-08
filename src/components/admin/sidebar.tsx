@@ -8,6 +8,7 @@ import {
   CircleDot,
   Database,
   FlaskConical,
+  PenLine,
   GitBranch,
   Heart,
   LayoutTemplate,
@@ -93,6 +94,12 @@ export function Sidebar() {
           active={pathname === "/simulator"}
           icon={FlaskConical}
           label="Recommendation Simulator Debugger"
+        />
+        <SidebarNavLink
+          href="/path-carver"
+          active={pathname === "/path-carver"}
+          icon={PenLine}
+          label="Path Carver"
         />
 
         {SIDEBAR_NAV_GROUPS.map((group) => (

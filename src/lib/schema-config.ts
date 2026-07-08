@@ -803,6 +803,13 @@ export const TABLE_CONFIGS: TableConfig[] = [
         inlineEditable: true,
       },
       { name: "stat_amount", label: "Stat Amount", type: "number", inlineEditable: true },
+      {
+        name: "team_unique",
+        label: "Team Unique",
+        type: "boolean",
+        defaultValue: false,
+        inlineEditable: true,
+      },
       ...timestampFields(),
     ],
   },

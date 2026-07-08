@@ -6,7 +6,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import type { SlotState } from "@/components/simulator/mock-data";
 import type { ForeignKeyOption } from "@/lib/actions/crud";
-import type { SimulatorGearOptions } from "@/lib/actions/simulator-flow";
 import {
   getAwakenerRelatedTags,
   type AwakenerRelatedTagManifestation,
@@ -17,10 +16,17 @@ type AwakenerSlotRowProps = {
   index: number;
   slot: SlotState;
   awakenerOptions: ForeignKeyOption[];
-  gearOptions: SimulatorGearOptions;
+  covenantOptions: ForeignKeyOption[];
+  wheel1Options: ForeignKeyOption[];
+  wheel2Options: ForeignKeyOption[];
   getCachedTags: (awakenerId: number) => AwakenerRelatedTags | undefined;
   setCachedTags: (awakenerId: number, tags: AwakenerRelatedTags) => void;
   onChange: (slot: SlotState) => void;
+  showRelatedTags?: boolean;
+  showAnchorToggle?: boolean;
+  isAnchored?: boolean;
+  onAnchorChange?: (anchored: boolean) => void;
+  anchorDisabled?: boolean;
 };
 
 function ManifestationTagSection({
@@ -58,10 +64,17 @@ export function AwakenerSlotRow({
   index,
   slot,
   awakenerOptions,
-  gearOptions,
+  covenantOptions,
+  wheel1Options,
+  wheel2Options,
   getCachedTags,
   setCachedTags,
   onChange,
+  showRelatedTags = true,
+  showAnchorToggle = false,
+  isAnchored = false,
+  onAnchorChange,
+  anchorDisabled = false,
 }: AwakenerSlotRowProps) {
   const [relatedTags, setRelatedTags] = useState<AwakenerRelatedTags | null>(
     null,
@@ -70,7 +83,7 @@ export function AwakenerSlotRow({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (slot.awakenerId == null) {
+    if (!showRelatedTags || slot.awakenerId == null) {
       setRelatedTags(null);
       setLoading(false);
       setError(null);
@@ -107,16 +120,30 @@ export function AwakenerSlotRow({
     return () => {
       cancelled = true;
     };
-  }, [slot.awakenerId, getCachedTags, setCachedTags]);
+  }, [slot.awakenerId, getCachedTags, setCachedTags, showRelatedTags]);
 
   return (
     <Card>
-      <CardContent className="flex gap-4 p-4">
-        <div className="w-48 shrink-0 space-y-3">
+      <CardContent className={`flex gap-4 p-4 ${showRelatedTags ? "" : ""}`}>
+        <div className={`shrink-0 space-y-3 ${showRelatedTags ? "w-48" : "w-full max-w-md"}`}>
           <div className="space-y-1.5">
-            <Label className="text-xs text-zinc-500">
-              Awakener {index + 1}
-            </Label>
+            <div className="flex items-center justify-between gap-2">
+              <Label className="text-xs text-zinc-500">
+                Awakener {index + 1}
+              </Label>
+              {showAnchorToggle && (
+                <label className="flex cursor-pointer items-center gap-1.5 text-xs text-zinc-600">
+                  <input
+                    type="checkbox"
+                    checked={isAnchored}
+                    disabled={anchorDisabled || slot.awakenerId == null}
+                    onChange={(e) => onAnchorChange?.(e.target.checked)}
+                    className="h-3.5 w-3.5 rounded border-zinc-300"
+                  />
+                  Anchor
+                </label>
+              )}
+            </div>
             <ForeignKeyCombobox
               value={slot.awakenerId}
               onChange={(awakenerId) => onChange({ ...slot, awakenerId })}
@@ -129,7 +156,7 @@ export function AwakenerSlotRow({
             <ForeignKeyCombobox
               value={slot.covenantId}
               onChange={(covenantId) => onChange({ ...slot, covenantId })}
-              options={gearOptions.covenant}
+              options={covenantOptions}
               placeholder="Select covenant..."
             />
           </div>
@@ -138,7 +165,7 @@ export function AwakenerSlotRow({
             <ForeignKeyCombobox
               value={slot.wheel1Id}
               onChange={(wheel1Id) => onChange({ ...slot, wheel1Id })}
-              options={gearOptions.wheel}
+              options={wheel1Options}
               placeholder="Select wheel..."
             />
           </div>
@@ -147,12 +174,13 @@ export function AwakenerSlotRow({
             <ForeignKeyCombobox
               value={slot.wheel2Id}
               onChange={(wheel2Id) => onChange({ ...slot, wheel2Id })}
-              options={gearOptions.wheel}
+              options={wheel2Options}
               placeholder="Select wheel..."
             />
           </div>
         </div>
 
+        {showRelatedTags && (
         <div className="flex min-h-[120px] flex-1 flex-col">
           <Label className="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-500">
             Related Tag List
@@ -182,6 +210,7 @@ export function AwakenerSlotRow({
             ) : null}
           </div>
         </div>
+        )}
       </CardContent>
     </Card>
   );

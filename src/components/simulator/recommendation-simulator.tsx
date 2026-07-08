@@ -12,6 +12,12 @@ import { SimulatorHeader } from "@/components/simulator/simulator-header";
 import { SimulatorSidebar } from "@/components/simulator/simulator-sidebar";
 import { StartFlowModal } from "@/components/simulator/start-flow-modal";
 import { computeFulfillment, type FulfillmentResult } from "@/lib/simulator/fulfillment";
+import {
+  buildCovenantOptionMap,
+  buildWheelOptionMap,
+  filterCovenantOptionsForSlot,
+  filterWheelOptionsForSlot,
+} from "@/lib/simulator/gear-selection";
 import { loadTeamData, type TeamData } from "@/lib/actions/team-data";
 import {
   getDesireDetail,
@@ -71,6 +77,57 @@ export function RecommendationSimulator({
         ),
       ),
     [awakenerOptions, slots, optionMap],
+  );
+
+  const covenantMap = useMemo(
+    () => buildCovenantOptionMap(gearOptions.covenant),
+    [gearOptions.covenant],
+  );
+
+  const wheelMap = useMemo(
+    () => buildWheelOptionMap(gearOptions.wheel),
+    [gearOptions.wheel],
+  );
+
+  const filteredCovenantBySlot = useMemo(
+    () =>
+      slots.map((_, index) =>
+        filterCovenantOptionsForSlot(
+          gearOptions.covenant,
+          slots,
+          index,
+          covenantMap,
+        ),
+      ),
+    [gearOptions.covenant, slots, covenantMap],
+  );
+
+  const filteredWheel1BySlot = useMemo(
+    () =>
+      slots.map((_, index) =>
+        filterWheelOptionsForSlot(
+          gearOptions.wheel,
+          slots,
+          index,
+          "wheel1Id",
+          wheelMap,
+        ),
+      ),
+    [gearOptions.wheel, slots, wheelMap],
+  );
+
+  const filteredWheel2BySlot = useMemo(
+    () =>
+      slots.map((_, index) =>
+        filterWheelOptionsForSlot(
+          gearOptions.wheel,
+          slots,
+          index,
+          "wheel2Id",
+          wheelMap,
+        ),
+      ),
+    [gearOptions.wheel, slots, wheelMap],
   );
 
   const loadTeamDataDisabled = useMemo(
@@ -298,7 +355,9 @@ export function RecommendationSimulator({
               index={index}
               slot={slot}
               awakenerOptions={filteredOptionsBySlot[index]}
-              gearOptions={gearOptions}
+              covenantOptions={filteredCovenantBySlot[index] ?? []}
+              wheel1Options={filteredWheel1BySlot[index] ?? []}
+              wheel2Options={filteredWheel2BySlot[index] ?? []}
               getCachedTags={getCachedTags}
               setCachedTags={setCachedTags}
               onChange={(updated) => handleSlotChange(index, updated)}

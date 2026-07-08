@@ -6,11 +6,13 @@ import {
 } from "@/lib/team-data/resolve-manifestations";
 import type { Realm } from "@/lib/team-data/types";
 import type {
+  CovenantGearOption,
   DesireDemandRow,
   DesireDetail,
   GearOption,
   SlotState,
   TeamComposition,
+  WheelGearOption,
 } from "@/lib/simulator/types";
 import type { Manifestation } from "@/lib/team-data/types";
 import { computeFulfillment } from "@/lib/simulator/fulfillment";
@@ -33,8 +35,8 @@ export type SimulatorCatalog = {
   desire: DesireDetail;
   awakeners: CatalogAwakener[];
   posseOptions: GearOption[];
-  wheelOptions: GearOption[];
-  covenantOptions: GearOption[];
+  wheelOptions: WheelGearOption[];
+  covenantOptions: CovenantGearOption[];
   awakenerManifestations: Map<number, RawManifestation[]>;
   wheelManifestations: Map<number, RawManifestation[]>;
   covenantManifestations: Map<number, RawManifestation[]>;
@@ -148,8 +150,14 @@ export async function loadSimulatorCatalog(
       .select("id, name, realm, enlightenment")
       .is("deleted_at", null),
     supabase.from("posse").select("id, name").is("deleted_at", null),
-    supabase.from("wheel").select("id, name").is("deleted_at", null),
-    supabase.from("covenant").select("id, name").is("deleted_at", null),
+    supabase
+      .from("wheel")
+      .select("id, name, rarity, enlightenment")
+      .is("deleted_at", null),
+    supabase
+      .from("covenant")
+      .select("id, name, team_unique")
+      .is("deleted_at", null),
     supabase
       .from("awakener_tag_manifestation")
       .select(
@@ -290,10 +298,13 @@ export async function loadSimulatorCatalog(
     wheelOptions: (wheelResult.data ?? []).map((w) => ({
       value: w.id,
       label: w.name ?? `#${w.id}`,
+      rarity: w.rarity,
+      enlightenment: effectiveEnlightenment(w.enlightenment),
     })),
     covenantOptions: (covenantResult.data ?? []).map((c) => ({
       value: c.id,
       label: c.name ?? `#${c.id}`,
+      teamUnique: c.team_unique,
     })),
     awakenerManifestations,
     wheelManifestations,

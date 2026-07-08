@@ -1,0 +1,255 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { loadTeamData } from "@/lib/actions/team-data";
+import {
+  aggregateTagScalarsById,
+  getScalarForTag,
+} from "@/lib/path-carver/aggregate-tag-scalars";
+import { isTagMeasurable } from "@/lib/path-carver/measurable-tags";
+import type {
+  DraftDemandSelection,
+  EditableDemand,
+  ManifestedTagRow,
+} from "@/lib/path-carver/types";
+import type { SlotState } from "@/lib/simulator/types";
+import { cn } from "@/lib/utils";
+
+type ReviewTagsStepProps = {
+  slots: SlotState[];
+  posseId: number | null;
+  desireName: string;
+  desireDescription: string;
+  mode: "create" | "edit";
+  selections: DraftDemandSelection[];
+  existingDemands: EditableDemand[];
+  onDesireNameChange: (value: string) => void;
+  onDesireDescriptionChange: (value: string) => void;
+  onSelectionsChange: (selections: DraftDemandSelection[]) => void;
+};
+
+export function ReviewTagsStep({
+  slots,
+  posseId,
+  desireName,
+  desireDescription,
+  mode,
+  selections,
+  existingDemands,
+  onDesireNameChange,
+  onDesireDescriptionChange,
+  onSelectionsChange,
+}: ReviewTagsStepProps) {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [manifestedTags, setManifestedTags] = useState<ManifestedTagRow[]>([]);
+  const [scalarTotals, setScalarTotals] = useState<Map<number, number>>(
+    new Map(),
+  );
+
+  useEffect(() => {
+    if (posseId == null) {
+      setLoading(false);
+      setError("Posse is required");
+      return;
+    }
+
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+
+    loadTeamData({
+      slots: slots.map((s) => ({
+        awakenerId: s.awakenerId,
+        covenantId: s.covenantId,
+        wheel1Id: s.wheel1Id,
+        wheel2Id: s.wheel2Id,
+      })),
+      posseId,
+    }).then((result) => {
+      if (cancelled) return;
+      setLoading(false);
+
+      if (!result.success) {
+        setError(result.error);
+        setManifestedTags([]);
+        setScalarTotals(new Map());
+        return;
+      }
+
+      const totals = aggregateTagScalarsById(result.data.manifestations);
+      setScalarTotals(totals);
+
+      const tagRows: ManifestedTagRow[] = [];
+      const seen = new Set<number>();
+
+      for (const m of result.data.manifestations) {
+        if (seen.has(m.tagId)) continue;
+        seen.add(m.tagId);
+        const tag = result.data.tagsById[m.tagId];
+        const tagName = tag?.tagName ?? m.tagName;
+        tagRows.push({
+          tagId: m.tagId,
+          tagName,
+          scalarSum: getScalarForTag(totals, m.tagId),
+          measurable: isTagMeasurable(tagName),
+        });
+      }
+
+      tagRows.sort((a, b) => a.tagName.localeCompare(b.tagName));
+      setManifestedTags(tagRows);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [slots, posseId]);
+
+  const selectedIds = useMemo(
+    () => new Set(selections.map((s) => s.tagId)),
+    [selections],
+  );
+
+  const existingTagIds = useMemo(
+    () =>
+      new Set(
+        existingDemands.filter((d) => !d.markedForDelete).map((d) => d.tagId),
+      ),
+    [existingDemands],
+  );
+
+  function toggleTag(tag: ManifestedTagRow) {
+    if (!tag.measurable || existingTagIds.has(tag.tagId)) return;
+
+    if (selectedIds.has(tag.tagId)) {
+      onSelectionsChange(selections.filter((s) => s.tagId !== tag.tagId));
+    } else {
+      onSelectionsChange([
+        ...selections,
+        {
+          tagId: tag.tagId,
+          tagName: tag.tagName,
+          targetValue: getScalarForTag(scalarTotals, tag.tagId),
+        },
+      ]);
+    }
+  }
+
+  const activeExisting = existingDemands.filter((d) => !d.markedForDelete);
+
+  return (
+    <div className="space-y-6">
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-2">
+          <Label htmlFor="desire-name">Desire name *</Label>
+          <Input
+            id="desire-name"
+            value={desireName}
+            onChange={(e) => onDesireNameChange(e.target.value)}
+            placeholder="e.g. Strike DPS"
+          />
+        </div>
+        <div className="space-y-2 sm:col-span-2">
+          <Label htmlFor="desire-description">Description</Label>
+          <Textarea
+            id="desire-description"
+            value={desireDescription}
+            onChange={(e) => onDesireDescriptionChange(e.target.value)}
+            placeholder="Optional description..."
+            rows={3}
+          />
+        </div>
+      </div>
+
+      {mode === "edit" && activeExisting.length > 0 && (
+        <div className="rounded-lg border border-border bg-zinc-50 p-4">
+          <p className="text-sm font-medium text-zinc-700">Existing demands</p>
+          <p className="mt-1 text-xs text-zinc-500">
+            These are saved on Review Demands. Select additional tags below to
+            add new demands.
+          </p>
+          <ul className="mt-2 space-y-1 text-sm text-zinc-600">
+            {activeExisting.map((d) => (
+              <li key={d.id}>• {d.tagName}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <div className="space-y-2">
+        <Label>Manifested tags — select core demands</Label>
+        {loading && (
+          <p className="text-sm text-zinc-500">Loading team manifestations...</p>
+        )}
+        {error && <p className="text-sm text-red-600">{error}</p>}
+
+        {!loading && !error && (
+          <div className="overflow-hidden rounded-lg border border-border">
+            <table className="w-full text-sm">
+              <thead className="bg-zinc-50 text-left text-xs uppercase tracking-wide text-zinc-500">
+                <tr>
+                  <th className="px-3 py-2 w-10" />
+                  <th className="px-3 py-2">Tag</th>
+                  <th className="px-3 py-2 text-right">Scalar sum</th>
+                  <th className="px-3 py-2">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {manifestedTags.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="px-3 py-4 text-zinc-500">
+                      No manifested tags for this team.
+                    </td>
+                  </tr>
+                ) : (
+                  manifestedTags.map((tag) => {
+                    const isExisting = existingTagIds.has(tag.tagId);
+                    const disabled = !tag.measurable || isExisting;
+                    const checked = selectedIds.has(tag.tagId);
+
+                    return (
+                      <tr
+                        key={tag.tagId}
+                        className={cn(
+                          disabled ? "bg-zinc-50/50" : "hover:bg-zinc-50",
+                        )}
+                      >
+                        <td className="px-3 py-2">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            disabled={disabled}
+                            onChange={() => toggleTag(tag)}
+                            className="h-4 w-4 rounded border-zinc-300"
+                          />
+                        </td>
+                        <td className="px-3 py-2 font-medium text-zinc-800">
+                          {tag.tagName}
+                        </td>
+                        <td className="px-3 py-2 text-right tabular-nums text-zinc-600">
+                          {tag.scalarSum.toFixed(2)}
+                        </td>
+                        <td className="px-3 py-2 text-xs text-zinc-500">
+                          {!tag.measurable
+                            ? "Phase 2 — not measurable yet"
+                            : isExisting
+                              ? "Already a demand"
+                              : checked
+                                ? `target: ${getScalarForTag(scalarTotals, tag.tagId).toFixed(2)}`
+                                : "—"}
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

@@ -198,6 +198,7 @@ export type Database = {
           name: string
           stat: Database["public"]["Enums"]["awakener_stat"] | null
           stat_amount: number | null
+          team_unique: boolean
           updated_at: string | null
         }
         Insert: {
@@ -207,6 +208,7 @@ export type Database = {
           name: string
           stat?: Database["public"]["Enums"]["awakener_stat"] | null
           stat_amount?: number | null
+          team_unique?: boolean
           updated_at?: string | null
         }
         Update: {
@@ -216,6 +218,7 @@ export type Database = {
           name?: string
           stat?: Database["public"]["Enums"]["awakener_stat"] | null
           stat_amount?: number | null
+          team_unique?: boolean
           updated_at?: string | null
         }
         Relationships: []
