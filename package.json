@@ -10,6 +10,8 @@
     "lint": "eslint",
     "db:types": "tsx scripts/generate-database-types.ts",
     "db:dump": "tsx --env-file=.env.local scripts/export-sample-data.ts",
+    "db:seed-simulator": "tsx --env-file=.env.local scripts/seed-simulator-data.ts",
+    "db:unseed-simulator": "tsx --env-file=.env.local scripts/unseed-simulator-data.ts",
     "db:pull": "npx supabase db pull"
   },
   "dependencies": {

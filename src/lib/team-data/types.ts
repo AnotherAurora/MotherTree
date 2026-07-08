@@ -6,15 +6,22 @@ export type OperationType = Database["public"]["Enums"]["operation_type"];
 export type Realm = Database["public"]["Enums"]["realm"];
 export type SourceType = Database["public"]["Enums"]["source_type"];
 export type TargetType = Database["public"]["Enums"]["target_type"];
+export type ManifestationSourceKind =
+  | "awakener"
+  | "wheel"
+  | "covenant"
+  | "posse";
 
 export type TeamDataSlotInput = {
   awakenerId: number | null;
-  wheel1: string | null;
-  wheel2: string | null;
+  covenantId: number | null;
+  wheel1Id: number | null;
+  wheel2Id: number | null;
 };
 
 export type TeamDataInput = {
   slots: TeamDataSlotInput[];
+  posseId: number | null;
 };
 
 export type Tag = {
@@ -54,7 +61,9 @@ export type InteractionOverride = {
 
 export type Manifestation = {
   id: number;
-  awakenerId: number;
+  sourceKind: ManifestationSourceKind;
+  awakenerId: number | null;
+  slotIndex: number | null;
   tagId: number;
   tagName: string;
   valueScalar: number | null;
@@ -88,6 +97,10 @@ export type TeamDataSummary = {
   overrideCount: number;
   defaultInteractionCount: number;
   tagCount: number;
+  posseManifestationCount: number;
+  wheelManifestationCount: number;
+  covenantManifestationCount: number;
+  awakenerManifestationCount: number;
 };
 
 export type TeamData = {
@@ -110,6 +123,10 @@ export function createEmptyTeamData(): TeamData {
       overrideCount: 0,
       defaultInteractionCount: 0,
       tagCount: 0,
+      posseManifestationCount: 0,
+      wheelManifestationCount: 0,
+      covenantManifestationCount: 0,
+      awakenerManifestationCount: 0,
     },
   };
 }

@@ -1,17 +1,29 @@
 import type { Metadata } from "next";
 import { Sidebar } from "@/components/admin/sidebar";
 import { RecommendationSimulator } from "@/components/simulator/recommendation-simulator";
-import { getSimulatorAwakenerOptions } from "@/lib/actions/simulator";
+import {
+  getSimulatorAwakenerOptions,
+} from "@/lib/actions/simulator";
+import { getSimulatorGearOptions } from "@/lib/actions/simulator-flow";
 
 export const metadata: Metadata = {
   title: "Recommendation Simulator Debugger",
 };
 
+const EMPTY_GEAR_OPTIONS = { posse: [], wheel: [], covenant: [] };
+
 export default async function SimulatorPage() {
-  const awakenerOptionsResult = await getSimulatorAwakenerOptions();
+  const [awakenerOptionsResult, gearOptionsResult] = await Promise.all([
+    getSimulatorAwakenerOptions(),
+    getSimulatorGearOptions(),
+  ]);
+
   const awakenerOptions = awakenerOptionsResult.success
     ? awakenerOptionsResult.data
     : [];
+  const gearOptions = gearOptionsResult.success
+    ? gearOptionsResult.data
+    : EMPTY_GEAR_OPTIONS;
 
   return (
     <div className="flex min-h-screen">
@@ -24,7 +36,15 @@ export default async function SimulatorPage() {
             configuration.
           </div>
         )}
-        <RecommendationSimulator awakenerOptions={awakenerOptions} />
+        {!gearOptionsResult.success && (
+          <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            Failed to load gear options: {gearOptionsResult.error}
+          </div>
+        )}
+        <RecommendationSimulator
+          awakenerOptions={awakenerOptions}
+          gearOptions={gearOptions}
+        />
       </main>
     </div>
   );

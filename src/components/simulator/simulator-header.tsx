@@ -3,18 +3,24 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { EnumSelect } from "@/components/admin/enum-select";
-import { POSSE_OPTIONS } from "@/components/simulator/mock-data";
+import { ForeignKeyCombobox } from "@/components/admin/foreign-key-combobox";
+import type { SimulatorGearOptions } from "@/lib/actions/simulator-flow";
 
 type SimulatorHeaderProps = {
   realm: string;
-  posse: string | null;
+  posseId: number | null;
   path: string;
-  onPosseChange: (value: string | null) => void;
+  gearOptions: SimulatorGearOptions;
+  onPosseChange: (value: number | null) => void;
+  onStart: () => void;
+  onRecommend: () => void;
   onClearPath: () => void;
   onLoadTeamData: () => void;
   loadingTeamData: boolean;
   loadTeamDataDisabled: boolean;
+  loadingFlow: boolean;
+  recommendDisabled: boolean;
+  hasSelectedDesire: boolean;
 };
 
 function DisplayValue({ value }: { value: string }) {
@@ -27,13 +33,19 @@ function DisplayValue({ value }: { value: string }) {
 
 export function SimulatorHeader({
   realm,
-  posse,
+  posseId,
   path,
+  gearOptions,
   onPosseChange,
+  onStart,
+  onRecommend,
   onClearPath,
   onLoadTeamData,
   loadingTeamData,
   loadTeamDataDisabled,
+  loadingFlow,
+  recommendDisabled,
+  hasSelectedDesire,
 }: SimulatorHeaderProps) {
   const [mounted, setMounted] = useState(false);
 
@@ -42,7 +54,7 @@ export function SimulatorHeader({
   }, []);
 
   const isLoadTeamDataDisabled =
-    mounted && (loadTeamDataDisabled || loadingTeamData);
+    mounted && (loadTeamDataDisabled || loadingTeamData || loadingFlow);
 
   return (
     <div className="space-y-4 rounded-xl border border-border bg-white p-4 shadow-sm">
@@ -58,20 +70,24 @@ export function SimulatorHeader({
             <Label className="text-xs font-medium uppercase tracking-wide text-zinc-500">
               Posse
             </Label>
-            <EnumSelect
-              value={posse}
+            <ForeignKeyCombobox
+              value={posseId}
               onChange={onPosseChange}
-              options={POSSE_OPTIONS}
+              options={gearOptions.posse}
               placeholder="Select posse..."
             />
           </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          <Button size="lg" disabled title="Not wired yet">
-            Start
+          <Button size="lg" onClick={onStart} disabled={loadingFlow}>
+            {loadingFlow ? "Running..." : "Start"}
           </Button>
-          <Button size="lg" disabled title="Not wired yet">
+          <Button
+            size="lg"
+            onClick={onRecommend}
+            disabled={recommendDisabled || loadingFlow || !hasSelectedDesire}
+          >
             Recommend
           </Button>
           <Button
@@ -86,7 +102,11 @@ export function SimulatorHeader({
 
         <div className="flex min-w-[200px] flex-col gap-3">
           <div className="flex justify-end">
-            <Button variant="outline" onClick={onClearPath}>
+            <Button
+              variant="outline"
+              onClick={onClearPath}
+              disabled={!hasSelectedDesire && !path}
+            >
               Clear Path
             </Button>
           </div>

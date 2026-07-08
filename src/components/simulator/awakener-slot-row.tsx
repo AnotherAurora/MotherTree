@@ -2,15 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { ForeignKeyCombobox } from "@/components/admin/foreign-key-combobox";
-import { EnumSelect } from "@/components/admin/enum-select";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import {
-  COVENANT_OPTIONS,
-  WHEEL_OPTIONS,
-  type SlotState,
-} from "@/components/simulator/mock-data";
+import type { SlotState } from "@/components/simulator/mock-data";
 import type { ForeignKeyOption } from "@/lib/actions/crud";
+import type { SimulatorGearOptions } from "@/lib/actions/simulator-flow";
 import {
   getAwakenerRelatedTags,
   type AwakenerRelatedTagManifestation,
@@ -21,6 +17,7 @@ type AwakenerSlotRowProps = {
   index: number;
   slot: SlotState;
   awakenerOptions: ForeignKeyOption[];
+  gearOptions: SimulatorGearOptions;
   getCachedTags: (awakenerId: number) => AwakenerRelatedTags | undefined;
   setCachedTags: (awakenerId: number, tags: AwakenerRelatedTags) => void;
   onChange: (slot: SlotState) => void;
@@ -61,6 +58,7 @@ export function AwakenerSlotRow({
   index,
   slot,
   awakenerOptions,
+  gearOptions,
   getCachedTags,
   setCachedTags,
   onChange,
@@ -128,28 +126,28 @@ export function AwakenerSlotRow({
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs text-zinc-500">Covenant</Label>
-            <EnumSelect
-              value={slot.covenant}
-              onChange={(covenant) => onChange({ ...slot, covenant })}
-              options={COVENANT_OPTIONS}
+            <ForeignKeyCombobox
+              value={slot.covenantId}
+              onChange={(covenantId) => onChange({ ...slot, covenantId })}
+              options={gearOptions.covenant}
               placeholder="Select covenant..."
             />
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs text-zinc-500">Wheel</Label>
-            <EnumSelect
-              value={slot.wheel1}
-              onChange={(wheel1) => onChange({ ...slot, wheel1 })}
-              options={WHEEL_OPTIONS}
+            <ForeignKeyCombobox
+              value={slot.wheel1Id}
+              onChange={(wheel1Id) => onChange({ ...slot, wheel1Id })}
+              options={gearOptions.wheel}
               placeholder="Select wheel..."
             />
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs text-zinc-500">Wheel</Label>
-            <EnumSelect
-              value={slot.wheel2}
-              onChange={(wheel2) => onChange({ ...slot, wheel2 })}
-              options={WHEEL_OPTIONS}
+            <ForeignKeyCombobox
+              value={slot.wheel2Id}
+              onChange={(wheel2Id) => onChange({ ...slot, wheel2Id })}
+              options={gearOptions.wheel}
               placeholder="Select wheel..."
             />
           </div>

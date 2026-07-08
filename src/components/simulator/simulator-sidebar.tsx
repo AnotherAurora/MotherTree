@@ -1,25 +1,33 @@
 "use client";
 
 import { useMemo } from "react";
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { RadarChartPlaceholder } from "@/components/simulator/radar-chart-placeholder";
-import { RADAR_AXES, SUMMARY_LINES } from "@/components/simulator/mock-data";
+import { BanListPanel } from "@/components/simulator/ban-list-panel";
+import { RadarChart } from "@/components/simulator/radar-chart";
 import type { TeamData } from "@/lib/actions/team-data";
 import type { SimulatorAwakenerOption } from "@/lib/actions/simulator";
+import type {
+  BanEntry,
+  SimulatorGearOptions,
+} from "@/lib/actions/simulator-flow";
+import type { FulfillmentResult } from "@/lib/simulator/fulfillment";
 
 type SimulatorSidebarProps = {
-  banList: string[];
-  onRemoveBan: (tag: string) => void;
+  banList: BanEntry[];
+  awakenerOptions: SimulatorAwakenerOption[];
+  gearOptions: SimulatorGearOptions;
+  onAddBan: (entry: BanEntry) => void;
+  onRemoveBan: (entry: BanEntry) => void;
   onClearAllBans: () => void;
   teamData: TeamData | null;
   teamDataError: string | null;
-  awakenerOptions: SimulatorAwakenerOption[];
+  fulfillment: FulfillmentResult | null;
+  bannedEntityCount: number;
 };
 
 function formatManifestationLine(
@@ -27,18 +35,23 @@ function formatManifestationLine(
   awakenerName: string,
 ): string {
   const scalar = manifestation.valueScalar ?? "—";
-  const hits = manifestation.baseHits ?? "—";
-  const source = manifestation.sourceType ?? "—";
-  return `${awakenerName} · ${manifestation.tagName} · scalar=${scalar} · hits=${hits} · source=${source}`;
+  const source = manifestation.sourceKind;
+  const slot =
+    manifestation.slotIndex != null ? `slot${manifestation.slotIndex + 1}` : "—";
+  return `${source} · ${awakenerName} · ${manifestation.tagName} · scalar=${scalar} · ${slot}`;
 }
 
 export function SimulatorSidebar({
   banList,
+  awakenerOptions,
+  gearOptions,
+  onAddBan,
   onRemoveBan,
   onClearAllBans,
   teamData,
   teamDataError,
-  awakenerOptions,
+  fulfillment,
+  bannedEntityCount,
 }: SimulatorSidebarProps) {
   const awakenerNameById = useMemo(() => {
     const map = new Map<number, string>();
@@ -58,11 +71,31 @@ export function SimulatorSidebar({
     return teamData.manifestations.map((manifestation) =>
       formatManifestationLine(
         manifestation,
-        awakenerNameById.get(manifestation.awakenerId) ??
-          `#${manifestation.awakenerId}`,
+        manifestation.awakenerId != null
+          ? (awakenerNameById.get(manifestation.awakenerId) ??
+              `#${manifestation.awakenerId}`)
+          : "team",
       ),
     );
   }, [teamData, awakenerNameById]);
+
+  const radarAxes = useMemo(() => {
+    if (!fulfillment) return [];
+    return fulfillment.demands.map((d) => ({
+      label: d.tagName,
+      value: d.fulfillmentPct,
+    }));
+  }, [fulfillment]);
+
+  const summaryLines = useMemo(() => {
+    if (!fulfillment) {
+      return ["Select a path and load team data to see fulfillment."];
+    }
+    return [
+      ...fulfillment.summaryLines,
+      `Banned entities in list: ${bannedEntityCount}`,
+    ];
+  }, [fulfillment, bannedEntityCount]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -77,11 +110,12 @@ export function SimulatorSidebar({
             ) : teamData ? (
               <div className="space-y-2 font-mono text-xs text-zinc-600">
                 <p>
-                  Awakeners: {teamData.summary.awakenerCount} |
-                  Manifestations: {teamData.summary.manifestationCount} |
-                  Overrides: {teamData.summary.overrideCount} |
-                  Interactions:{" "}
-                  {teamData.summary.defaultInteractionCount}
+                  Awakeners: {teamData.summary.awakenerCount} | Manifestations:{" "}
+                  {teamData.summary.manifestationCount} | Awakener:{" "}
+                  {teamData.summary.awakenerManifestationCount} | Posse:{" "}
+                  {teamData.summary.posseManifestationCount} | Wheel:{" "}
+                  {teamData.summary.wheelManifestationCount} | Covenant:{" "}
+                  {teamData.summary.covenantManifestationCount}
                 </p>
                 {manifestationLines.length > 0 ? (
                   <ul className="space-y-1.5">
@@ -107,7 +141,7 @@ export function SimulatorSidebar({
           <CardTitle className="text-sm font-medium">Radar Chart</CardTitle>
         </CardHeader>
         <CardContent className="flex min-h-[220px] items-center justify-center pt-0">
-          <RadarChartPlaceholder axes={RADAR_AXES} />
+          <RadarChart axes={radarAxes} />
         </CardContent>
       </Card>
 
@@ -120,7 +154,7 @@ export function SimulatorSidebar({
         <CardContent className="pt-0">
           <div className="max-h-[200px] min-h-[200px] overflow-y-auto rounded-lg border border-border bg-zinc-50 p-3">
             <ul className="space-y-2 font-mono text-xs text-zinc-600">
-              {SUMMARY_LINES.map((line) => (
+              {summaryLines.map((line) => (
                 <li key={line}>{line}</li>
               ))}
             </ul>
@@ -129,42 +163,18 @@ export function SimulatorSidebar({
       </Card>
 
       <Card className="flex flex-1 flex-col">
-        <CardHeader className="flex flex-row items-center justify-between pb-2">
+        <CardHeader className="pb-2">
           <CardTitle className="text-sm font-medium">Ban List</CardTitle>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" disabled title="Not wired yet">
-              Add
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onClearAllBans}
-              disabled={banList.length === 0}
-            >
-              Clear All
-            </Button>
-          </div>
         </CardHeader>
         <CardContent className="flex-1 pt-0">
-          <div className="min-h-[120px] overflow-y-auto rounded-lg border border-border bg-zinc-50 p-3">
-            {banList.length > 0 ? (
-              <div className="flex flex-wrap gap-1.5">
-                {banList.map((tag) => (
-                  <button
-                    key={tag}
-                    type="button"
-                    onClick={() => onRemoveBan(tag)}
-                    className="rounded-full bg-red-50 px-2 py-0.5 text-xs text-red-700 transition-colors hover:bg-red-100"
-                    title="Click to remove"
-                  >
-                    {tag}
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-zinc-400">No banned tags</p>
-            )}
-          </div>
+          <BanListPanel
+            banList={banList}
+            awakenerOptions={awakenerOptions}
+            gearOptions={gearOptions}
+            onAdd={onAddBan}
+            onRemove={onRemoveBan}
+            onClearAll={onClearAllBans}
+          />
         </CardContent>
       </Card>
     </div>
