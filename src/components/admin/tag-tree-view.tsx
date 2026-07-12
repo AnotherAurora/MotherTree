@@ -14,6 +14,7 @@ import {
   formatCellDisplayValue,
 } from "@/components/admin/editable-cell";
 import { Button } from "@/components/ui/button";
+import type { ForeignKeyOption } from "@/lib/actions/crud";
 import type { FieldConfig, TableConfig } from "@/lib/schema-config";
 import { buildTagTree, collectTreePaths, type TagTreeNode } from "@/lib/tag-tree";
 
@@ -34,6 +35,7 @@ type TagTreeViewProps = {
   onEditingCellChange: (state: EditingCellState) => void;
   onInlineUpdate: (updated: Record<string, unknown>) => void;
   fkLabels: Record<string, string>;
+  fkOptionsByField?: Record<string, ForeignKeyOption[]>;
   onEdit: (record: Record<string, unknown>) => void;
   onDelete: (id: number) => void;
   onRestore: (id: number) => void;
@@ -54,6 +56,7 @@ type TreeRowProps = {
   onEditingCellChange: (state: EditingCellState) => void;
   onInlineUpdate: (updated: Record<string, unknown>) => void;
   fkLabels: Record<string, string>;
+  fkOptionsByField?: Record<string, ForeignKeyOption[]>;
   deletingId: number | null;
   restoringId: number | null;
   onEdit: (record: Record<string, unknown>) => void;
@@ -107,6 +110,7 @@ function TreeRow({
   onEditingCellChange,
   onInlineUpdate,
   fkLabels,
+  fkOptionsByField = {},
   deletingId,
   restoringId,
   onEdit,
@@ -159,6 +163,7 @@ function TreeRow({
                   field={field}
                   value={record[field.name]}
                   fkLabels={fkLabels}
+                  fkOptions={fkOptionsByField[field.name] ?? []}
                   isActive={
                     editingCell?.recordId === Number(record.id) &&
                     editingCell.fieldName === field.name
@@ -258,6 +263,7 @@ function TreeRow({
             onEditingCellChange={onEditingCellChange}
             onInlineUpdate={onInlineUpdate}
             fkLabels={fkLabels}
+            fkOptionsByField={fkOptionsByField}
             deletingId={deletingId}
             restoringId={restoringId}
             onEdit={onEdit}
@@ -282,6 +288,7 @@ export function TagTreeView({
   onEditingCellChange,
   onInlineUpdate,
   fkLabels,
+  fkOptionsByField = {},
   onEdit,
   onDelete,
   onRestore,
@@ -360,6 +367,7 @@ export function TagTreeView({
             onEditingCellChange={onEditingCellChange}
             onInlineUpdate={onInlineUpdate}
             fkLabels={fkLabels}
+            fkOptionsByField={fkOptionsByField}
             deletingId={deletingId}
             restoringId={restoringId}
             onEdit={onEdit}

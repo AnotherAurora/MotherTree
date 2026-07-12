@@ -4,8 +4,9 @@ import * as React from "react";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { EnumSelect } from "@/components/admin/enum-select";
+import { ForeignKeyCombobox } from "@/components/admin/foreign-key-combobox";
 import { Input } from "@/components/ui/input";
-import { updateRecord } from "@/lib/actions/crud";
+import { updateRecord, type ForeignKeyOption } from "@/lib/actions/crud";
 import { ENUM_VALUES } from "@/lib/database.types";
 import type { FieldConfig } from "@/lib/schema-config";
 import { cn } from "@/lib/utils";
@@ -16,6 +17,7 @@ type EditableCellProps = {
   field: FieldConfig;
   value: unknown;
   fkLabels: Record<string, string>;
+  fkOptions?: ForeignKeyOption[];
   disabled?: boolean;
   isActive: boolean;
   onActivate: () => void;
@@ -39,7 +41,11 @@ export function formatCellDisplayValue(
 }
 
 function normalizePayloadValue(field: FieldConfig, raw: unknown) {
-  if (field.type === "number" || field.type === "id") {
+  if (
+    field.type === "number" ||
+    field.type === "id" ||
+    field.type === "foreignKey"
+  ) {
     return raw === "" || raw == null ? null : Number(raw);
   }
 
@@ -67,6 +73,7 @@ export function EditableCell({
   field,
   value,
   fkLabels,
+  fkOptions = [],
   disabled = false,
   isActive,
   onActivate,
@@ -84,7 +91,11 @@ export function EditableCell({
   }, [value, isActive]);
 
   React.useEffect(() => {
-    if (isActive && field.type === "number" && inputRef.current) {
+    if (
+      isActive &&
+      (field.type === "number" || field.type === "text") &&
+      inputRef.current
+    ) {
       inputRef.current.focus();
       inputRef.current.select();
     }
@@ -92,6 +103,28 @@ export function EditableCell({
 
   async function save(nextValue: unknown) {
     if (valuesEqual(field, nextValue, value)) {
+      onDeactivate();
+      return;
+    }
+
+    if (
+      field.type === "text" &&
+      field.required &&
+      (nextValue == null || String(nextValue).trim() === "")
+    ) {
+      toast.error(`${field.label} is required`);
+      setDraft(value);
+      onDeactivate();
+      return;
+    }
+
+    if (
+      field.type === "foreignKey" &&
+      field.required &&
+      (nextValue == null || nextValue === "")
+    ) {
+      toast.error(`${field.label} is required`);
+      setDraft(value);
       onDeactivate();
       return;
     }
@@ -210,6 +243,46 @@ export function EditableCell({
           onChange={(event) => setDraft(event.target.value)}
           onBlur={() => void save(draft)}
           onKeyDown={handleKeyDown}
+        />
+        {saving && (
+          <Loader2 className="mt-1 h-3.5 w-3.5 animate-spin text-zinc-400" />
+        )}
+      </div>
+    );
+  }
+
+  if (field.type === "text") {
+    return (
+      <div className="min-w-20" onClick={(event) => event.stopPropagation()}>
+        <Input
+          ref={inputRef}
+          type="text"
+          value={draft == null ? "" : String(draft)}
+          disabled={saving}
+          className="h-8"
+          onChange={(event) => setDraft(event.target.value)}
+          onBlur={() => void save(draft)}
+          onKeyDown={handleKeyDown}
+        />
+        {saving && (
+          <Loader2 className="mt-1 h-3.5 w-3.5 animate-spin text-zinc-400" />
+        )}
+      </div>
+    );
+  }
+
+  if (field.type === "foreignKey" && field.foreignKey) {
+    return (
+      <div className="min-w-40" onClick={(event) => event.stopPropagation()}>
+        <ForeignKeyCombobox
+          value={draft == null ? null : Number(draft)}
+          onChange={(next) => {
+            setDraft(next);
+            void save(next);
+          }}
+          options={fkOptions}
+          disabled={saving}
+          placeholder={`Select ${field.label.toLowerCase()}...`}
         />
         {saving && (
           <Loader2 className="mt-1 h-3.5 w-3.5 animate-spin text-zinc-400" />

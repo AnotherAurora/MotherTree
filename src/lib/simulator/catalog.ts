@@ -4,7 +4,7 @@ import {
   applyManifestationReplacements,
   effectiveEnlightenment,
 } from "@/lib/team-data/resolve-manifestations";
-import type { Realm } from "@/lib/team-data/types";
+import type { AllStats, Realm } from "@/lib/team-data/types";
 import type {
   CovenantGearOption,
   DesireDemandRow,
@@ -29,6 +29,7 @@ type RawManifestation = {
   valueScalar: number;
   requiredRealm: Realm | null;
   requiredAwakenerId: number | null;
+  dependencyStat: AllStats | null;
 };
 
 export type SimulatorCatalog = {
@@ -63,6 +64,7 @@ function toRawManifestations(
     required_realm?: Realm | null;
     required_awakener?: number | null;
     replaces_manifestation_id?: number | null;
+    dependency_stat?: AllStats | null;
   }>,
   tagNames: Map<number, string>,
 ): RawManifestation[] {
@@ -79,6 +81,7 @@ function toRawManifestations(
     valueScalar: row.value_scalar ?? 0,
     requiredRealm: row.required_realm ?? null,
     requiredAwakenerId: row.required_awakener ?? null,
+    dependencyStat: row.dependency_stat ?? null,
   }));
 }
 
@@ -177,7 +180,7 @@ export async function loadSimulatorCatalog(
     supabase
       .from("posse_tag_manifestation")
       .select(
-        "posse_id, tag_id, value_scalar, required_realm, required_awakener",
+        "posse_id, tag_id, value_scalar, required_realm, required_awakener, dependency_stat",
       )
       .is("deleted_at", null),
   ]);
@@ -346,7 +349,7 @@ export function buildManifestationsForComposition(
       tagName: raw.tagName,
       valueScalar: raw.valueScalar,
       baseHits: null,
-      dependencyStat: null,
+      dependencyStat: raw.dependencyStat,
       sourceType: null,
       targetType: null,
       isAccumulating: false,

@@ -32,7 +32,7 @@ type RecordFormDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   record?: Record<string, unknown> | null;
-  onSuccess: () => void;
+  onSuccess: (saved: Record<string, unknown>) => void;
 };
 
 function getInitialValues(
@@ -158,7 +158,7 @@ export function RecordFormDialog({
 
     if (result.success) {
       toast.success(isEditing ? "Record updated" : "Record created");
-      onSuccess();
+      onSuccess(result.data);
       if (!isEditing && createMore) {
         setValues((current) => ({ ...current, ...payload }));
       } else {

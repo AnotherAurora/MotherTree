@@ -29,11 +29,13 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
+  getForeignKeyOptions,
   listRecords,
   permanentDeleteRecord,
   resolveForeignKeyLabels,
   restoreRecord,
   softDeleteRecord,
+  type ForeignKeyOption,
 } from "@/lib/actions/crud";
 import type { FieldConfig, TableConfig } from "@/lib/schema-config";
 import { getListFields } from "@/lib/schema-config";
@@ -163,6 +165,9 @@ export function TableManager({
     direction: "asc",
   });
   const [editingCell, setEditingCell] = React.useState<EditingCellState>(null);
+  const [fkOptionsByField, setFkOptionsByField] = React.useState<
+    Record<string, ForeignKeyOption[]>
+  >({});
   const treeListView = config.listViews?.tree;
   const [listViewMode, setListViewMode] = React.useState<ListViewMode>("tree");
 
@@ -185,6 +190,55 @@ export function TableManager({
   React.useEffect(() => {
     setSort({ field: null, direction: "asc" });
     setEditingCell(null);
+  }, [config.name]);
+
+  React.useEffect(() => {
+    const inlineFkFields = getListFields(config).filter(
+      (field) =>
+        field.inlineEditable &&
+        field.type === "foreignKey" &&
+        field.foreignKey,
+    );
+
+    if (inlineFkFields.length === 0) {
+      setFkOptionsByField((current) =>
+        Object.keys(current).length === 0 ? current : {},
+      );
+      return;
+    }
+
+    let cancelled = false;
+    const cacheKeyToPromise = new Map<string, Promise<ForeignKeyOption[]>>();
+
+    async function loadFieldOptions(field: FieldConfig) {
+      const fk = field.foreignKey!;
+      const cacheKey = `${fk.table}:${fk.displayColumn}:${fk.labelKind ?? ""}`;
+      if (!cacheKeyToPromise.has(cacheKey)) {
+        cacheKeyToPromise.set(
+          cacheKey,
+          getForeignKeyOptions(
+            fk.table,
+            fk.displayColumn,
+            fk.labelKind,
+          ).then((result) => (result.success ? result.data : [])),
+        );
+      }
+      const options = await cacheKeyToPromise.get(cacheKey)!;
+      return { fieldName: field.name, options };
+    }
+
+    Promise.all(inlineFkFields.map(loadFieldOptions)).then((results) => {
+      if (cancelled) return;
+      const next: Record<string, ForeignKeyOption[]> = {};
+      for (const item of results) {
+        next[item.fieldName] = item.options;
+      }
+      setFkOptionsByField(next);
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, [config.name]);
 
   const sortedRecords = React.useMemo(
@@ -291,12 +345,63 @@ export function TableManager({
     setDialogOpen(true);
   }
 
+  function patchFkLabelsFromRecordChange(
+    prev: Record<string, unknown>,
+    updated: Record<string, unknown>,
+  ) {
+    const labelPatches: Record<string, string> = {};
+
+    for (const field of listFields) {
+      if (field.type !== "foreignKey") continue;
+
+      const oldVal = prev[field.name];
+      const newVal = updated[field.name];
+      if (oldVal === newVal) continue;
+      if (newVal == null || newVal === "") continue;
+
+      const option = (fkOptionsByField[field.name] ?? []).find(
+        (item) => item.value === Number(newVal),
+      );
+      if (option) {
+        labelPatches[`${field.name}:${newVal}`] = option.label;
+      }
+    }
+
+    if (Object.keys(labelPatches).length > 0) {
+      setFkLabels((current) => ({ ...current, ...labelPatches }));
+    }
+  }
+
   function handleInlineUpdate(updated: Record<string, unknown>) {
+    const prev = records.find((record) => record.id === updated.id);
+    if (prev) {
+      patchFkLabelsFromRecordChange(prev, updated);
+    }
+
     setRecords((current) =>
       current.map((record) =>
         record.id === updated.id ? updated : record,
       ),
     );
+  }
+
+  async function handleDialogSuccess(saved: Record<string, unknown>) {
+    if (editingRecord) {
+      patchFkLabelsFromRecordChange(editingRecord, saved);
+      setRecords((current) =>
+        current.map((record) =>
+          record.id === saved.id ? saved : record,
+        ),
+      );
+
+      const labelResult = await resolveForeignKeyLabels(config.name, [saved]);
+      if (labelResult.success) {
+        setFkLabels((current) => ({ ...current, ...labelResult.data }));
+      }
+      return;
+    }
+
+    await refresh();
   }
 
   return (
@@ -394,6 +499,7 @@ export function TableManager({
               onEditingCellChange={setEditingCell}
               onInlineUpdate={handleInlineUpdate}
               fkLabels={fkLabels}
+              fkOptionsByField={fkOptionsByField}
               onEdit={openEdit}
               onDelete={handleDelete}
               onRestore={handleRestore}
@@ -468,6 +574,7 @@ export function TableManager({
                                 field={field}
                                 value={record[field.name]}
                                 fkLabels={fkLabels}
+                                fkOptions={fkOptionsByField[field.name] ?? []}
                                 isActive={
                                   editingCell?.recordId === Number(record.id) &&
                                   editingCell.fieldName === field.name
@@ -584,7 +691,7 @@ export function TableManager({
           open={dialogOpen}
           onOpenChange={setDialogOpen}
           record={editingRecord}
-          onSuccess={refresh}
+          onSuccess={handleDialogSuccess}
         />
       )}
     </>

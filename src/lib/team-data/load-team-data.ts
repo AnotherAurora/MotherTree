@@ -186,7 +186,7 @@ async function fetchPosseManifestations(
 ) {
   const { data, error } = await supabase
     .from("posse_tag_manifestation")
-    .select(`${GEAR_MANIFESTATION_SELECT}, required_awakener`)
+    .select(`${GEAR_MANIFESTATION_SELECT}, required_awakener, dependency_stat`)
     .eq("posse_id", posseId)
     .is("deleted_at", null);
 

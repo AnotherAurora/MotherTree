@@ -1,6 +1,6 @@
 import type { Database } from "@/lib/database.types";
 
-export type AwakenerStat = Database["public"]["Enums"]["awakener_stat"];
+export type AllStats = Database["public"]["Enums"]["all_stats"];
 export type Layer = Database["public"]["Enums"]["layer"];
 export type OperationType = Database["public"]["Enums"]["operation_type"];
 export type Realm = Database["public"]["Enums"]["realm"];
@@ -55,7 +55,7 @@ export type InteractionOverride = {
   mathOperation: OperationType | null;
   overrideDefaultFactor: number | null;
   targetType: TargetType | null;
-  dependencyStat: AwakenerStat | null;
+  dependencyStat: AllStats | null;
   isDisabled: boolean;
 };
 
@@ -68,7 +68,7 @@ export type Manifestation = {
   tagName: string;
   valueScalar: number | null;
   baseHits: number | null;
-  dependencyStat: AwakenerStat | null;
+  dependencyStat: AllStats | null;
   sourceType: SourceType | null;
   targetType: TargetType | null;
   isAccumulating: boolean;

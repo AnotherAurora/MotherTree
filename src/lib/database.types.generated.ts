@@ -111,9 +111,10 @@ export type Database = {
             | null
           created_at: string | null
           deleted_at: string | null
-          dependency_stat: Database["public"]["Enums"]["awakener_stat"] | null
+          dependency_stat: Database["public"]["Enums"]["all_stats"] | null
           id: number
           is_accumulating: boolean
+          is_permanent: boolean | null
           metadata: string | null
           replaces_manifestation_id: number | null
           required_enlightenment: number | null
@@ -132,9 +133,10 @@ export type Database = {
             | null
           created_at?: string | null
           deleted_at?: string | null
-          dependency_stat?: Database["public"]["Enums"]["awakener_stat"] | null
+          dependency_stat?: Database["public"]["Enums"]["all_stats"] | null
           id?: number
           is_accumulating?: boolean
+          is_permanent?: boolean | null
           metadata?: string | null
           replaces_manifestation_id?: number | null
           required_enlightenment?: number | null
@@ -153,9 +155,10 @@ export type Database = {
             | null
           created_at?: string | null
           deleted_at?: string | null
-          dependency_stat?: Database["public"]["Enums"]["awakener_stat"] | null
+          dependency_stat?: Database["public"]["Enums"]["all_stats"] | null
           id?: number
           is_accumulating?: boolean
+          is_permanent?: boolean | null
           metadata?: string | null
           replaces_manifestation_id?: number | null
           required_enlightenment?: number | null
@@ -196,7 +199,7 @@ export type Database = {
           deleted_at: string | null
           id: number
           name: string
-          stat: Database["public"]["Enums"]["awakener_stat"] | null
+          stat: Database["public"]["Enums"]["all_stats"] | null
           stat_amount: number | null
           team_unique: boolean
           updated_at: string | null
@@ -206,7 +209,7 @@ export type Database = {
           deleted_at?: string | null
           id?: number
           name: string
-          stat?: Database["public"]["Enums"]["awakener_stat"] | null
+          stat?: Database["public"]["Enums"]["all_stats"] | null
           stat_amount?: number | null
           team_unique?: boolean
           updated_at?: string | null
@@ -216,7 +219,7 @@ export type Database = {
           deleted_at?: string | null
           id?: number
           name?: string
-          stat?: Database["public"]["Enums"]["awakener_stat"] | null
+          stat?: Database["public"]["Enums"]["all_stats"] | null
           stat_amount?: number | null
           team_unique?: boolean
           updated_at?: string | null
@@ -225,11 +228,15 @@ export type Database = {
       }
       covenant_tag_manifestation: {
         Row: {
+          buff_target_type_restriction:
+            | Database["public"]["Enums"]["source_type"]
+            | null
           covenant_id: number | null
           created_at: string | null
           deleted_at: string | null
           id: number
           is_accumulating: boolean
+          is_permanent: boolean | null
           metadata: string | null
           replaces_manifestation_id: number | null
           required_realm: Database["public"]["Enums"]["realm"] | null
@@ -239,11 +246,15 @@ export type Database = {
           value_scalar: number | null
         }
         Insert: {
+          buff_target_type_restriction?:
+            | Database["public"]["Enums"]["source_type"]
+            | null
           covenant_id?: number | null
           created_at?: string | null
           deleted_at?: string | null
           id?: number
           is_accumulating?: boolean
+          is_permanent?: boolean | null
           metadata?: string | null
           replaces_manifestation_id?: number | null
           required_realm?: Database["public"]["Enums"]["realm"] | null
@@ -253,11 +264,15 @@ export type Database = {
           value_scalar?: number | null
         }
         Update: {
+          buff_target_type_restriction?:
+            | Database["public"]["Enums"]["source_type"]
+            | null
           covenant_id?: number | null
           created_at?: string | null
           deleted_at?: string | null
           id?: number
           is_accumulating?: boolean
+          is_permanent?: boolean | null
           metadata?: string | null
           replaces_manifestation_id?: number | null
           required_realm?: Database["public"]["Enums"]["realm"] | null
@@ -622,7 +637,7 @@ export type Database = {
         Row: {
           created_at: string | null
           deleted_at: string | null
-          dependency_stat: Database["public"]["Enums"]["awakener_stat"] | null
+          dependency_stat: Database["public"]["Enums"]["all_stats"] | null
           id: number
           is_disabled: boolean | null
           manifestation_id: number | null
@@ -635,7 +650,7 @@ export type Database = {
         Insert: {
           created_at?: string | null
           deleted_at?: string | null
-          dependency_stat?: Database["public"]["Enums"]["awakener_stat"] | null
+          dependency_stat?: Database["public"]["Enums"]["all_stats"] | null
           id?: number
           is_disabled?: boolean | null
           manifestation_id?: number | null
@@ -648,7 +663,7 @@ export type Database = {
         Update: {
           created_at?: string | null
           deleted_at?: string | null
-          dependency_stat?: Database["public"]["Enums"]["awakener_stat"] | null
+          dependency_stat?: Database["public"]["Enums"]["all_stats"] | null
           id?: number
           is_disabled?: boolean | null
           manifestation_id?: number | null
@@ -734,10 +749,17 @@ export type Database = {
       }
       posse_tag_manifestation: {
         Row: {
+          buff_target_type_restriction:
+            | Database["public"]["Enums"]["source_type"]
+            | null
           created_at: string | null
           deleted_at: string | null
+          dependency_stat: Database["public"]["Enums"]["all_stats"] | null
+          group_key: string
           id: number
           is_accumulating: boolean
+          is_permanent: boolean | null
+          math_operation: Database["public"]["Enums"]["operation_type"] | null
           metadata: string | null
           posse_id: number | null
           required_awakener: number | null
@@ -748,10 +770,17 @@ export type Database = {
           value_scalar: number | null
         }
         Insert: {
+          buff_target_type_restriction?:
+            | Database["public"]["Enums"]["source_type"]
+            | null
           created_at?: string | null
           deleted_at?: string | null
+          dependency_stat?: Database["public"]["Enums"]["all_stats"] | null
+          group_key?: string
           id?: number
           is_accumulating?: boolean
+          is_permanent?: boolean | null
+          math_operation?: Database["public"]["Enums"]["operation_type"] | null
           metadata?: string | null
           posse_id?: number | null
           required_awakener?: number | null
@@ -762,10 +791,17 @@ export type Database = {
           value_scalar?: number | null
         }
         Update: {
+          buff_target_type_restriction?:
+            | Database["public"]["Enums"]["source_type"]
+            | null
           created_at?: string | null
           deleted_at?: string | null
+          dependency_stat?: Database["public"]["Enums"]["all_stats"] | null
+          group_key?: string
           id?: number
           is_accumulating?: boolean
+          is_permanent?: boolean | null
+          math_operation?: Database["public"]["Enums"]["operation_type"] | null
           metadata?: string | null
           posse_id?: number | null
           required_awakener?: number | null
@@ -895,7 +931,7 @@ export type Database = {
           id: number
           name: string
           rarity: Database["public"]["Enums"]["rarity"] | null
-          stat: Database["public"]["Enums"]["awakener_stat"] | null
+          stat: Database["public"]["Enums"]["all_stats"] | null
           stat_amount: number | null
           updated_at: string | null
         }
@@ -906,7 +942,7 @@ export type Database = {
           id?: number
           name: string
           rarity?: Database["public"]["Enums"]["rarity"] | null
-          stat?: Database["public"]["Enums"]["awakener_stat"] | null
+          stat?: Database["public"]["Enums"]["all_stats"] | null
           stat_amount?: number | null
           updated_at?: string | null
         }
@@ -917,7 +953,7 @@ export type Database = {
           id?: number
           name?: string
           rarity?: Database["public"]["Enums"]["rarity"] | null
-          stat?: Database["public"]["Enums"]["awakener_stat"] | null
+          stat?: Database["public"]["Enums"]["all_stats"] | null
           stat_amount?: number | null
           updated_at?: string | null
         }
@@ -930,9 +966,10 @@ export type Database = {
             | null
           created_at: string | null
           deleted_at: string | null
-          dependency_stat: Database["public"]["Enums"]["awakener_stat"] | null
+          dependency_stat: Database["public"]["Enums"]["all_stats"] | null
           id: number
           is_accumulating: boolean
+          is_permanent: boolean | null
           metadata: string | null
           required_realm: Database["public"]["Enums"]["realm"] | null
           tag_id: number | null
@@ -947,9 +984,10 @@ export type Database = {
             | null
           created_at?: string | null
           deleted_at?: string | null
-          dependency_stat?: Database["public"]["Enums"]["awakener_stat"] | null
+          dependency_stat?: Database["public"]["Enums"]["all_stats"] | null
           id?: number
           is_accumulating?: boolean
+          is_permanent?: boolean | null
           metadata?: string | null
           required_realm?: Database["public"]["Enums"]["realm"] | null
           tag_id?: number | null
@@ -964,9 +1002,10 @@ export type Database = {
             | null
           created_at?: string | null
           deleted_at?: string | null
-          dependency_stat?: Database["public"]["Enums"]["awakener_stat"] | null
+          dependency_stat?: Database["public"]["Enums"]["all_stats"] | null
           id?: number
           is_accumulating?: boolean
+          is_permanent?: boolean | null
           metadata?: string | null
           required_realm?: Database["public"]["Enums"]["realm"] | null
           tag_id?: number | null
@@ -1000,7 +1039,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      awakener_stat:
+      all_stats:
         | "con"
         | "atk"
         | "def"
@@ -1012,6 +1051,8 @@ export type Database = {
         | "aliemus_regen"
         | "sigil_yield"
         | "death_resist"
+        | "team_max_hp"
+        | "enemy_max_hp"
       curve_type: "linear" | "exponential" | "logarithmic"
       desire_type: "general" | "specific"
       layer: "x" | "y" | "z" | "f"
@@ -1162,7 +1203,7 @@ export const Constants = {
   },
   public: {
     Enums: {
-      awakener_stat: [
+      all_stats: [
         "con",
         "atk",
         "def",
@@ -1174,6 +1215,8 @@ export const Constants = {
         "aliemus_regen",
         "sigil_yield",
         "death_resist",
+        "team_max_hp",
+        "enemy_max_hp",
       ],
       curve_type: ["linear", "exponential", "logarithmic"],
       desire_type: ["general", "specific"],
