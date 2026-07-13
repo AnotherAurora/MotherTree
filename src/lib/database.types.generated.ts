@@ -234,12 +234,14 @@ export type Database = {
           covenant_id: number | null
           created_at: string | null
           deleted_at: string | null
+          dependency_stat: Database["public"]["Enums"]["all_stats"] | null
           id: number
           is_accumulating: boolean
           is_permanent: boolean | null
           metadata: string | null
           replaces_manifestation_id: number | null
-          required_realm: Database["public"]["Enums"]["realm"] | null
+          required_realm1: Database["public"]["Enums"]["realm"] | null
+          required_realm2: Database["public"]["Enums"]["realm"] | null
           tag_id: number | null
           target_type: Database["public"]["Enums"]["target_type"] | null
           updated_at: string | null
@@ -252,12 +254,14 @@ export type Database = {
           covenant_id?: number | null
           created_at?: string | null
           deleted_at?: string | null
+          dependency_stat?: Database["public"]["Enums"]["all_stats"] | null
           id?: number
           is_accumulating?: boolean
           is_permanent?: boolean | null
           metadata?: string | null
           replaces_manifestation_id?: number | null
-          required_realm?: Database["public"]["Enums"]["realm"] | null
+          required_realm1?: Database["public"]["Enums"]["realm"] | null
+          required_realm2?: Database["public"]["Enums"]["realm"] | null
           tag_id?: number | null
           target_type?: Database["public"]["Enums"]["target_type"] | null
           updated_at?: string | null
@@ -270,12 +274,14 @@ export type Database = {
           covenant_id?: number | null
           created_at?: string | null
           deleted_at?: string | null
+          dependency_stat?: Database["public"]["Enums"]["all_stats"] | null
           id?: number
           is_accumulating?: boolean
           is_permanent?: boolean | null
           metadata?: string | null
           replaces_manifestation_id?: number | null
-          required_realm?: Database["public"]["Enums"]["realm"] | null
+          required_realm1?: Database["public"]["Enums"]["realm"] | null
+          required_realm2?: Database["public"]["Enums"]["realm"] | null
           tag_id?: number | null
           target_type?: Database["public"]["Enums"]["target_type"] | null
           updated_at?: string | null

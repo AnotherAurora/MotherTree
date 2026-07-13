@@ -46,6 +46,33 @@ function getInitialValues(
   return values;
 }
 
+type FormFieldGroup =
+  | { kind: "full"; field: FieldConfig }
+  | { kind: "half"; fields: FieldConfig[] };
+
+function groupFormFields(fields: FieldConfig[]): FormFieldGroup[] {
+  const groups: FormFieldGroup[] = [];
+
+  for (let index = 0; index < fields.length; index++) {
+    const field = fields[index];
+    if (field.formWidth === "half") {
+      const batch: FieldConfig[] = [field];
+      while (
+        index + 1 < fields.length &&
+        fields[index + 1].formWidth === "half"
+      ) {
+        index++;
+        batch.push(fields[index]);
+      }
+      groups.push({ kind: "half", fields: batch });
+      continue;
+    }
+    groups.push({ kind: "full", field });
+  }
+
+  return groups;
+}
+
 export function RecordFormDialog({
   config,
   open,
@@ -245,6 +272,40 @@ export function RecordFormDialog({
     );
   }
 
+  function renderFieldLabel(field: FieldConfig) {
+    return (
+      <Label htmlFor={field.name}>
+        {field.label}
+        {field.required ? " *" : ""}
+      </Label>
+    );
+  }
+
+  function renderFieldGroup(group: FormFieldGroup) {
+    if (group.kind === "full") {
+      return (
+        <div key={group.field.name} className="space-y-2">
+          {renderFieldLabel(group.field)}
+          {renderField(group.field)}
+        </div>
+      );
+    }
+
+    return (
+      <div
+        key={group.fields.map((field) => field.name).join("-")}
+        className="grid gap-3 sm:grid-cols-2"
+      >
+        {group.fields.map((field) => (
+          <div key={field.name} className="space-y-2">
+            {renderFieldLabel(field)}
+            {renderField(field)}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
@@ -256,15 +317,7 @@ export function RecordFormDialog({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {getFormFields(config).map((field) => (
-            <div key={field.name} className="space-y-2">
-              <Label htmlFor={field.name}>
-                {field.label}
-                {field.required ? " *" : ""}
-              </Label>
-              {renderField(field)}
-            </div>
-          ))}
+          {groupFormFields(getFormFields(config)).map(renderFieldGroup)}
 
           <div className="flex items-center gap-2 pt-2">
             {!isEditing && (

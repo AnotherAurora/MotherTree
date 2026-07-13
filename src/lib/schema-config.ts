@@ -39,6 +39,8 @@ export type FieldConfig = {
   defaultValue?: string | number | boolean | null;
   /** Allow click-to-edit directly in the list table */
   inlineEditable?: boolean;
+  /** Form layout width; consecutive "half" fields render side-by-side */
+  formWidth?: "full" | "half";
 };
 
 export type ChildTableConfig = {
@@ -891,6 +893,13 @@ export const TABLE_CONFIGS: TableConfig[] = [
         foreignKey: { table: "tag", displayColumn: "tag_name" },
       },
       {
+        name: "dependency_stat",
+        label: "Dependency Stat",
+        type: "enum",
+        enumName: "all_stats",
+        inlineEditable: true,
+      },
+      {
         name: "replaces_manifestation_id",
         label: "Replaces Manifestation",
         type: "foreignKey",
@@ -915,11 +924,20 @@ export const TABLE_CONFIGS: TableConfig[] = [
         inlineEditable: true,
       },
       {
-        name: "required_realm",
-        label: "Required Realm",
+        name: "required_realm1",
+        label: "Required Realm 1",
         type: "enum",
         enumName: "realm",
         inlineEditable: true,
+        formWidth: "half",
+      },
+      {
+        name: "required_realm2",
+        label: "Required Realm 2",
+        type: "enum",
+        enumName: "realm",
+        inlineEditable: true,
+        formWidth: "half",
       },
       {
         name: "target_type",
