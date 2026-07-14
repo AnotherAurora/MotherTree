@@ -12,6 +12,8 @@ import {
   type AwakenerRelatedTags,
 } from "@/lib/actions/simulator";
 
+export type AnchorMode = "off" | "anchor" | "damageDealer";
+
 type AwakenerSlotRowProps = {
   index: number;
   slot: SlotState;
@@ -24,10 +26,23 @@ type AwakenerSlotRowProps = {
   onChange: (slot: SlotState) => void;
   showRelatedTags?: boolean;
   showAnchorToggle?: boolean;
-  isAnchored?: boolean;
-  onAnchorChange?: (anchored: boolean) => void;
+  anchorMode?: AnchorMode;
+  onAnchorModeChange?: (mode: AnchorMode) => void;
   anchorDisabled?: boolean;
 };
+
+const ANCHOR_MODE_LABELS: Record<AnchorMode, string> = {
+  off: "Off",
+  anchor: "Anchor",
+  damageDealer: "Damage Dealer",
+};
+
+const ANCHOR_MODE_CYCLE: AnchorMode[] = ["off", "anchor", "damageDealer"];
+
+function nextAnchorMode(mode: AnchorMode): AnchorMode {
+  const index = ANCHOR_MODE_CYCLE.indexOf(mode);
+  return ANCHOR_MODE_CYCLE[(index + 1) % ANCHOR_MODE_CYCLE.length]!;
+}
 
 function ManifestationTagSection({
   manifestation,
@@ -72,8 +87,8 @@ export function AwakenerSlotRow({
   onChange,
   showRelatedTags = true,
   showAnchorToggle = false,
-  isAnchored = false,
-  onAnchorChange,
+  anchorMode = "off",
+  onAnchorModeChange,
   anchorDisabled = false,
 }: AwakenerSlotRowProps) {
   const [relatedTags, setRelatedTags] = useState<AwakenerRelatedTags | null>(
@@ -132,16 +147,17 @@ export function AwakenerSlotRow({
                 Awakener {index + 1}
               </Label>
               {showAnchorToggle && (
-                <label className="flex cursor-pointer items-center gap-1.5 text-xs text-zinc-600">
-                  <input
-                    type="checkbox"
-                    checked={isAnchored}
-                    disabled={anchorDisabled || slot.awakenerId == null}
-                    onChange={(e) => onAnchorChange?.(e.target.checked)}
-                    className="h-3.5 w-3.5 rounded border-zinc-300"
-                  />
-                  Anchor
-                </label>
+                <button
+                  type="button"
+                  disabled={anchorDisabled || slot.awakenerId == null}
+                  onClick={() =>
+                    onAnchorModeChange?.(nextAnchorMode(anchorMode))
+                  }
+                  className="rounded border border-zinc-300 px-1.5 py-0.5 text-xs text-zinc-600 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  title="Cycle anchor mode: Off → Anchor → Damage Dealer"
+                >
+                  {ANCHOR_MODE_LABELS[anchorMode]}
+                </button>
               )}
             </div>
             <ForeignKeyCombobox

@@ -30,6 +30,7 @@ export type InteractionOverrideInput = {
 export type AnchoredAwakenerInput = {
   id?: number;
   awakener_id: number | null;
+  is_damage_dealer: boolean;
 };
 
 export type ActionResult<T = void> =
@@ -641,6 +642,7 @@ function buildAnchoredAwakenerRecord(
   return {
     desire_id: desireId,
     awakener_id: anchor.awakener_id,
+    is_damage_dealer: anchor.is_damage_dealer,
   };
 }
 

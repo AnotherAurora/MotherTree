@@ -9,6 +9,7 @@ import type {
   DraftDemandSelection,
   EditableDemand,
   SaveDemandInput,
+  AnchoredAwakenerState,
 } from "@/lib/path-carver/types";
 import type {
   CovenantGearOption,
@@ -150,7 +151,7 @@ export function validateAwakenerConstraints(
 const MAX_ANCHORS = 4;
 
 export function validateAnchors(
-  anchoredIds: number[],
+  anchoredAwakeners: AnchoredAwakenerState[],
   slots: SlotState[],
 ): ValidationResult {
   const errors: string[] = [];
@@ -159,6 +160,7 @@ export function validateAnchors(
       .map((s) => s.awakenerId)
       .filter((id): id is number => id != null),
   );
+  const anchoredIds = anchoredAwakeners.map((a) => a.awakenerId);
 
   if (anchoredIds.length > MAX_ANCHORS) {
     errors.push(`Too many anchors (${anchoredIds.length}, max ${MAX_ANCHORS})`);
@@ -182,7 +184,7 @@ export function validateAnchors(
 export function validateBuildStep(
   slots: SlotState[],
   posseId: number | null,
-  anchoredIds: number[],
+  anchoredAwakeners: AnchoredAwakenerState[],
   optionMap: Map<number, SimulatorAwakenerOption>,
   covenantMap: Map<number, CovenantGearOption>,
   wheelMap: Map<number, WheelGearOption>,
@@ -191,7 +193,7 @@ export function validateBuildStep(
     validateTeamComplete(slots, posseId),
     validateAwakenerConstraints(slots, optionMap),
     validateGearConstraints(slots, covenantMap, wheelMap),
-    validateAnchors(anchoredIds, slots),
+    validateAnchors(anchoredAwakeners, slots),
   ];
   const errors = results.flatMap((r) => r.errors);
   return result(errors.length === 0, errors);

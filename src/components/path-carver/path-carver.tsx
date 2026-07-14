@@ -28,6 +28,7 @@ import {
   buildWheelOptionMap,
 } from "@/lib/simulator/gear-selection";
 import type {
+  AnchoredAwakenerState,
   DraftDemandSelection,
   EditableDemand,
   PathCarverMode,
@@ -56,7 +57,9 @@ export function PathCarver({
   const [desireDescription, setDesireDescription] = useState("");
   const [slots, setSlots] = useState<SlotState[]>(() => createEmptySlots());
   const [posseId, setPosseId] = useState<number | null>(null);
-  const [anchoredAwakenerIds, setAnchoredAwakenerIds] = useState<number[]>([]);
+  const [anchoredAwakeners, setAnchoredAwakeners] = useState<
+    AnchoredAwakenerState[]
+  >([]);
   const [newDemandSelections, setNewDemandSelections] = useState<
     DraftDemandSelection[]
   >([]);
@@ -95,12 +98,12 @@ export function PathCarver({
       validateBuildStep(
         slots,
         posseId,
-        anchoredAwakenerIds,
+        anchoredAwakeners,
         optionMap,
         covenantMap,
         wheelMap,
       ).valid,
-    [slots, posseId, anchoredAwakenerIds, optionMap, covenantMap, wheelMap],
+    [slots, posseId, anchoredAwakeners, optionMap, covenantMap, wheelMap],
   );
 
   const review1Valid = useMemo(() => {
@@ -143,7 +146,7 @@ export function PathCarver({
     setDesireId(bundle.desire.id);
     setDesireName(bundle.desire.name);
     setDesireDescription(bundle.desire.description ?? "");
-    setAnchoredAwakenerIds(bundle.anchoredAwakenerIds);
+    setAnchoredAwakeners(bundle.anchoredAwakeners);
     setExistingDemands(bundle.demands);
     setNewDemandSelections([]);
     setNewDemandForms([]);
@@ -207,7 +210,7 @@ export function PathCarver({
       description: desireDescription.trim() || null,
       slots,
       posseId,
-      anchoredAwakenerIds,
+      anchoredAwakeners,
       demands,
       deletedDemandIds,
     });
@@ -302,11 +305,11 @@ export function PathCarver({
         <BuildStep
           slots={slots}
           posseId={posseId}
-          anchoredAwakenerIds={anchoredAwakenerIds}
+          anchoredAwakeners={anchoredAwakeners}
           awakenerOptions={awakenerOptions}
           gearOptions={gearOptions}
           onSlotsChange={setSlots}
-          onAnchoredChange={setAnchoredAwakenerIds}
+          onAnchoredChange={setAnchoredAwakeners}
         />
       )}
 

@@ -64,7 +64,7 @@ export async function getPathCarverDesireBundle(
           .maybeSingle(),
         supabase
           .from("desire_anchored_awakener")
-          .select("awakener_id")
+          .select("awakener_id, is_damage_dealer")
           .eq("desire_id", desireId)
           .is("deleted_at", null),
         supabase
@@ -122,9 +122,14 @@ export async function getPathCarverDesireBundle(
         desireType: desireResult.data.desire_type,
       },
       template,
-      anchoredAwakenerIds: (anchorsResult.data ?? [])
-        .map((r) => r.awakener_id)
-        .filter((id): id is number => id != null),
+      anchoredAwakeners: (anchorsResult.data ?? [])
+        .filter(
+          (r): r is typeof r & { awakener_id: number } => r.awakener_id != null,
+        )
+        .map((r) => ({
+          awakenerId: r.awakener_id,
+          isDamageDealer: Boolean(r.is_damage_dealer),
+        })),
       demands,
     };
 
@@ -143,11 +148,11 @@ export async function getPathCarverDesireBundle(
 async function syncAnchoredAwakeners(
   supabase: ReturnType<typeof createAdminClient>,
   desireId: number,
-  anchoredAwakenerIds: number[],
+  anchoredAwakeners: SavePathCarverInput["anchoredAwakeners"],
 ): Promise<ActionResult> {
   const { data: existingRows, error: existingError } = await supabase
     .from("desire_anchored_awakener")
-    .select("id, awakener_id")
+    .select("id, awakener_id, is_damage_dealer")
     .eq("desire_id", desireId)
     .is("deleted_at", null);
 
@@ -155,13 +160,22 @@ async function syncAnchoredAwakeners(
     return { success: false, error: existingError.message };
   }
 
-  const submittedSet = new Set(anchoredAwakenerIds);
+  const submittedByAwakener = new Map(
+    anchoredAwakeners.map((anchor) => [anchor.awakenerId, anchor]),
+  );
   const existingByAwakener = new Map(
-    (existingRows ?? []).map((row) => [row.awakener_id, row.id]),
+    (existingRows ?? [])
+      .filter(
+        (row): row is typeof row & { awakener_id: number } =>
+          row.awakener_id != null,
+      )
+      .map((row) => [row.awakener_id, row]),
   );
 
   for (const row of existingRows ?? []) {
-    if (row.awakener_id != null && submittedSet.has(row.awakener_id)) continue;
+    if (row.awakener_id != null && submittedByAwakener.has(row.awakener_id)) {
+      continue;
+    }
 
     const { error } = await supabase
       .from("desire_anchored_awakener")
@@ -171,12 +185,30 @@ async function syncAnchoredAwakeners(
     if (error) return { success: false, error: error.message };
   }
 
-  for (const awakenerId of anchoredAwakenerIds) {
-    if (existingByAwakener.has(awakenerId)) continue;
+  for (const anchor of anchoredAwakeners) {
+    const existing = existingByAwakener.get(anchor.awakenerId);
+
+    if (existing) {
+      if (Boolean(existing.is_damage_dealer) === anchor.isDamageDealer) {
+        continue;
+      }
+
+      const { error } = await supabase
+        .from("desire_anchored_awakener")
+        .update({
+          is_damage_dealer: anchor.isDamageDealer,
+          updated_at: nowIso(),
+        } as never)
+        .eq("id", existing.id);
+
+      if (error) return { success: false, error: error.message };
+      continue;
+    }
 
     const { error } = await supabase.from("desire_anchored_awakener").insert({
       desire_id: desireId,
-      awakener_id: awakenerId,
+      awakener_id: anchor.awakenerId,
+      is_damage_dealer: anchor.isDamageDealer,
       created_at: nowIso(),
       updated_at: nowIso(),
     } as never);
@@ -306,7 +338,7 @@ export async function savePathCarverDesire(
   const buildCheck = validateBuildStep(
     input.slots,
     input.posseId,
-    input.anchoredAwakenerIds,
+    input.anchoredAwakeners,
     optionMap,
     covenantMap,
     wheelMap,
@@ -321,7 +353,7 @@ export async function savePathCarverDesire(
   }
 
   const desireType =
-    input.anchoredAwakenerIds.length > 0 ? "specific" : "general";
+    input.anchoredAwakeners.length > 0 ? "specific" : "general";
 
   let createdDesireId: number | null = null;
 
@@ -379,7 +411,7 @@ export async function savePathCarverDesire(
     const anchorResult = await syncAnchoredAwakeners(
       supabase,
       savedDesireId,
-      input.anchoredAwakenerIds,
+      input.anchoredAwakeners,
     );
     if (!anchorResult.success) {
       throw new Error(anchorResult.error);

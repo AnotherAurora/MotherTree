@@ -54,6 +54,7 @@ function createEmptyAnchor(): AnchorDraft {
   return {
     clientKey: crypto.randomUUID(),
     awakener_id: null,
+    is_damage_dealer: false,
   };
 }
 
@@ -62,6 +63,7 @@ function toAnchorDraft(row: Record<string, unknown>): AnchorDraft {
     clientKey: `existing-${String(row.id)}`,
     id: Number(row.id),
     awakener_id: row.awakener_id == null ? null : Number(row.awakener_id),
+    is_damage_dealer: Boolean(row.is_damage_dealer),
   };
 }
 
@@ -308,6 +310,25 @@ export function DesireFormDialog({
           disabled={loadingOptions}
           placeholder={`Select ${field.label.toLowerCase()}...`}
         />
+      );
+    }
+
+    if (field.type === "boolean") {
+      return (
+        <label className="flex h-9 items-center gap-2 text-sm text-zinc-700">
+          <input
+            type="checkbox"
+            checked={Boolean(value)}
+            onChange={(event) =>
+              updateAnchor(
+                anchor.clientKey,
+                field.name as keyof AnchoredAwakenerInput,
+                event.target.checked,
+              )
+            }
+            className="h-4 w-4 rounded border-border"
+          />
+        </label>
       );
     }
 

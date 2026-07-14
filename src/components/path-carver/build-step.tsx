@@ -5,7 +5,10 @@ import {
   buildAwakenerOptionMap,
   filterAwakenerOptionsForSlot,
 } from "@/components/simulator/awakener-selection";
-import { AwakenerSlotRow } from "@/components/simulator/awakener-slot-row";
+import {
+  AwakenerSlotRow,
+  type AnchorMode,
+} from "@/components/simulator/awakener-slot-row";
 import type { SlotState } from "@/components/simulator/mock-data";
 import type { AwakenerRelatedTags } from "@/lib/actions/simulator";
 import type { SimulatorGearOptions } from "@/lib/actions/simulator-flow";
@@ -16,22 +19,33 @@ import {
   filterCovenantOptionsForSlot,
   filterWheelOptionsForSlot,
 } from "@/lib/simulator/gear-selection";
+import type { AnchoredAwakenerState } from "@/lib/path-carver/types";
 import { validateBuildStep } from "@/lib/path-carver/validation";
 
 type BuildStepProps = {
   slots: SlotState[];
   posseId: number | null;
-  anchoredAwakenerIds: number[];
+  anchoredAwakeners: AnchoredAwakenerState[];
   awakenerOptions: SimulatorAwakenerOption[];
   gearOptions: SimulatorGearOptions;
   onSlotsChange: (slots: SlotState[]) => void;
-  onAnchoredChange: (ids: number[]) => void;
+  onAnchoredChange: (anchors: AnchoredAwakenerState[]) => void;
 };
+
+function getAnchorMode(
+  awakenerId: number | null,
+  anchoredAwakeners: AnchoredAwakenerState[],
+): AnchorMode {
+  if (awakenerId == null) return "off";
+  const anchor = anchoredAwakeners.find((a) => a.awakenerId === awakenerId);
+  if (!anchor) return "off";
+  return anchor.isDamageDealer ? "damageDealer" : "anchor";
+}
 
 export function BuildStep({
   slots,
   posseId,
-  anchoredAwakenerIds,
+  anchoredAwakeners,
   awakenerOptions,
   gearOptions,
   onSlotsChange,
@@ -112,12 +126,12 @@ export function BuildStep({
       validateBuildStep(
         slots,
         posseId,
-        anchoredAwakenerIds,
+        anchoredAwakeners,
         optionMap,
         covenantMap,
         wheelMap,
       ),
-    [slots, posseId, anchoredAwakenerIds, optionMap, covenantMap, wheelMap],
+    [slots, posseId, anchoredAwakeners, optionMap, covenantMap, wheelMap],
   );
 
   function updateSlot(index: number, slot: SlotState) {
@@ -128,22 +142,31 @@ export function BuildStep({
 
     if (prev?.awakenerId != null && prev.awakenerId !== slot.awakenerId) {
       onAnchoredChange(
-        anchoredAwakenerIds.filter((id) => id !== prev.awakenerId),
+        anchoredAwakeners.filter((a) => a.awakenerId !== prev.awakenerId),
       );
     }
   }
 
-  function toggleAnchor(index: number, anchored: boolean) {
+  function setAnchorMode(index: number, mode: AnchorMode) {
     const awakenerId = slots[index]?.awakenerId;
     if (awakenerId == null) return;
 
-    if (anchored) {
-      if (!anchoredAwakenerIds.includes(awakenerId)) {
-        onAnchoredChange([...anchoredAwakenerIds, awakenerId]);
-      }
-    } else {
-      onAnchoredChange(anchoredAwakenerIds.filter((id) => id !== awakenerId));
+    const withoutCurrent = anchoredAwakeners.filter(
+      (a) => a.awakenerId !== awakenerId,
+    );
+
+    if (mode === "off") {
+      onAnchoredChange(withoutCurrent);
+      return;
     }
+
+    onAnchoredChange([
+      ...withoutCurrent,
+      {
+        awakenerId,
+        isDamageDealer: mode === "damageDealer",
+      },
+    ]);
   }
 
   return (
@@ -176,11 +199,8 @@ export function BuildStep({
             onChange={(updated) => updateSlot(index, updated)}
             showRelatedTags={false}
             showAnchorToggle
-            isAnchored={
-              slot.awakenerId != null &&
-              anchoredAwakenerIds.includes(slot.awakenerId)
-            }
-            onAnchorChange={(anchored) => toggleAnchor(index, anchored)}
+            anchorMode={getAnchorMode(slot.awakenerId, anchoredAwakeners)}
+            onAnchorModeChange={(mode) => setAnchorMode(index, mode)}
             anchorDisabled={slot.awakenerId == null}
           />
         ))}

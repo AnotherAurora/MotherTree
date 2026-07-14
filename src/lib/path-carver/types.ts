@@ -11,6 +11,11 @@ export type DraftDemandSelection = {
 
 export type EditableDemand = DesireDemandRow & { markedForDelete?: boolean };
 
+export type AnchoredAwakenerState = {
+  awakenerId: number;
+  isDamageDealer: boolean;
+};
+
 export type PathCarverDesireBundle = {
   desire: {
     id: number;
@@ -23,7 +28,7 @@ export type PathCarverDesireBundle = {
     posseId: number | null;
     slots: SlotState[];
   } | null;
-  anchoredAwakenerIds: number[];
+  anchoredAwakeners: AnchoredAwakenerState[];
   demands: DesireDemandRow[];
 };
 
@@ -42,7 +47,7 @@ export type SavePathCarverInput = {
   description: string | null;
   slots: SlotState[];
   posseId: number;
-  anchoredAwakenerIds: number[];
+  anchoredAwakeners: AnchoredAwakenerState[];
   demands: SaveDemandInput[];
   deletedDemandIds: number[];
 };
