@@ -4,19 +4,19 @@ import { useEffect, useMemo, useState } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { ReviewTagsDebug } from "@/components/path-carver/review-tags-debug";
 import { loadTeamData } from "@/lib/actions/team-data";
+import type { TeamData } from "@/lib/team-data/types";
 import {
   aggregateTagScalarsById,
   getScalarForTag,
 } from "@/lib/path-carver/aggregate-tag-scalars";
-import { isTagMeasurable } from "@/lib/path-carver/measurable-tags";
 import type {
   DraftDemandSelection,
   EditableDemand,
   ManifestedTagRow,
 } from "@/lib/path-carver/types";
 import type { SlotState } from "@/lib/simulator/types";
-import { cn } from "@/lib/utils";
 
 type ReviewTagsStepProps = {
   slots: SlotState[];
@@ -49,14 +49,9 @@ export function ReviewTagsStep({
   const [scalarTotals, setScalarTotals] = useState<Map<number, number>>(
     new Map(),
   );
+  const [teamData, setTeamData] = useState<TeamData | null>(null);
 
   useEffect(() => {
-    if (posseId == null) {
-      setLoading(false);
-      setError("Posse is required");
-      return;
-    }
-
     let cancelled = false;
     setLoading(true);
     setError(null);
@@ -77,8 +72,11 @@ export function ReviewTagsStep({
         setError(result.error);
         setManifestedTags([]);
         setScalarTotals(new Map());
+        setTeamData(null);
         return;
       }
+
+      setTeamData(result.data);
 
       const totals = aggregateTagScalarsById(result.data.manifestations);
       setScalarTotals(totals);
@@ -95,7 +93,6 @@ export function ReviewTagsStep({
           tagId: m.tagId,
           tagName,
           scalarSum: getScalarForTag(totals, m.tagId),
-          measurable: isTagMeasurable(tagName),
         });
       }
 
@@ -113,17 +110,7 @@ export function ReviewTagsStep({
     [selections],
   );
 
-  const existingTagIds = useMemo(
-    () =>
-      new Set(
-        existingDemands.filter((d) => !d.markedForDelete).map((d) => d.tagId),
-      ),
-    [existingDemands],
-  );
-
   function toggleTag(tag: ManifestedTagRow) {
-    if (!tag.measurable || existingTagIds.has(tag.tagId)) return;
-
     if (selectedIds.has(tag.tagId)) {
       onSelectionsChange(selections.filter((s) => s.tagId !== tag.tagId));
     } else {
@@ -194,34 +181,25 @@ export function ReviewTagsStep({
                   <th className="px-3 py-2 w-10" />
                   <th className="px-3 py-2">Tag</th>
                   <th className="px-3 py-2 text-right">Scalar sum</th>
-                  <th className="px-3 py-2">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
                 {manifestedTags.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="px-3 py-4 text-zinc-500">
+                    <td colSpan={3} className="px-3 py-4 text-zinc-500">
                       No manifested tags for this team.
                     </td>
                   </tr>
                 ) : (
                   manifestedTags.map((tag) => {
-                    const isExisting = existingTagIds.has(tag.tagId);
-                    const disabled = !tag.measurable || isExisting;
                     const checked = selectedIds.has(tag.tagId);
 
                     return (
-                      <tr
-                        key={tag.tagId}
-                        className={cn(
-                          disabled ? "bg-zinc-50/50" : "hover:bg-zinc-50",
-                        )}
-                      >
+                      <tr key={tag.tagId} className="hover:bg-zinc-50">
                         <td className="px-3 py-2">
                           <input
                             type="checkbox"
                             checked={checked}
-                            disabled={disabled}
                             onChange={() => toggleTag(tag)}
                             className="h-4 w-4 rounded border-zinc-300"
                           />
@@ -232,15 +210,6 @@ export function ReviewTagsStep({
                         <td className="px-3 py-2 text-right tabular-nums text-zinc-600">
                           {tag.scalarSum.toFixed(2)}
                         </td>
-                        <td className="px-3 py-2 text-xs text-zinc-500">
-                          {!tag.measurable
-                            ? "Phase 2 — not measurable yet"
-                            : isExisting
-                              ? "Already a demand"
-                              : checked
-                                ? `target: ${getScalarForTag(scalarTotals, tag.tagId).toFixed(2)}`
-                                : "—"}
-                        </td>
                       </tr>
                     );
                   })
@@ -250,6 +219,10 @@ export function ReviewTagsStep({
           </div>
         )}
       </div>
+
+      {!loading && teamData && (
+        <ReviewTagsDebug teamData={teamData} slots={slots} />
+      )}
     </div>
   );
 }

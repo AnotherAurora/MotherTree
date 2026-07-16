@@ -46,7 +46,7 @@ export type SavePathCarverInput = {
   name: string;
   description: string | null;
   slots: SlotState[];
-  posseId: number;
+  posseId: number | null;
   anchoredAwakeners: AnchoredAwakenerState[];
   demands: SaveDemandInput[];
   deletedDemandIds: number[];
@@ -56,5 +56,4 @@ export type ManifestedTagRow = {
   tagId: number;
   tagName: string;
   scalarSum: number;
-  measurable: boolean;
 };

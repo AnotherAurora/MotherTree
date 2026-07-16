@@ -273,7 +273,7 @@ async function upsertTemplate(
   supabase: ReturnType<typeof createAdminClient>,
   desireId: number,
   slots: SavePathCarverInput["slots"],
-  posseId: number,
+  posseId: number | null,
   existingTemplateId?: number,
 ): Promise<ActionResult> {
   const templateRecord = slotsToTemplateRecord(desireId, slots, posseId);
@@ -337,7 +337,6 @@ export async function savePathCarverDesire(
 
   const buildCheck = validateBuildStep(
     input.slots,
-    input.posseId,
     input.anchoredAwakeners,
     optionMap,
     covenantMap,

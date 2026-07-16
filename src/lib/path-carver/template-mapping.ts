@@ -52,7 +52,7 @@ export function templateRowToSlots(row: DesireTemplateRow): {
 export function slotsToTemplateRecord(
   desireId: number,
   slots: SlotState[],
-  posseId: number,
+  posseId: number | null,
 ): TablesInsert<"desire_template"> {
   const record: TablesInsert<"desire_template"> = {
     desire_id: desireId,

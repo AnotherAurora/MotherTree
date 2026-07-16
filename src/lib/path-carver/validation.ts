@@ -26,46 +26,6 @@ function result(valid: boolean, errors: string[]): ValidationResult {
   return { valid, errors };
 }
 
-export function validateTeamComplete(
-  slots: SlotState[],
-  posseId: number | null,
-): ValidationResult {
-  const errors: string[] = [];
-
-  if (posseId == null) {
-    errors.push("Posse is required");
-  }
-
-  let emptyAwakeners = 0;
-  let emptyWheels = 0;
-  let emptyCovenants = 0;
-
-  for (const slot of slots) {
-    if (slot.awakenerId == null) emptyAwakeners++;
-    if (slot.wheel1Id == null) emptyWheels++;
-    if (slot.wheel2Id == null) emptyWheels++;
-    if (slot.covenantId == null) emptyCovenants++;
-  }
-
-  if (emptyAwakeners > 0) {
-    errors.push(
-      `${emptyAwakeners} awakener slot${emptyAwakeners > 1 ? "s" : ""} empty`,
-    );
-  }
-  if (emptyWheels > 0) {
-    errors.push(
-      `${emptyWheels} wheel slot${emptyWheels > 1 ? "s" : ""} empty`,
-    );
-  }
-  if (emptyCovenants > 0) {
-    errors.push(
-      `${emptyCovenants} covenant slot${emptyCovenants > 1 ? "s" : ""} empty`,
-    );
-  }
-
-  return result(errors.length === 0, errors);
-}
-
 export function validateGearConstraints(
   slots: SlotState[],
   covenantMap: Map<number, CovenantGearOption>,
@@ -183,14 +143,12 @@ export function validateAnchors(
 
 export function validateBuildStep(
   slots: SlotState[],
-  posseId: number | null,
   anchoredAwakeners: AnchoredAwakenerState[],
   optionMap: Map<number, SimulatorAwakenerOption>,
   covenantMap: Map<number, CovenantGearOption>,
   wheelMap: Map<number, WheelGearOption>,
 ): ValidationResult {
   const results = [
-    validateTeamComplete(slots, posseId),
     validateAwakenerConstraints(slots, optionMap),
     validateGearConstraints(slots, covenantMap, wheelMap),
     validateAnchors(anchoredAwakeners, slots),

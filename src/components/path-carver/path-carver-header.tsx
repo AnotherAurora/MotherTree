@@ -16,6 +16,7 @@ type PathCarverHeaderProps = {
   showDesireName: boolean;
   onPosseChange: (value: number | null) => void;
   onLoad: () => void;
+  onCancel?: () => void;
   onBack: () => void;
   onNext: () => void;
   onSave: () => void;
@@ -47,6 +48,7 @@ export function PathCarverHeader({
   showDesireName,
   onPosseChange,
   onLoad,
+  onCancel,
   onBack,
   onNext,
   onSave,
@@ -104,7 +106,20 @@ export function PathCarverHeader({
               <Label className="text-xs font-medium uppercase tracking-wide text-zinc-500">
                 Desire
               </Label>
-              <DisplayValue value={desireName} />
+              <div className="flex flex-wrap items-center gap-2">
+                <DisplayValue value={desireName} />
+                {onCancel && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={onCancel}
+                    disabled={loading}
+                  >
+                    Cancel
+                  </Button>
+                )}
+              </div>
             </div>
           )}
         </div>

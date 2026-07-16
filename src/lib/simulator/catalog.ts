@@ -28,9 +28,20 @@ type RawManifestation = {
   tagName: string;
   valueScalar: number;
   requiredRealm: Realm | null;
+  requiredRealm2: Realm | null;
   requiredAwakenerId: number | null;
   dependencyStat: AllStats | null;
 };
+
+function matchesSlotRealmRequirement(
+  requiredRealm: Realm | null,
+  requiredRealm2: Realm | null,
+  slotRealm: Realm | null,
+): boolean {
+  if (requiredRealm == null && requiredRealm2 == null) return true;
+  if (slotRealm == null) return true;
+  return requiredRealm === slotRealm || requiredRealm2 === slotRealm;
+}
 
 export type SimulatorCatalog = {
   desire: DesireDetail;
@@ -62,6 +73,8 @@ function toRawManifestations(
     tag_id: number | null;
     value_scalar: number | null;
     required_realm?: Realm | null;
+    required_realm1?: Realm | null;
+    required_realm2?: Realm | null;
     required_awakener?: number | null;
     replaces_manifestation_id?: number | null;
     dependency_stat?: AllStats | null;
@@ -79,7 +92,8 @@ function toRawManifestations(
   return withReplacement.map(({ row }) => ({
     tagName: tagNames.get(row.tag_id ?? -1) ?? "Unknown",
     valueScalar: row.value_scalar ?? 0,
-    requiredRealm: row.required_realm ?? null,
+    requiredRealm: row.required_realm ?? row.required_realm1 ?? null,
+    requiredRealm2: row.required_realm2 ?? null,
     requiredAwakenerId: row.required_awakener ?? null,
     dependencyStat: row.dependency_stat ?? null,
   }));
@@ -174,7 +188,7 @@ export async function loadSimulatorCatalog(
     supabase
       .from("covenant_tag_manifestation")
       .select(
-        "covenant_id, tag_id, value_scalar, required_realm, replaces_manifestation_id",
+        "covenant_id, tag_id, value_scalar, required_realm1, required_realm2, replaces_manifestation_id",
       )
       .is("deleted_at", null),
     supabase
@@ -243,6 +257,8 @@ export async function loadSimulatorCatalog(
       tag_id: number | null;
       value_scalar: number | null;
       required_realm?: Realm | null;
+      required_realm1?: Realm | null;
+      required_realm2?: Realm | null;
       required_awakener?: number | null;
       replaces_manifestation_id?: number | null;
     }>,
@@ -366,7 +382,15 @@ export function buildManifestationsForComposition(
       const slotRealm = awakener?.realm ?? null;
       const rows = catalog.awakenerManifestations.get(slot.awakenerId) ?? [];
       for (const raw of rows) {
-        if (raw.requiredRealm && raw.requiredRealm !== slotRealm) continue;
+        if (
+          !matchesSlotRealmRequirement(
+            raw.requiredRealm,
+            raw.requiredRealm2,
+            slotRealm,
+          )
+        ) {
+          continue;
+        }
         pushRaw(raw, "awakener", slotIndex, slot.awakenerId);
       }
 
@@ -374,7 +398,15 @@ export function buildManifestationsForComposition(
         const wheelRows =
           catalog.wheelManifestations.get(slot.wheel1Id) ?? [];
         for (const raw of wheelRows) {
-          if (raw.requiredRealm && raw.requiredRealm !== slotRealm) continue;
+          if (
+            !matchesSlotRealmRequirement(
+              raw.requiredRealm,
+              raw.requiredRealm2,
+              slotRealm,
+            )
+          ) {
+            continue;
+          }
           pushRaw(raw, "wheel", slotIndex, slot.awakenerId);
         }
       }
@@ -383,7 +415,15 @@ export function buildManifestationsForComposition(
         const wheelRows =
           catalog.wheelManifestations.get(slot.wheel2Id) ?? [];
         for (const raw of wheelRows) {
-          if (raw.requiredRealm && raw.requiredRealm !== slotRealm) continue;
+          if (
+            !matchesSlotRealmRequirement(
+              raw.requiredRealm,
+              raw.requiredRealm2,
+              slotRealm,
+            )
+          ) {
+            continue;
+          }
           pushRaw(raw, "wheel", slotIndex, slot.awakenerId);
         }
       }
@@ -392,7 +432,15 @@ export function buildManifestationsForComposition(
         const covenantRows =
           catalog.covenantManifestations.get(slot.covenantId) ?? [];
         for (const raw of covenantRows) {
-          if (raw.requiredRealm && raw.requiredRealm !== slotRealm) continue;
+          if (
+            !matchesSlotRealmRequirement(
+              raw.requiredRealm,
+              raw.requiredRealm2,
+              slotRealm,
+            )
+          ) {
+            continue;
+          }
           pushRaw(raw, "covenant", slotIndex, slot.awakenerId);
         }
       }

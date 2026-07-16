@@ -146,10 +146,13 @@ export function AwakenerSlotRow({
               <Label className="text-xs text-zinc-500">
                 Awakener {index + 1}
               </Label>
-              {showAnchorToggle && (
+              {showAnchorToggle && slot.awakenerId != null && (
                 <button
                   type="button"
-                  disabled={anchorDisabled || slot.awakenerId == null}
+                  disabled={anchorDisabled}
+                  // Prevent browser form restoration from flipping `disabled`
+                  // across refreshes (causes SSR/client hydration mismatches).
+                  autoComplete="off"
                   onClick={() =>
                     onAnchorModeChange?.(nextAnchorMode(anchorMode))
                   }

@@ -131,10 +131,21 @@ const COVENANT_MANIFESTATION_SELECT = `
   value_scalar,
   target_type,
   is_accumulating,
-  required_realm,
+  required_realm1,
+  required_realm2,
   replaces_manifestation_id,
   tag:tag_id(id, tag_name, layer)
 `;
+
+function matchesCovenantSlotRealm(
+  requiredRealm1: Realm | null,
+  requiredRealm2: Realm | null,
+  slotRealm: Realm | null,
+): boolean {
+  if (requiredRealm1 == null && requiredRealm2 == null) return true;
+  if (slotRealm == null) return true;
+  return requiredRealm1 === slotRealm || requiredRealm2 === slotRealm;
+}
 
 async function fetchWheelManifestations(
   supabase: SupabaseClient<Database>,
@@ -163,19 +174,21 @@ async function fetchCovenantManifestations(
   covenantId: number,
   slotRealm: Realm | null,
 ) {
-  let query = supabase
+  const { data, error } = await supabase
     .from("covenant_tag_manifestation")
     .select(COVENANT_MANIFESTATION_SELECT)
     .eq("covenant_id", covenantId)
     .is("deleted_at", null);
 
-  if (slotRealm) {
-    query = query.or(`required_realm.is.null,required_realm.eq.${slotRealm}`);
-  }
-
-  const { data, error } = await query;
   if (error) throw new Error(error.message);
-  return data ?? [];
+
+  return (data ?? []).filter((row) =>
+    matchesCovenantSlotRealm(
+      row.required_realm1,
+      row.required_realm2,
+      slotRealm,
+    ),
+  );
 }
 
 async function fetchPosseManifestations(
@@ -464,7 +477,11 @@ export async function fetchTeamData(
             if (tag) collectTags(tagsById, tag);
             manifestations.push(
               mapGearManifestation(
-                row,
+                {
+                  ...row,
+                  required_realm:
+                    row.required_realm1 ?? row.required_realm2 ?? null,
+                },
                 "covenant",
                 slotIndex,
                 slot.awakenerId,

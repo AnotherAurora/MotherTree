@@ -97,13 +97,12 @@ export function PathCarver({
     () =>
       validateBuildStep(
         slots,
-        posseId,
         anchoredAwakeners,
         optionMap,
         covenantMap,
         wheelMap,
       ).valid,
-    [slots, posseId, anchoredAwakeners, optionMap, covenantMap, wheelMap],
+    [slots, anchoredAwakeners, optionMap, covenantMap, wheelMap],
   );
 
   const review1Valid = useMemo(() => {
@@ -192,12 +191,19 @@ export function PathCarver({
     }
   }
 
-  async function handleSave() {
-    if (posseId == null) {
-      setError("Posse is required");
-      return;
-    }
+  function handleCancelEdit() {
+    setMode("create");
+    setDesireId(null);
+    setExistingDemands([]);
+    setDeletedDemandIds([]);
+    setNewDemandSelections([]);
+    setNewDemandForms([]);
+    setTemplateWarning(null);
+    setError(null);
+    setSuccessMessage(null);
+  }
 
+  async function handleSave() {
     setSaving(true);
     setError(null);
     setSuccessMessage(null);
@@ -293,6 +299,9 @@ export function PathCarver({
         showDesireName={showDesireName}
         onPosseChange={setPosseId}
         onLoad={() => setLoadModalOpen(true)}
+        onCancel={
+          desireId != null && step === "build" ? handleCancelEdit : undefined
+        }
         onBack={handleBack}
         onNext={handleNext}
         onSave={handleSave}
@@ -304,7 +313,6 @@ export function PathCarver({
       {step === "build" && (
         <BuildStep
           slots={slots}
-          posseId={posseId}
           anchoredAwakeners={anchoredAwakeners}
           awakenerOptions={awakenerOptions}
           gearOptions={gearOptions}

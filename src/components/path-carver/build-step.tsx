@@ -24,7 +24,6 @@ import { validateBuildStep } from "@/lib/path-carver/validation";
 
 type BuildStepProps = {
   slots: SlotState[];
-  posseId: number | null;
   anchoredAwakeners: AnchoredAwakenerState[];
   awakenerOptions: SimulatorAwakenerOption[];
   gearOptions: SimulatorGearOptions;
@@ -44,7 +43,6 @@ function getAnchorMode(
 
 export function BuildStep({
   slots,
-  posseId,
   anchoredAwakeners,
   awakenerOptions,
   gearOptions,
@@ -125,13 +123,12 @@ export function BuildStep({
     () =>
       validateBuildStep(
         slots,
-        posseId,
         anchoredAwakeners,
         optionMap,
         covenantMap,
         wheelMap,
       ),
-    [slots, posseId, anchoredAwakeners, optionMap, covenantMap, wheelMap],
+    [slots, anchoredAwakeners, optionMap, covenantMap, wheelMap],
   );
 
   function updateSlot(index: number, slot: SlotState) {
@@ -173,7 +170,7 @@ export function BuildStep({
     <div className="space-y-4">
       {!validation.valid && validation.errors.length > 0 && (
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          <p className="font-medium">Complete the team before continuing:</p>
+          <p className="font-medium">Fix team constraints before continuing:</p>
           <ul className="mt-1 list-inside list-disc">
             {validation.errors.map((err) => (
               <li key={err}>{err}</li>
@@ -201,7 +198,6 @@ export function BuildStep({
             showAnchorToggle
             anchorMode={getAnchorMode(slot.awakenerId, anchoredAwakeners)}
             onAnchorModeChange={(mode) => setAnchorMode(index, mode)}
-            anchorDisabled={slot.awakenerId == null}
           />
         ))}
       </div>
