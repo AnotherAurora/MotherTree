@@ -368,9 +368,12 @@ export function buildManifestationsForComposition(
       dependencyStat: raw.dependencyStat,
       sourceType: null,
       targetType: null,
+      buffTargetTypeRestriction: null,
+      metadata: null,
       isAccumulating: false,
       requiredEnlightenment: null,
       requiredRealm: raw.requiredRealm,
+      requiredRealm2: raw.requiredRealm2,
       replacesManifestationId: null,
       interactionOverrides: [],
     });

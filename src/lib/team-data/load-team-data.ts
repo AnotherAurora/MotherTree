@@ -92,6 +92,8 @@ const AWAKENER_MANIFESTATION_SELECT = `
   dependency_stat,
   source_type,
   target_type,
+  buff_target_type_restriction,
+  metadata,
   is_accumulating,
   required_enlightenment,
   required_realm,
@@ -120,6 +122,8 @@ const GEAR_MANIFESTATION_SELECT = `
   tag_id,
   value_scalar,
   target_type,
+  buff_target_type_restriction,
+  metadata,
   is_accumulating,
   required_realm,
   tag:tag_id(id, tag_name, layer)
@@ -130,6 +134,9 @@ const COVENANT_MANIFESTATION_SELECT = `
   tag_id,
   value_scalar,
   target_type,
+  buff_target_type_restriction,
+  metadata,
+  dependency_stat,
   is_accumulating,
   required_realm1,
   required_realm2,
@@ -154,9 +161,7 @@ async function fetchWheelManifestations(
 ) {
   let query = supabase
     .from("wheel_tag_manifestation")
-    .select(
-      `${GEAR_MANIFESTATION_SELECT}, dependency_stat, buff_target_type_restriction`,
-    )
+    .select(`${GEAR_MANIFESTATION_SELECT}, dependency_stat`)
     .eq("wheel_id", wheelId)
     .is("deleted_at", null);
 
@@ -199,7 +204,9 @@ async function fetchPosseManifestations(
 ) {
   const { data, error } = await supabase
     .from("posse_tag_manifestation")
-    .select(`${GEAR_MANIFESTATION_SELECT}, required_awakener, dependency_stat`)
+    .select(
+      `${GEAR_MANIFESTATION_SELECT}, required_awakener, dependency_stat`,
+    )
     .eq("posse_id", posseId)
     .is("deleted_at", null);
 
@@ -231,11 +238,14 @@ function mapGearManifestation(
     target_type: Manifestation["targetType"];
     is_accumulating: boolean;
     required_realm: Realm | null;
+    required_realm2?: Realm | null;
     replaces_manifestation_id?: number | null;
     tag: TagRef;
     base_hits?: number | null;
     dependency_stat?: Manifestation["dependencyStat"];
     source_type?: Manifestation["sourceType"];
+    buff_target_type_restriction?: Manifestation["buffTargetTypeRestriction"];
+    metadata?: string | null;
   },
   sourceKind: Manifestation["sourceKind"],
   slotIndex: number | null,
@@ -254,9 +264,12 @@ function mapGearManifestation(
     dependencyStat: row.dependency_stat ?? null,
     sourceType: row.source_type ?? null,
     targetType: row.target_type,
+    buffTargetTypeRestriction: row.buff_target_type_restriction ?? null,
+    metadata: row.metadata ?? null,
     isAccumulating: row.is_accumulating,
     requiredEnlightenment: null,
     requiredRealm: row.required_realm,
+    requiredRealm2: row.required_realm2 ?? null,
     replacesManifestationId: row.replaces_manifestation_id ?? null,
     interactionOverrides: [],
   };
@@ -479,8 +492,8 @@ export async function fetchTeamData(
               mapGearManifestation(
                 {
                   ...row,
-                  required_realm:
-                    row.required_realm1 ?? row.required_realm2 ?? null,
+                  required_realm: row.required_realm1 ?? null,
+                  required_realm2: row.required_realm2 ?? null,
                 },
                 "covenant",
                 slotIndex,
@@ -544,9 +557,12 @@ export async function fetchTeamData(
       dependencyStat: row.dependency_stat,
       sourceType: row.source_type,
       targetType: row.target_type,
+      buffTargetTypeRestriction: row.buff_target_type_restriction,
+      metadata: row.metadata,
       isAccumulating: row.is_accumulating,
       requiredEnlightenment: row.required_enlightenment,
       requiredRealm: row.required_realm,
+      requiredRealm2: null,
       replacesManifestationId: row.replaces_manifestation_id,
       interactionOverrides: overridesByManifestationId.get(row.id) ?? [],
     });

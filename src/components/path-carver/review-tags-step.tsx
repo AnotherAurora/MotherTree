@@ -11,6 +11,7 @@ import {
   aggregateTagScalarsById,
   getScalarForTag,
 } from "@/lib/path-carver/aggregate-tag-scalars";
+import { createManifestationApplyContext } from "@/lib/path-carver/manifestation-apply";
 import type {
   DraftDemandSelection,
   EditableDemand,
@@ -78,7 +79,11 @@ export function ReviewTagsStep({
 
       setTeamData(result.data);
 
-      const totals = aggregateTagScalarsById(result.data.manifestations);
+      const applyContext = createManifestationApplyContext(result.data.awakeners);
+      const totals = aggregateTagScalarsById(
+        result.data.manifestations,
+        applyContext,
+      );
       setScalarTotals(totals);
 
       const tagRows: ManifestedTagRow[] = [];
@@ -221,7 +226,11 @@ export function ReviewTagsStep({
       </div>
 
       {!loading && teamData && (
-        <ReviewTagsDebug teamData={teamData} slots={slots} />
+        <ReviewTagsDebug
+          teamData={teamData}
+          slots={slots}
+          applyContext={createManifestationApplyContext(teamData.awakeners)}
+        />
       )}
     </div>
   );

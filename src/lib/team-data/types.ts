@@ -71,9 +71,12 @@ export type Manifestation = {
   dependencyStat: AllStats | null;
   sourceType: SourceType | null;
   targetType: TargetType | null;
+  buffTargetTypeRestriction: SourceType | null;
+  metadata: string | null;
   isAccumulating: boolean;
   requiredEnlightenment: number | null;
   requiredRealm: Realm | null;
+  requiredRealm2: Realm | null;
   replacesManifestationId: number | null;
   interactionOverrides: InteractionOverride[];
 };
