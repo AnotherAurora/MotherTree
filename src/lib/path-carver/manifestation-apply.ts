@@ -3,6 +3,7 @@ import type { Awakener, Manifestation, Realm } from "@/lib/team-data/types";
 export type ManifestationApplyContext = {
   teamRealms: Set<Realm>;
   teamIsChaosOnly: boolean;
+  teamAwakenerIds: Set<number>;
 };
 
 export function getTeamRealms(awakeners: Awakener[]): Set<Realm> {
@@ -24,6 +25,7 @@ export function createManifestationApplyContext(
   return {
     teamRealms: getTeamRealms(awakeners),
     teamIsChaosOnly: isChaosOnlyTeam(awakeners),
+    teamAwakenerIds: new Set(awakeners.map((a) => a.id)),
   };
 }
 
@@ -39,6 +41,13 @@ export function isManifestationApplied(
   m: Manifestation,
   ctx: ManifestationApplyContext,
 ): boolean {
+  if (
+    m.requiredAwakenerId != null &&
+    !ctx.teamAwakenerIds.has(m.requiredAwakenerId)
+  ) {
+    return false;
+  }
+
   const requiredRealms = [m.requiredRealm, m.requiredRealm2].filter(
     (realm): realm is Realm => realm != null,
   );

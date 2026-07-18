@@ -431,10 +431,14 @@ export const TABLE_CONFIGS: TableConfig[] = [
     order: 5,
     uniqueConstraints: [
       {
-        fields: ["modifier_tag_id", "target_tag_id", "source_type"],
+        fields: [
+          "modifier_tag_id",
+          "target_tag_id",
+          "buff_target_type_restriction",
+        ],
         ignoreDeleted: true,
         message:
-          "An active interaction with this modifier tag, target tag, and source type already exists.",
+          "An active interaction with this modifier tag, target tag, and buff restriction already exists.",
       },
     ],
     fields: [
@@ -477,8 +481,8 @@ export const TABLE_CONFIGS: TableConfig[] = [
         inlineEditable: true,
       },
       {
-        name: "source_type",
-        label: "Source Type",
+        name: "buff_target_type_restriction",
+        label: "Buff Restriction",
         type: "enum",
         enumName: "source_type",
         inlineEditable: true,

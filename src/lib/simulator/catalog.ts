@@ -372,6 +372,8 @@ export function buildManifestationsForComposition(
       metadata: null,
       isAccumulating: false,
       requiredEnlightenment: null,
+      requiredAwakenerId: raw.requiredAwakenerId,
+      requiredAwakenerName: null,
       requiredRealm: raw.requiredRealm,
       requiredRealm2: raw.requiredRealm2,
       replacesManifestationId: null,

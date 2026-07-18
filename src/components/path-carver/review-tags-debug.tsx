@@ -35,6 +35,14 @@ function formatRequiredRealm(m: Manifestation): string {
   return formatCell(m.requiredRealm ?? m.requiredRealm2);
 }
 
+function formatRequiredAwakener(m: Manifestation): string {
+  if (m.requiredAwakenerName != null && m.requiredAwakenerName !== "") {
+    return m.requiredAwakenerName;
+  }
+  if (m.requiredAwakenerId != null) return `#${m.requiredAwakenerId}`;
+  return "—";
+}
+
 function formatMetadata(metadata: string | null): string {
   if (metadata == null || metadata.trim() === "") return "—";
   return metadata;
@@ -66,6 +74,7 @@ function ManifestationTable({
               buff_target_type_restriction
             </th>
             <th className="px-2 py-1.5 font-medium">required_realm</th>
+            <th className="px-2 py-1.5 font-medium">required_awakener</th>
             <th className="px-2 py-1.5 font-medium">dependency_stat</th>
           </tr>
         </thead>
@@ -99,6 +108,7 @@ function ManifestationTable({
                   {formatCell(m.buffTargetTypeRestriction)}
                 </td>
                 <td className="px-2 py-1.5">{formatRequiredRealm(m)}</td>
+                <td className="px-2 py-1.5">{formatRequiredAwakener(m)}</td>
                 <td className="px-2 py-1.5">{formatCell(m.dependencyStat)}</td>
               </tr>
             );

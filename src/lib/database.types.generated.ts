@@ -873,6 +873,9 @@ export type Database = {
       }
       tag_default_interaction: {
         Row: {
+          buff_target_type_restriction:
+            | Database["public"]["Enums"]["source_type"]
+            | null
           created_at: string | null
           default_factor: number | null
           deleted_at: string | null
@@ -880,11 +883,13 @@ export type Database = {
           id: number
           math_operation: Database["public"]["Enums"]["operation_type"]
           modifier_tag_id: number | null
-          source_type: Database["public"]["Enums"]["source_type"] | null
           target_tag_id: number | null
           updated_at: string | null
         }
         Insert: {
+          buff_target_type_restriction?:
+            | Database["public"]["Enums"]["source_type"]
+            | null
           created_at?: string | null
           default_factor?: number | null
           deleted_at?: string | null
@@ -892,11 +897,13 @@ export type Database = {
           id?: number
           math_operation?: Database["public"]["Enums"]["operation_type"]
           modifier_tag_id?: number | null
-          source_type?: Database["public"]["Enums"]["source_type"] | null
           target_tag_id?: number | null
           updated_at?: string | null
         }
         Update: {
+          buff_target_type_restriction?:
+            | Database["public"]["Enums"]["source_type"]
+            | null
           created_at?: string | null
           default_factor?: number | null
           deleted_at?: string | null
@@ -904,7 +911,6 @@ export type Database = {
           id?: number
           math_operation?: Database["public"]["Enums"]["operation_type"]
           modifier_tag_id?: number | null
-          source_type?: Database["public"]["Enums"]["source_type"] | null
           target_tag_id?: number | null
           updated_at?: string | null
         }

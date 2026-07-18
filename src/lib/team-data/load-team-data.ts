@@ -199,26 +199,21 @@ async function fetchCovenantManifestations(
 async function fetchPosseManifestations(
   supabase: SupabaseClient<Database>,
   posseId: number,
-  awakenerIds: number[],
   realms: Realm[],
 ) {
   const { data, error } = await supabase
     .from("posse_tag_manifestation")
     .select(
-      `${GEAR_MANIFESTATION_SELECT}, required_awakener, dependency_stat`,
+      `${GEAR_MANIFESTATION_SELECT}, required_awakener, dependency_stat, required_awakener_ref:awakener!required_awakener(id, name)`,
     )
     .eq("posse_id", posseId)
     .is("deleted_at", null);
 
   if (error) throw new Error(error.message);
 
+  // required_awakener is soft-filtered later via isManifestationApplied so
+  // debug can show gated posse tags as Applied: no.
   return (data ?? []).filter((row) => {
-    if (
-      row.required_awakener != null &&
-      !awakenerIds.includes(row.required_awakener)
-    ) {
-      return false;
-    }
     if (
       row.required_realm != null &&
       realms.length > 0 &&
@@ -240,6 +235,8 @@ function mapGearManifestation(
     required_realm: Realm | null;
     required_realm2?: Realm | null;
     replaces_manifestation_id?: number | null;
+    required_awakener?: number | null;
+    required_awakener_ref?: { id: number; name: string | null } | null;
     tag: TagRef;
     base_hits?: number | null;
     dependency_stat?: Manifestation["dependencyStat"];
@@ -252,6 +249,10 @@ function mapGearManifestation(
   awakenerId: number | null,
 ): Manifestation {
   const tag = parseTagRef(row.tag as TagRef);
+  const requiredAwakenerId = row.required_awakener ?? null;
+  const requiredAwakenerName =
+    row.required_awakener_ref?.name ??
+    (requiredAwakenerId != null ? `#${requiredAwakenerId}` : null);
   return {
     id: row.id,
     sourceKind,
@@ -268,6 +269,8 @@ function mapGearManifestation(
     metadata: row.metadata ?? null,
     isAccumulating: row.is_accumulating,
     requiredEnlightenment: null,
+    requiredAwakenerId,
+    requiredAwakenerName,
     requiredRealm: row.required_realm,
     requiredRealm2: row.required_realm2 ?? null,
     replacesManifestationId: row.replaces_manifestation_id ?? null,
@@ -350,7 +353,7 @@ export async function fetchTeamData(
       id,
       math_operation,
       default_factor,
-      source_type,
+      buff_target_type_restriction,
       modifier_tag:tag!modifier_tag_id(id, tag_name, layer),
       target_tag:tag!target_tag_id(id, tag_name, layer),
       exclusion_tag:tag!exclusion_suffix(id, tag_name, layer)
@@ -518,7 +521,6 @@ export async function fetchTeamData(
       fetchPosseManifestations(
         supabase,
         input.posseId,
-        awakenerIds,
         realms,
       ).then((rows) => {
         for (const row of rows) {
@@ -561,6 +563,8 @@ export async function fetchTeamData(
       metadata: row.metadata,
       isAccumulating: row.is_accumulating,
       requiredEnlightenment: row.required_enlightenment,
+      requiredAwakenerId: null,
+      requiredAwakenerName: null,
       requiredRealm: row.required_realm,
       requiredRealm2: null,
       replacesManifestationId: row.replaces_manifestation_id,
@@ -586,7 +590,7 @@ export async function fetchTeamData(
       exclusionTagName: exclusionTag?.tagName ?? null,
       mathOperation: row.math_operation,
       defaultFactor: row.default_factor,
-      sourceType: row.source_type,
+      buffTargetTypeRestriction: row.buff_target_type_restriction,
     };
   });
 

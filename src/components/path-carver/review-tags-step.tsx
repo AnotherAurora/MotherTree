@@ -87,28 +87,34 @@ export function ReviewTagsStep({
       setScalarTotals(totals);
 
       const tagRows: ManifestedTagRow[] = [];
-      const seen = new Set<number>();
 
-      for (const m of result.data.manifestations) {
-        if (seen.has(m.tagId)) continue;
-        seen.add(m.tagId);
-        const tag = result.data.tagsById[m.tagId];
-        const tagName = tag?.tagName ?? m.tagName;
+      for (const [tagId, scalarSum] of totals) {
+        if (scalarSum === 0) continue;
+        const tag = result.data.tagsById[tagId];
+        const manifestation = result.data.manifestations.find(
+          (m) => m.tagId === tagId,
+        );
         tagRows.push({
-          tagId: m.tagId,
-          tagName,
-          scalarSum: getScalarForTag(totals, m.tagId),
+          tagId,
+          tagName: tag?.tagName ?? manifestation?.tagName ?? "Unknown",
+          scalarSum,
         });
       }
 
       tagRows.sort((a, b) => a.tagName.localeCompare(b.tagName));
       setManifestedTags(tagRows);
+
+      const visibleTagIds = new Set(tagRows.map((t) => t.tagId));
+      const pruned = selections.filter((s) => visibleTagIds.has(s.tagId));
+      if (pruned.length !== selections.length) {
+        onSelectionsChange(pruned);
+      }
     });
 
     return () => {
       cancelled = true;
     };
-  }, [slots, posseId]);
+  }, [slots, posseId, onSelectionsChange]);
 
   const selectedIds = useMemo(
     () => new Set(selections.map((s) => s.tagId)),

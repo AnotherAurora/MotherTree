@@ -75,6 +75,8 @@ export type Manifestation = {
   metadata: string | null;
   isAccumulating: boolean;
   requiredEnlightenment: number | null;
+  requiredAwakenerId: number | null;
+  requiredAwakenerName: string | null;
   requiredRealm: Realm | null;
   requiredRealm2: Realm | null;
   replacesManifestationId: number | null;
@@ -91,7 +93,7 @@ export type DefaultInteraction = {
   exclusionTagName: string | null;
   mathOperation: OperationType;
   defaultFactor: number | null;
-  sourceType: SourceType | null;
+  buffTargetTypeRestriction: SourceType | null;
 };
 
 export type TeamDataSummary = {
