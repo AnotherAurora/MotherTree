@@ -910,10 +910,33 @@ function applyInteractionOnto(
 
     if (allDisabled) continue;
 
-    foldTeamPoolIntoCanonicalOwner(next, base, target.id, requireBase);
+    const teamOnce = interaction.oncePerBase === false;
+
+    if (!teamOnce) {
+      foldTeamPoolIntoCanonicalOwner(next, base, target.id, requireBase);
+    }
 
     if (defaultOp === "presence_multiply") {
       if (!present) continue;
+      if (teamOnce) {
+        applyOpAndRecord(
+          next,
+          TEAM_POOL_OWNER,
+          target,
+          modifierTagName,
+          1,
+          defaultFactor,
+          "presence_multiply",
+          steps,
+          pass,
+          modifierTagId,
+          presenceApplied,
+          effectSources,
+          buffRestrictionMet,
+          leafContext,
+        );
+        continue;
+      }
       for (const owner of ownersWithTarget) {
         const override = findTargetOverride(
           appliedManifestations,
@@ -974,7 +997,24 @@ function applyInteractionOnto(
     }
 
     if (defaultOp === "add_scaled") {
-      if (requireBase) {
+      if (teamOnce) {
+        applyOpAndRecord(
+          next,
+          TEAM_POOL_OWNER,
+          target,
+          modifierTagName,
+          modValue,
+          defaultFactor,
+          "add_scaled",
+          steps,
+          pass,
+          modifierTagId,
+          presenceApplied,
+          effectSources,
+          buffRestrictionMet,
+          leafContext,
+        );
+      } else if (ownersWithTarget.size > 0) {
         for (const owner of ownersWithTarget) {
           const override = findTargetOverride(
             appliedManifestations,
@@ -1010,7 +1050,8 @@ function applyInteractionOnto(
             leafContext,
           );
         }
-      } else {
+      } else if (!requireBase) {
+        // Substitute with no base: synthesize once into *team*.
         applyOpAndRecord(
           next,
           TEAM_POOL_OWNER,
@@ -1032,7 +1073,24 @@ function applyInteractionOnto(
     }
 
     // multiply_one_plus / multiply
-    if (ownersWithTarget.size > 0) {
+    if (teamOnce) {
+      applyOpAndRecord(
+        next,
+        TEAM_POOL_OWNER,
+        target,
+        modifierTagName,
+        modValue,
+        defaultFactor,
+        defaultOp,
+        steps,
+        pass,
+        modifierTagId,
+        presenceApplied,
+        effectSources,
+        buffRestrictionMet,
+        leafContext,
+      );
+    } else if (ownersWithTarget.size > 0) {
       for (const owner of ownersWithTarget) {
         const override = findTargetOverride(
           appliedManifestations,
@@ -1308,6 +1366,8 @@ function sumOwnerTotalsToTagMap(ownerValues: OwnerTotals): Map<number, number> {
  * cohort excludes same-tagId siblings; leafContext = subject.sourceType;
  * merge only that subject's tagId. substitute gates Support synthesize vs require-base;
  * Attacker/Defender always require base. Restricted ops skip when leafContext mismatches.
+ * once_per_base=false: team-once pass writes target once into *team*, then merged;
+ * those rows are excluded from per-subject runs.
  */
 export function applyInteractions(
   input: ApplyInteractionsInput,
@@ -1332,6 +1392,13 @@ export function applyInteractions(
     });
   }
 
+  const perBaseInteractions = input.defaultInteractions.filter(
+    (i) => i.oncePerBase !== false,
+  );
+  const teamOnceInteractions = input.defaultInteractions.filter(
+    (i) => i.oncePerBase === false,
+  );
+
   const subjects = applied.filter((m) => {
     const scalar = effectiveManifestationScalar(m, awakenersById);
     return scalar !== 0;
@@ -1341,13 +1408,13 @@ export function applyInteractions(
   const opSteps: ScalarMathStep[] = [];
 
   if (subjects.length === 0) {
-    // Nothing to evaluate.
+    // Nothing to evaluate for subjects.
   } else {
     for (const subject of subjects) {
       const cohort = cohortForSubject(applied, subject);
       const result = runInteractionsForLeafContext({
         appliedManifestations: cohort,
-        defaultInteractions: input.defaultInteractions,
+        defaultInteractions: perBaseInteractions,
         tagsById: input.tagsById,
         awakenersById,
         leafContext: subject.sourceType,
@@ -1371,6 +1438,54 @@ export function applyInteractions(
         ) {
           opSteps.push(step);
         }
+      }
+    }
+  }
+
+  // Team-once flats: apply once for the team into *team*, merge those target buckets.
+  if (teamOnceInteractions.length > 0 && applied.length > 0) {
+    const teamOnceResult = runInteractionsForLeafContext({
+      appliedManifestations: applied,
+      defaultInteractions: teamOnceInteractions,
+      tagsById: input.tagsById,
+      awakenersById,
+      leafContext: null,
+      awakenerNamesById: input.awakenerNamesById,
+      recordBaseSteps: false,
+      runSpecial: false,
+    });
+
+    const teamOnceTargetIds = new Set<number>();
+    for (const interaction of teamOnceInteractions) {
+      if (interaction.targetTagId != null) {
+        teamOnceTargetIds.add(interaction.targetTagId);
+      }
+      for (const tag of Object.values(input.tagsById)) {
+        if (
+          interaction.targetTagName &&
+          matchesDemandTag(tag.tagName, interaction.targetTagName) &&
+          !isExcluded(tag.tagName, interaction.exclusionTagName)
+        ) {
+          teamOnceTargetIds.add(tag.id);
+        }
+      }
+    }
+
+    for (const tagId of teamOnceTargetIds) {
+      const teamVal = getOwnerValue(
+        teamOnceResult.ownerValues,
+        TEAM_POOL_OWNER,
+        tagId,
+      );
+      if (teamVal !== 0) {
+        addOwnerValue(mergedOwnerValues, TEAM_POOL_OWNER, tagId, teamVal);
+      }
+    }
+
+    for (const step of teamOnceResult.steps) {
+      if (step.kind !== "op") continue;
+      if (teamOnceTargetIds.has(step.tagId)) {
+        opSteps.push(step);
       }
     }
   }

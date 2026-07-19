@@ -90,6 +90,7 @@ function makeInteraction(
     defaultFactor: 1,
     buffTargetTypeRestriction: null,
     substitute: true,
+    oncePerBase: true,
     ...partial,
   };
 }
@@ -969,6 +970,94 @@ console.log("Subject-centric + substitute regressions");
     assert(
       (result.totalsByTagId.get(strUp.id) ?? 0) === 0,
       "no phantom STR Up total",
+    );
+  }
+}
+
+console.log("once_per_base — team-once flat vs per-subject");
+{
+  const awakener = makeAwakener({ id: 1 });
+  const awakener2 = makeAwakener({ id: 2 });
+  const awakenersById = buildAwakenersById([awakener, awakener2]);
+
+  const embryo = makeTag(70, "Support.Embryo Fusion", true);
+  const aliemu = makeTag(71, "Support.Aliemu", true);
+  const tagsById: Record<number, Tag> = {
+    [embryo.id]: embryo,
+    [aliemu.id]: aliemu,
+  };
+
+  const manifests = [
+    makeManifestation({
+      id: 1,
+      awakenerId: 1,
+      tagId: aliemu.id,
+      tagName: aliemu.tagName,
+      valueScalar: 10,
+    }),
+    makeManifestation({
+      id: 2,
+      awakenerId: 2,
+      tagId: aliemu.id,
+      tagName: aliemu.tagName,
+      valueScalar: 5,
+    }),
+    makeManifestation({
+      id: 3,
+      tagId: embryo.id,
+      tagName: embryo.tagName,
+      valueScalar: 3,
+      targetType: "aoe",
+    }),
+  ];
+
+  {
+    const result = applyInteractions({
+      manifestations: manifests,
+      appliedManifestations: manifests,
+      defaultInteractions: [
+        makeInteraction({
+          id: 1,
+          modifierTagId: embryo.id,
+          modifierTagName: embryo.tagName,
+          targetTagId: aliemu.id,
+          targetTagName: aliemu.tagName,
+          mathOperation: "add_scaled",
+          defaultFactor: 1,
+          oncePerBase: false,
+        }),
+      ],
+      tagsById,
+      awakenersById,
+    });
+    assert(
+      (result.totalsByTagId.get(aliemu.id) ?? 0) === 18,
+      `once_per_base=false: Aliemu 10+5+3 once (${result.totalsByTagId.get(aliemu.id)})`,
+    );
+  }
+
+  {
+    const result = applyInteractions({
+      manifestations: manifests,
+      appliedManifestations: manifests,
+      defaultInteractions: [
+        makeInteraction({
+          id: 1,
+          modifierTagId: embryo.id,
+          modifierTagName: embryo.tagName,
+          targetTagId: aliemu.id,
+          targetTagName: aliemu.tagName,
+          mathOperation: "add_scaled",
+          defaultFactor: 1,
+          oncePerBase: true,
+        }),
+      ],
+      tagsById,
+      awakenersById,
+    });
+    assert(
+      (result.totalsByTagId.get(aliemu.id) ?? 0) === 21,
+      `once_per_base=true: Aliemu each +3 (${result.totalsByTagId.get(aliemu.id)})`,
     );
   }
 }

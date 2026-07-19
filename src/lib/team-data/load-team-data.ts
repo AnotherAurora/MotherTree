@@ -380,6 +380,7 @@ export async function fetchTeamData(
       default_factor,
       buff_target_type_restriction,
       substitute,
+      once_per_base,
       modifier_tag:tag!modifier_tag_id(id, tag_name, layer, is_percent),
       target_tag:tag!target_tag_id(id, tag_name, layer, is_percent),
       exclusion_tag:tag!exclusion_suffix(id, tag_name, layer, is_percent)
@@ -649,6 +650,7 @@ export async function fetchTeamData(
       defaultFactor: row.default_factor,
       buffTargetTypeRestriction: row.buff_target_type_restriction,
       substitute: row.substitute ?? true,
+      oncePerBase: row.once_per_base ?? true,
     };
   });
 

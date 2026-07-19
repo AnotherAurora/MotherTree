@@ -103,6 +103,11 @@ export type DefaultInteraction = {
    * When false, target must be Layer A base-present. Ignored for Attacker/Defender sinks.
    */
   substitute: boolean;
+  /**
+   * When true, apply once per matching subject base.
+   * When false, team-once flat (e.g. Embryo Fusion → Aliemu once, then sum with other Aliemu).
+   */
+  oncePerBase: boolean;
 };
 
 export type TeamDataSummary = {

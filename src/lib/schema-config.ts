@@ -473,6 +473,12 @@ export const TABLE_CONFIGS: TableConfig[] = [
         inlineEditable: true,
       },
       {
+        name: "once_per_base",
+        label: "Once Per Base",
+        type: "boolean",
+        inlineEditable: true,
+      },
+      {
         name: "exclusion_suffix",
         label: "Exclude Tag",
         type: "foreignKey",

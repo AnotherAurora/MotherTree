@@ -139,6 +139,17 @@ Every applied Layer A manifestation is a **subject** (Shield, Aliemu, Strike, �
 
 Non-self `add_scaled` into a base-required target (Attacker/Defender, or `substitute=false` Support with base) writes into each **base-present owner** bucket (with that owner’s overrides) — **not** a parallel `*team*` sink track. Substitute synthesis into `*team*` remains for conduits only.
 
+### `once_per_base`
+
+Column: `tag_default_interaction.once_per_base` (boolean, NOT NULL, default `true`).
+
+| Value | Meaning |
+| --- | --- |
+| **`true`** (default) | Apply once per matching **subject** base (STR on each Strike, Alert on each Shield). Used in the per-subject interaction runs. |
+| **`false`** | **Team-once flat**: apply the op once for the team into `*team*` (do not amplify every target subject). Example: Embryo Fusion → Aliemu converts Embryo into Aliemu **once**, then that contribution is **summed** with other Aliemu subject bases. |
+
+Orthogonal to `substitute`. Embryo Fusion → Aliemu rows should be `once_per_base=false`.
+
 ### `buff_target_type_restriction` (on the interaction row)
 
 Renamed from the old `source_type` column on `tag_default_interaction` (oversight fix). Distinct from manifestation `source_type`.
@@ -349,7 +360,8 @@ Optional: show which interactions applied to which target tags (lightweight; ful
 1. Resolve effective `value_scalar` via `dependency_stat` (manifestations + overrides) before interaction math consumes scalars.
 2. **Subject-centric evaluation:** every Layer A base is an isolated subject (Shield / Aliemu / Strike / …); cohort excludes same-tag siblings; merge only subject tag; once-per-base modifiers + overrides.
 3. **`substitute`** on `tag_default_interaction`: synthesize missing Support targets when true; require base when false; Attacker/Defender always require base.
-4. Gate `buff_target_type_restriction` using the **subject manifestation’s `source_type`** as chain context — **one calculation path only** (no dual-branch totals).
+4. **`once_per_base`**: when false, team-once flat into `*team*` (e.g. Embryo Fusion → Aliemu once) then sum with subject totals; when true, apply in per-subject runs only.
+5. Gate `buff_target_type_restriction` using the **subject manifestation’s `source_type`** as chain context — **one calculation path only** (no dual-branch totals).
 
 ---
 
