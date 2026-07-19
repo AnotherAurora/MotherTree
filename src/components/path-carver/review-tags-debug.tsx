@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import {
-  isManifestationApplied,
+  evaluateManifestationApply,
   type ManifestationApplyContext,
 } from "@/lib/path-carver/manifestation-apply";
 import type { Manifestation, TeamData } from "@/lib/team-data/types";
@@ -59,6 +59,13 @@ function ManifestationTable({
     return <p className="text-zinc-400">None</p>;
   }
 
+  const rows = [...tags]
+    .map((m) => ({
+      m,
+      ...evaluateManifestationApply(m, applyContext),
+    }))
+    .sort((a, b) => Number(b.applied) - Number(a.applied));
+
   return (
     <div className="overflow-x-auto">
       <table className="w-full min-w-[720px] border-collapse text-left">
@@ -67,6 +74,7 @@ function ManifestationTable({
             <th className="px-2 py-1.5 font-medium">Tag</th>
             <th className="px-2 py-1.5 font-medium">Scalar</th>
             <th className="px-2 py-1.5 font-medium">Applied</th>
+            <th className="px-2 py-1.5 font-medium">Reason</th>
             <th className="px-2 py-1.5 font-medium">Metadata</th>
             <th className="px-2 py-1.5 font-medium">source_type</th>
             <th className="px-2 py-1.5 font-medium">target_type</th>
@@ -79,8 +87,7 @@ function ManifestationTable({
           </tr>
         </thead>
         <tbody>
-          {tags.map((m) => {
-            const applied = isManifestationApplied(m, applyContext);
+          {rows.map(({ m, applied, reason }) => {
             return (
               <tr
                 key={`${m.sourceKind}-${m.id}`}
@@ -99,7 +106,13 @@ function ManifestationTable({
                 >
                   {applied ? "yes" : "no"}
                 </td>
-                <td className="max-w-[180px] truncate px-2 py-1.5" title={formatMetadata(m.metadata)}>
+                <td className="px-2 py-1.5 text-zinc-500">
+                  {applied ? "—" : (reason ?? "—")}
+                </td>
+                <td
+                  className="max-w-[180px] truncate px-2 py-1.5"
+                  title={formatMetadata(m.metadata)}
+                >
                   {formatMetadata(m.metadata)}
                 </td>
                 <td className="px-2 py-1.5">{formatCell(m.sourceType)}</td>
@@ -197,6 +210,14 @@ export function ReviewTagsDebug({
     [applyContext.teamRealms],
   );
 
+  const damageDealerList = useMemo(() => {
+    const names: string[] = [];
+    for (const id of applyContext.damageDealerAwakenerIds) {
+      names.push(awakenerNameById.get(id) ?? `#${id}`);
+    }
+    return names.sort().join(", ") || "none";
+  }, [applyContext.damageDealerAwakenerIds, awakenerNameById]);
+
   return (
     <div className="space-y-4 rounded-lg border border-dashed border-zinc-300 bg-zinc-50 p-4">
       <div className="space-y-1">
@@ -214,6 +235,8 @@ export function ReviewTagsDebug({
           Team realms: {teamRealmList}
           {" | "}
           Chaos-only team: {applyContext.teamIsChaosOnly ? "yes" : "no"}
+          {" | "}
+          Damage dealers: {damageDealerList}
         </p>
       </div>
 
@@ -250,10 +273,7 @@ export function ReviewTagsDebug({
         <div className="space-y-3 border-t border-zinc-200 pt-3">
           <p className="text-sm font-medium text-zinc-700">Posse tags</p>
           <div className="pl-2">
-            <ManifestationTable
-              tags={posseTags}
-              applyContext={applyContext}
-            />
+            <ManifestationTable tags={posseTags} applyContext={applyContext} />
           </div>
         </div>
       </div>

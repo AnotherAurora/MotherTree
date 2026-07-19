@@ -21,7 +21,7 @@ export type InteractionOverrideInput = {
   id?: number;
   modifier_tag_id: number | null;
   math_operation: string | null;
-  override_default_factor: number | null;
+  value_scalar: number | null;
   target_type: string | null;
   dependency_stat: string | null;
   is_disabled: boolean;
@@ -443,7 +443,7 @@ function buildOverrideRecord(
     manifestation_id: manifestationId,
     modifier_tag_id: override.modifier_tag_id,
     math_operation: override.math_operation,
-    override_default_factor: override.override_default_factor,
+    value_scalar: override.value_scalar,
     target_type: override.target_type,
     dependency_stat: override.dependency_stat,
     is_disabled: override.is_disabled,

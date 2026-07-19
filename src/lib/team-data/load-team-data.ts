@@ -22,6 +22,7 @@ type TagRef = {
   id: number;
   tag_name: string | null;
   layer: Layer | null;
+  is_percent?: boolean | null;
 } | null;
 
 function parseTagRef(tag: TagRef): Tag | null {
@@ -30,6 +31,7 @@ function parseTagRef(tag: TagRef): Tag | null {
     id: tag.id,
     tagName: tag.tag_name ?? `#${tag.id}`,
     layer: tag.layer ?? null,
+    isPercent: tag.is_percent === true,
   };
 }
 
@@ -98,7 +100,7 @@ const AWAKENER_MANIFESTATION_SELECT = `
   required_enlightenment,
   required_realm,
   replaces_manifestation_id,
-  tag:tag_id(id, tag_name, layer)
+  tag:tag_id(id, tag_name, layer, is_percent)
 `;
 
 async function fetchAwakenerManifestations(
@@ -126,7 +128,7 @@ const GEAR_MANIFESTATION_SELECT = `
   metadata,
   is_accumulating,
   required_realm,
-  tag:tag_id(id, tag_name, layer)
+  tag:tag_id(id, tag_name, layer, is_percent)
 `;
 
 const COVENANT_MANIFESTATION_SELECT = `
@@ -141,7 +143,7 @@ const COVENANT_MANIFESTATION_SELECT = `
   required_realm1,
   required_realm2,
   replaces_manifestation_id,
-  tag:tag_id(id, tag_name, layer)
+  tag:tag_id(id, tag_name, layer, is_percent)
 `;
 
 function matchesCovenantSlotRealm(
@@ -294,11 +296,11 @@ async function loadOverridesForManifestations(
       manifestation_id,
       modifier_tag_id,
       math_operation,
-      override_default_factor,
+      value_scalar,
       target_type,
       dependency_stat,
       is_disabled,
-      modifier_tag:tag!modifier_tag_id(id, tag_name, layer)
+      modifier_tag:tag!modifier_tag_id(id, tag_name, layer, is_percent)
     `,
     )
     .in("manifestation_id", manifestationIds)
@@ -320,7 +322,7 @@ async function loadOverridesForManifestations(
       modifierTagId: row.modifier_tag_id,
       modifierTagName: modifierTag?.tagName ?? "Unknown",
       mathOperation: row.math_operation,
-      overrideDefaultFactor: row.override_default_factor,
+      valueScalar: row.value_scalar,
       targetType: row.target_type,
       dependencyStat: row.dependency_stat,
       isDisabled: row.is_disabled === true,
@@ -354,9 +356,9 @@ export async function fetchTeamData(
       math_operation,
       default_factor,
       buff_target_type_restriction,
-      modifier_tag:tag!modifier_tag_id(id, tag_name, layer),
-      target_tag:tag!target_tag_id(id, tag_name, layer),
-      exclusion_tag:tag!exclusion_suffix(id, tag_name, layer)
+      modifier_tag:tag!modifier_tag_id(id, tag_name, layer, is_percent),
+      target_tag:tag!target_tag_id(id, tag_name, layer, is_percent),
+      exclusion_tag:tag!exclusion_suffix(id, tag_name, layer, is_percent)
     `,
     )
     .is("deleted_at", null);
@@ -366,7 +368,7 @@ export async function fetchTeamData(
       ? await supabase
           .from("awakener")
           .select(
-            "id, name, realm, con, atk, def, skey, damage_amp, crit_rate, crit_dmg, realm_mastery, aliemus_regen, sigil_yield, death_resist, enlightenment",
+            "id, name, realm, con, atk, def, keyflare_regen, damage_amp, crit_rate, crit_dmg, realm_mastery, aliemus_regen, sigil_yield, death_resist, enlightenment",
           )
           .in("id", awakenerIds)
           .is("deleted_at", null)
@@ -411,7 +413,7 @@ export async function fetchTeamData(
     con: row.con,
     atk: row.atk,
     def: row.def,
-    skey: row.skey,
+    keyflareRegen: row.keyflare_regen,
     damageAmp: row.damage_amp,
     critRate: row.crit_rate,
     critDmg: row.crit_dmg,

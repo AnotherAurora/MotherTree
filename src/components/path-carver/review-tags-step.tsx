@@ -5,14 +5,17 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ReviewTagsDebug } from "@/components/path-carver/review-tags-debug";
+import { ReviewTagsMathDebug } from "@/components/path-carver/review-tags-math-debug";
 import { loadTeamData } from "@/lib/actions/team-data";
 import type { TeamData } from "@/lib/team-data/types";
 import {
-  aggregateTagScalarsById,
+  computeReviewTagTotals,
   getScalarForTag,
 } from "@/lib/path-carver/aggregate-tag-scalars";
+import type { ScalarMathStep } from "@/lib/path-carver/apply-interactions";
 import { createManifestationApplyContext } from "@/lib/path-carver/manifestation-apply";
 import type {
+  AnchoredAwakenerState,
   DraftDemandSelection,
   EditableDemand,
   ManifestedTagRow,
@@ -22,6 +25,7 @@ import type { SlotState } from "@/lib/simulator/types";
 type ReviewTagsStepProps = {
   slots: SlotState[];
   posseId: number | null;
+  anchoredAwakeners: AnchoredAwakenerState[];
   desireName: string;
   desireDescription: string;
   mode: "create" | "edit";
@@ -35,6 +39,7 @@ type ReviewTagsStepProps = {
 export function ReviewTagsStep({
   slots,
   posseId,
+  anchoredAwakeners,
   desireName,
   desireDescription,
   mode,
@@ -50,7 +55,16 @@ export function ReviewTagsStep({
   const [scalarTotals, setScalarTotals] = useState<Map<number, number>>(
     new Map(),
   );
+  const [mathSteps, setMathSteps] = useState<ScalarMathStep[]>([]);
   const [teamData, setTeamData] = useState<TeamData | null>(null);
+
+  const damageDealerAwakenerIds = useMemo(() => {
+    const ids: number[] = [];
+    for (const anchor of anchoredAwakeners) {
+      if (anchor.isDamageDealer) ids.push(anchor.awakenerId);
+    }
+    return ids;
+  }, [anchoredAwakeners]);
 
   useEffect(() => {
     let cancelled = false;
@@ -73,22 +87,27 @@ export function ReviewTagsStep({
         setError(result.error);
         setManifestedTags([]);
         setScalarTotals(new Map());
+        setMathSteps([]);
         setTeamData(null);
         return;
       }
 
       setTeamData(result.data);
 
-      const applyContext = createManifestationApplyContext(result.data.awakeners);
-      const totals = aggregateTagScalarsById(
-        result.data.manifestations,
+      const applyContext = createManifestationApplyContext(
+        result.data.awakeners,
+        damageDealerAwakenerIds,
+      );
+      const { totalsByTagId, steps } = computeReviewTagTotals(
+        result.data,
         applyContext,
       );
-      setScalarTotals(totals);
+      setScalarTotals(totalsByTagId);
+      setMathSteps(steps);
 
       const tagRows: ManifestedTagRow[] = [];
 
-      for (const [tagId, scalarSum] of totals) {
+      for (const [tagId, scalarSum] of totalsByTagId) {
         if (scalarSum === 0) continue;
         const tag = result.data.tagsById[tagId];
         const manifestation = result.data.manifestations.find(
@@ -114,12 +133,20 @@ export function ReviewTagsStep({
     return () => {
       cancelled = true;
     };
-  }, [slots, posseId, onSelectionsChange]);
+  }, [slots, posseId, damageDealerAwakenerIds, onSelectionsChange]);
 
   const selectedIds = useMemo(
     () => new Set(selections.map((s) => s.tagId)),
     [selections],
   );
+
+  const applyContext = useMemo(() => {
+    if (!teamData) return null;
+    return createManifestationApplyContext(
+      teamData.awakeners,
+      damageDealerAwakenerIds,
+    );
+  }, [teamData, damageDealerAwakenerIds]);
 
   function toggleTag(tag: ManifestedTagRow) {
     if (selectedIds.has(tag.tagId)) {
@@ -231,12 +258,18 @@ export function ReviewTagsStep({
         )}
       </div>
 
-      {!loading && teamData && (
-        <ReviewTagsDebug
-          teamData={teamData}
-          slots={slots}
-          applyContext={createManifestationApplyContext(teamData.awakeners)}
-        />
+      {!loading && teamData && applyContext && (
+        <>
+          <ReviewTagsDebug
+            teamData={teamData}
+            slots={slots}
+            applyContext={applyContext}
+          />
+          <ReviewTagsMathDebug
+            steps={mathSteps}
+            awakeners={teamData.awakeners}
+          />
+        </>
       )}
     </div>
   );

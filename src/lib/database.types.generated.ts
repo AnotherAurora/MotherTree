@@ -53,11 +53,11 @@ export type Database = {
           deleted_at: string | null
           enlightenment: number | null
           id: number
+          keyflare_regen: number | null
           name: string | null
           realm: Database["public"]["Enums"]["realm"] | null
           realm_mastery: number | null
           sigil_yield: number | null
-          skey: number | null
           updated_at: string | null
         }
         Insert: {
@@ -73,11 +73,11 @@ export type Database = {
           deleted_at?: string | null
           enlightenment?: number | null
           id?: number
+          keyflare_regen?: number | null
           name?: string | null
           realm?: Database["public"]["Enums"]["realm"] | null
           realm_mastery?: number | null
           sigil_yield?: number | null
-          skey?: number | null
           updated_at?: string | null
         }
         Update: {
@@ -93,11 +93,11 @@ export type Database = {
           deleted_at?: string | null
           enlightenment?: number | null
           id?: number
+          keyflare_regen?: number | null
           name?: string | null
           realm?: Database["public"]["Enums"]["realm"] | null
           realm_mastery?: number | null
           sigil_yield?: number | null
-          skey?: number | null
           updated_at?: string | null
         }
         Relationships: []
@@ -652,9 +652,9 @@ export type Database = {
           manifestation_id: number | null
           math_operation: Database["public"]["Enums"]["operation_type"] | null
           modifier_tag_id: number | null
-          override_default_factor: number | null
           target_type: Database["public"]["Enums"]["target_type"] | null
           updated_at: string | null
+          value_scalar: number | null
         }
         Insert: {
           created_at?: string | null
@@ -665,9 +665,9 @@ export type Database = {
           manifestation_id?: number | null
           math_operation?: Database["public"]["Enums"]["operation_type"] | null
           modifier_tag_id?: number | null
-          override_default_factor?: number | null
           target_type?: Database["public"]["Enums"]["target_type"] | null
           updated_at?: string | null
+          value_scalar?: number | null
         }
         Update: {
           created_at?: string | null
@@ -678,9 +678,9 @@ export type Database = {
           manifestation_id?: number | null
           math_operation?: Database["public"]["Enums"]["operation_type"] | null
           modifier_tag_id?: number | null
-          override_default_factor?: number | null
           target_type?: Database["public"]["Enums"]["target_type"] | null
           updated_at?: string | null
+          value_scalar?: number | null
         }
         Relationships: [
           {
@@ -768,7 +768,6 @@ export type Database = {
           id: number
           is_accumulating: boolean
           is_permanent: boolean | null
-          math_operation: Database["public"]["Enums"]["operation_type"] | null
           metadata: string | null
           posse_id: number | null
           required_awakener: number | null
@@ -789,7 +788,6 @@ export type Database = {
           id?: number
           is_accumulating?: boolean
           is_permanent?: boolean | null
-          math_operation?: Database["public"]["Enums"]["operation_type"] | null
           metadata?: string | null
           posse_id?: number | null
           required_awakener?: number | null
@@ -810,7 +808,6 @@ export type Database = {
           id?: number
           is_accumulating?: boolean
           is_permanent?: boolean | null
-          math_operation?: Database["public"]["Enums"]["operation_type"] | null
           metadata?: string | null
           posse_id?: number | null
           required_awakener?: number | null
@@ -849,6 +846,7 @@ export type Database = {
           created_at: string | null
           deleted_at: string | null
           id: number
+          is_percent: boolean
           layer: Database["public"]["Enums"]["layer"] | null
           tag_name: string
           updated_at: string | null
@@ -857,6 +855,7 @@ export type Database = {
           created_at?: string | null
           deleted_at?: string | null
           id?: number
+          is_percent?: boolean
           layer?: Database["public"]["Enums"]["layer"] | null
           tag_name: string
           updated_at?: string | null
@@ -865,6 +864,7 @@ export type Database = {
           created_at?: string | null
           deleted_at?: string | null
           id?: number
+          is_percent?: boolean
           layer?: Database["public"]["Enums"]["layer"] | null
           tag_name?: string
           updated_at?: string | null
@@ -1072,11 +1072,10 @@ export type Database = {
       desire_type: "general" | "specific"
       layer: "x" | "y" | "z" | "f"
       operation_type:
-        | "add_to_base_value"
-        | "add_to_multiplier"
-        | "compound_multiplier"
-        | "add_hits"
-        | "subtract"
+        | "presence_multiply"
+        | "add_scaled"
+        | "multiply_one_plus"
+        | "multiply"
       rarity: "SSR" | "SR" | "R" | "N"
       realm:
         | "chaos"
@@ -1237,11 +1236,10 @@ export const Constants = {
       desire_type: ["general", "specific"],
       layer: ["x", "y", "z", "f"],
       operation_type: [
-        "add_to_base_value",
-        "add_to_multiplier",
-        "compound_multiplier",
-        "add_hits",
-        "subtract",
+        "presence_multiply",
+        "add_scaled",
+        "multiply_one_plus",
+        "multiply",
       ],
       rarity: ["SSR", "SR", "R", "N"],
       realm: [

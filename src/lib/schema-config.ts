@@ -129,6 +129,13 @@ export const TABLE_CONFIGS: TableConfig[] = [
         enumName: "layer",
         inlineEditable: true,
       },
+      {
+        name: "is_percent",
+        label: "Is Percent",
+        type: "boolean",
+        defaultValue: false,
+        inlineEditable: true,
+      },
       ...timestampFields(),
     ],
   },
@@ -152,7 +159,7 @@ export const TABLE_CONFIGS: TableConfig[] = [
       { name: "con", label: "CON", type: "number" },
       { name: "atk", label: "ATK", type: "number" },
       { name: "def", label: "DEF", type: "number" },
-      { name: "skey", label: "SKEY", type: "number" },
+      { name: "keyflare_regen", label: "Keyflare Regen", type: "number" },
       { name: "damage_amp", label: "Damage Amp", type: "number" },
       { name: "crit_rate", label: "Crit Rate", type: "number" },
       { name: "crit_dmg", label: "Crit Damage", type: "number" },
@@ -401,8 +408,8 @@ export const TABLE_CONFIGS: TableConfig[] = [
             enumName: "operation_type",
           },
           {
-            name: "override_default_factor",
-            label: "Override Default Factor",
+            name: "value_scalar",
+            label: "Value Scalar",
             type: "number",
           },
           {
@@ -522,8 +529,8 @@ export const TABLE_CONFIGS: TableConfig[] = [
         enumName: "operation_type",
       },
       {
-        name: "override_default_factor",
-        label: "Override Default Factor",
+        name: "value_scalar",
+        label: "Value Scalar",
         type: "number",
       },
        {
@@ -720,14 +727,6 @@ export const TABLE_CONFIGS: TableConfig[] = [
         name: "value_scalar",
         label: "Value Scalar",
         type: "number",
-        inlineEditable: true,
-      },
-      {
-        name: "math_operation",
-        label: "Math Operation",
-        type: "enum",
-        enumName: "operation_type",
-        defaultValue: "add_to_base_value",
         inlineEditable: true,
       },
       {

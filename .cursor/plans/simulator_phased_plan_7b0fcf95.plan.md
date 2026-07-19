@@ -1,6 +1,6 @@
 ---
 name: Simulator Phased Plan
-overview: Path Carver–first roadmap. Phase 1 (simulator MVP + Path Carver shell) is done. Next is Review Tags math — Attacker.* requires is_damage_dealer for all target_types, target_type=self scoping, self-scoped interactions, filtered rows stay visible in debug — then buff_target_type_restriction. Radar, desire_demand fulfillment, simulator port, and damage-layer UI are deferred.
+overview: Path Carver–first roadmap. Phase 1–2a done. Next is Phase 2b (dependency_stat → value_scalar, then buff_target_type_restriction gated by leaf manifestation source_type — one path only, no dual-branch totals). Then 2c damage layers + Calculation List. Phase 3 ports math to desire_demand/radar/simulator. Phase 4 smart recommend.
 todos:
   - id: seed-data
     content: Create scripts/seed-simulator-data.ts with 2-3 desires, demand rows, anchored awakeners; add npm script
@@ -21,26 +21,29 @@ todos:
     content: Realm-based manifestation apply filter + Review Tags debug table
     status: completed
   - id: review-tags-target-type-self
-    content: "Path Carver Review Tags — target_type=self filter + Attacker.* always requires damage dealer + self-scoped interactions; filtered rows stay visible in debug as Applied=no"
-    status: pending
+    content: Phase 2a — Attacker.* damage-dealer gate + target_type=self + interactions (exact modifier, target prefix, exclusion, multi-pass chain); filtered rows Applied=no in debug; no buff-restriction branching
+    status: completed
   - id: buff-target-type-restriction
-    content: "Immediate next after self — apply buff_target_type_restriction in Review Tags math"
+    content: Phase 2b — dependency_stat → value_scalar (ATM/override/covenant/wheel; ignore posse + team/enemy max HP); then buff_target_type_restriction gated by leaf manifestation source_type (one calculation path; Scalar Sum math shows extra line only when restriction met)
     status: pending
-  - id: radar-fulfillment
-    content: "LATER — Radar / desire_demand fulfillment on simulator (copy Path Carver math)"
-    status: cancelled
-  - id: generate-recommend
-    content: "LATER — Greedy generate/recommend polish on simulator"
-    status: cancelled
-  - id: debug-panels-fulfillment
-    content: "LATER — Wire simulator Summary to desire_demand fulfillment"
-    status: cancelled
+  - id: damage-layers-formula
+    content: Phase 2c — Map manifestations → layer terms (x,y,z,f); 4-layer damage formula; replace temp add-then-multiply order
+    status: pending
   - id: layer-breakdown-ui
-    content: "LATER — Summary / Calculation List layer-by-layer breakdown"
-    status: cancelled
+    content: Phase 2c — Summary / Calculation List layer-by-layer breakdown
+    status: pending
+  - id: desire-demand-radar-port
+    content: Phase 3 — Wire Path Carver math into desire_demand fulfillment / simulator radar / Summary
+    status: pending
   - id: radar-simulated-output
-    content: "LATER — Radar fulfillment % from simulated demand outputs (not raw scalars)"
-    status: cancelled
+    content: Phase 3 — Radar fulfillment % from simulated demand outputs (not raw scalars)
+    status: pending
+  - id: generate-recommend
+    content: Phase 3/4 — Greedy generate/recommend polish on simulator using shared engine
+    status: pending
+  - id: debug-panels-fulfillment
+    content: Phase 3 — Wire simulator Summary to desire_demand fulfillment
+    status: pending
 isProject: false
 ---
 
@@ -48,17 +51,15 @@ isProject: false
 
 ## Strategic shift (locked)
 
-Path Carver’s **Review Tags** page is the primary surface for testing recommendation math. Simulator Start / Recommend / radar / `desire_demand` fulfillment are **deferred**; the simulator will copy Path Carver logic later.
+Path Carver’s **Review Tags** page is the primary surface for testing recommendation math. Simulator Start / Recommend / radar / `desire_demand` fulfillment come **after** Path Carver math stabilizes (Phase 3); the simulator will copy Path Carver logic.
 
-| Focus now | Deferred |
-| --------- | -------- |
-| Path Carver Review Tags apply + aggregation math | Simulator radar / fulfillment UI |
+| Focus now (2a → 2c)                                                                            | Later (Phase 3+)                      |
+| ---------------------------------------------------------------------------------------------- | ------------------------------------- |
+| Path Carver Review Tags apply + aggregation + interactions                                     | Simulator radar / fulfillment UI      |
 | Attacker.\* requires `is_damage_dealer` (any target_type); `target_type=self` for non-Attacker | Full `desire_demand` scoring / curves |
-| Self-scoped interaction application; filtered rows stay in debug as Applied=no | Summary / Calculation List layer-by-layer breakdown |
-| Then: `buff_target_type_restriction` | Radar fulfillment % from simulated (not raw) outputs |
-| | Port math into Simulator page |
-| | Full damage formula (layers x/y/z/f) for scoring |
-| | Smart search / recommend optimization |
+| Self-scoped interaction application; filtered rows stay in debug as Applied=no                 | Port math into Simulator page         |
+| `dependency_stat` scalar scaling + leaf-gated `buff_target_type_restriction` (2b)              | Smart search / recommend optimization |
+| Damage layers x/y/z/f + Calculation List breakdown (2c)                                        |                                       |
 
 ---
 
@@ -66,44 +67,139 @@ Path Carver’s **Review Tags** page is the primary surface for testing recommen
 
 ### Done
 
-| Area | Status |
-| ---- | ------ |
-| Simulator Phase 1 core | Seed script, `loadTeamData` (+ gear), Start flow, generate/recommend engines, entity bans, fulfillment module exist |
-| Path Carver shell | `/path-carver` under TOOLS; Build → Review 1 → Review 2; load/save `desire` + template + anchors + demands |
-| Anchors + `is_damage_dealer` | Build-step toggles; persisted on `desire_anchored_awakener` |
-| Review Tags | `loadTeamData` → realm apply filter → scalar sum by `tag.id`; debug table shows Applied / `target_type` / etc. |
-| Realm apply | [`manifestation-apply.ts`](src/lib/path-carver/manifestation-apply.ts) — `required_realm` / `required_realm2` |
+| Area                         | Status                                                                                                                                                                                                                                                                                      |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Simulator Phase 1 core       | Seed script, `loadTeamData` (+ gear), Start flow, generate/recommend engines, entity bans, fulfillment module exist                                                                                                                                                                         |
+| Path Carver shell            | `/path-carver` under TOOLS; Build → Review 1 → Review 2; load/save `desire` + template + anchors + demands                                                                                                                                                                                  |
+| Anchors + `is_damage_dealer` | Build-step toggles; persisted on `desire_anchored_awakener`                                                                                                                                                                                                                                 |
+| Review Tags                  | `loadTeamData` → realm apply filter → scalar sum by `tag.id`; debug table shows Applied / `target_type` / etc.                                                                                                                                                                              |
+| Realm apply                  | [`manifestation-apply.ts`](src/lib/path-carver/manifestation-apply.ts) — `required_realm` / `required_realm2`                                                                                                                                                                               |
+| Interaction column rename    | `tag_default_interaction.source_type` → `buff_target_type_restriction` ([migration](supabase/migrations/20260718120000_rename_tag_default_interaction_source_type.sql); reflected in [`schema-config.ts`](src/lib/schema-config.ts) and [`DefaultInteraction`](src/lib/team-data/types.ts)) |
 
 ### Not done (next work)
 
-| Area | Status |
-| ---- | ------ |
-| `target_type` apply rules | Loaded and shown in debug; **not applied** in aggregation |
-| Self-scoped interactions | `tag_default_interaction` + overrides loaded in `TeamData` but **not applied** to suggest/totals |
-| `buff_target_type_restriction` | Loaded/shown; untouched until after self rules |
-| Simulator using Path Carver math | Still uses older fulfillment path; port later |
+| Area                                       | Status                                                                         |
+| ------------------------------------------ | ------------------------------------------------------------------------------ |
+| `target_type` apply rules                  | Loaded and shown in debug; **not applied** in aggregation                      |
+| Interaction application                    | `tag_default_interaction` + overrides loaded in `TeamData` but **not applied** |
+| `dependency_stat` → `value_scalar`         | Loaded/shown in debug; **not applied** until Phase 2b                          |
+| `buff_target_type_restriction` leaf-gating | Loaded; 2a ignores non-null restrictions; **Phase 2b** applies Option B        |
+| Damage layers / Calculation List           | Deferred to Phase 2c                                                           |
+| Simulator using Path Carver math           | Port in Phase 3                                                                |
 
 ---
 
-## Phase 2a — Review Tags math: Attacker damage-dealer gate + `target_type = self` (NEXT)
+## `tag_default_interaction` domain model (locked)
+
+Global rulebook: when the **modifier** tag is present on the team, change **target** tag values via `math_operation` + `default_factor` (subject to overrides, self-scoping, buff restriction, etc.).
+
+### Matching rules
+
+| Side                        | Rule                                                                                                                                                                                                                             |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Modifier**                | **Exact-only** on modifier tag (`modifier_tag_id` / tag name). Having `Support.Crit Damage.Something` does **not** satisfy a row whose modifier is `Support.Crit Damage`.                                                        |
+| **More specific modifiers** | A deeper modifier tag is a separate, more restricted rule. Example: `Support.Final Damage.Strike` only applies via its own rows (e.g. → `Attacker.Active Damage.Strike`), not by inheriting a parent `Support.Final Damage` row. |
+| **Target**                  | **Prefix inheritance** — a rule targeting `A.B` applies to `A.B` and descendants `A.B.*`.                                                                                                                                        |
+| **`exclusion_suffix`**      | Exclude that tag **and its descendants** from the target match set. Example: target `Attacker.Active Damage`, exclusion `Attacker.Active Damage.Fixed Damage` → Strike/Blast/etc. match; Fixed Damage and its children do not.   |
+
+### Chaining
+
+Interactions **can chain** across **multiple passes** (e.g. Increase Gain → Support buff → Attacker damage). A later pass may use values updated by an earlier pass.
+
+### `buff_target_type_restriction` (on the interaction row)
+
+Renamed from the old `source_type` column on `tag_default_interaction` (oversight fix). Distinct from manifestation `source_type`.
+
+**Locked model (Option B — leaf / demand context, one path only):**
+
+- Do **not** compute both “restriction met” and “restriction unmet” totals in parallel.
+- When calculating for a **leaf / demand manifestation** (the manifestation whose effective tag value is being resolved), carry that manifestation’s `source_type` as **leaf context** for the whole interaction chain.
+- If an interaction’s `buff_target_type_restriction` is set, apply it **only if** `leafContext.source_type` matches that value; otherwise skip the interaction for this calculation.
+- If restriction is **null**, the interaction applies regardless of leaf `source_type` (subject to other rules).
+- Restriction does **not** live on `manifestation_interaction_override` for now (may be added later). Gate using `tag_default_interaction.buff_target_type_restriction` only.
+- Example: leaf is an `Attacker.Active Damage` contribution with `source_type == command card`. Chain `Support.Enhance → Support.Final Damage` (restriction `command card`) **applies** on this leaf path; same chain with a tentacle leaf **skips** Enhance. Downstream `Support.Final Damage → Attacker.Active Damage` (no restriction) still applies when its other rules pass.
+- Review Tags tag list: still one scalar per tag for the current team calculation (no per-branch columns).
+- **Debug — Scalar Sum math:** if a restricted interaction **applied** (restriction met for this leaf), show **one extra** calculation line; if skipped due to restriction, **no** extra line for that interaction.
+
+**Phase ownership:** `dependency_stat` → effective `value_scalar` and leaf-gated buff restriction are **Phase 2b**. Phase 2a applies interactions without dependency scaling and without buff-restriction gating (2a ignores non-null restrictions — already implemented).
+
+### Temporary operation order (2a / 2b only)
+
+Assume **`add_scaled` first, then `presence_multiply` / `multiply_one_plus`**. Special conversions run as their own step (see below).
+
+This order is **incorrect long-term**. Phase **2c** replaces it with the real layer x/y/z/f logic.
+
+### `math_operation` formulas (locked)
+
+Enum values (only these three): `presence_multiply`, `add_scaled`, `multiply_one_plus`.
+
+Dropped: `add_to_base_value`, `add_to_multiplier`, `compound_multiplier`, `add_hits`, `subtract`.
+
+| Op                  | Formula                                               | Notes                                                                                                                      |
+| ------------------- | ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `presence_multiply` | if modifier present (≥1 / exists): `target *= factor` | **Only** `Support.Debuff.Vulnerability → Attacker.Active Damage`. Unique / Tentacle Vulnerability use `multiply_one_plus`. |
+| `add_scaled`        | `target += modifier_value * factor`                   | Flat additive scale (e.g. STR Up → Active Damage).                                                                         |
+| `multiply_one_plus` | see `tag.is_percent` below                            | Replaces old compound / add_to_multiplier.                                                                                 |
+
+**`multiply_one_plus` with `tag.is_percent`:**
+
+```text
+contribution = modifier_value * factor
+if target.is_percent:
+  target = (1 + target) * (1 + contribution) - 1
+else:
+  target = target * (1 + contribution)
+```
+
+`is_percent` lives on `tag` (fractional bonus where `0` means no bonus). Percent-seeded prefixes include `Support.Final Damage`, `Support.Enhance`, `Support.Increase Gain`, `Support.Crit Damage`, `Support.Crit Rate`, `Support.Damage AMP`, `Support.Base Damage`, plus exact tags `Support.Aliemu`, `Support.Embryo Fusion`, `Support.Fiamma`, `Support.Propagation Fiesta`, `Support.Take Effect Again`.
+
+### Special conversions (locked; not `tag_default_interaction`)
+
+Corrosion / Ancient Embers consume+transfer is **not** driven by interaction rows (those rows are soft-deleted). Engine recognizes Special tags by name and applies hardcoded conversion:
+
+| Special tag                         | Debuff                          | Consume sources                                                  | Transfer                                   |
+| ----------------------------------- | ------------------------------- | ---------------------------------------------------------------- | ------------------------------------------ |
+| `Special.Corrosion Conversion`      | `Support.Debuff.Corrosion`      | Active Damage ×1, Tentacle ×1, Non-Active Damage ×0.5; clamp ≥ 0 | lost ×3 → `Attacker.Corrosion Damage`      |
+| `Special.Ancient Embers Conversion` | `Support.Debuff.Ancient Embers` | same consume rates                                               | lost ×3 → `Attacker.Ancient Embers Damage` |
+
+```text
+lost = min(debuff, sum(source_i * rate_i))
+debuff -= lost
+damage_tag += lost * 3
+```
+
+Phase 2a implements these Special conversions alongside interaction ops (interaction rows for this behavior are gone).
+
+### Overrides
+
+`manifestation_interaction_override` can change `value_scalar` / op / `target_type` / `dependency_stat` or disable (`is_disabled`) a synergy link for a specific manifestation. Respect overrides when resolving interactions. Effective `value_scalar` (after `dependency_stat` scaling in Phase 2b) is resolved before interaction ops consume it.
+
+---
+
+## Phase 2a — Review Tags math: Attacker damage-dealer gate + `target_type = self` + interactions (DONE)
 
 ### Goal
 
-Extend Path Carver Review Tags so team tag totals and interaction effects respect **`is_damage_dealer` for all Attacker.\* tags** and **`target_type = self` for non-Attacker scoping**, with full debug visibility of filtered rows. Primary files: [`manifestation-apply.ts`](src/lib/path-carver/manifestation-apply.ts), [`aggregate-tag-scalars.ts`](src/lib/path-carver/aggregate-tag-scalars.ts), [`review-tags-step.tsx`](src/components/path-carver/review-tags-step.tsx), [`review-tags-debug.tsx`](src/components/path-carver/review-tags-debug.tsx).
+Extend Path Carver Review Tags so team tag totals and interaction effects respect **`is_damage_dealer` for all Attacker.\* tags**, **`target_type = self` for non-Attacker scoping**, and a first-pass **interaction resolver** (exact modifier, target prefix, exclusion, multi-pass chain, self-scope), with full debug visibility of filtered rows.
+
+Primary files: [`manifestation-apply.ts`](src/lib/path-carver/manifestation-apply.ts), [`aggregate-tag-scalars.ts`](src/lib/path-carver/aggregate-tag-scalars.ts), new `apply-interactions.ts`, [`review-tags-step.tsx`](src/components/path-carver/review-tags-step.tsx), [`review-tags-debug.tsx`](src/components/path-carver/review-tags-debug.tsx).
 
 ### Locked decisions
 
-| # | Decision |
-| - | -------- |
-| 1 | Work only on Path Carver Review Tags math; simulator copies later |
-| 2 | For **non-Attacker** tags: implement **`self` scoping** this phase; `single` / `aoe` keep applying if realm rules pass |
-| 3 | Two layers: (A) filter which manifestations enter **team tag totals**; (B) apply **self-scoped interactions** (modifier only affects same awakener’s tags) |
-| 4 | Attacker gate: tag name **starts with `Attacker.`** |
-| 5 | **Attacker.\* never applies unless owner is `is_damage_dealer`** — for **all** `target_type` values (`self`, `single`, `aoe`, null). Not limited to `self`. |
-| 6 | No damage dealers marked → **no** Attacker.\* contributions (any target_type) |
-| 7 | **Posse:** skip both `target_type` and damage-dealer gates (realm only); column kept for future behavior |
-| 8 | All filtered-out manifestations **remain visible** in the Review Tags debug section with **Applied = no** (and a reason). Never hide filtered rows. |
-| 9 | `buff_target_type_restriction` → **immediate next goal after this phase** (not in 2a) |
+| #   | Decision                                                                                                                            |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Work only on Path Carver Review Tags math; simulator copies later (Phase 3)                                                         |
+| 2   | For **non-Attacker** tags: implement **`self` scoping** this phase; `single` / `aoe` keep applying if realm rules pass              |
+| 3   | Two layers: (A) filter which manifestations enter **team tag totals**; (B) apply **interactions** with self-scoping                 |
+| 4   | Attacker gate: tag name **starts with `Attacker.`**                                                                                 |
+| 5   | **Attacker.\* never applies unless owner is `is_damage_dealer`** — for **all** `target_type` values (`self`, `single`, `aoe`, null) |
+| 6   | No damage dealers marked → **no** Attacker.\* contributions (any target_type)                                                       |
+| 7   | **Posse:** skip both `target_type` and damage-dealer gates (realm only); column kept for future behavior                            |
+| 8   | All filtered-out manifestations **remain visible** in Review Tags debug with **Applied = no** (+ reason). Never hide filtered rows  |
+| 9   | **`dependency_stat` scaling + leaf-gated `buff_target_type_restriction` → Phase 2b** (not in 2a)                                    |
+| 10  | Interaction matching: **exact modifier**, **prefix target**, **exclusion = tag + descendants**, **multi-pass chain**                |
+| 11  | Temporary op order: `add_scaled` then `presence_multiply` / `multiply_one_plus` (replaced in 2c)                                    |
+| 12  | Implement locked `math_operation` formulas + `tag.is_percent` branch; Special Corrosion/Embers conversions by tag name              |
 
 ### Apply context extensions
 
@@ -147,23 +243,30 @@ else: // single | aoe | null (non-Attacker)
 
 **Attacker.\* + non-dealer (any target_type):** exclude from totals entirely; debug row stays listed with Applied = no.
 
-### Layer B — Self-scoped interaction application
+### Layer B — Interaction application (2a MVP)
 
 When resolving `tag_default_interaction` (+ overrides) for Review Tags math:
 
-- If the **modifier** manifestation (or its effective target_type after override) is `self`, the interaction only modifies tags belonging to the **same owner awakener** (their awakener/wheel/covenant manifestations).
-- Example: `Support.Increase Gain.Shield` with `self` only increases that awakener’s `Defender.Shield` / `Defender.Shield.*` values — not other teammates’.
-- Example: `Support.Crit Damage` on self does not raise another awakener’s damage; any resulting Attacker.\* contribution still must pass the Layer A damage-dealer gate.
-
-**MVP for 2a interactions (keep scoped):**
+**Matching (locked):**
 
 1. Load interactions already present on `TeamData`
-2. Apply prefix matching for modifier/target tags (reuse / share [`tag-matching.ts`](src/lib/simulator/tag-matching.ts) where useful)
-3. Respect overrides + `is_disabled`
-4. Scope by `self` as above
-5. Output adjusted per-tag totals used by Review Tags list + debug
+2. **Modifier match: exact-only** (modifier tag name / id must match exactly)
+3. **Target match: prefix inheritance** — reuse / share [`tag-matching.ts`](src/lib/simulator/tag-matching.ts) for targets; apply `exclusion_suffix` as exclude tag **and descendants**
+4. Respect overrides + `is_disabled`
+5. **Multi-pass chaining** until stable or a fixed pass limit (document limit in code)
+6. **Self-scoping:** if the **modifier** manifestation (or effective `target_type` after override) is `self`, the interaction only modifies tags belonging to the **same owner awakener** (their awakener / wheel / covenant manifestations)
+7. **Buff restriction:** do **not** implement branching in 2a — ignore non-null `buff_target_type_restriction` or skip those rows until 2b (pick one approach and document in code comments)
+8. **Temporary op order:** `add_scaled` first, then `presence_multiply` / `multiply_one_plus` (placeholder until 2c)
+9. **Ops:** implement `presence_multiply`, `add_scaled`, `multiply_one_plus` with `tag.is_percent` offset form; only Vulnerability uses `presence_multiply`
+10. **Special conversions:** apply Corrosion / Ancient Embers conversion when the corresponding `Special.* Conversion` tag is in play (hardcoded rates above)
+11. Output adjusted per-tag totals used by Review Tags list + debug
 
-Defer full layer x/y/z/f damage formula and Summary layer breakdown.
+**Examples:**
+
+- `Support.Increase Gain.Shield` with `self` only increases that awakener’s `Defender.Shield` / `Defender.Shield.*` — not other teammates’.
+- `Support.Crit Damage` on self does not raise another awakener’s damage; any resulting Attacker.\* contribution still must pass the Layer A damage-dealer gate.
+
+Defer: dependency_stat scaling + leaf-gated buff restriction (2b), layer x/y/z/f formula and Summary layer breakdown (2c).
 
 ### Debug UX
 
@@ -174,72 +277,234 @@ Each row shows:
 - Applied yes/no
 - Reason when no: e.g. `realm`, `attacker.not_damage_dealer`
 
-Optional: show which interactions applied to which target tags (lightweight; full Calculation List later).
+Optional: show which interactions applied to which target tags (lightweight; full Calculation List in 2c).
 
 ### Files to touch (Phase 2a)
 
-| File | Change |
-| ---- | ------ |
-| [`src/lib/path-carver/manifestation-apply.ts`](src/lib/path-carver/manifestation-apply.ts) | Damage-dealer set; Attacker.\* gate for all target_types; `target_type=self` for non-Attacker scoping; posse exception; apply reasons |
-| [`src/lib/path-carver/aggregate-tag-scalars.ts`](src/lib/path-carver/aggregate-tag-scalars.ts) | Use new apply rules; hook interaction-adjusted totals (exclude Applied=no from sums) |
-| New `src/lib/path-carver/apply-interactions.ts` (suggested) | Self-scoped interaction resolution |
-| [`src/components/path-carver/review-tags-step.tsx`](src/components/path-carver/review-tags-step.tsx) | Pass anchors / damage dealers into apply context |
-| [`src/components/path-carver/review-tags-debug.tsx`](src/components/path-carver/review-tags-debug.tsx) | Show **all** manifestations (including filtered); Applied + reason columns |
-| [`src/components/path-carver/path-carver.tsx`](src/components/path-carver/path-carver.tsx) | Wire `anchoredAwakeners` into Review Tags |
+| File                                                                                                   | Change                                                                                                                                                 |
+| ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| [`src/lib/path-carver/manifestation-apply.ts`](src/lib/path-carver/manifestation-apply.ts)             | Damage-dealer set; Attacker.\* gate for all target_types; `target_type=self` for non-Attacker scoping; posse exception; apply reasons                  |
+| [`src/lib/path-carver/aggregate-tag-scalars.ts`](src/lib/path-carver/aggregate-tag-scalars.ts)         | Use new apply rules; hook interaction-adjusted totals (exclude Applied=no from sums)                                                                   |
+| New `src/lib/path-carver/apply-interactions.ts`                                                        | Exact modifier / prefix target / exclusion / multi-pass / self-scope; locked ops + `is_percent`; Special conversions; temp op order; no buff branching |
+| [`src/components/path-carver/review-tags-step.tsx`](src/components/path-carver/review-tags-step.tsx)   | Pass anchors / damage dealers into apply context                                                                                                       |
+| [`src/components/path-carver/review-tags-debug.tsx`](src/components/path-carver/review-tags-debug.tsx) | Show **all** manifestations (including filtered); Applied + reason columns                                                                             |
+| [`src/components/path-carver/path-carver.tsx`](src/components/path-carver/path-carver.tsx)             | Wire `anchoredAwakeners` into Review Tags                                                                                                              |
 
 ### Phase 2a acceptance criteria
 
-- [ ] Attacker.\* (any `target_type`: self / single / aoe / null) only counts when owner awakener is `is_damage_dealer` (including that slot’s wheels/covenant)
-- [ ] Zero damage dealers → zero Attacker.\* contribution to team totals
-- [ ] Non–damage-dealer Attacker.\* dropped from totals; **still listed** in debug with Applied = no + reason `attacker.not_damage_dealer`
-- [ ] All realm-filtered (and other filtered) manifestations remain visible in debug with Applied = no + reason
-- [ ] Posse manifestations ignore `target_type` and damage-dealer gates for apply/non-apply (realm rules still apply)
-- [ ] Non-Attacker `single` / `aoe` unchanged beyond realm filter; non-Attacker `self` base scalars still count for owner
-- [ ] Self-targeted Support (etc.) interactions only modify the owning awakener’s matching target tags
-- [ ] Review Tags scalar list uses only Applied = yes totals
-- [ ] `buff_target_type_restriction` still unused (next phase)
+- [x] Attacker.\* (any `target_type`) only counts when owner awakener is `is_damage_dealer` (including that slot’s wheels/covenant)
+- [x] Zero damage dealers → zero Attacker.\* contribution to team totals
+- [x] Non–damage-dealer Attacker.\* dropped from totals; **still listed** in debug with Applied = no + reason `attacker.not_damage_dealer`
+- [x] All realm-filtered (and other filtered) manifestations remain visible in debug with Applied = no + reason
+- [x] Posse manifestations ignore `target_type` and damage-dealer gates (realm rules still apply)
+- [x] Non-Attacker `single` / `aoe` unchanged beyond realm filter; non-Attacker `self` base scalars still count for owner
+- [x] Interactions: exact modifier match; target prefix + exclusion descendants; multi-pass chaining
+- [x] Self-targeted Support (etc.) interactions only modify the owning awakener’s matching target tags
+- [x] Ops: `presence_multiply` (Vulnerability only), `add_scaled`, `multiply_one_plus` with `is_percent` offset on percent targets
+- [x] Special Corrosion / Ancient Embers conversions applied by Special tag name (hardcoded rates)
+- [x] Review Tags scalar list uses only Applied = yes totals (after interactions)
+- [x] `dependency_stat` scaling and `buff_target_type_restriction` gating **not** implemented yet (Phase 2b)
 
 ---
 
-## Phase 2b — Immediate next: `buff_target_type_restriction`
+## Phase 2b — `dependency_stat` scaling + leaf-gated `buff_target_type_restriction` (NEXT)
 
-**Depends on:** Phase 2a.
+**Depends on:** Phase 2a interaction resolver (done).
 
-**Goal:** Apply `buff_target_type_restriction` when deciding whether a buff/interaction applies to a given target manifestation’s `source_type` (or equivalent). Leave design details to implementation planning once 2a is stable; this phase is the **next priority after self**, before radar / simulator port.
+### Goal
+
+Two parts, in order:
+
+1. Resolve effective `value_scalar` via `dependency_stat` (manifestations + overrides) before interaction math consumes scalars.
+2. Gate `buff_target_type_restriction` using the **leaf / demand manifestation’s `source_type`** as chain context — **one calculation path only** (no dual-branch totals).
 
 ---
 
-## Phase 2c — Later: desire_demand, radar, simulator port
+### Part A — `dependency_stat` → effective `value_scalar` (locked)
 
-**Depends on:** Stable Review Tags math (2a + preferably 2b).
+#### Purpose
 
-**Scope (outline only):**
+When `dependency_stat` is non-null, the row’s `value_scalar` is **stat-dependent**:
+
+| Table                                                                                   | Scalar column  | Notes                                                 |
+| --------------------------------------------------------------------------------------- | -------------- | ----------------------------------------------------- |
+| `awakener_tag_manifestation` / `covenant_tag_manifestation` / `wheel_tag_manifestation` | `value_scalar` | scale when `dependency_stat` set                      |
+| `manifestation_interaction_override`                                                    | `value_scalar` | same formula (renamed from `override_default_factor`) |
+| `posse_tag_manifestation`                                                               | `value_scalar` | **ignore** `dependency_stat`                          |
+
+```text
+# non-percent dependency_stat
+effective = value_scalar * awakener.<stat>
+
+# percent dependency_stat (see list below)
+effective = (value_scalar * 100) * (awakener.<stat> * 100)
+```
+
+If `dependency_stat` is null → leave `value_scalar` unchanged.
+
+`tag_default_interaction.default_factor` is **not** a `value_scalar` and is not scaled by `dependency_stat`.
+
+#### Percent dependency stats
+
+Treat these `all_stats` values as percent (both operands ×100 before multiply):
+
+- `damage_amp`
+- `crit_rate`
+- `crit_dmg` (user label “crit_damage”; DB enum / awakener column is `crit_dmg`)
+- `sigil_yield`
+- `death_resist`
+
+All other mapped awakener stats use the non-percent form.
+
+#### Enum → awakener column map
+
+| `dependency_stat`              | Awakener field on [`Awakener`](src/lib/team-data/types.ts) |
+| ------------------------------ | ---------------------------------------------------------- |
+| `con` / `atk` / `def`          | `con` / `atk` / `def`                                      |
+| `damage_amp`                   | `damageAmp`                                                |
+| `crit_rate`                    | `critRate`                                                 |
+| `crit_dmg`                     | `critDmg` (never `crit_damage`)                            |
+| `realm_mastery`                | `realmMastery`                                             |
+| `keyflare_regen`               | **`keyflareRegen`** (never `skey`)                         |
+| `aliemus_regen`                | `aliemusRegen`                                             |
+| `sigil_yield`                  | `sigilYield`                                               |
+| `death_resist`                 | `deathResist`                                              |
+| `team_max_hp` / `enemy_max_hp` | **ignore** — do not scale; keep raw `value_scalar`         |
+
+Null awakener stat → treat as `0` (effective becomes 0).
+
+#### Owner resolution (which awakener)
+
+```mermaid
+flowchart TD
+  row[Row with dependency_stat]
+  row --> atm[awakener_tag_manifestation]
+  row --> ov[manifestation_interaction_override]
+  row --> cov[covenant_tag_manifestation]
+  row --> wheel[wheel_tag_manifestation]
+  row --> posse[posse_tag_manifestation]
+  atm --> aid[awakener_id on ATM]
+  ov --> parent[Parent ATM via manifestation_id]
+  parent --> aid
+  cov --> slot[Equipped slot awakener after Path Carver Build]
+  wheel --> slot
+  posse --> skip[Ignore dependency_stat entirely]
+```
+
+- **ATM:** `awakener_id`
+- **Override:** parent ATM’s `awakener_id` (already loaded on `Manifestation.interactionOverrides` in [`load-team-data.ts`](src/lib/team-data/load-team-data.ts))
+- **Covenant / wheel:** slot owner after Build (manifestation already carries `awakenerId` / `slotIndex` once equipped)
+- **Posse:** ignore `dependency_stat` (always use raw `value_scalar`)
+
+ATM and override each scale their own `value_scalar` independently.
+
+#### Pipeline order inside Phase 2b
+
+1. Resolve effective `value_scalar` via `dependency_stat` (tables above)
+2. Run interactions with **leaf-gated** buff restriction (Part B)
+
+Debug: Review Tags debug already shows `dependency_stat`; show **raw vs effective** `value_scalar` (or at least effective) once implemented.
+
+---
+
+### Part B — Leaf-gated `buff_target_type_restriction` (locked — Option B)
+
+#### Semantics
+
+- Interaction row field: `buff_target_type_restriction` (enum `source_type`: command card / exalt / tentacle / rouse / talent), nullable.
+- **Leaf context:** when resolving values for a demand / leaf manifestation, set `leafSourceType = that manifestation.source_type` (nullable).
+- Carry `leafSourceType` as context for the **entire** multi-pass interaction chain for that calculation.
+- If interaction restriction is **null** → apply (subject to other 2a rules).
+- If interaction restriction is **set** → apply **only if** `leafSourceType === restriction`; otherwise **skip** this interaction for this leaf (do not compute a parallel unmet branch).
+- **Overrides:** do **not** read buff restriction from `manifestation_interaction_override` in 2b (column may be added later).
+
+```
+Example leaf: Attacker.Active Damage manifestation with source_type == command card
+
+Support.Enhance → Support.Final Damage   (restriction: command card)
+  → APPLIES (leaf context matches)
+
+Support.Final Damage → Attacker.Active Damage   (no restriction)
+  → APPLIES when other rules pass
+
+Same chain for a tentacle leaf → Enhance SKIPPED; no dual totals stored
+```
+
+#### UI / debug
+
+- Review Tags tag list: **one** scalar per tag (no per-`source_type` columns, no dual-branch aggregates).
+- **Debug — Scalar Sum math** ([`review-tags-math-debug.tsx`](src/components/path-carver/review-tags-math-debug.tsx)): when a restricted interaction **applies** (restriction met for this leaf), emit **one extra** calculation line; when skipped due to restriction, **no** extra line. Existing debug layout otherwise unchanged.
+- Full Calculation List remains Phase 2c.
+
+#### Implementation notes
+
+- Replace Phase 2a stub in [`apply-interactions.ts`](src/lib/path-carver/apply-interactions.ts) that ignores non-null restrictions.
+- Thread leaf `source_type` into the interaction engine when computing per-manifestation or per-leaf contributions that feed totals / math debug.
+- How to aggregate multiple leaves with different `source_type` into the single Review Tags tag total: use the same overall team aggregation as 2a, but each leaf’s contribution is computed with **its own** leaf context (so command-card leaves get restricted buffs; tentacle leaves do not). Sum those contributions into the tag total — still one number in the UI.
+- Part B consumes **already dependency-scaled** effective scalars from Part A.
+
+### Acceptance criteria
+
+**Part A — dependency_stat:**
+
+- [ ] ATM / covenant / wheel with non-null `dependency_stat` contribute scaled `value_scalar` (percent form when applicable)
+- [ ] Override with non-null `dependency_stat` scales its `value_scalar` the same way (owner = parent ATM awakener)
+- [ ] `team_max_hp` / `enemy_max_hp` leave scalar unchanged
+- [ ] Posse never applies dependency scaling
+- [ ] `keyflare_regen` → `awakener.keyflareRegen` (never `skey`); `crit_dmg` not `crit_damage`
+- [ ] Effective scalars feed leaf-gated interactions and downstream totals
+- [ ] Debug shows raw vs effective scalar (or effective clearly)
+
+**Part B — buff restriction (Option B):**
+
+- [ ] Restricted interactions apply only when leaf manifestation `source_type` matches restriction
+- [ ] Unrestricted interactions still apply under other 2a rules
+- [ ] Leaf context is used for the whole chain (Enhance can affect Active Damage via Final Damage when leaf is command card)
+- [ ] No dual-branch / parallel unmet totals computed or shown in the tag list
+- [ ] Scalar Sum math: extra line only when restricted interaction applied; silent skip when unmet
+- [ ] Overrides do not supply buff restriction in 2b
+
+---
+
+## Phase 2c — Damage layers + Calculation List
+
+**Depends on:** Phase 2a + 2b (stable Review Tags interaction math with leaf-gated buff restriction).
+
+### Goal
+
+Replace the temporary add-then-multiply order with the real **4-layer damage formula**, map manifestations → layer terms, and wire **Summary / Calculation List** to a layer-by-layer breakdown (on Path Carver Review Tags debug / related panels as appropriate).
+
+### Scope
+
+- Map manifestations → layer terms (**x, y, z, f**) using tag `layer` (and related fields)
+- Implement 4-layer damage formula (multiply/add rules per layer — use locked `math_operation` / `is_percent` semantics within layers)
+- **Replace** temporary “`add_scaled` first, then multipliers” order from 2a/2b
+- Wire **Summary / Calculation List** to show **layer-by-layer** breakdown
+- Keep Path Carver as the primary validation surface
+
+### Acceptance criteria (outline)
+
+- [ ] Temporary op order removed; layer formula drives adjusted totals
+- [ ] Calculation List shows per-layer contributions for a built team
+- [ ] Review Tags totals consistent with layer engine output
+
+---
+
+## Phase 3 — desire_demand, radar, simulator port
+
+**Depends on:** Stable Path Carver math (through 2c preferably).
+
+### Goal
+
+Port Path Carver–validated totals into simulator / desire scoring surfaces.
+
+### Scope
 
 - Wire Path Carver–validated totals into `desire_demand` fulfillment / curves
 - Simulator radar fulfillment % (copy math from Path Carver; not raw unfiltered sums)
+- Radar fulfillment % uses **simulated output** for demand tags (not raw scalar sums) once layer engine exists
 - Simulator Summary panel against real fulfillment
 - Generate / Recommend continue to use shared engine once ported
-
-**Explicitly later (not in 2a/2b):**
-
-- Wire **Summary / Calculation List** to show **layer-by-layer** breakdown
-- Radar fulfillment % uses **simulated output** for demand tags (not raw scalar sums)
-
----
-
-## Phase 3 — Simulation engine (outline, later)
-
-**Goal:** Full damage simulation for accurate path fit.
-
-**Depends on:** Path Carver math + desire_demand wiring.
-
-**Scope:**
-
-- Full tag prefix inheritance resolver for interactions (if not completed in 2a)
-- Map manifestations → layer terms (x, y, z, f)
-- 4-layer damage formula
-- Summary / Calculation List layer-by-layer breakdown
-- Radar / demand scoring from simulated outputs
 
 ---
 
@@ -276,8 +541,7 @@ Path Carver upserts a single `desire_template` per `desire_id`.
 
 ## Suggested implementation order (from now)
 
-1. **Phase 2a** — `target_type=self` + damage-dealer gate + self-scoped interactions on Review Tags
-2. **Phase 2b** — `buff_target_type_restriction`
-3. **Phase 2c** — Port math to simulator; desire_demand / radar / summary fulfillment
-4. **Phase 3** — Full damage layers + Calculation List breakdown + simulated radar inputs
-5. **Phase 4** — Smart recommend / search
+1. **Phase 2b** — `dependency_stat` → effective `value_scalar`, then leaf-gated `buff_target_type_restriction` (Option B; one path; Scalar Sum math line only when met)
+2. **Phase 2c** — layer terms x/y/z/f + 4-layer formula + Calculation List breakdown (replace temp op order)
+3. **Phase 3** — desire_demand / radar / simulator port
+4. **Phase 4** — Smart recommend / search

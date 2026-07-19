@@ -28,6 +28,8 @@ export type Tag = {
   id: number;
   tagName: string;
   layer: Layer | null;
+  /** Fractional bonus tags where 0 means no bonus (affects multiply_one_plus / multiply). */
+  isPercent: boolean;
 };
 
 export type Awakener = {
@@ -37,7 +39,7 @@ export type Awakener = {
   con: number | null;
   atk: number | null;
   def: number | null;
-  skey: number | null;
+  keyflareRegen: number | null;
   damageAmp: number | null;
   critRate: number | null;
   critDmg: number | null;
@@ -53,7 +55,7 @@ export type InteractionOverride = {
   modifierTagId: number | null;
   modifierTagName: string;
   mathOperation: OperationType | null;
-  overrideDefaultFactor: number | null;
+  valueScalar: number | null;
   targetType: TargetType | null;
   dependencyStat: AllStats | null;
   isDisabled: boolean;

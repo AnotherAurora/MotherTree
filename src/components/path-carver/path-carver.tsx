@@ -325,6 +325,7 @@ export function PathCarver({
         <ReviewTagsStep
           slots={slots}
           posseId={posseId}
+          anchoredAwakeners={anchoredAwakeners}
           desireName={desireName}
           desireDescription={desireDescription}
           mode={mode}

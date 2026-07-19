@@ -1,10 +1,20 @@
 import {
+  applyInteractionsForTeamData,
+  type ScalarMathStep,
+} from "@/lib/path-carver/apply-interactions";
+import {
   createManifestationApplyContext,
   isManifestationApplied,
   type ManifestationApplyContext,
 } from "@/lib/path-carver/manifestation-apply";
-import type { Awakener, Manifestation } from "@/lib/team-data/types";
+import type { Awakener, Manifestation, TeamData } from "@/lib/team-data/types";
 
+export type ReviewTagTotals = {
+  totalsByTagId: Map<number, number>;
+  steps: ScalarMathStep[];
+};
+
+/** Base Layer A sums only (no interactions). */
 export function aggregateTagScalarsById(
   manifestations: Manifestation[],
   applyContext: ManifestationApplyContext,
@@ -19,13 +29,31 @@ export function aggregateTagScalarsById(
   return totals;
 }
 
+/**
+ * Review Tags totals: Layer A filter → Layer B interactions / Special conversions.
+ */
+export function computeReviewTagTotals(
+  teamData: TeamData,
+  applyContext: ManifestationApplyContext,
+): ReviewTagTotals {
+  const applied = teamData.manifestations.filter((m) =>
+    isManifestationApplied(m, applyContext),
+  );
+  const result = applyInteractionsForTeamData(teamData, applied);
+  return {
+    totalsByTagId: result.totalsByTagId,
+    steps: result.steps,
+  };
+}
+
 export function aggregateTagScalarsForAwakeners(
   manifestations: Manifestation[],
   awakeners: Awakener[],
+  damageDealerAwakenerIds: Iterable<number> = [],
 ): Map<number, number> {
   return aggregateTagScalarsById(
     manifestations,
-    createManifestationApplyContext(awakeners),
+    createManifestationApplyContext(awakeners, damageDealerAwakenerIds),
   );
 }
 

@@ -56,7 +56,7 @@ function createEmptyOverride(): OverrideDraft {
     clientKey: crypto.randomUUID(),
     modifier_tag_id: null,
     math_operation: null,
-    override_default_factor: null,
+    value_scalar: null,
     target_type: null,
     dependency_stat: null,
     is_disabled: false,
@@ -71,10 +71,8 @@ function toOverrideDraft(row: Record<string, unknown>): OverrideDraft {
       row.modifier_tag_id == null ? null : Number(row.modifier_tag_id),
     math_operation:
       row.math_operation == null ? null : String(row.math_operation),
-    override_default_factor:
-      row.override_default_factor == null
-        ? null
-        : Number(row.override_default_factor),
+    value_scalar:
+      row.value_scalar == null ? null : Number(row.value_scalar),
     target_type: row.target_type == null ? null : String(row.target_type),
     dependency_stat:
       row.dependency_stat == null ? null : String(row.dependency_stat),
@@ -279,11 +277,10 @@ export function ManifestationFormDialog({
     const overridePayload: InteractionOverrideInput[] = overrides.map(
       ({ clientKey: _clientKey, ...override }) => ({
         ...override,
-        override_default_factor:
-          override.override_default_factor === null ||
-          Number.isNaN(override.override_default_factor)
+        value_scalar:
+          override.value_scalar === null || Number.isNaN(override.value_scalar)
             ? null
-            : override.override_default_factor,
+            : override.value_scalar,
       }),
     );
 
