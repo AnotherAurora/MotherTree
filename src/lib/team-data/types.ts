@@ -66,6 +66,8 @@ export type Manifestation = {
   sourceKind: ManifestationSourceKind;
   awakenerId: number | null;
   slotIndex: number | null;
+  /** Parent entity display name: awakener / covenant / wheel / posse.name */
+  sourceName: string | null;
   tagId: number;
   tagName: string;
   valueScalar: number | null;
@@ -96,6 +98,11 @@ export type DefaultInteraction = {
   mathOperation: OperationType;
   defaultFactor: number | null;
   buffTargetTypeRestriction: SourceType | null;
+  /**
+   * When true, modifier may synthesize target from 0 (e.g. Fiamma → Final Damage).
+   * When false, target must be Layer A base-present. Ignored for Attacker/Defender sinks.
+   */
+  substitute: boolean;
 };
 
 export type TeamDataSummary = {

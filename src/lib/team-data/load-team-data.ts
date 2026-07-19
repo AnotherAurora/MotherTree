@@ -249,6 +249,7 @@ function mapGearManifestation(
   sourceKind: Manifestation["sourceKind"],
   slotIndex: number | null,
   awakenerId: number | null,
+  sourceName: string | null,
 ): Manifestation {
   const tag = parseTagRef(row.tag as TagRef);
   const requiredAwakenerId = row.required_awakener ?? null;
@@ -260,6 +261,7 @@ function mapGearManifestation(
     sourceKind,
     awakenerId,
     slotIndex,
+    sourceName,
     tagId: tag?.id ?? row.tag_id ?? 0,
     tagName: tag?.tagName ?? "Unknown",
     valueScalar: row.value_scalar,
@@ -278,6 +280,27 @@ function mapGearManifestation(
     replacesManifestationId: row.replaces_manifestation_id ?? null,
     interactionOverrides: [],
   };
+}
+
+async function fetchEntityNamesById(
+  supabase: SupabaseClient<Database>,
+  table: "wheel" | "covenant" | "posse",
+  ids: number[],
+): Promise<Map<number, string>> {
+  const map = new Map<number, string>();
+  if (ids.length === 0) return map;
+
+  const { data, error } = await supabase
+    .from(table)
+    .select("id, name")
+    .in("id", ids)
+    .is("deleted_at", null);
+
+  if (error) throw new Error(error.message);
+  for (const row of data ?? []) {
+    map.set(row.id, row.name);
+  }
+  return map;
 }
 
 async function loadOverridesForManifestations(
@@ -356,6 +379,7 @@ export async function fetchTeamData(
       math_operation,
       default_factor,
       buff_target_type_restriction,
+      substitute,
       modifier_tag:tag!modifier_tag_id(id, tag_name, layer, is_percent),
       target_tag:tag!target_tag_id(id, tag_name, layer, is_percent),
       exclusion_tag:tag!exclusion_suffix(id, tag_name, layer, is_percent)
@@ -427,6 +451,23 @@ export async function fetchTeamData(
   const tagsById: Record<number, Tag> = {};
   const manifestations: Manifestation[] = [];
 
+  const wheelIds = new Set<number>();
+  const covenantIds = new Set<number>();
+  for (const slot of input.slots) {
+    if (slot.wheel1Id != null) wheelIds.add(slot.wheel1Id);
+    if (slot.wheel2Id != null) wheelIds.add(slot.wheel2Id);
+    if (slot.covenantId != null) covenantIds.add(slot.covenantId);
+  }
+  const posseIds =
+    input.posseId != null ? [input.posseId] : ([] as number[]);
+
+  const [wheelNamesById, covenantNamesById, posseNamesById] =
+    await Promise.all([
+      fetchEntityNamesById(supabase, "wheel", [...wheelIds]),
+      fetchEntityNamesById(supabase, "covenant", [...covenantIds]),
+      fetchEntityNamesById(supabase, "posse", posseIds),
+    ]);
+
   const gearManifestationPromises: Promise<void>[] = [];
 
   for (const [slotIndex, slot] of input.slots.entries()) {
@@ -436,8 +477,10 @@ export async function fetchTeamData(
     const slotRealm = awakener?.realm ?? null;
 
     if (slot.wheel1Id != null) {
+      const wheelId = slot.wheel1Id;
+      const sourceName = wheelNamesById.get(wheelId) ?? `#${wheelId}`;
       gearManifestationPromises.push(
-        fetchWheelManifestations(supabase, slot.wheel1Id, slotRealm).then(
+        fetchWheelManifestations(supabase, wheelId, slotRealm).then(
           (rows) => {
             for (const row of rows) {
               const tag = parseTagRef(row.tag as TagRef);
@@ -448,6 +491,7 @@ export async function fetchTeamData(
                   "wheel",
                   slotIndex,
                   slot.awakenerId,
+                  sourceName,
                 ),
               );
             }
@@ -457,8 +501,10 @@ export async function fetchTeamData(
     }
 
     if (slot.wheel2Id != null) {
+      const wheelId = slot.wheel2Id;
+      const sourceName = wheelNamesById.get(wheelId) ?? `#${wheelId}`;
       gearManifestationPromises.push(
-        fetchWheelManifestations(supabase, slot.wheel2Id, slotRealm).then(
+        fetchWheelManifestations(supabase, wheelId, slotRealm).then(
           (rows) => {
             for (const row of rows) {
               const tag = parseTagRef(row.tag as TagRef);
@@ -469,6 +515,7 @@ export async function fetchTeamData(
                   "wheel",
                   slotIndex,
                   slot.awakenerId,
+                  sourceName,
                 ),
               );
             }
@@ -478,10 +525,13 @@ export async function fetchTeamData(
     }
 
     if (slot.covenantId != null) {
+      const covenantId = slot.covenantId;
+      const sourceName =
+        covenantNamesById.get(covenantId) ?? `#${covenantId}`;
       gearManifestationPromises.push(
         fetchCovenantManifestations(
           supabase,
-          slot.covenantId,
+          covenantId,
           slotRealm,
         ).then((rows) => {
           const filtered = applyManifestationReplacements(
@@ -503,6 +553,7 @@ export async function fetchTeamData(
                 "covenant",
                 slotIndex,
                 slot.awakenerId,
+                sourceName,
               ),
             );
           }
@@ -512,6 +563,8 @@ export async function fetchTeamData(
   }
 
   if (input.posseId != null) {
+    const posseId = input.posseId;
+    const sourceName = posseNamesById.get(posseId) ?? `#${posseId}`;
     const realms = [
       ...new Set(
         (awakenerResult.data ?? [])
@@ -520,16 +573,12 @@ export async function fetchTeamData(
       ),
     ];
     gearManifestationPromises.push(
-      fetchPosseManifestations(
-        supabase,
-        input.posseId,
-        realms,
-      ).then((rows) => {
+      fetchPosseManifestations(supabase, posseId, realms).then((rows) => {
         for (const row of rows) {
           const tag = parseTagRef(row.tag as TagRef);
           if (tag) collectTags(tagsById, tag);
           manifestations.push(
-            mapGearManifestation(row, "posse", null, null),
+            mapGearManifestation(row, "posse", null, null, sourceName),
           );
         }
       }),
@@ -549,11 +598,17 @@ export async function fetchTeamData(
     const tag = parseTagRef(row.tag as TagRef);
     if (tag) collectTags(tagsById, tag);
 
+    const awakenerRow = awakenerById.get(row.awakener_id);
+    const sourceName =
+      awakenerRow?.name ??
+      (row.awakener_id != null ? `#${row.awakener_id}` : null);
+
     manifestations.push({
       id: row.id,
       sourceKind: "awakener",
       awakenerId: row.awakener_id,
       slotIndex: null,
+      sourceName,
       tagId: tag?.id ?? row.tag_id ?? 0,
       tagName: tag?.tagName ?? "Unknown",
       valueScalar: row.value_scalar,
@@ -593,6 +648,7 @@ export async function fetchTeamData(
       mathOperation: row.math_operation,
       defaultFactor: row.default_factor,
       buffTargetTypeRestriction: row.buff_target_type_restriction,
+      substitute: row.substitute ?? true,
     };
   });
 

@@ -5,7 +5,11 @@ import {
   evaluateManifestationApply,
   type ManifestationApplyContext,
 } from "@/lib/path-carver/manifestation-apply";
-import type { Manifestation, TeamData } from "@/lib/team-data/types";
+import {
+  buildAwakenersById,
+  effectiveManifestationScalar,
+} from "@/lib/path-carver/effective-value-scalar";
+import type { Awakener, Manifestation, TeamData } from "@/lib/team-data/types";
 import type { SlotState } from "@/lib/simulator/types";
 
 type ReviewTagsDebugProps = {
@@ -26,6 +30,25 @@ type AwakenerGroup = {
 function formatCell(value: string | number | null | undefined): string {
   if (value == null || value === "") return "—";
   return String(value);
+}
+
+function formatScalarCell(
+  m: Manifestation,
+  awakenersById: ReadonlyMap<number, Awakener>,
+): string {
+  const raw = m.valueScalar;
+  if (raw == null) return "—";
+  const effective = effectiveManifestationScalar(m, awakenersById);
+  if (
+    m.dependencyStat == null ||
+    m.sourceKind === "posse" ||
+    m.dependencyStat === "team_max_hp" ||
+    m.dependencyStat === "enemy_max_hp" ||
+    effective === raw
+  ) {
+    return String(raw);
+  }
+  return `${raw} → ${effective}`;
 }
 
 function formatRequiredRealm(m: Manifestation): string {
@@ -51,9 +74,11 @@ function formatMetadata(metadata: string | null): string {
 function ManifestationTable({
   tags,
   applyContext,
+  awakenersById,
 }: {
   tags: Manifestation[];
   applyContext: ManifestationApplyContext;
+  awakenersById: ReadonlyMap<number, Awakener>;
 }) {
   if (tags.length === 0) {
     return <p className="text-zinc-400">None</p>;
@@ -72,7 +97,9 @@ function ManifestationTable({
         <thead>
           <tr className="border-b border-zinc-200 text-[10px] uppercase tracking-wide text-zinc-500">
             <th className="px-2 py-1.5 font-medium">Tag</th>
-            <th className="px-2 py-1.5 font-medium">Scalar</th>
+            <th className="px-2 py-1.5 font-medium">
+              Scalar (raw → effective)
+            </th>
             <th className="px-2 py-1.5 font-medium">Applied</th>
             <th className="px-2 py-1.5 font-medium">Reason</th>
             <th className="px-2 py-1.5 font-medium">Metadata</th>
@@ -95,7 +122,7 @@ function ManifestationTable({
               >
                 <td className="px-2 py-1.5 text-zinc-700">{m.tagName}</td>
                 <td className="px-2 py-1.5 tabular-nums">
-                  {formatCell(m.valueScalar)}
+                  {formatScalarCell(m, awakenersById)}
                 </td>
                 <td
                   className={
@@ -136,17 +163,23 @@ function SourceSubsection({
   title,
   tags,
   applyContext,
+  awakenersById,
 }: {
   title: string;
   tags: Manifestation[];
   applyContext: ManifestationApplyContext;
+  awakenersById: ReadonlyMap<number, Awakener>;
 }) {
   return (
     <div className="space-y-1">
       <p className="text-[11px] font-medium uppercase tracking-wide text-zinc-500">
         {title}
       </p>
-      <ManifestationTable tags={tags} applyContext={applyContext} />
+      <ManifestationTable
+        tags={tags}
+        applyContext={applyContext}
+        awakenersById={awakenersById}
+      />
     </div>
   );
 }
@@ -163,6 +196,11 @@ export function ReviewTagsDebug({
     }
     return map;
   }, [teamData.awakeners]);
+
+  const awakenersById = useMemo(
+    () => buildAwakenersById(teamData.awakeners),
+    [teamData.awakeners],
+  );
 
   const groups = useMemo((): AwakenerGroup[] => {
     const result: AwakenerGroup[] = [];
@@ -254,16 +292,19 @@ export function ReviewTagsDebug({
                   title="Awakener tags"
                   tags={group.awakenerTags}
                   applyContext={applyContext}
+                  awakenersById={awakenersById}
                 />
                 <SourceSubsection
                   title="Covenant tags"
                   tags={group.covenantTags}
                   applyContext={applyContext}
+                  awakenersById={awakenersById}
                 />
                 <SourceSubsection
                   title="Wheel tags"
                   tags={group.wheelTags}
                   applyContext={applyContext}
+                  awakenersById={awakenersById}
                 />
               </div>
             </div>
@@ -273,7 +314,11 @@ export function ReviewTagsDebug({
         <div className="space-y-3 border-t border-zinc-200 pt-3">
           <p className="text-sm font-medium text-zinc-700">Posse tags</p>
           <div className="pl-2">
-            <ManifestationTable tags={posseTags} applyContext={applyContext} />
+            <ManifestationTable
+              tags={posseTags}
+              applyContext={applyContext}
+              awakenersById={awakenersById}
+            />
           </div>
         </div>
       </div>

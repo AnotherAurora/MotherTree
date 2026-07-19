@@ -3,6 +3,10 @@ import {
   type ScalarMathStep,
 } from "@/lib/path-carver/apply-interactions";
 import {
+  buildAwakenersById,
+  effectiveManifestationScalar,
+} from "@/lib/path-carver/effective-value-scalar";
+import {
   createManifestationApplyContext,
   isManifestationApplied,
   type ManifestationApplyContext,
@@ -14,15 +18,17 @@ export type ReviewTagTotals = {
   steps: ScalarMathStep[];
 };
 
-/** Base Layer A sums only (no interactions). */
+/** Base Layer A sums only (no interactions). Uses dependency-scaled effective scalars. */
 export function aggregateTagScalarsById(
   manifestations: Manifestation[],
   applyContext: ManifestationApplyContext,
+  awakeners: readonly Awakener[] = [],
 ): Map<number, number> {
+  const awakenersById = buildAwakenersById(awakeners);
   const totals = new Map<number, number>();
   for (const m of manifestations) {
     if (!isManifestationApplied(m, applyContext)) continue;
-    const scalar = m.valueScalar ?? 0;
+    const scalar = effectiveManifestationScalar(m, awakenersById);
     if (scalar === 0) continue;
     totals.set(m.tagId, (totals.get(m.tagId) ?? 0) + scalar);
   }
@@ -30,7 +36,8 @@ export function aggregateTagScalarsById(
 }
 
 /**
- * Review Tags totals: Layer A filter → Layer B interactions / Special conversions.
+ * Review Tags totals: Layer A filter → Layer B interactions / Special conversions
+ * (with Phase 2b dependency_stat scaling + leaf-gated buff restriction).
  */
 export function computeReviewTagTotals(
   teamData: TeamData,
@@ -54,6 +61,7 @@ export function aggregateTagScalarsForAwakeners(
   return aggregateTagScalarsById(
     manifestations,
     createManifestationApplyContext(awakeners, damageDealerAwakenerIds),
+    awakeners,
   );
 }
 

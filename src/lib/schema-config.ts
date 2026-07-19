@@ -467,6 +467,12 @@ export const TABLE_CONFIGS: TableConfig[] = [
         inlineEditable: true,
       },
       {
+        name: "substitute",
+        label: "Substitute",
+        type: "boolean",
+        inlineEditable: true,
+      },
+      {
         name: "exclusion_suffix",
         label: "Exclude Tag",
         type: "foreignKey",

@@ -57,14 +57,25 @@ function formatOpLine(
       : `${formatNum(step.before)} → ${formatNum(step.afterRaw)}${roundNote}`;
 
   const ownerLabel =
-    step.owner === "*team*" && step.effectSources.length > 0
-      ? step.effectSources.join(", ")
+    step.effectSources.length > 0
+      ? step.effectSources
+          .map((s) => formatSourceLabel(s, nameById))
+          .join(", ")
       : formatOwner(step.owner, nameById);
+
+  const restrictionNote =
+    step.buffRestrictionMet != null
+      ? ` | buff_restriction=${step.buffRestrictionMet}`
+      : "";
+  const leafNote =
+    step.leafContext !== undefined
+      ? ` | leaf=${step.leafContext ?? "null"}`
+      : "";
 
   return (
     `pass ${step.pass} | ${step.op} | ${step.tagName} ← ${step.modifierTagName}` +
     ` × ${formatNum(step.factor)} (mod ${formatNum(step.modifierValue)})` +
-    ` | ${ownerLabel} | ${valueChange}`
+    ` | ${ownerLabel} | ${valueChange}${restrictionNote}${leafNote}`
   );
 }
 
@@ -123,8 +134,9 @@ export function ReviewTagsMathDebug({
           Debug — Scalar Sum math
         </p>
         <p className="font-mono text-xs text-zinc-600">
-          Layer A base contributions → interaction ops (final pass) → special
-          conversions → totals. Multiply ops ceil after each write.
+          Layer A base (dependency-scaled) → interaction ops (final pass; leaf-
+          gated buff restriction) → special conversions → totals. Multiply ops
+          ceil after each write. Restricted ops only appear when leaf matches.
         </p>
       </div>
 
@@ -158,6 +170,9 @@ export function ReviewTagsMathDebug({
                     <li key={`base-${group.tagId}-${i}`}>
                       base | {formatSourceLabel(b.sourceLabel, nameById)} | +
                       {formatNum(b.scalar)}
+                      {b.rawScalar !== b.scalar
+                        ? ` (raw ${formatNum(b.rawScalar)} → effective)`
+                        : ""}
                     </li>
                   ))}
                   {group.ops.map((op, i) => (

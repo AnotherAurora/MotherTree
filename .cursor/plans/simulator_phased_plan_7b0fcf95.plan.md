@@ -1,6 +1,6 @@
 ---
 name: Simulator Phased Plan
-overview: Path Carver–first roadmap. Phase 1–2a done. Next is Phase 2b (dependency_stat → value_scalar, then buff_target_type_restriction gated by leaf manifestation source_type — one path only, no dual-branch totals). Then 2c damage layers + Calculation List. Phase 3 ports math to desire_demand/radar/simulator. Phase 4 smart recommend.
+overview: Path Carver–first roadmap. Phase 1–2b done. Next is Phase 2c (damage layers x/y/z/f + Calculation List). Phase 3 ports math to desire_demand/radar/simulator. Phase 4 smart recommend.
 todos:
   - id: seed-data
     content: Create scripts/seed-simulator-data.ts with 2-3 desires, demand rows, anchored awakeners; add npm script
@@ -25,7 +25,7 @@ todos:
     status: completed
   - id: buff-target-type-restriction
     content: Phase 2b — dependency_stat → value_scalar (ATM/override/covenant/wheel; ignore posse + team/enemy max HP); then buff_target_type_restriction gated by leaf manifestation source_type (one calculation path; Scalar Sum math shows extra line only when restriction met)
-    status: pending
+    status: completed
   - id: damage-layers-formula
     content: Phase 2c — Map manifestations → layer terms (x,y,z,f); 4-layer damage formula; replace temp add-then-multiply order
     status: pending
@@ -78,14 +78,14 @@ Path Carver’s **Review Tags** page is the primary surface for testing recommen
 
 ### Not done (next work)
 
-| Area                                       | Status                                                                         |
-| ------------------------------------------ | ------------------------------------------------------------------------------ |
-| `target_type` apply rules                  | Loaded and shown in debug; **not applied** in aggregation                      |
-| Interaction application                    | `tag_default_interaction` + overrides loaded in `TeamData` but **not applied** |
-| `dependency_stat` → `value_scalar`         | Loaded/shown in debug; **not applied** until Phase 2b                          |
-| `buff_target_type_restriction` leaf-gating | Loaded; 2a ignores non-null restrictions; **Phase 2b** applies Option B        |
-| Damage layers / Calculation List           | Deferred to Phase 2c                                                           |
-| Simulator using Path Carver math           | Port in Phase 3                                                                |
+| Area                                       | Status                                                                                    |
+| ------------------------------------------ | ----------------------------------------------------------------------------------------- |
+| `target_type` apply rules                  | Loaded and shown in debug; **not applied** in aggregation                                 |
+| Interaction application                    | `tag_default_interaction` + overrides loaded in `TeamData` but **not applied**            |
+| `dependency_stat` → `value_scalar`         | **Phase 2b done** — ATM/covenant/wheel/override scaled; posse + team/enemy max HP ignored |
+| `buff_target_type_restriction` leaf-gating | **Phase 2b done** — subject-centric + `substitute`; Option B subject `source_type` context |
+| Damage layers / Calculation List           | Deferred to Phase 2c                                                                      |
+| Simulator using Path Carver math           | Port in Phase 3                                                                           |
 
 ---
 
@@ -106,22 +106,55 @@ Global rulebook: when the **modifier** tag is present on the team, change **targ
 
 Interactions **can chain** across **multiple passes** (e.g. Increase Gain → Support buff → Attacker damage). A later pass may use values updated by an earlier pass.
 
+### Existence gate + `substitute`
+
+When applying an interaction op to a matched **target** tag:
+
+| Target / flag | Rule |
+| --- | --- |
+| **`Attacker.*` / `Defender.*`** | Always require Layer A **base-presence** (ignore `substitute`). Do not invent sinks. Gate on base-presence, not `value !== 0`. |
+| **`substitute = true`** (default) | Modifier may **substitute** for a missing target: apply even when target has no Layer A base (synthesize / write from 0). Example: Fiamma → Final Damage. |
+| **`substitute = false`** | Target must be Layer A base-present; skip if missing. Example: Increase Gain.STR Up → STR Up (no phantom STR → damage). |
+
+Column: `tag_default_interaction.substitute` (boolean, NOT NULL, default `true`). Amplify-only Increase Gain rows should be `false`.
+
+Prefix / exclusion still apply per matched tag (Strike base-present does not create parent Active Damage). Special Corrosion / Embers conversions are outside this rule.
+
+**Examples:**
+
+- `Support.STR Up` → `Attacker.Active Damage` with no Active Damage base → **skip** (no phantom).
+- `Support.Fiamma` → `Support.Final Damage` (`substitute=true`, no Final Damage base) → `Attacker.Active Damage` (base-present) → **allowed**.
+- `Support.Increase Gain.STR Up` → `Support.STR Up` (`substitute=false`, no STR Up base) → **skip** (does not invent STR Up that chains into damage).
+- `Support.Create.Insight` → `Support.Draw` with `substitute=true` and no Draw base → **allowed**.
+
+### Subject-centric evaluation (once per base)
+
+Every applied Layer A manifestation is a **subject** (Shield, Aliemu, Strike, … — not Attacker-only):
+
+1. **Cohort** = all other applied manifests with `tagId !== subject.tagId`, plus the subject (same-tag siblings excluded).
+2. Run full multi-pass interactions with `leafContext = subject.sourceType`.
+3. **Merge** only that subject’s `tagId` on the subject’s owner into team totals; do not merge conduit tags from the run.
+4. Sum across subjects. Special conversions run once on merged totals.
+5. Conduit-only tags (no Layer A base) have no subject ⇒ Review Tags total stays 0 even if synthesized mid-chain elsewhere.
+
+Non-self `add_scaled` into a base-required target (Attacker/Defender, or `substitute=false` Support with base) writes into each **base-present owner** bucket (with that owner’s overrides) — **not** a parallel `*team*` sink track. Substitute synthesis into `*team*` remains for conduits only.
+
 ### `buff_target_type_restriction` (on the interaction row)
 
 Renamed from the old `source_type` column on `tag_default_interaction` (oversight fix). Distinct from manifestation `source_type`.
 
-**Locked model (Option B — leaf / demand context, one path only):**
+**Locked model (Option B — subject context, one path only):**
 
 - Do **not** compute both “restriction met” and “restriction unmet” totals in parallel.
-- When calculating for a **leaf / demand manifestation** (the manifestation whose effective tag value is being resolved), carry that manifestation’s `source_type` as **leaf context** for the whole interaction chain.
-- If an interaction’s `buff_target_type_restriction` is set, apply it **only if** `leafContext.source_type` matches that value; otherwise skip the interaction for this calculation.
+- When calculating for a **subject** manifestation, carry that manifestation’s `source_type` as **leaf context** for the whole interaction chain.
+- If an interaction’s `buff_target_type_restriction` is set, apply it **only if** `leafContext` matches that value; otherwise skip the interaction for this calculation.
 - If restriction is **null**, the interaction applies regardless of leaf `source_type` (subject to other rules).
 - Restriction does **not** live on `manifestation_interaction_override` for now (may be added later). Gate using `tag_default_interaction.buff_target_type_restriction` only.
-- Example: leaf is an `Attacker.Active Damage` contribution with `source_type == command card`. Chain `Support.Enhance → Support.Final Damage` (restriction `command card`) **applies** on this leaf path; same chain with a tentacle leaf **skips** Enhance. Downstream `Support.Final Damage → Attacker.Active Damage` (no restriction) still applies when its other rules pass.
+- Example: subject is an `Attacker.Active Damage` contribution with `source_type == command card`. Chain `Support.Enhance → Support.Final Damage` (restriction `command card`) **applies** on this subject path; same chain with a tentacle subject **skips** Enhance. Downstream `Support.Final Damage → Attacker.Active Damage` (no restriction) still applies when its other rules pass.
 - Review Tags tag list: still one scalar per tag for the current team calculation (no per-branch columns).
-- **Debug — Scalar Sum math:** if a restricted interaction **applied** (restriction met for this leaf), show **one extra** calculation line; if skipped due to restriction, **no** extra line for that interaction.
+- **Debug — Scalar Sum math:** if a restricted interaction **applied** (restriction met for this subject), show **one extra** calculation line; if skipped due to restriction, **no** extra line for that interaction.
 
-**Phase ownership:** `dependency_stat` → effective `value_scalar` and leaf-gated buff restriction are **Phase 2b**. Phase 2a applies interactions without dependency scaling and without buff-restriction gating (2a ignores non-null restrictions — already implemented).
+**Phase ownership:** `dependency_stat` → effective `value_scalar`, subject-centric runs, `substitute`, and leaf-gated buff restriction are **Phase 2b**. Phase 2a applied interactions without dependency scaling and without buff-restriction gating (2a ignored non-null restrictions — already implemented).
 
 ### Temporary operation order (2a / 2b only)
 
@@ -307,16 +340,16 @@ Optional: show which interactions applied to which target tags (lightweight; ful
 
 ---
 
-## Phase 2b — `dependency_stat` scaling + leaf-gated `buff_target_type_restriction` (NEXT)
+## Phase 2b — `dependency_stat` scaling + subject-centric + `substitute` + buff restriction (DONE)
 
 **Depends on:** Phase 2a interaction resolver (done).
 
 ### Goal
 
-Two parts, in order:
-
 1. Resolve effective `value_scalar` via `dependency_stat` (manifestations + overrides) before interaction math consumes scalars.
-2. Gate `buff_target_type_restriction` using the **leaf / demand manifestation’s `source_type`** as chain context — **one calculation path only** (no dual-branch totals).
+2. **Subject-centric evaluation:** every Layer A base is an isolated subject (Shield / Aliemu / Strike / …); cohort excludes same-tag siblings; merge only subject tag; once-per-base modifiers + overrides.
+3. **`substitute`** on `tag_default_interaction`: synthesize missing Support targets when true; require base when false; Attacker/Defender always require base.
+4. Gate `buff_target_type_restriction` using the **subject manifestation’s `source_type`** as chain context — **one calculation path only** (no dual-branch totals).
 
 ---
 
@@ -334,11 +367,13 @@ When `dependency_stat` is non-null, the row’s `value_scalar` is **stat-depende
 
 ```text
 # non-percent dependency_stat
-effective = value_scalar * awakener.<stat>
+effective = ceil(value_scalar * awakener.<stat>)
 
 # percent dependency_stat (see list below)
-effective = (value_scalar * 100) * (awakener.<stat> * 100)
+effective = ceil(((value_scalar * 100) * (awakener.<stat> * 100)) * 100) / 100
 ```
+
+Ceil matches multiply-op precision: whole number for non-percent deps; 2 decimal places for percent deps. Unscaled rows (null dep / posse / team_max_hp / enemy_max_hp) are left unchanged (no ceil).
 
 If `dependency_stat` is null → leave `value_scalar` unchanged.
 
@@ -447,22 +482,22 @@ Same chain for a tentacle leaf → Enhance SKIPPED; no dual totals stored
 
 **Part A — dependency_stat:**
 
-- [ ] ATM / covenant / wheel with non-null `dependency_stat` contribute scaled `value_scalar` (percent form when applicable)
-- [ ] Override with non-null `dependency_stat` scales its `value_scalar` the same way (owner = parent ATM awakener)
-- [ ] `team_max_hp` / `enemy_max_hp` leave scalar unchanged
-- [ ] Posse never applies dependency scaling
-- [ ] `keyflare_regen` → `awakener.keyflareRegen` (never `skey`); `crit_dmg` not `crit_damage`
-- [ ] Effective scalars feed leaf-gated interactions and downstream totals
-- [ ] Debug shows raw vs effective scalar (or effective clearly)
+- [x] ATM / covenant / wheel with non-null `dependency_stat` contribute scaled `value_scalar` (percent form when applicable)
+- [x] Override with non-null `dependency_stat` scales its `value_scalar` the same way (owner = parent ATM awakener)
+- [x] `team_max_hp` / `enemy_max_hp` leave scalar unchanged
+- [x] Posse never applies dependency scaling
+- [x] `keyflare_regen` → `awakener.keyflareRegen` (never `skey`); `crit_dmg` not `crit_damage`
+- [x] Effective scalars feed leaf-gated interactions and downstream totals
+- [x] Debug shows raw vs effective scalar (or effective clearly)
 
 **Part B — buff restriction (Option B):**
 
-- [ ] Restricted interactions apply only when leaf manifestation `source_type` matches restriction
-- [ ] Unrestricted interactions still apply under other 2a rules
-- [ ] Leaf context is used for the whole chain (Enhance can affect Active Damage via Final Damage when leaf is command card)
-- [ ] No dual-branch / parallel unmet totals computed or shown in the tag list
-- [ ] Scalar Sum math: extra line only when restricted interaction applied; silent skip when unmet
-- [ ] Overrides do not supply buff restriction in 2b
+- [x] Restricted interactions apply only when leaf manifestation `source_type` matches restriction
+- [x] Unrestricted interactions still apply under other 2a rules
+- [x] Leaf context is used for the whole chain (Enhance can affect Active Damage via Final Damage when leaf is command card)
+- [x] No dual-branch / parallel unmet totals computed or shown in the tag list
+- [x] Scalar Sum math: extra line only when restricted interaction applied; silent skip when unmet
+- [x] Overrides do not supply buff restriction in 2b
 
 ---
 

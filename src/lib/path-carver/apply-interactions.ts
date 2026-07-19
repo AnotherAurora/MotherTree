@@ -1,16 +1,51 @@
+import {
+  buildAwakenersById,
+  effectiveManifestationScalar,
+  effectiveOverrideFactor,
+} from "@/lib/path-carver/effective-value-scalar";
 import { matchesDemandTag } from "@/lib/simulator/tag-matching";
 import type {
+  Awakener,
   DefaultInteraction,
   InteractionOverride,
   Manifestation,
   OperationType,
+  SourceType,
   Tag,
   TargetType,
   TeamData,
 } from "@/lib/team-data/types";
 
-/** Multi-pass chain limit until values stabilize. Documented for Phase 2a. */
+/** Multi-pass chain limit until values stabilize. Documented for Phase 2a/2b. */
 export const INTERACTION_MAX_PASSES = 8;
+
+/** @deprecated Prefer subject-centric evaluation; kept for Attacker.* checks. */
+export function isLeafManifestation(m: Manifestation): boolean {
+  return m.tagName.startsWith("Attacker.");
+}
+
+export function isAttackerTagName(tagName: string): boolean {
+  return tagName.startsWith("Attacker.");
+}
+
+/** Existence-gated sinks: interactions must not invent these without Layer A base. */
+export function isAttackerOrDefenderTag(tagName: string): boolean {
+  return (
+    tagName.startsWith("Attacker.") || tagName.startsWith("Defender.")
+  );
+}
+
+/**
+ * Attacker/Defender always require base. Other targets require base when
+ * interaction.substitute is false (e.g. Increase Gain must not invent STR Up).
+ */
+export function requiresTargetBasePresence(
+  interaction: DefaultInteraction,
+  targetTagName: string,
+): boolean {
+  if (isAttackerOrDefenderTag(targetTagName)) return true;
+  return !interaction.substitute;
+}
 
 const TEAM_POOL_OWNER = "*team*";
 
@@ -33,7 +68,10 @@ export type ScalarMathStep =
       tagId: number;
       tagName: string;
       owner: string;
+      /** Effective scalar after dependency_stat scaling (Phase 2b). */
       scalar: number;
+      /** Raw value_scalar before dependency_stat scaling. */
+      rawScalar: number;
       sourceLabel: string;
     }
   | {
@@ -52,6 +90,13 @@ export type ScalarMathStep =
       pass: number;
       /** Modifier manifestation sources that drove this op (for debug display). */
       effectSources: string[];
+      /**
+       * Set when this op came from an interaction with buff_target_type_restriction
+       * that matched the leaf context (Phase 2b). Skipped restrictions emit no step.
+       */
+      buffRestrictionMet?: SourceType;
+      /** Leaf source_type context for the run that produced this op. */
+      leafContext?: SourceType | null;
     }
   | { kind: "special"; label: string; detail: string }
   | { kind: "total"; tagId: number; tagName: string; total: number };
@@ -62,8 +107,16 @@ export type ApplyInteractionsInput = {
   appliedManifestations: Manifestation[];
   defaultInteractions: DefaultInteraction[];
   tagsById: Record<number, Tag>;
+  /** Awakener id → row for dependency_stat scaling. */
+  awakenersById: ReadonlyMap<number, Awakener>;
   /** Awakener id → display name for debug source labels. */
   awakenerNamesById?: ReadonlyMap<number, string>;
+  /**
+   * Leaf / demand source_type for this calculation path (Option B).
+   * When set (including explicitly null), restricted interactions gate on it.
+   * Omit only for internal sub-calls that already baked context in.
+   */
+  leafContext?: SourceType | null;
 };
 
 export type ApplyInteractionsResult = {
@@ -89,7 +142,9 @@ function sourceLabelFor(
   m: Manifestation,
   awakenerNamesById?: ReadonlyMap<number, string>,
 ): string {
-  if (m.sourceKind === "posse") return "posse";
+  if (m.sourceKind === "posse") {
+    return m.sourceName ?? "posse";
+  }
 
   const awakenerName =
     m.awakenerId != null
@@ -97,15 +152,18 @@ function sourceLabelFor(
       : null;
 
   if (m.sourceKind === "awakener") {
-    return awakenerName ?? `awakener #${m.id}`;
+    return (
+      m.sourceName ??
+      awakenerName ??
+      `awakener #${m.id}`
+    );
   }
 
-  const slot =
-    m.slotIndex != null ? ` slot ${m.slotIndex + 1}` : "";
+  const entityName = m.sourceName ?? m.sourceKind;
   if (awakenerName != null) {
-    return `${m.sourceKind}${slot} (${awakenerName})`;
+    return `${entityName} (${awakenerName})`;
   }
-  return `${m.sourceKind}${slot || ` #${m.id}`}`;
+  return m.sourceName != null ? entityName : `${entityName} #${m.id}`;
 }
 
 function effectSourcesFromManifests(
@@ -156,6 +214,32 @@ function ownerHasTag(
   const map = ownerValues.get(owner);
   if (!map) return false;
   return (map.get(tagId) ?? 0) !== 0 || map.has(tagId);
+}
+
+/** Layer A base-presence for one owner (ignores *team*). */
+function isBasePresent(
+  base: OwnerTotals,
+  owner: OwnerKey,
+  tagId: number,
+): boolean {
+  if (owner === TEAM_POOL_OWNER) return false;
+  return ownerHasTag(base, owner, tagId);
+}
+
+/**
+ * Owners that may receive Attacker/Defender ops: only Layer A base-present.
+ * For Support/other targets, use collectOwnersWithTarget (current/next).
+ */
+function collectBasePresentOwners(
+  base: OwnerTotals,
+  tagId: number,
+): Set<OwnerKey> {
+  const owners = new Set<OwnerKey>();
+  for (const [owner, map] of base) {
+    if (owner === TEAM_POOL_OWNER) continue;
+    if ((map.get(tagId) ?? 0) !== 0 || map.has(tagId)) owners.add(owner);
+  }
+  return owners;
 }
 
 function setOwnerValue(
@@ -283,6 +367,8 @@ function applyOpAndRecord(
   modifierTagId: number | null,
   presenceApplied: Set<string>,
   effectSources: string[],
+  buffRestrictionMet?: SourceType,
+  leafContext?: SourceType | null,
 ): void {
   if (op === "presence_multiply" && modifierTagId != null) {
     // Once per (modifier, target tag) this pass — not per owner bucket.
@@ -316,6 +402,8 @@ function applyOpAndRecord(
     rounded: result.rounded,
     pass,
     effectSources,
+    ...(buffRestrictionMet != null ? { buffRestrictionMet } : {}),
+    ...(leafContext !== undefined ? { leafContext } : {}),
   });
 }
 
@@ -364,9 +452,16 @@ function findTargetOverride(
   return found;
 }
 
+function awakenerIdFromOwnerKey(owner: OwnerKey): number | null {
+  const match = /^awakener:(\d+)$/.exec(owner);
+  if (!match) return null;
+  return Number(match[1]);
+}
+
 function resolveOpAndFactor(
   interaction: DefaultInteraction,
   override: InteractionOverride | null,
+  ownerAwakener: Awakener | null,
 ): { op: OperationType; factor: number; disabled: boolean } {
   if (override?.isDisabled) {
     return {
@@ -377,10 +472,11 @@ function resolveOpAndFactor(
   }
 
   const op = override?.mathOperation ?? interaction.mathOperation;
-  const factor =
-    override?.valueScalar != null
-      ? override.valueScalar
-      : (interaction.defaultFactor ?? 0);
+  const factor = effectiveOverrideFactor(
+    override,
+    interaction.defaultFactor,
+    ownerAwakener,
+  );
 
   return { op, factor, disabled: false };
 }
@@ -423,26 +519,16 @@ function collectOwnersWithTarget(
 }
 
 /**
- * Sum every owner + *team* bucket for tagId and clear them all.
- */
-function sumAndClearTag(ownerValues: OwnerTotals, tagId: number): number {
-  let total = 0;
-  for (const map of ownerValues.values()) {
-    const value = map.get(tagId);
-    if (value != null && value !== 0) total += value;
-    map.delete(tagId);
-  }
-  return total;
-}
-
-/**
  * presence_multiply is boolean presence: for each matched target tag, multiply
- * the combined (owner + *team*) total exactly once this pass (single ceil).
- * Descendants still match via prefix unless excluded.
+ * every existing owner bucket in place by factor. At most once per
+ * (modifier, target tag) this pass. Descendants match via prefix unless excluded.
+ * Targets that require base-presence: only multiply base-present owner buckets
+ * (no *team* amplify — avoids dual-base tracks).
  */
 function applyPresenceMultiplyOnce(
   interaction: DefaultInteraction,
   appliedManifestations: Manifestation[],
+  base: OwnerTotals,
   current: OwnerTotals,
   next: OwnerTotals,
   targets: Tag[],
@@ -452,18 +538,36 @@ function applyPresenceMultiplyOnce(
   pass: number,
   presenceApplied: Set<string>,
   effectSources: string[],
+  awakenersById: ReadonlyMap<number, Awakener>,
+  buffRestrictionMet: SourceType | undefined,
+  leafContext: SourceType | null | undefined,
 ): void {
   for (const target of targets) {
-    const ownersWithTarget = collectOwnersWithTarget(
-      current,
-      next,
-      target.id,
-    );
-    const teamHasTarget =
-      getOwnerValue(next, TEAM_POOL_OWNER, target.id) !== 0 ||
-      getOwnerValue(current, TEAM_POOL_OWNER, target.id) !== 0;
+    const presenceKey = `${modifierTagId}:${target.id}`;
+    if (presenceApplied.has(presenceKey)) continue;
 
-    if (ownersWithTarget.size === 0 && !teamHasTarget) continue;
+    const requireBase = requiresTargetBasePresence(
+      interaction,
+      target.tagName,
+    );
+    const ownersWithTarget = requireBase
+      ? collectBasePresentOwners(base, target.id)
+      : collectOwnersWithTarget(current, next, target.id);
+
+    if (requireBase && ownersWithTarget.size === 0) continue;
+
+    const teamHasTarget =
+      !requireBase &&
+      (getOwnerValue(next, TEAM_POOL_OWNER, target.id) !== 0 ||
+        getOwnerValue(current, TEAM_POOL_OWNER, target.id) !== 0);
+
+    if (
+      !requireBase &&
+      ownersWithTarget.size === 0 &&
+      !teamHasTarget
+    ) {
+      continue;
+    }
 
     let factor = interaction.defaultFactor ?? 0;
     let allDisabled = ownersWithTarget.size > 0;
@@ -480,7 +584,16 @@ function applyPresenceMultiplyOnce(
         );
         if (override?.isDisabled) continue;
         allDisabled = false;
-        const resolved = resolveOpAndFactor(interaction, override);
+        const ownerAwakenerId = awakenerIdFromOwnerKey(owner);
+        const ownerAwakener =
+          ownerAwakenerId != null
+            ? (awakenersById.get(ownerAwakenerId) ?? null)
+            : null;
+        const resolved = resolveOpAndFactor(
+          interaction,
+          override,
+          ownerAwakener,
+        );
         factor = resolved.factor;
         break;
       }
@@ -488,66 +601,150 @@ function applyPresenceMultiplyOnce(
 
     if (allDisabled) continue;
 
-    const combined = sumAndClearTag(next, target.id);
-    if (combined === 0) continue;
+    foldTeamPoolIntoCanonicalOwner(next, base, target.id, requireBase);
 
-    // Seed the combined total into *team*, then multiply once.
-    setOwnerValue(next, TEAM_POOL_OWNER, target.id, combined);
-    applyOpAndRecord(
-      next,
-      TEAM_POOL_OWNER,
-      target,
+    const bucketOwners: OwnerKey[] = [];
+    if (requireBase) {
+      for (const owner of ownersWithTarget) {
+        const value = getOwnerValue(next, owner, target.id);
+        if (value !== 0) bucketOwners.push(owner);
+      }
+    } else {
+      for (const [owner, map] of next) {
+        const value = map.get(target.id);
+        if (value != null && value !== 0) bucketOwners.push(owner);
+      }
+    }
+    if (bucketOwners.length === 0) continue;
+
+    let combinedBefore = 0;
+    for (const owner of bucketOwners) {
+      combinedBefore += getOwnerValue(next, owner, target.id);
+    }
+    if (combinedBefore === 0) continue;
+
+    presenceApplied.add(presenceKey);
+
+    let combinedAfterRaw = 0;
+    let combinedAfter = 0;
+    let rounded = false;
+    for (const owner of bucketOwners) {
+      const before = getOwnerValue(next, owner, target.id);
+      const result = applyMathOp(
+        before,
+        1,
+        factor,
+        "presence_multiply",
+        target.isPercent,
+      );
+      setOwnerValue(next, owner, target.id, result.after);
+      combinedAfterRaw += result.raw;
+      combinedAfter += result.after;
+      if (result.rounded) rounded = true;
+    }
+
+    if (combinedAfter === combinedBefore) continue;
+
+    steps.push({
+      kind: "op",
+      tagId: target.id,
+      tagName: target.tagName,
+      owner: TEAM_POOL_OWNER,
+      op: "presence_multiply",
       modifierTagName,
-      1,
+      modifierValue: 1,
       factor,
-      "presence_multiply",
-      steps,
+      before: combinedBefore,
+      afterRaw: combinedAfterRaw,
+      after: combinedAfter,
+      rounded,
       pass,
-      modifierTagId,
-      presenceApplied,
       effectSources,
-    );
+      ...(buffRestrictionMet != null ? { buffRestrictionMet } : {}),
+      ...(leafContext !== undefined ? { leafContext } : {}),
+    });
   }
+}
+
+/**
+ * If *team* holds a residual for a base-required target, fold into the
+ * lexicographically first base-present owner and clear *team*.
+ */
+function foldTeamPoolIntoCanonicalOwner(
+  next: OwnerTotals,
+  base: OwnerTotals,
+  targetId: number,
+  requireBase: boolean,
+): void {
+  if (!requireBase) return;
+  const teamVal = getOwnerValue(next, TEAM_POOL_OWNER, targetId);
+  if (teamVal === 0) return;
+  const owners = [...collectBasePresentOwners(base, targetId)].sort();
+  if (owners.length === 0) {
+    setOwnerValue(next, TEAM_POOL_OWNER, targetId, 0);
+    return;
+  }
+  const canonical = owners[0]!;
+  addOwnerValue(next, canonical, targetId, teamVal);
+  setOwnerValue(next, TEAM_POOL_OWNER, targetId, 0);
 }
 
 /**
  * Apply one interaction onto `next`, reading modifier values from `current`
  * and starting target values from `next` (which begins as a clone of base each
  * pass, then accumulates earlier ops in this pass).
+ *
+ * Phase 2b: if buff_target_type_restriction is set, apply only when leafContext
+ * matches; otherwise skip silently (no dual-branch / no debug line).
+ *
+ * Existence gate: Attacker/Defender always require Layer A base-presence.
+ * Other targets require base when interaction.substitute is false; when true,
+ * may synthesize from 0 (e.g. Fiamma → Final Damage).
  */
 function applyInteractionOnto(
   interaction: DefaultInteraction,
   appliedManifestations: Manifestation[],
+  base: OwnerTotals,
   current: OwnerTotals,
   next: OwnerTotals,
   tagsById: Record<number, Tag>,
   steps: ScalarMathStep[],
   pass: number,
   presenceApplied: Set<string>,
+  awakenersById: ReadonlyMap<number, Awakener>,
+  leafContext: SourceType | null | undefined,
   awakenerNamesById?: ReadonlyMap<number, string>,
 ): void {
   const modifierTagId = interaction.modifierTagId;
   const targetTagName = interaction.targetTagName;
   if (modifierTagId == null || !targetTagName) return;
 
+  const restriction = interaction.buffTargetTypeRestriction;
+  if (restriction != null) {
+    // Option B: gate on subject manifestation source_type for this path.
+    if (leafContext !== restriction) return;
+  }
+  const buffRestrictionMet =
+    restriction != null ? restriction : undefined;
+
   const modifierTagName =
     tagsById[modifierTagId]?.tagName ??
     interaction.modifierTagName ??
     `#${modifierTagId}`;
 
-  // Phase 2a: ignore non-null buff_target_type_restriction (no branching yet).
-  // Rows still apply as if the restriction were null. Phase 2b adds splits.
-
   const modifierManifests = collectModifierManifestations(
     appliedManifestations,
     modifierTagId,
   );
-  if (modifierManifests.length === 0) return;
+  // Allow chain hops through synthesized Support modifiers (e.g. Fiamma → Final
+  // Damage → Active Damage) even when Final Damage has no Layer A manifestation.
+  const synthesizedModifierValue = sumTeamTag(current, modifierTagId);
+  if (modifierManifests.length === 0 && synthesizedModifierValue === 0) return;
 
-  const effectSources = effectSourcesFromManifests(
-    modifierManifests,
-    awakenerNamesById,
-  );
+  const effectSources =
+    modifierManifests.length > 0
+      ? effectSourcesFromManifests(modifierManifests, awakenerNamesById)
+      : ["(synthesized)"];
 
   const targets = matchingTargetTags(
     tagsById,
@@ -558,9 +755,11 @@ function applyInteractionOnto(
 
   // Boolean presence: one unified pass, never self+non-self double multiply.
   if (interaction.mathOperation === "presence_multiply") {
+    if (modifierManifests.length === 0) return;
     applyPresenceMultiplyOnce(
       interaction,
       appliedManifestations,
+      base,
       current,
       next,
       targets,
@@ -570,6 +769,9 @@ function applyInteractionOnto(
       pass,
       presenceApplied,
       effectSources,
+      awakenersById,
+      buffRestrictionMet,
+      leafContext,
     );
     return;
   }
@@ -585,6 +787,10 @@ function applyInteractionOnto(
       hasNonSelfModifier = true;
     }
   }
+  // Synthesized modifier value lives on *team* / owners without a manifestation row.
+  if (modifierManifests.length === 0 && synthesizedModifierValue !== 0) {
+    hasNonSelfModifier = true;
+  }
 
   for (const owner of selfOwners) {
     const modValue =
@@ -593,15 +799,18 @@ function applyInteractionOnto(
     const ownerHasModifier = modifierManifests.some(
       (m) => ownerKeyFor(m) === owner,
     );
+    const ownerAwakenerId = awakenerIdFromOwnerKey(owner);
+    const ownerAwakener =
+      ownerAwakenerId != null
+        ? (awakenersById.get(ownerAwakenerId) ?? null)
+        : null;
 
     for (const target of targets) {
-      // Match non-self: only touch targets this owner already has applied.
-      if (
-        !ownerHasTag(next, owner, target.id) &&
-        !ownerHasTag(current, owner, target.id)
-      ) {
-        continue;
-      }
+      const requireBase = requiresTargetBasePresence(
+        interaction,
+        target.tagName,
+      );
+      if (requireBase && !isBasePresent(base, owner, target.id)) continue;
 
       const override = findTargetOverride(
         appliedManifestations,
@@ -609,7 +818,11 @@ function applyInteractionOnto(
         target.id,
         modifierTagId,
       );
-      const resolved = resolveOpAndFactor(interaction, override);
+      const resolved = resolveOpAndFactor(
+        interaction,
+        override,
+        ownerAwakener,
+      );
       if (resolved.disabled) continue;
 
       if (resolved.op === "presence_multiply") {
@@ -629,6 +842,8 @@ function applyInteractionOnto(
         modifierTagId,
         presenceApplied,
         effectSources,
+        buffRestrictionMet,
+        leafContext,
       );
     }
   }
@@ -651,13 +866,17 @@ function applyInteractionOnto(
   const present = modValue !== 0 || nonSelfOwners.size > 0;
 
   for (const target of targets) {
-    const ownersWithTarget = collectOwnersWithTarget(
-      current,
-      next,
-      target.id,
+    const requireBase = requiresTargetBasePresence(
+      interaction,
+      target.tagName,
     );
+    const ownersWithTarget = requireBase
+      ? collectBasePresentOwners(base, target.id)
+      : collectOwnersWithTarget(current, next, target.id);
 
-    let defaultOp = interaction.mathOperation;
+    if (requireBase && ownersWithTarget.size === 0) continue;
+
+    let defaultOp: OperationType = interaction.mathOperation;
     let defaultFactor = interaction.defaultFactor ?? 0;
     let allDisabled = ownersWithTarget.size > 0;
 
@@ -673,7 +892,16 @@ function applyInteractionOnto(
         );
         if (override?.isDisabled) continue;
         allDisabled = false;
-        const resolved = resolveOpAndFactor(interaction, override);
+        const ownerAwakenerId = awakenerIdFromOwnerKey(owner);
+        const ownerAwakener =
+          ownerAwakenerId != null
+            ? (awakenersById.get(ownerAwakenerId) ?? null)
+            : null;
+        const resolved = resolveOpAndFactor(
+          interaction,
+          override,
+          ownerAwakener,
+        );
         defaultOp = resolved.op;
         defaultFactor = resolved.factor;
         break;
@@ -681,6 +909,8 @@ function applyInteractionOnto(
     }
 
     if (allDisabled) continue;
+
+    foldTeamPoolIntoCanonicalOwner(next, base, target.id, requireBase);
 
     if (defaultOp === "presence_multiply") {
       if (!present) continue;
@@ -692,7 +922,16 @@ function applyInteractionOnto(
           modifierTagId,
         );
         if (override?.isDisabled) continue;
-        const resolved = resolveOpAndFactor(interaction, override);
+        const ownerAwakenerId = awakenerIdFromOwnerKey(owner);
+        const ownerAwakener =
+          ownerAwakenerId != null
+            ? (awakenersById.get(ownerAwakenerId) ?? null)
+            : null;
+        const resolved = resolveOpAndFactor(
+          interaction,
+          override,
+          ownerAwakener,
+        );
         applyOpAndRecord(
           next,
           owner,
@@ -706,9 +945,14 @@ function applyInteractionOnto(
           modifierTagId,
           presenceApplied,
           effectSources,
+          buffRestrictionMet,
+          leafContext,
         );
       }
-      if (getOwnerValue(next, TEAM_POOL_OWNER, target.id) !== 0) {
+      if (
+        !requireBase &&
+        getOwnerValue(next, TEAM_POOL_OWNER, target.id) !== 0
+      ) {
         applyOpAndRecord(
           next,
           TEAM_POOL_OWNER,
@@ -722,56 +966,130 @@ function applyInteractionOnto(
           modifierTagId,
           presenceApplied,
           effectSources,
+          buffRestrictionMet,
+          leafContext,
         );
       }
       continue;
     }
 
     if (defaultOp === "add_scaled") {
-      // Flat add once into the team pool (relative to current next value).
-      applyOpAndRecord(
-        next,
-        TEAM_POOL_OWNER,
-        target,
-        modifierTagName,
-        modValue,
-        defaultFactor,
-        "add_scaled",
-        steps,
-        pass,
-        modifierTagId,
-        presenceApplied,
-        effectSources,
-      );
+      if (requireBase) {
+        for (const owner of ownersWithTarget) {
+          const override = findTargetOverride(
+            appliedManifestations,
+            owner,
+            target.id,
+            modifierTagId,
+          );
+          if (override?.isDisabled) continue;
+          const ownerAwakenerId = awakenerIdFromOwnerKey(owner);
+          const ownerAwakener =
+            ownerAwakenerId != null
+              ? (awakenersById.get(ownerAwakenerId) ?? null)
+              : null;
+          const resolved = resolveOpAndFactor(
+            interaction,
+            override,
+            ownerAwakener,
+          );
+          applyOpAndRecord(
+            next,
+            owner,
+            target,
+            modifierTagName,
+            modValue,
+            resolved.factor,
+            "add_scaled",
+            steps,
+            pass,
+            modifierTagId,
+            presenceApplied,
+            effectSources,
+            buffRestrictionMet,
+            leafContext,
+          );
+        }
+      } else {
+        applyOpAndRecord(
+          next,
+          TEAM_POOL_OWNER,
+          target,
+          modifierTagName,
+          modValue,
+          defaultFactor,
+          "add_scaled",
+          steps,
+          pass,
+          modifierTagId,
+          presenceApplied,
+          effectSources,
+          buffRestrictionMet,
+          leafContext,
+        );
+      }
       continue;
     }
 
     // multiply_one_plus / multiply
-    for (const owner of ownersWithTarget) {
-      const override = findTargetOverride(
-        appliedManifestations,
-        owner,
-        target.id,
-        modifierTagId,
-      );
-      if (override?.isDisabled) continue;
-      const resolved = resolveOpAndFactor(interaction, override);
-      applyOpAndRecord(
-        next,
-        owner,
-        target,
-        modifierTagName,
-        modValue,
-        resolved.factor,
-        resolved.op,
-        steps,
-        pass,
-        modifierTagId,
-        presenceApplied,
-        effectSources,
-      );
-    }
-    if (getOwnerValue(next, TEAM_POOL_OWNER, target.id) !== 0) {
+    if (ownersWithTarget.size > 0) {
+      for (const owner of ownersWithTarget) {
+        const override = findTargetOverride(
+          appliedManifestations,
+          owner,
+          target.id,
+          modifierTagId,
+        );
+        if (override?.isDisabled) continue;
+        const ownerAwakenerId = awakenerIdFromOwnerKey(owner);
+        const ownerAwakener =
+          ownerAwakenerId != null
+            ? (awakenersById.get(ownerAwakenerId) ?? null)
+            : null;
+        const resolved = resolveOpAndFactor(
+          interaction,
+          override,
+          ownerAwakener,
+        );
+        applyOpAndRecord(
+          next,
+          owner,
+          target,
+          modifierTagName,
+          modValue,
+          resolved.factor,
+          resolved.op,
+          steps,
+          pass,
+          modifierTagId,
+          presenceApplied,
+          effectSources,
+          buffRestrictionMet,
+          leafContext,
+        );
+      }
+      if (
+        !requireBase &&
+        getOwnerValue(next, TEAM_POOL_OWNER, target.id) !== 0
+      ) {
+        applyOpAndRecord(
+          next,
+          TEAM_POOL_OWNER,
+          target,
+          modifierTagName,
+          modValue,
+          defaultFactor,
+          defaultOp,
+          steps,
+          pass,
+          modifierTagId,
+          presenceApplied,
+          effectSources,
+          buffRestrictionMet,
+          leafContext,
+        );
+      }
+    } else if (!requireBase) {
       applyOpAndRecord(
         next,
         TEAM_POOL_OWNER,
@@ -785,6 +1103,8 @@ function applyInteractionOnto(
         modifierTagId,
         presenceApplied,
         effectSources,
+        buffRestrictionMet,
+        leafContext,
       );
     }
   }
@@ -841,52 +1161,75 @@ function applySpecialConversion(
   });
 }
 
+type RunInteractionsOptions = {
+  appliedManifestations: Manifestation[];
+  defaultInteractions: DefaultInteraction[];
+  tagsById: Record<number, Tag>;
+  awakenersById: ReadonlyMap<number, Awakener>;
+  leafContext: SourceType | null;
+  awakenerNamesById?: ReadonlyMap<number, string>;
+  /** When false, skip recording base steps (caller already recorded them). */
+  recordBaseSteps: boolean;
+  /** When false, skip Special conversions (caller runs once after merge). */
+  runSpecial: boolean;
+};
+
+type RunInteractionsResult = {
+  ownerValues: OwnerTotals;
+  steps: ScalarMathStep[];
+};
+
 /**
- * Layer B — apply tag_default_interaction (+ overrides) and Special conversions.
- *
- * Matching: exact modifier, prefix target, exclusion = tag + descendants.
- * Self-scope: modifier target_type=self only updates same-owner tags.
- * Temp op order: add_scaled then presence_multiply / multiply_one_plus / multiply.
- * presence_multiply is boolean (at most once per modifier/target tag per pass;
- * combined owner+*team* total, single ceil).
- * Multiply ops round up after each write (percent → 0.01, else whole number).
- * Multi-pass: each pass recomputes from Layer A base using prior-pass values
- * as modifier inputs (avoids re-stacking the same op).
- * Buff restriction: ignored in Phase 2a.
- * dependency_stat scaling: not applied (Phase 2b).
+ * Cohort for subject M: all applied manifests except same-tagId siblings, plus M.
  */
-export function applyInteractions(
-  input: ApplyInteractionsInput,
-): ApplyInteractionsResult {
+function cohortForSubject(
+  applied: Manifestation[],
+  subject: Manifestation,
+): Manifestation[] {
+  return applied.filter(
+    (m) => m.id === subject.id || m.tagId !== subject.tagId,
+  );
+}
+
+/**
+ * Single-path interaction run for one subject leafContext (Option B).
+ * Uses dependency-scaled effective scalars for base contributions and overrides.
+ */
+function runInteractionsForLeafContext(
+  options: RunInteractionsOptions,
+): RunInteractionsResult {
   const steps: ScalarMathStep[] = [];
   const base: OwnerTotals = new Map();
 
-  for (const m of input.appliedManifestations) {
-    const scalar = m.valueScalar ?? 0;
+  for (const m of options.appliedManifestations) {
+    const raw = m.valueScalar ?? 0;
+    const scalar = effectiveManifestationScalar(m, options.awakenersById);
+    if (scalar === 0 && raw === 0) continue;
     if (scalar === 0) continue;
     addOwnerValue(base, ownerKeyFor(m), m.tagId, scalar);
-    steps.push({
-      kind: "base",
-      tagId: m.tagId,
-      tagName: m.tagName,
-      owner: ownerKeyFor(m),
-      scalar,
-      sourceLabel: sourceLabelFor(m, input.awakenerNamesById),
-    });
+    if (options.recordBaseSteps) {
+      steps.push({
+        kind: "base",
+        tagId: m.tagId,
+        tagName: m.tagName,
+        owner: ownerKeyFor(m),
+        scalar,
+        rawScalar: raw,
+        sourceLabel: sourceLabelFor(m, options.awakenerNamesById),
+      });
+    }
   }
 
-  const orderedInteractions = [...input.defaultInteractions].sort(
+  const orderedInteractions = [...options.defaultInteractions].sort(
     (a, b) =>
       opPriority(a.mathOperation) - opPriority(b.mathOperation) ||
       a.id - b.id,
   );
 
   let current = cloneOwnerTotals(base);
-  // Only keep op steps from the final stabilizing pass (plus base/special/total).
   let lastPassOpSteps: ScalarMathStep[] = [];
 
   for (let pass = 0; pass < INTERACTION_MAX_PASSES; pass++) {
-    // Recompute from base each pass; read modifiers from `current`.
     const next = cloneOwnerTotals(base);
     const passOpSteps: ScalarMathStep[] = [];
     const presenceApplied = new Set<string>();
@@ -894,14 +1237,17 @@ export function applyInteractions(
     for (const interaction of orderedInteractions) {
       applyInteractionOnto(
         interaction,
-        input.appliedManifestations,
+        options.appliedManifestations,
+        base,
         current,
         next,
-        input.tagsById,
+        options.tagsById,
         passOpSteps,
         pass,
         presenceApplied,
-        input.awakenerNamesById,
+        options.awakenersById,
+        options.leafContext,
+        options.awakenerNamesById,
       );
     }
 
@@ -916,33 +1262,142 @@ export function applyInteractions(
 
   steps.push(...lastPassOpSteps);
 
-  // Special conversions run after interaction passes (hardcoded; not interaction rows).
+  if (options.runSpecial) {
+    applySpecialConversion(
+      current,
+      options.tagsById,
+      options.appliedManifestations,
+      SPECIAL_CORROSION_CONVERSION,
+      DEBUFF_CORROSION,
+      CORROSION_DAMAGE,
+      steps,
+    );
+    applySpecialConversion(
+      current,
+      options.tagsById,
+      options.appliedManifestations,
+      SPECIAL_EMBERS_CONVERSION,
+      DEBUFF_EMBERS,
+      EMBERS_DAMAGE,
+      steps,
+    );
+  }
+
+  return { ownerValues: current, steps };
+}
+
+function sumOwnerTotalsToTagMap(ownerValues: OwnerTotals): Map<number, number> {
+  const totalsByTagId = new Map<number, number>();
+  for (const map of ownerValues.values()) {
+    for (const [tagId, value] of map) {
+      if (value === 0) continue;
+      totalsByTagId.set(tagId, (totalsByTagId.get(tagId) ?? 0) + value);
+    }
+  }
+  return totalsByTagId;
+}
+
+/**
+ * Layer B — apply tag_default_interaction (+ overrides) and Special conversions.
+ *
+ * Matching: exact modifier, prefix target, exclusion = tag + descendants.
+ * Self-scope: modifier target_type=self only updates same-owner tags.
+ * Temp op order: add_scaled then presence_multiply / multiply_one_plus / multiply.
+ * Phase 2b Part A: dependency_stat → effective value_scalar (manifest + override).
+ * Phase 2b Part B (Option B): subject-centric — every Layer A base is a subject;
+ * cohort excludes same-tagId siblings; leafContext = subject.sourceType;
+ * merge only that subject's tagId. substitute gates Support synthesize vs require-base;
+ * Attacker/Defender always require base. Restricted ops skip when leafContext mismatches.
+ */
+export function applyInteractions(
+  input: ApplyInteractionsInput,
+): ApplyInteractionsResult {
+  const awakenersById = input.awakenersById;
+  const applied = input.appliedManifestations;
+  const steps: ScalarMathStep[] = [];
+
+  // Record every applied manifestation's base once (raw vs effective).
+  for (const m of applied) {
+    const raw = m.valueScalar ?? 0;
+    const scalar = effectiveManifestationScalar(m, awakenersById);
+    if (scalar === 0) continue;
+    steps.push({
+      kind: "base",
+      tagId: m.tagId,
+      tagName: m.tagName,
+      owner: ownerKeyFor(m),
+      scalar,
+      rawScalar: raw,
+      sourceLabel: sourceLabelFor(m, input.awakenerNamesById),
+    });
+  }
+
+  const subjects = applied.filter((m) => {
+    const scalar = effectiveManifestationScalar(m, awakenersById);
+    return scalar !== 0;
+  });
+
+  const mergedOwnerValues: OwnerTotals = new Map();
+  const opSteps: ScalarMathStep[] = [];
+
+  if (subjects.length === 0) {
+    // Nothing to evaluate.
+  } else {
+    for (const subject of subjects) {
+      const cohort = cohortForSubject(applied, subject);
+      const result = runInteractionsForLeafContext({
+        appliedManifestations: cohort,
+        defaultInteractions: input.defaultInteractions,
+        tagsById: input.tagsById,
+        awakenersById,
+        leafContext: subject.sourceType,
+        awakenerNamesById: input.awakenerNamesById,
+        recordBaseSteps: false,
+        runSpecial: false,
+      });
+
+      const owner = ownerKeyFor(subject);
+      const value = getOwnerValue(result.ownerValues, owner, subject.tagId);
+      if (value !== 0) {
+        addOwnerValue(mergedOwnerValues, owner, subject.tagId, value);
+      }
+
+      for (const step of result.steps) {
+        if (step.kind !== "op") continue;
+        // Subject-tag ops; also keep restricted ops that applied (debug extra line).
+        if (
+          step.tagId === subject.tagId ||
+          step.buffRestrictionMet != null
+        ) {
+          opSteps.push(step);
+        }
+      }
+    }
+  }
+
+  steps.push(...opSteps);
+
+  // Special conversions once on merged totals (all applied manifests for presence).
   applySpecialConversion(
-    current,
+    mergedOwnerValues,
     input.tagsById,
-    input.appliedManifestations,
+    applied,
     SPECIAL_CORROSION_CONVERSION,
     DEBUFF_CORROSION,
     CORROSION_DAMAGE,
     steps,
   );
   applySpecialConversion(
-    current,
+    mergedOwnerValues,
     input.tagsById,
-    input.appliedManifestations,
+    applied,
     SPECIAL_EMBERS_CONVERSION,
     DEBUFF_EMBERS,
     EMBERS_DAMAGE,
     steps,
   );
 
-  const totalsByTagId = new Map<number, number>();
-  for (const map of current.values()) {
-    for (const [tagId, value] of map) {
-      if (value === 0) continue;
-      totalsByTagId.set(tagId, (totalsByTagId.get(tagId) ?? 0) + value);
-    }
-  }
+  const totalsByTagId = sumOwnerTotalsToTagMap(mergedOwnerValues);
 
   for (const [tagId, total] of totalsByTagId) {
     const tag = input.tagsById[tagId];
@@ -973,6 +1428,7 @@ export function applyInteractionsForTeamData(
     appliedManifestations,
     defaultInteractions: teamData.defaultInteractions,
     tagsById: teamData.tagsById,
+    awakenersById: buildAwakenersById(teamData.awakeners),
     awakenerNamesById,
   });
 }

@@ -355,12 +355,14 @@ export function buildManifestationsForComposition(
     sourceKind: Manifestation["sourceKind"],
     slotIndex: number | null,
     awakenerId: number | null,
+    sourceName: string | null = null,
   ) {
     manifestations.push({
       id: idCounter++,
       sourceKind,
       awakenerId,
       slotIndex,
+      sourceName,
       tagId: 0,
       tagName: raw.tagName,
       valueScalar: raw.valueScalar,
@@ -381,10 +383,18 @@ export function buildManifestationsForComposition(
     });
   }
 
+  function gearLabel(
+    options: { value: number; label: string }[],
+    id: number,
+  ): string {
+    return options.find((o) => o.value === id)?.label ?? `#${id}`;
+  }
+
   for (const [slotIndex, slot] of composition.slots.entries()) {
     if (slot.awakenerId != null) {
       const awakener = catalog.awakeners.find((a) => a.id === slot.awakenerId);
       const slotRealm = awakener?.realm ?? null;
+      const awakenerName = awakener?.name ?? `#${slot.awakenerId}`;
       const rows = catalog.awakenerManifestations.get(slot.awakenerId) ?? [];
       for (const raw of rows) {
         if (
@@ -396,10 +406,11 @@ export function buildManifestationsForComposition(
         ) {
           continue;
         }
-        pushRaw(raw, "awakener", slotIndex, slot.awakenerId);
+        pushRaw(raw, "awakener", slotIndex, slot.awakenerId, awakenerName);
       }
 
       if (slot.wheel1Id != null) {
+        const wheelName = gearLabel(catalog.wheelOptions, slot.wheel1Id);
         const wheelRows =
           catalog.wheelManifestations.get(slot.wheel1Id) ?? [];
         for (const raw of wheelRows) {
@@ -412,11 +423,12 @@ export function buildManifestationsForComposition(
           ) {
             continue;
           }
-          pushRaw(raw, "wheel", slotIndex, slot.awakenerId);
+          pushRaw(raw, "wheel", slotIndex, slot.awakenerId, wheelName);
         }
       }
 
       if (slot.wheel2Id != null) {
+        const wheelName = gearLabel(catalog.wheelOptions, slot.wheel2Id);
         const wheelRows =
           catalog.wheelManifestations.get(slot.wheel2Id) ?? [];
         for (const raw of wheelRows) {
@@ -429,11 +441,15 @@ export function buildManifestationsForComposition(
           ) {
             continue;
           }
-          pushRaw(raw, "wheel", slotIndex, slot.awakenerId);
+          pushRaw(raw, "wheel", slotIndex, slot.awakenerId, wheelName);
         }
       }
 
       if (slot.covenantId != null) {
+        const covenantName = gearLabel(
+          catalog.covenantOptions,
+          slot.covenantId,
+        );
         const covenantRows =
           catalog.covenantManifestations.get(slot.covenantId) ?? [];
         for (const raw of covenantRows) {
@@ -446,13 +462,20 @@ export function buildManifestationsForComposition(
           ) {
             continue;
           }
-          pushRaw(raw, "covenant", slotIndex, slot.awakenerId);
+          pushRaw(
+            raw,
+            "covenant",
+            slotIndex,
+            slot.awakenerId,
+            covenantName,
+          );
         }
       }
     }
   }
 
   if (composition.posseId != null) {
+    const posseName = gearLabel(catalog.posseOptions, composition.posseId);
     const posseRows =
       catalog.posseManifestations.get(composition.posseId) ?? [];
     for (const raw of posseRows) {
@@ -469,7 +492,7 @@ export function buildManifestationsForComposition(
       ) {
         continue;
       }
-      pushRaw(raw, "posse", null, null);
+      pushRaw(raw, "posse", null, null, posseName);
     }
   }
 
