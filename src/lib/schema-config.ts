@@ -136,6 +136,13 @@ export const TABLE_CONFIGS: TableConfig[] = [
         defaultValue: false,
         inlineEditable: true,
       },
+      {
+        name: "is_additive",
+        label: "Is Additive",
+        type: "boolean",
+        defaultValue: true,
+        inlineEditable: true,
+      },
       ...timestampFields(),
     ],
   },
@@ -298,6 +305,12 @@ export const TABLE_CONFIGS: TableConfig[] = [
         label: "Tag",
         type: "foreignKey",
         required: true,
+        foreignKey: { table: "tag", displayColumn: "tag_name" },
+      },
+      {
+        name: "trigger_condition",
+        label: "Trigger Condition",
+        type: "foreignKey",
         foreignKey: { table: "tag", displayColumn: "tag_name" },
       },
       {
@@ -817,6 +830,12 @@ export const TABLE_CONFIGS: TableConfig[] = [
         foreignKey: { table: "tag", displayColumn: "tag_name" },
       },
       {
+        name: "trigger_condition",
+        label: "Trigger Condition",
+        type: "foreignKey",
+        foreignKey: { table: "tag", displayColumn: "tag_name" },
+      },
+      {
         name: "dependency_stat",
         label: "Dependency Stat",
         type: "enum",
@@ -917,6 +936,12 @@ export const TABLE_CONFIGS: TableConfig[] = [
         label: "Tag",
         type: "foreignKey",
         required: true,
+        foreignKey: { table: "tag", displayColumn: "tag_name" },
+      },
+      {
+        name: "trigger_condition",
+        label: "Trigger Condition",
+        type: "foreignKey",
         foreignKey: { table: "tag", displayColumn: "tag_name" },
       },
       {

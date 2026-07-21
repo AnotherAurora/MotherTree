@@ -39,8 +39,8 @@ function makeAwakener(partial: Partial<Awakener> & { id: number }): Awakener {
   };
 }
 
-function makeTag(id: number, tagName: string, isPercent = false): Tag {
-  return { id, tagName, layer: null, isPercent };
+function makeTag(id: number, tagName: string, isPercent = false, isAdditive = true): Tag {
+  return { id, tagName, layer: null, isPercent, isAdditive };
 }
 
 function makeManifestation(

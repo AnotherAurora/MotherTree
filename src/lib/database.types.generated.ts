@@ -122,6 +122,7 @@ export type Database = {
           source_type: Database["public"]["Enums"]["source_type"] | null
           tag_id: number
           target_type: Database["public"]["Enums"]["target_type"] | null
+          trigger_condition: number | null
           updated_at: string | null
           value_scalar: number | null
         }
@@ -144,6 +145,7 @@ export type Database = {
           source_type?: Database["public"]["Enums"]["source_type"] | null
           tag_id: number
           target_type?: Database["public"]["Enums"]["target_type"] | null
+          trigger_condition?: number | null
           updated_at?: string | null
           value_scalar?: number | null
         }
@@ -166,6 +168,7 @@ export type Database = {
           source_type?: Database["public"]["Enums"]["source_type"] | null
           tag_id?: number
           target_type?: Database["public"]["Enums"]["target_type"] | null
+          trigger_condition?: number | null
           updated_at?: string | null
           value_scalar?: number | null
         }
@@ -187,6 +190,13 @@ export type Database = {
           {
             foreignKeyName: "awakener_tag_manifestation_tag_id_fkey"
             columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "tag"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "awakener_tag_manifestation_trigger_condition_fkey"
+            columns: ["trigger_condition"]
             isOneToOne: false
             referencedRelation: "tag"
             referencedColumns: ["id"]
@@ -244,6 +254,7 @@ export type Database = {
           required_realm2: Database["public"]["Enums"]["realm"] | null
           tag_id: number | null
           target_type: Database["public"]["Enums"]["target_type"] | null
+          trigger_condition: number | null
           updated_at: string | null
           value_scalar: number | null
         }
@@ -264,6 +275,7 @@ export type Database = {
           required_realm2?: Database["public"]["Enums"]["realm"] | null
           tag_id?: number | null
           target_type?: Database["public"]["Enums"]["target_type"] | null
+          trigger_condition?: number | null
           updated_at?: string | null
           value_scalar?: number | null
         }
@@ -284,6 +296,7 @@ export type Database = {
           required_realm2?: Database["public"]["Enums"]["realm"] | null
           tag_id?: number | null
           target_type?: Database["public"]["Enums"]["target_type"] | null
+          trigger_condition?: number | null
           updated_at?: string | null
           value_scalar?: number | null
         }
@@ -305,6 +318,13 @@ export type Database = {
           {
             foreignKeyName: "covenant_tag_manifestation_tag_id_fkey"
             columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "tag"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "covenant_tag_manifestation_trigger_condition_fkey"
+            columns: ["trigger_condition"]
             isOneToOne: false
             referencedRelation: "tag"
             referencedColumns: ["id"]
@@ -846,6 +866,7 @@ export type Database = {
           created_at: string | null
           deleted_at: string | null
           id: number
+          is_additive: boolean
           is_percent: boolean
           layer: Database["public"]["Enums"]["layer"] | null
           tag_name: string
@@ -855,6 +876,7 @@ export type Database = {
           created_at?: string | null
           deleted_at?: string | null
           id?: number
+          is_additive?: boolean
           is_percent?: boolean
           layer?: Database["public"]["Enums"]["layer"] | null
           tag_name: string
@@ -864,6 +886,7 @@ export type Database = {
           created_at?: string | null
           deleted_at?: string | null
           id?: number
+          is_additive?: boolean
           is_percent?: boolean
           layer?: Database["public"]["Enums"]["layer"] | null
           tag_name?: string
@@ -995,6 +1018,7 @@ export type Database = {
           required_realm: Database["public"]["Enums"]["realm"] | null
           tag_id: number | null
           target_type: Database["public"]["Enums"]["target_type"] | null
+          trigger_condition: number | null
           updated_at: string | null
           value_scalar: number | null
           wheel_id: number | null
@@ -1013,6 +1037,7 @@ export type Database = {
           required_realm?: Database["public"]["Enums"]["realm"] | null
           tag_id?: number | null
           target_type?: Database["public"]["Enums"]["target_type"] | null
+          trigger_condition?: number | null
           updated_at?: string | null
           value_scalar?: number | null
           wheel_id?: number | null
@@ -1031,6 +1056,7 @@ export type Database = {
           required_realm?: Database["public"]["Enums"]["realm"] | null
           tag_id?: number | null
           target_type?: Database["public"]["Enums"]["target_type"] | null
+          trigger_condition?: number | null
           updated_at?: string | null
           value_scalar?: number | null
           wheel_id?: number | null
@@ -1039,6 +1065,13 @@ export type Database = {
           {
             foreignKeyName: "wheel_tag_manifestation_tag_id_fkey"
             columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "tag"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wheel_tag_manifestation_trigger_condition_fkey"
+            columns: ["trigger_condition"]
             isOneToOne: false
             referencedRelation: "tag"
             referencedColumns: ["id"]

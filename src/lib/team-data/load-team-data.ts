@@ -23,6 +23,7 @@ type TagRef = {
   tag_name: string | null;
   layer: Layer | null;
   is_percent?: boolean | null;
+  is_additive?: boolean | null;
 } | null;
 
 function parseTagRef(tag: TagRef): Tag | null {
@@ -32,6 +33,7 @@ function parseTagRef(tag: TagRef): Tag | null {
     tagName: tag.tag_name ?? `#${tag.id}`,
     layer: tag.layer ?? null,
     isPercent: tag.is_percent === true,
+    isAdditive: tag.is_additive !== false,
   };
 }
 
@@ -100,7 +102,7 @@ const AWAKENER_MANIFESTATION_SELECT = `
   required_enlightenment,
   required_realm,
   replaces_manifestation_id,
-  tag:tag_id(id, tag_name, layer, is_percent)
+  tag:tag_id(id, tag_name, layer, is_percent, is_additive)
 `;
 
 async function fetchAwakenerManifestations(
@@ -128,7 +130,7 @@ const GEAR_MANIFESTATION_SELECT = `
   metadata,
   is_accumulating,
   required_realm,
-  tag:tag_id(id, tag_name, layer, is_percent)
+  tag:tag_id(id, tag_name, layer, is_percent, is_additive)
 `;
 
 const COVENANT_MANIFESTATION_SELECT = `
@@ -143,7 +145,7 @@ const COVENANT_MANIFESTATION_SELECT = `
   required_realm1,
   required_realm2,
   replaces_manifestation_id,
-  tag:tag_id(id, tag_name, layer, is_percent)
+  tag:tag_id(id, tag_name, layer, is_percent, is_additive)
 `;
 
 function matchesCovenantSlotRealm(
@@ -323,7 +325,7 @@ async function loadOverridesForManifestations(
       target_type,
       dependency_stat,
       is_disabled,
-      modifier_tag:tag!modifier_tag_id(id, tag_name, layer, is_percent)
+      modifier_tag:tag!modifier_tag_id(id, tag_name, layer, is_percent, is_additive)
     `,
     )
     .in("manifestation_id", manifestationIds)
@@ -381,9 +383,9 @@ export async function fetchTeamData(
       buff_target_type_restriction,
       substitute,
       once_per_base,
-      modifier_tag:tag!modifier_tag_id(id, tag_name, layer, is_percent),
-      target_tag:tag!target_tag_id(id, tag_name, layer, is_percent),
-      exclusion_tag:tag!exclusion_suffix(id, tag_name, layer, is_percent)
+      modifier_tag:tag!modifier_tag_id(id, tag_name, layer, is_percent, is_additive),
+      target_tag:tag!target_tag_id(id, tag_name, layer, is_percent, is_additive),
+      exclusion_tag:tag!exclusion_suffix(id, tag_name, layer, is_percent, is_additive)
     `,
     )
     .is("deleted_at", null);

@@ -30,6 +30,11 @@ export type Tag = {
   layer: Layer | null;
   /** Fractional bonus tags where 0 means no bonus (affects multiply_one_plus / multiply). */
   isPercent: boolean;
+  /**
+   * When true (default), post-pass same-tag results are summed.
+   * When false, they are multiplied (percent: product of (1+v) − 1).
+   */
+  isAdditive: boolean;
 };
 
 export type Awakener = {

@@ -3,6 +3,7 @@ import {
   effectiveManifestationScalar,
   effectiveOverrideFactor,
 } from "@/lib/path-carver/effective-value-scalar";
+import { combineSameTagScalar } from "@/lib/path-carver/combine-same-tag-scalar";
 import { matchesDemandTag } from "@/lib/simulator/tag-matching";
 import type {
   Awakener,
@@ -273,6 +274,46 @@ function addOwnerValue(
     tagId,
     getOwnerValue(ownerValues, owner, tagId) + delta,
   );
+}
+
+/** Combine same-tag values per tag.is_additive (Layer A seed + post-pass merge). */
+function mergeOwnerValue(
+  ownerValues: OwnerTotals,
+  owner: OwnerKey,
+  tag: Tag | undefined,
+  tagId: number,
+  incoming: number,
+): void {
+  if (incoming === 0) return;
+  const current = ownerValues.get(owner)?.get(tagId);
+  const combined = combineSameTagScalar(
+    current,
+    incoming,
+    tag?.isAdditive !== false,
+    tag?.isPercent === true,
+  );
+  setOwnerValue(ownerValues, owner, tagId, combined);
+}
+
+/** Collapse a tag's values across owners using is_additive (in-pass modifier modValue). */
+function combineTagAcrossOwners(
+  ownerValues: OwnerTotals,
+  tagId: number,
+  tag: Tag | undefined,
+  owners: Iterable<OwnerKey>,
+): number {
+  let combined: number | undefined;
+  for (const owner of owners) {
+    const v = getOwnerValue(ownerValues, owner, tagId);
+    if (v === 0) continue;
+    combined = combineSameTagScalar(
+      combined,
+      v,
+      tag?.isAdditive !== false,
+      tag?.isPercent === true,
+    );
+  }
+  return combined ?? 0;
 }
 
 function sumTeamTag(ownerValues: OwnerTotals, tagId: number): number {
@@ -793,9 +834,12 @@ function applyInteractionOnto(
   }
 
   for (const owner of selfOwners) {
-    const modValue =
-      getOwnerValue(current, owner, modifierTagId) +
-      getOwnerValue(current, TEAM_POOL_OWNER, modifierTagId);
+    const modValue = combineTagAcrossOwners(
+      current,
+      modifierTagId,
+      tagsById[modifierTagId],
+      [owner, TEAM_POOL_OWNER],
+    );
     const ownerHasModifier = modifierManifests.some(
       (m) => ownerKeyFor(m) === owner,
     );
@@ -856,12 +900,12 @@ function applyInteractionOnto(
     if (effectiveModifierTargetType(m, modifierTagId) === "self") continue;
     nonSelfOwners.add(ownerKeyFor(m));
   }
-  let modValue = 0;
-  for (const owner of nonSelfOwners) {
-    modValue += getOwnerValue(current, owner, modifierTagId);
-  }
-  // Include team-pool modifier value (from prior team-wide adds into the modifier tag).
-  modValue += getOwnerValue(current, TEAM_POOL_OWNER, modifierTagId);
+  const modValue = combineTagAcrossOwners(
+    current,
+    modifierTagId,
+    tagsById[modifierTagId],
+    [...nonSelfOwners, TEAM_POOL_OWNER],
+  );
 
   const present = modValue !== 0 || nonSelfOwners.size > 0;
 
@@ -1264,7 +1308,13 @@ function runInteractionsForLeafContext(
     const scalar = effectiveManifestationScalar(m, options.awakenersById);
     if (scalar === 0 && raw === 0) continue;
     if (scalar === 0) continue;
-    addOwnerValue(base, ownerKeyFor(m), m.tagId, scalar);
+    mergeOwnerValue(
+      base,
+      ownerKeyFor(m),
+      options.tagsById[m.tagId],
+      m.tagId,
+      scalar,
+    );
     if (options.recordBaseSteps) {
       steps.push({
         kind: "base",
@@ -1344,12 +1394,25 @@ function runInteractionsForLeafContext(
   return { ownerValues: current, steps };
 }
 
-function sumOwnerTotalsToTagMap(ownerValues: OwnerTotals): Map<number, number> {
+function sumOwnerTotalsToTagMap(
+  ownerValues: OwnerTotals,
+  tagsById: Record<number, Tag>,
+): Map<number, number> {
   const totalsByTagId = new Map<number, number>();
   for (const map of ownerValues.values()) {
     for (const [tagId, value] of map) {
       if (value === 0) continue;
-      totalsByTagId.set(tagId, (totalsByTagId.get(tagId) ?? 0) + value);
+      const tag = tagsById[tagId];
+      const current = totalsByTagId.get(tagId);
+      totalsByTagId.set(
+        tagId,
+        combineSameTagScalar(
+          current,
+          value,
+          tag?.isAdditive !== false,
+          tag?.isPercent === true,
+        ),
+      );
     }
   }
   return totalsByTagId;
@@ -1368,6 +1431,8 @@ function sumOwnerTotalsToTagMap(ownerValues: OwnerTotals): Map<number, number> {
  * Attacker/Defender always require base. Restricted ops skip when leafContext mismatches.
  * once_per_base=false: team-once pass writes target once into *team*, then merged;
  * those rows are excluded from per-subject runs.
+ * is_additive: Layer A same-tag seed + in-pass modifier collapse, and post-pass
+ * subject merge (sum vs multiply; percent multiplicative uses (1+v) fold-back).
  */
 export function applyInteractions(
   input: ApplyInteractionsInput,
@@ -1426,7 +1491,13 @@ export function applyInteractions(
       const owner = ownerKeyFor(subject);
       const value = getOwnerValue(result.ownerValues, owner, subject.tagId);
       if (value !== 0) {
-        addOwnerValue(mergedOwnerValues, owner, subject.tagId, value);
+        mergeOwnerValue(
+          mergedOwnerValues,
+          owner,
+          input.tagsById[subject.tagId],
+          subject.tagId,
+          value,
+        );
       }
 
       for (const step of result.steps) {
@@ -1478,7 +1549,13 @@ export function applyInteractions(
         tagId,
       );
       if (teamVal !== 0) {
-        addOwnerValue(mergedOwnerValues, TEAM_POOL_OWNER, tagId, teamVal);
+        mergeOwnerValue(
+          mergedOwnerValues,
+          TEAM_POOL_OWNER,
+          input.tagsById[tagId],
+          tagId,
+          teamVal,
+        );
       }
     }
 
@@ -1512,7 +1589,10 @@ export function applyInteractions(
     steps,
   );
 
-  const totalsByTagId = sumOwnerTotalsToTagMap(mergedOwnerValues);
+  const totalsByTagId = sumOwnerTotalsToTagMap(
+    mergedOwnerValues,
+    input.tagsById,
+  );
 
   for (const [tagId, total] of totalsByTagId) {
     const tag = input.tagsById[tagId];
