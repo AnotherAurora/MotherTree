@@ -24,8 +24,8 @@ export function buildWheelOptionMap(
   return new Map(options.map((option) => [option.value, option]));
 }
 
-export function isSsrWithoutEnlightenment16(wheel: WheelGearOption): boolean {
-  return wheel.rarity === "SSR" && wheel.enlightenment !== 16;
+export function isSsrWithoutEnlightenment15(wheel: WheelGearOption): boolean {
+  return wheel.rarity === "SSR" && wheel.enlightenment !== 15;
 }
 
 export function getSelectedWheelIds(
@@ -76,8 +76,8 @@ export function wouldViolateSsrRarityPair(
   if (!siblingWheel) return false;
   if (candidate.rarity !== "SSR" || siblingWheel.rarity !== "SSR") return false;
   return (
-    isSsrWithoutEnlightenment16(candidate) &&
-    isSsrWithoutEnlightenment16(siblingWheel)
+    isSsrWithoutEnlightenment15(candidate) &&
+    isSsrWithoutEnlightenment15(siblingWheel)
   );
 }
 
@@ -114,13 +114,13 @@ export function filterWheelOptionsForSlot(
   const siblingWheelId = slot ? getSiblingWheelId(slot, field) : null;
   const siblingWheel =
     siblingWheelId != null ? wheelMap.get(siblingWheelId) : undefined;
-  const siblingBlocksNon16Ssr =
-    siblingWheel != null && isSsrWithoutEnlightenment16(siblingWheel);
+  const siblingBlocksNon15Ssr =
+    siblingWheel != null && isSsrWithoutEnlightenment15(siblingWheel);
 
   return options.filter((option) => {
     if (option.value === currentId) return true;
     if (selectedElsewhere.has(option.value)) return false;
-    if (siblingBlocksNon16Ssr && isSsrWithoutEnlightenment16(option)) {
+    if (siblingBlocksNon15Ssr && isSsrWithoutEnlightenment15(option)) {
       return false;
     }
     return true;

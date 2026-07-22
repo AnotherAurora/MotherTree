@@ -2,7 +2,7 @@ import {
   getRealmsFromSlots,
 } from "@/components/simulator/awakener-selection";
 import {
-  isSsrWithoutEnlightenment16,
+  isSsrWithoutEnlightenment15,
 } from "@/lib/simulator/gear-selection";
 import type { SimulatorAwakenerOption } from "@/lib/actions/simulator";
 import type {
@@ -72,11 +72,11 @@ export function validateGearConstraints(
     if (
       wheel1.rarity === "SSR" &&
       wheel2.rarity === "SSR" &&
-      isSsrWithoutEnlightenment16(wheel1) &&
-      isSsrWithoutEnlightenment16(wheel2)
+      isSsrWithoutEnlightenment15(wheel1) &&
+      isSsrWithoutEnlightenment15(wheel2)
     ) {
       errors.push(
-        `Awakener ${index + 1}: cannot equip two SSR wheels unless one has enlightenment 16`,
+        `Awakener ${index + 1}: cannot equip two SSR wheels unless one has enlightenment 15`,
       );
     }
   });
