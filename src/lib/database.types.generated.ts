@@ -43,6 +43,7 @@ export type Database = {
         Row: {
           aliemus_regen: number | null
           atk: number | null
+          base_aliemus: number | null
           con: number | null
           created_at: string | null
           crit_dmg: number | null
@@ -63,6 +64,7 @@ export type Database = {
         Insert: {
           aliemus_regen?: number | null
           atk?: number | null
+          base_aliemus?: number | null
           con?: number | null
           created_at?: string | null
           crit_dmg?: number | null
@@ -83,6 +85,7 @@ export type Database = {
         Update: {
           aliemus_regen?: number | null
           atk?: number | null
+          base_aliemus?: number | null
           con?: number | null
           created_at?: string | null
           crit_dmg?: number | null
@@ -1107,6 +1110,7 @@ export type Database = {
         | "death_resist"
         | "team_max_hp"
         | "enemy_max_hp"
+        | "base_aliemus"
       curve_type: "linear" | "exponential" | "logarithmic"
       desire_type: "general" | "specific"
       layer: "x" | "y" | "z" | "f"
@@ -1270,6 +1274,7 @@ export const Constants = {
         "death_resist",
         "team_max_hp",
         "enemy_max_hp",
+        "base_aliemus",
       ],
       curve_type: ["linear", "exponential", "logarithmic"],
       desire_type: ["general", "specific"],

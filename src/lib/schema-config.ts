@@ -171,6 +171,7 @@ export const TABLE_CONFIGS: TableConfig[] = [
       { name: "crit_rate", label: "Crit Rate", type: "number" },
       { name: "crit_dmg", label: "Crit Damage", type: "number" },
       { name: "realm_mastery", label: "Realm Mastery", type: "number" },
+      { name: "base_aliemus", label: "Base Aliemus", type: "number", inlineEditable: true },
       { name: "aliemus_regen", label: "Aliemus Regen", type: "number" },
       { name: "sigil_yield", label: "Sigil Yield", type: "number" },
       { name: "death_resist", label: "Death Resist", type: "number" },

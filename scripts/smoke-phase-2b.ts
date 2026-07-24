@@ -31,6 +31,7 @@ function makeAwakener(partial: Partial<Awakener> & { id: number }): Awakener {
     critRate: partial.critRate ?? null,
     critDmg: partial.critDmg ?? null,
     realmMastery: partial.realmMastery ?? null,
+    baseAliemus: partial.baseAliemus ?? null,
     aliemusRegen: partial.aliemusRegen ?? null,
     sigilYield: partial.sigilYield ?? null,
     deathResist: partial.deathResist ?? null,

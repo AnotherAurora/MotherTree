@@ -46,6 +46,8 @@ export function awakenerStatForDependency(
       return awakener.realmMastery;
     case "keyflare_regen":
       return awakener.keyflareRegen;
+    case "base_aliemus":
+      return awakener.baseAliemus;
     case "aliemus_regen":
       return awakener.aliemusRegen;
     case "sigil_yield":

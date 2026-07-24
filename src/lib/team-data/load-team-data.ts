@@ -395,7 +395,7 @@ export async function fetchTeamData(
       ? await supabase
           .from("awakener")
           .select(
-            "id, name, realm, con, atk, def, keyflare_regen, damage_amp, crit_rate, crit_dmg, realm_mastery, aliemus_regen, sigil_yield, death_resist, enlightenment",
+            "id, name, realm, con, atk, def, keyflare_regen, damage_amp, crit_rate, crit_dmg, realm_mastery, base_aliemus, aliemus_regen, sigil_yield, death_resist, enlightenment",
           )
           .in("id", awakenerIds)
           .is("deleted_at", null)
@@ -445,6 +445,7 @@ export async function fetchTeamData(
     critRate: row.crit_rate,
     critDmg: row.crit_dmg,
     realmMastery: row.realm_mastery,
+    baseAliemus: row.base_aliemus,
     aliemusRegen: row.aliemus_regen,
     sigilYield: row.sigil_yield,
     deathResist: row.death_resist,

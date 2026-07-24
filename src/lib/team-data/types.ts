@@ -49,6 +49,7 @@ export type Awakener = {
   critRate: number | null;
   critDmg: number | null;
   realmMastery: number | null;
+  baseAliemus: number | null;
   aliemusRegen: number | null;
   sigilYield: number | null;
   deathResist: number | null;
