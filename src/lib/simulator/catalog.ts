@@ -380,6 +380,7 @@ export function buildManifestationsForComposition(
       requiredRealm2: raw.requiredRealm2,
       replacesManifestationId: null,
       interactionOverrides: [],
+      isBaseStatTransfer: false,
     });
   }
 

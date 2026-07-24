@@ -91,11 +91,16 @@ function isAttackerTag(tagName: string): boolean {
  * Layer A — which manifestations enter team tag totals.
  * Posse skips target_type and damage-dealer gates (realm / required_awakener only).
  * Attacker.* (any target_type) requires the owner awakener to be a damage dealer.
+ * Base-stat transfer synthetics always apply.
  */
 export function evaluateManifestationApply(
   m: Manifestation,
   ctx: ManifestationApplyContext,
 ): ManifestationApplyResult {
+  if (m.isBaseStatTransfer) {
+    return { applied: true, reason: null };
+  }
+
   const base = realmAndRequiredAwakenerPass(m, ctx);
   if (!base.applied) return base;
 

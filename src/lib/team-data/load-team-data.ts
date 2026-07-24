@@ -1,13 +1,16 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
+import { REQUIRED_BASE_STAT_TAG_IDS } from "@/lib/path-carver/awakener-base-stats";
 import {
   applyManifestationReplacements,
   effectiveEnlightenment,
 } from "@/lib/team-data/resolve-manifestations";
 import {
   createEmptyTeamData,
+  type AllStats,
   type Awakener,
   type DefaultInteraction,
+  type GearStatContribution,
   type InteractionOverride,
   type Manifestation,
   type Layer,
@@ -281,12 +284,70 @@ function mapGearManifestation(
     requiredRealm2: row.required_realm2 ?? null,
     replacesManifestationId: row.replaces_manifestation_id ?? null,
     interactionOverrides: [],
+    isBaseStatTransfer: false,
   };
+}
+
+type GearEntityRow = {
+  id: number;
+  name: string;
+  stat: AllStats | null;
+  statAmount: number | null;
+};
+
+async function fetchWheelGearById(
+  supabase: SupabaseClient<Database>,
+  ids: number[],
+): Promise<Map<number, GearEntityRow>> {
+  const map = new Map<number, GearEntityRow>();
+  if (ids.length === 0) return map;
+
+  const { data, error } = await supabase
+    .from("wheel")
+    .select("id, name, stat, stat_amount")
+    .in("id", ids)
+    .is("deleted_at", null);
+
+  if (error) throw new Error(error.message);
+  for (const row of data ?? []) {
+    map.set(row.id, {
+      id: row.id,
+      name: row.name,
+      stat: row.stat,
+      statAmount: row.stat_amount,
+    });
+  }
+  return map;
+}
+
+async function fetchCovenantGearById(
+  supabase: SupabaseClient<Database>,
+  ids: number[],
+): Promise<Map<number, GearEntityRow>> {
+  const map = new Map<number, GearEntityRow>();
+  if (ids.length === 0) return map;
+
+  const { data, error } = await supabase
+    .from("covenant")
+    .select("id, name, stat, stat_amount")
+    .in("id", ids)
+    .is("deleted_at", null);
+
+  if (error) throw new Error(error.message);
+  for (const row of data ?? []) {
+    map.set(row.id, {
+      id: row.id,
+      name: row.name,
+      stat: row.stat,
+      statAmount: row.stat_amount,
+    });
+  }
+  return map;
 }
 
 async function fetchEntityNamesById(
   supabase: SupabaseClient<Database>,
-  table: "wheel" | "covenant" | "posse",
+  table: "posse",
   ids: number[],
 ): Promise<Map<number, string>> {
   const map = new Map<number, string>();
@@ -303,6 +364,48 @@ async function fetchEntityNamesById(
     map.set(row.id, row.name);
   }
   return map;
+}
+
+async function fetchRequiredBaseStatTags(
+  supabase: SupabaseClient<Database>,
+  tagsById: Record<number, Tag>,
+): Promise<void> {
+  const missing = REQUIRED_BASE_STAT_TAG_IDS.filter((id) => !tagsById[id]);
+  if (missing.length === 0) return;
+
+  const { data, error } = await supabase
+    .from("tag")
+    .select("id, tag_name, layer, is_percent, is_additive")
+    .in("id", missing)
+    .is("deleted_at", null);
+
+  if (error) throw new Error(error.message);
+  for (const row of data ?? []) {
+    collectTags(tagsById, {
+      id: row.id,
+      tagName: row.tag_name ?? `#${row.id}`,
+      layer: row.layer ?? null,
+      isPercent: row.is_percent === true,
+      isAdditive: row.is_additive !== false,
+    });
+  }
+}
+
+function pushGearContribution(
+  contributions: GearStatContribution[],
+  awakenerId: number | null,
+  sourceKind: "wheel" | "covenant",
+  entity: GearEntityRow | undefined,
+  entityId: number,
+): void {
+  if (awakenerId == null || entity == null) return;
+  contributions.push({
+    awakenerId,
+    sourceKind,
+    entityId,
+    stat: entity.stat,
+    statAmount: entity.statAmount,
+  });
 }
 
 async function loadOverridesForManifestations(
@@ -454,6 +557,7 @@ export async function fetchTeamData(
 
   const tagsById: Record<number, Tag> = {};
   const manifestations: Manifestation[] = [];
+  const gearStatContributions: GearStatContribution[] = [];
 
   const wheelIds = new Set<number>();
   const covenantIds = new Set<number>();
@@ -465,12 +569,11 @@ export async function fetchTeamData(
   const posseIds =
     input.posseId != null ? [input.posseId] : ([] as number[]);
 
-  const [wheelNamesById, covenantNamesById, posseNamesById] =
-    await Promise.all([
-      fetchEntityNamesById(supabase, "wheel", [...wheelIds]),
-      fetchEntityNamesById(supabase, "covenant", [...covenantIds]),
-      fetchEntityNamesById(supabase, "posse", posseIds),
-    ]);
+  const [wheelsById, covenantsById, posseNamesById] = await Promise.all([
+    fetchWheelGearById(supabase, [...wheelIds]),
+    fetchCovenantGearById(supabase, [...covenantIds]),
+    fetchEntityNamesById(supabase, "posse", posseIds),
+  ]);
 
   const gearManifestationPromises: Promise<void>[] = [];
 
@@ -482,7 +585,15 @@ export async function fetchTeamData(
 
     if (slot.wheel1Id != null) {
       const wheelId = slot.wheel1Id;
-      const sourceName = wheelNamesById.get(wheelId) ?? `#${wheelId}`;
+      const wheel = wheelsById.get(wheelId);
+      const sourceName = wheel?.name ?? `#${wheelId}`;
+      pushGearContribution(
+        gearStatContributions,
+        slot.awakenerId,
+        "wheel",
+        wheel,
+        wheelId,
+      );
       gearManifestationPromises.push(
         fetchWheelManifestations(supabase, wheelId, slotRealm).then(
           (rows) => {
@@ -506,7 +617,15 @@ export async function fetchTeamData(
 
     if (slot.wheel2Id != null) {
       const wheelId = slot.wheel2Id;
-      const sourceName = wheelNamesById.get(wheelId) ?? `#${wheelId}`;
+      const wheel = wheelsById.get(wheelId);
+      const sourceName = wheel?.name ?? `#${wheelId}`;
+      pushGearContribution(
+        gearStatContributions,
+        slot.awakenerId,
+        "wheel",
+        wheel,
+        wheelId,
+      );
       gearManifestationPromises.push(
         fetchWheelManifestations(supabase, wheelId, slotRealm).then(
           (rows) => {
@@ -530,8 +649,15 @@ export async function fetchTeamData(
 
     if (slot.covenantId != null) {
       const covenantId = slot.covenantId;
-      const sourceName =
-        covenantNamesById.get(covenantId) ?? `#${covenantId}`;
+      const covenant = covenantsById.get(covenantId);
+      const sourceName = covenant?.name ?? `#${covenantId}`;
+      pushGearContribution(
+        gearStatContributions,
+        slot.awakenerId,
+        "covenant",
+        covenant,
+        covenantId,
+      );
       gearManifestationPromises.push(
         fetchCovenantManifestations(
           supabase,
@@ -630,8 +756,11 @@ export async function fetchTeamData(
       requiredRealm2: null,
       replacesManifestationId: row.replaces_manifestation_id,
       interactionOverrides: overridesByManifestationId.get(row.id) ?? [],
+      isBaseStatTransfer: false,
     });
   }
+
+  await fetchRequiredBaseStatTags(supabase, tagsById);
 
   const defaultInteractions: DefaultInteraction[] = (
     defaultInteractionResult.data ?? []
@@ -662,6 +791,7 @@ export async function fetchTeamData(
     manifestations,
     defaultInteractions,
     tagsById,
+    gearStatContributions,
   };
 
   return {

@@ -79,6 +79,7 @@ function makeManifestation(
     requiredRealm2: null,
     replacesManifestationId: null,
     interactionOverrides: partial.interactionOverrides ?? [],
+    isBaseStatTransfer: partial.isBaseStatTransfer ?? false,
     ...partial,
   };
 }

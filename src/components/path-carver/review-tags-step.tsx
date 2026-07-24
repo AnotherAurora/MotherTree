@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { ReviewTagsBaseStatsDebug } from "@/components/path-carver/review-tags-base-stats-debug";
 import { ReviewTagsDebug } from "@/components/path-carver/review-tags-debug";
 import { ReviewTagsMathDebug } from "@/components/path-carver/review-tags-math-debug";
 import { loadTeamData } from "@/lib/actions/team-data";
@@ -92,16 +93,15 @@ export function ReviewTagsStep({
         return;
       }
 
-      setTeamData(result.data);
-
       const applyContext = createManifestationApplyContext(
         result.data.awakeners,
         damageDealerAwakenerIds,
       );
-      const { totalsByTagId, steps } = computeReviewTagTotals(
+      const { totalsByTagId, steps, reviewTeamData } = computeReviewTagTotals(
         result.data,
         applyContext,
       );
+      setTeamData(reviewTeamData);
       setScalarTotals(totalsByTagId);
       setMathSteps(steps);
 
@@ -109,8 +109,8 @@ export function ReviewTagsStep({
 
       for (const [tagId, scalarSum] of totalsByTagId) {
         if (scalarSum === 0) continue;
-        const tag = result.data.tagsById[tagId];
-        const manifestation = result.data.manifestations.find(
+        const tag = reviewTeamData.tagsById[tagId];
+        const manifestation = reviewTeamData.manifestations.find(
           (m) => m.tagId === tagId,
         );
         tagRows.push({
@@ -269,6 +269,7 @@ export function ReviewTagsStep({
             steps={mathSteps}
             awakeners={teamData.awakeners}
           />
+          <ReviewTagsBaseStatsDebug awakeners={teamData.awakeners} />
         </>
       )}
     </div>

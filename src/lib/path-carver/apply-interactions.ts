@@ -1431,6 +1431,8 @@ function sumOwnerTotalsToTagMap(
  * Attacker/Defender always require base. Restricted ops skip when leafContext mismatches.
  * once_per_base=false: team-once pass writes target once into *team*, then merged;
  * those rows are excluded from per-subject runs.
+ * Phase 2b.1: isBaseStatTransfer subjects contribute absolute scalar only (no inbound ops)
+ * but remain in other subjects' cohorts as modifiers.
  * is_additive: Layer A same-tag seed + in-pass modifier collapse, and post-pass
  * subject merge (sum vs multiply; percent multiplicative uses (1+v) fold-back).
  */
@@ -1476,6 +1478,21 @@ export function applyInteractions(
     // Nothing to evaluate for subjects.
   } else {
     for (const subject of subjects) {
+      // Base-stat transfers: contribute absolute scalar; never receive interactions.
+      if (subject.isBaseStatTransfer) {
+        const scalar = effectiveManifestationScalar(subject, awakenersById);
+        if (scalar !== 0) {
+          mergeOwnerValue(
+            mergedOwnerValues,
+            ownerKeyFor(subject),
+            input.tagsById[subject.tagId],
+            subject.tagId,
+            scalar,
+          );
+        }
+        continue;
+      }
+
       const cohort = cohortForSubject(applied, subject);
       const result = runInteractionsForLeafContext({
         appliedManifestations: cohort,

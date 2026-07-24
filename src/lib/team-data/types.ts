@@ -91,6 +91,20 @@ export type Manifestation = {
   requiredRealm2: Realm | null;
   replacesManifestationId: number | null;
   interactionOverrides: InteractionOverride[];
+  /**
+   * Synthetic row from awakener total base stats (gear + DR + Special.Increase).
+   * Acts as a modifier in interactions but is immune as an interaction subject/target.
+   */
+  isBaseStatTransfer: boolean;
+};
+
+/** Equipped wheel/covenant flat stat bonus for total base-stat calculation. */
+export type GearStatContribution = {
+  awakenerId: number;
+  sourceKind: "wheel" | "covenant";
+  entityId: number;
+  stat: AllStats | null;
+  statAmount: number | null;
 };
 
 export type DefaultInteraction = {
@@ -133,6 +147,8 @@ export type TeamData = {
   manifestations: Manifestation[];
   defaultInteractions: DefaultInteraction[];
   tagsById: Record<number, Tag>;
+  /** Per-slot wheel/covenant stat + stat_amount for total base stats. */
+  gearStatContributions: GearStatContribution[];
   summary: TeamDataSummary;
 };
 
@@ -142,6 +158,7 @@ export function createEmptyTeamData(): TeamData {
     manifestations: [],
     defaultInteractions: [],
     tagsById: {},
+    gearStatContributions: [],
     summary: {
       awakenerCount: 0,
       manifestationCount: 0,

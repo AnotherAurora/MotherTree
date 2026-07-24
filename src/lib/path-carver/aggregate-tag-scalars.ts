@@ -3,6 +3,10 @@ import {
   type ScalarMathStep,
 } from "@/lib/path-carver/apply-interactions";
 import {
+  buildBaseStatTransferManifestations,
+  computeAwakenerTotalBaseStats,
+} from "@/lib/path-carver/awakener-base-stats";
+import {
   buildAwakenersById,
   effectiveManifestationScalar,
 } from "@/lib/path-carver/effective-value-scalar";
@@ -16,6 +20,11 @@ import type { Awakener, Manifestation, TeamData } from "@/lib/team-data/types";
 export type ReviewTagTotals = {
   totalsByTagId: Map<number, number>;
   steps: ScalarMathStep[];
+  /**
+   * Team data with total base stats on awakeners and synthetic base-stat
+   * transfer manifestations appended (for Review Tags debug / display).
+   */
+  reviewTeamData: TeamData;
 };
 
 /** Base Layer A sums only (no interactions). Uses dependency-scaled effective scalars. */
@@ -36,20 +45,48 @@ export function aggregateTagScalarsById(
 }
 
 /**
- * Review Tags totals: Layer A filter → Layer B interactions / Special conversions
- * (with Phase 2b dependency_stat scaling + leaf-gated buff restriction).
+ * Review Tags totals:
+ * Layer A filter → total base stats (gear + DR + Special.Increase) →
+ * inject base-stat transfer tags → Layer B interactions (transfers immune as subjects).
  */
 export function computeReviewTagTotals(
   teamData: TeamData,
   applyContext: ManifestationApplyContext,
 ): ReviewTagTotals {
-  const applied = teamData.manifestations.filter((m) =>
-    isManifestationApplied(m, applyContext),
+  const appliedReal = teamData.manifestations.filter(
+    (m) =>
+      !m.isBaseStatTransfer && isManifestationApplied(m, applyContext),
   );
-  const result = applyInteractionsForTeamData(teamData, applied);
+
+  const totalAwakeners = computeAwakenerTotalBaseStats(
+    teamData,
+    appliedReal,
+  );
+  const transfers = buildBaseStatTransferManifestations(
+    totalAwakeners,
+    teamData.tagsById,
+  );
+
+  const reviewTeamData: TeamData = {
+    ...teamData,
+    awakeners: totalAwakeners,
+    manifestations: [
+      ...teamData.manifestations.filter((m) => !m.isBaseStatTransfer),
+      ...transfers,
+    ],
+  };
+  reviewTeamData.summary = {
+    ...teamData.summary,
+    awakenerCount: totalAwakeners.length,
+    manifestationCount: reviewTeamData.manifestations.length,
+  };
+
+  const applied = [...appliedReal, ...transfers];
+  const result = applyInteractionsForTeamData(reviewTeamData, applied);
   return {
     totalsByTagId: result.totalsByTagId,
     steps: result.steps,
+    reviewTeamData,
   };
 }
 

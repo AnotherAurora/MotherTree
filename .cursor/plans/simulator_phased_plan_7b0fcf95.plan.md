@@ -513,6 +513,48 @@ Same chain for a tentacle leaf → Enhance SKIPPED; no dual totals stored
 
 ---
 
+## Phase 2b.1 — Awakener total base stats + transfer tags (Path Carver)
+
+**Depends on:** Phase 2b.
+
+### Goal
+
+Replace raw `awakener` table stats for `dependency_stat` with **total base stats**, inject synthetic Support/Defender tags from selected stats, and apply Special.Increase Base Keyflare after keyflare DR.
+
+### Locked calculation order
+
+1. Sum per awakener: table stats + wheel1 + wheel2 + covenant (`stat` / `stat_amount` when set)
+2. **keyflare_regen DR:** `Math.ceil(15 + 144 * (x - 15) / (x + 129))`
+3. **aliemus_regen DR:** TODO passthrough (sum only)
+4. **Special.Increase Base Keyflare** (tag id **131**):  
+   `finalKeyflare = Math.ceil(originalDr * (1 + Σ effective value_scalar))`  
+   Multiple sources use the same original (additive scalars). Scale those rows with **pre-boost** totals if they have `dependency_stat`.
+5. **dependency_stat** scaling uses these totals — including **post–Special.Increase** `keyflare_regen`
+6. Inject synthetic manifestations (absolute `value_scalar`, `dependency_stat` null); they act as modifiers but are **immune as interaction subjects**
+
+### Transfer tag ids
+
+| Base stat | Tag id | `target_type` |
+|-----------|--------|---------------|
+| `damage_amp` | 16 | `aoe` |
+| `crit_rate` | 18 | `self` |
+| `crit_dmg` | 17 | `self` |
+| `realm_mastery` | 63 | `aoe` |
+| `aliemus_regen` | 28 | `self` |
+| `death_resist` | 12 | `aoe` |
+
+Keyflare is **not** transferred to a tag; it only feeds `dependency_stat` (after DR + Special.Increase).
+
+### Primary files
+
+- [`src/lib/path-carver/awakener-base-stats.ts`](src/lib/path-carver/awakener-base-stats.ts)
+- [`src/lib/team-data/load-team-data.ts`](src/lib/team-data/load-team-data.ts) — gear `stat` / `stat_amount`
+- [`src/lib/path-carver/aggregate-tag-scalars.ts`](src/lib/path-carver/aggregate-tag-scalars.ts)
+- [`src/lib/path-carver/apply-interactions.ts`](src/lib/path-carver/apply-interactions.ts) — skip inbound ops for `isBaseStatTransfer`
+- Smoke: `npx tsx scripts/smoke-phase-2b1.ts`
+
+---
+
 ## Phase 2c — Damage layers + Calculation List
 
 **Depends on:** Phase 2a + 2b (stable Review Tags interaction math with leaf-gated buff restriction).
@@ -588,7 +630,7 @@ Path Carver upserts a single `desire_template` per `desire_id`.
 
 ## Suggested implementation order (from now)
 
-1. **Phase 2b** — `dependency_stat` → effective `value_scalar`, then leaf-gated `buff_target_type_restriction` (Option B; one path; Scalar Sum math line only when met)
+1. **Phase 2b.1** — awakener total base stats + transfer tags + Special.Increase Base Keyflare (done when implemented)
 2. **Phase 2c** — layer terms x/y/z/f + 4-layer formula + Calculation List breakdown (replace temp op order)
 3. **Phase 3** — desire_demand / radar / simulator port
 4. **Phase 4** — Smart recommend / search
