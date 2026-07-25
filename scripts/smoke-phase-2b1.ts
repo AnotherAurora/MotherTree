@@ -1,6 +1,7 @@
 /**
  * Phase 2b.1 smoke — awakener total base stats (gear + DR + Special.Increase)
  * + synthetic base-stat transfers.
+ * + Death Resist → In Mission → Cause Trigger.
  * Run: npx tsx scripts/smoke-phase-2b1.ts
  */
 import { applyInteractions } from "../src/lib/path-carver/apply-interactions";
@@ -8,8 +9,19 @@ import {
   applyKeyflareDiminishingReturn,
   buildBaseStatTransferManifestations,
   computeAwakenerTotalBaseStats,
+  REQUIRED_BASE_STAT_TAG_IDS,
   SPECIAL_INCREASE_BASE_KEYFLARE_TAG_ID,
 } from "../src/lib/path-carver/awakener-base-stats";
+import {
+  DEFENDER_BASE_DEATH_RESIST_TAG_ID,
+  IN_MISSION_DEATH_RESIST_TAG_ID,
+  SPECIAL_CAUSE_DEATH_RESIST_TRIGGER_TAG_ID,
+  baseDeathResistToInMission,
+  buildDeathResistDerivedManifestations,
+  inMissionToCauseTrigger,
+} from "../src/lib/path-carver/death-resist-trigger";
+import { computeReviewTagTotals } from "../src/lib/path-carver/aggregate-tag-scalars";
+import { createManifestationApplyContext } from "../src/lib/path-carver/manifestation-apply";
 import {
   buildAwakenersById,
   scaleValueScalar,
@@ -22,6 +34,7 @@ import type {
   Tag,
   TeamData,
 } from "../src/lib/team-data/types";
+import { createEmptyTeamData } from "../src/lib/team-data/types";
 
 function assert(cond: boolean, msg: string): void {
   if (!cond) throw new Error(`FAIL: ${msg}`);
@@ -308,6 +321,252 @@ console.log("\nSynthetic transfers + interaction immunity / modifier role");
   assert(
     (result.totalsByTagId.get(aliemusTag.id) ?? 0) === 0.2,
     `synthetic Aliemus immune to Increase Gain (${result.totalsByTagId.get(aliemusTag.id)})`,
+  );
+}
+
+console.log("\nDeath Resist → In Mission → Cause Trigger (pure)");
+{
+  assert(baseDeathResistToInMission(4) === 1, "400% base → 100% In Mission");
+  assert(inMissionToCauseTrigger(1) === 1, "100% In Mission → 1 Cause");
+  assert(baseDeathResistToInMission(5) === 2, "500% base → 200% In Mission");
+  assert(inMissionToCauseTrigger(2) === 2, "200% In Mission → 2 Cause");
+  // 1.01 → +1, ceil(0.505→0.51); 0.51 < 1 → stop
+  assert(
+    inMissionToCauseTrigger(1.01) === 1,
+    "101% In Mission → 1 Cause (halve ceils to 0.51)",
+  );
+  assert(
+    baseDeathResistToInMission(1) === 0.25,
+    "100% base → 25% In Mission (below cap)",
+  );
+  assert(inMissionToCauseTrigger(0.25) === 0, "25% In Mission → 0 Cause");
+  assert(baseDeathResistToInMission(0) === 0, "0 base → 0 In Mission");
+  // User bug: ATM + Base stat (4.024), not Base stat alone (3.024 → 0.756)
+  assert(
+    baseDeathResistToInMission(4.024) === 1.024,
+    "4.024 full tag 12 → 1.024 In Mission",
+  );
+}
+
+console.log("\nDeath Resist derived transfers (builder + Layer B)");
+{
+  const baseTag = makeTag(
+    DEFENDER_BASE_DEATH_RESIST_TAG_ID,
+    "Defender.Base Death Resist",
+    true,
+  );
+  const inMissionTag = makeTag(
+    IN_MISSION_DEATH_RESIST_TAG_ID,
+    "Defender.Base Death Resist.In Mission Death Resist",
+    true,
+  );
+  const causeTag = makeTag(
+    SPECIAL_CAUSE_DEATH_RESIST_TRIGGER_TAG_ID,
+    "Special.Cause.Death Resist Trigger",
+  );
+
+  const tagsById: Record<number, Tag> = {
+    [baseTag.id]: baseTag,
+    [inMissionTag.id]: inMissionTag,
+    [causeTag.id]: causeTag,
+  };
+
+  // 500% base → synth In Mission 2, Cause 2
+  {
+    const derived = buildDeathResistDerivedManifestations(5, 0, tagsById);
+    const synth147 = derived.find((m) => m.tagId === inMissionTag.id);
+    const synth88 = derived.find((m) => m.tagId === causeTag.id);
+    assert(synth147 != null, "synth In Mission present");
+    assert(synth88 != null, "synth Cause present");
+    assert(synth147!.valueScalar === 2, "synth In Mission value 2");
+    assert(synth88!.valueScalar === 2, "synth Cause value 2");
+    assert(synth147!.isBaseStatTransfer === true, "In Mission is transfer");
+    assert(synth147!.targetType === "aoe", "In Mission target_type aoe");
+    assert(synth88!.isBaseStatTransfer === true, "Cause is transfer");
+    assert(synth88!.targetType === "aoe", "Cause target_type aoe");
+
+    const baseM = makeManifestation({
+      id: 1,
+      tagId: baseTag.id,
+      tagName: baseTag.tagName,
+      valueScalar: 5,
+      isBaseStatTransfer: true,
+      targetType: "aoe",
+    });
+    const applied = [baseM, ...derived];
+    const result = applyInteractions({
+      manifestations: applied,
+      appliedManifestations: applied,
+      defaultInteractions: [],
+      tagsById,
+      awakenersById: buildAwakenersById([]),
+    });
+    assert(
+      (result.totalsByTagId.get(baseTag.id) ?? 0) === 5,
+      `base kept at 5 (got ${result.totalsByTagId.get(baseTag.id)})`,
+    );
+    assert(
+      (result.totalsByTagId.get(inMissionTag.id) ?? 0) === 2,
+      `In Mission 2 (got ${result.totalsByTagId.get(inMissionTag.id)})`,
+    );
+    assert(
+      (result.totalsByTagId.get(causeTag.id) ?? 0) === 2,
+      `Cause 2 (got ${result.totalsByTagId.get(causeTag.id)})`,
+    );
+  }
+
+  // 400% base + 100% direct In Mission → synth 147=1, cause=2; combined In Mission 2
+  {
+    const derived = buildDeathResistDerivedManifestations(4, 1, tagsById);
+    const synth147 = derived.find((m) => m.tagId === inMissionTag.id);
+    const synth88 = derived.find((m) => m.tagId === causeTag.id);
+    assert(synth147!.valueScalar === 1, "synth In Mission fromBase 1");
+    assert(synth88!.valueScalar === 2, "synth Cause from combined 2");
+
+    const baseM = makeManifestation({
+      id: 1,
+      tagId: baseTag.id,
+      tagName: baseTag.tagName,
+      valueScalar: 4,
+      isBaseStatTransfer: true,
+      targetType: "aoe",
+    });
+    const directInMission = makeManifestation({
+      id: 2,
+      tagId: inMissionTag.id,
+      tagName: inMissionTag.tagName,
+      valueScalar: 1,
+    });
+    const applied = [baseM, directInMission, ...derived];
+    const result = applyInteractions({
+      manifestations: applied,
+      appliedManifestations: applied,
+      defaultInteractions: [],
+      tagsById,
+      awakenersById: buildAwakenersById([]),
+    });
+    assert(
+      (result.totalsByTagId.get(inMissionTag.id) ?? 0) === 2,
+      `combined In Mission 2 (got ${result.totalsByTagId.get(inMissionTag.id)})`,
+    );
+    assert(
+      (result.totalsByTagId.get(causeTag.id) ?? 0) === 2,
+      `Cause from combined 2 (got ${result.totalsByTagId.get(causeTag.id)})`,
+    );
+  }
+
+  // Derived Cause as modifier (aoe) can boost a subject via default interaction
+  {
+    const activeTag = makeTag(42, "Attacker.Active Damage");
+    tagsById[activeTag.id] = activeTag;
+    const derived = buildDeathResistDerivedManifestations(5, 0, tagsById);
+    const active = makeManifestation({
+      id: 10,
+      tagId: activeTag.id,
+      tagName: activeTag.tagName,
+      valueScalar: 100,
+      sourceType: "command card",
+    });
+    const applied = [active, ...derived];
+    const result = applyInteractions({
+      manifestations: applied,
+      appliedManifestations: applied,
+      defaultInteractions: [
+        makeInteraction({
+          id: 1,
+          modifierTagId: causeTag.id,
+          modifierTagName: causeTag.tagName,
+          targetTagId: activeTag.id,
+          targetTagName: activeTag.tagName,
+          mathOperation: "add_scaled",
+          defaultFactor: 10,
+        }),
+      ],
+      tagsById,
+      awakenersById: buildAwakenersById([]),
+    });
+    // Cause count 2 * factor 10 → +20 Active
+    assert(
+      (result.totalsByTagId.get(activeTag.id) ?? 0) === 120,
+      `Cause modifier add_scaled → Active 120 (got ${result.totalsByTagId.get(activeTag.id)})`,
+    );
+    assert(
+      (result.totalsByTagId.get(causeTag.id) ?? 0) === 2,
+      "Cause transfer value unchanged as subject",
+    );
+  }
+}
+
+console.log("\nDeath Resist full tag 12 (ATM + Base stat) via computeReviewTagTotals");
+{
+  assert(
+    REQUIRED_BASE_STAT_TAG_IDS.includes(IN_MISSION_DEATH_RESIST_TAG_ID),
+    "required tags include In Mission 147",
+  );
+  assert(
+    REQUIRED_BASE_STAT_TAG_IDS.includes(SPECIAL_CAUSE_DEATH_RESIST_TRIGGER_TAG_ID),
+    "required tags include Cause 88",
+  );
+
+  const baseTag = makeTag(
+    DEFENDER_BASE_DEATH_RESIST_TAG_ID,
+    "Defender.Base Death Resist",
+    true,
+  );
+  const inMissionTag = makeTag(
+    IN_MISSION_DEATH_RESIST_TAG_ID,
+    "Defender.Base Death Resist.In Mission Death Resist",
+    true,
+  );
+  const causeTag = makeTag(
+    SPECIAL_CAUSE_DEATH_RESIST_TRIGGER_TAG_ID,
+    "Special.Cause.Death Resist Trigger",
+  );
+  const tagsById: Record<number, Tag> = {
+    [baseTag.id]: baseTag,
+    [inMissionTag.id]: inMissionTag,
+    [causeTag.id]: causeTag,
+  };
+
+  // Base stat 3.024 + ATM 1.0 = 4.024 → In Mission 1.024 → Cause 1
+  const awakener = makeAwakener({ id: 1, deathResist: 3.024 });
+  const atm = makeManifestation({
+    id: 10,
+    tagId: baseTag.id,
+    tagName: baseTag.tagName,
+    valueScalar: 1,
+    awakenerId: 1,
+  });
+  const teamData: TeamData = {
+    ...createEmptyTeamData(),
+    awakeners: [awakener],
+    manifestations: [atm],
+    tagsById,
+  };
+  const applyContext = createManifestationApplyContext([awakener], []);
+  const { totalsByTagId, reviewTeamData } = computeReviewTagTotals(
+    teamData,
+    applyContext,
+  );
+
+  assert(
+    Math.abs((totalsByTagId.get(baseTag.id) ?? 0) - 4.024) < 1e-9,
+    `tag 12 total 4.024 (got ${totalsByTagId.get(baseTag.id)})`,
+  );
+  assert(
+    Math.abs((totalsByTagId.get(inMissionTag.id) ?? 0) - 1.024) < 1e-9,
+    `In Mission 1.024 not 0.756 (got ${totalsByTagId.get(inMissionTag.id)})`,
+  );
+  assert(
+    (totalsByTagId.get(causeTag.id) ?? 0) === 1,
+    `Cause 1 (got ${totalsByTagId.get(causeTag.id)})`,
+  );
+  const synth147 = reviewTeamData.manifestations.find(
+    (m) => m.tagId === inMissionTag.id && m.isBaseStatTransfer,
+  );
+  assert(
+    synth147?.tagName === inMissionTag.tagName,
+    `In Mission name resolved (got ${synth147?.tagName})`,
   );
 }
 

@@ -7,6 +7,11 @@ import {
   computeAwakenerTotalBaseStats,
 } from "@/lib/path-carver/awakener-base-stats";
 import {
+  DEFENDER_BASE_DEATH_RESIST_TAG_ID,
+  IN_MISSION_DEATH_RESIST_TAG_ID,
+  buildDeathResistDerivedManifestations,
+} from "@/lib/path-carver/death-resist-trigger";
+import {
   buildAwakenersById,
   effectiveManifestationScalar,
 } from "@/lib/path-carver/effective-value-scalar";
@@ -67,12 +72,32 @@ export function computeReviewTagTotals(
     teamData.tagsById,
   );
 
+  const awakenersById = buildAwakenersById(totalAwakeners);
+  // Full tag 12 Layer A total: ATM/other + base-stat transfers (not awakener column alone).
+  let baseDeathResistTotal = 0;
+  let directInMissionTotal = 0;
+  for (const m of [...appliedReal, ...transfers]) {
+    const scalar = effectiveManifestationScalar(m, awakenersById);
+    if (scalar === 0) continue;
+    if (m.tagId === DEFENDER_BASE_DEATH_RESIST_TAG_ID) {
+      baseDeathResistTotal += scalar;
+    } else if (m.tagId === IN_MISSION_DEATH_RESIST_TAG_ID) {
+      directInMissionTotal += scalar;
+    }
+  }
+  const derived = buildDeathResistDerivedManifestations(
+    baseDeathResistTotal,
+    directInMissionTotal,
+    teamData.tagsById,
+  );
+  const allTransfers = [...transfers, ...derived];
+
   const reviewTeamData: TeamData = {
     ...teamData,
     awakeners: totalAwakeners,
     manifestations: [
       ...teamData.manifestations.filter((m) => !m.isBaseStatTransfer),
-      ...transfers,
+      ...allTransfers,
     ],
   };
   reviewTeamData.summary = {
@@ -81,7 +106,7 @@ export function computeReviewTagTotals(
     manifestationCount: reviewTeamData.manifestations.length,
   };
 
-  const applied = [...appliedReal, ...transfers];
+  const applied = [...appliedReal, ...allTransfers];
   const result = applyInteractionsForTeamData(reviewTeamData, applied);
   return {
     totalsByTagId: result.totalsByTagId,

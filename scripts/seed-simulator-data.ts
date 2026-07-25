@@ -77,7 +77,7 @@ const SEED_DESIRES: SeedDesire[] = [
         decayRate: 0.8,
       },
       {
-        tagName: "Defender.Death Resist",
+        tagName: "Defender.Base Death Resist",
         basePriorityWeight: 1,
         targetValue: 1,
         curve: "logarithmic",

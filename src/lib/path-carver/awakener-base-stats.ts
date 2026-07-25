@@ -2,6 +2,10 @@ import {
   buildAwakenersById,
   effectiveManifestationScalar,
 } from "@/lib/path-carver/effective-value-scalar";
+import {
+  IN_MISSION_DEATH_RESIST_TAG_ID,
+  SPECIAL_CAUSE_DEATH_RESIST_TRIGGER_TAG_ID,
+} from "@/lib/path-carver/death-resist-trigger";
 import type {
   AllStats,
   Awakener,
@@ -51,6 +55,7 @@ export const BASE_STAT_TRANSFER_SPECS = [
     read: (a: Awakener) => a.aliemusRegen,
   },
   {
+    /** Defender.Base Death Resist */
     stat: "death_resist" as const,
     tagId: 12,
     targetType: "aoe" as TargetType,
@@ -58,10 +63,12 @@ export const BASE_STAT_TRANSFER_SPECS = [
   },
 ] as const;
 
-/** Tag ids that must be present in TeamData.tagsById for base-stat math. */
+/** Tag ids that must be present in TeamData.tagsById for base-stat / derived math. */
 export const REQUIRED_BASE_STAT_TAG_IDS: readonly number[] = [
   ...BASE_STAT_TRANSFER_SPECS.map((s) => s.tagId),
   SPECIAL_INCREASE_BASE_KEYFLARE_TAG_ID,
+  IN_MISSION_DEATH_RESIST_TAG_ID,
+  SPECIAL_CAUSE_DEATH_RESIST_TRIGGER_TAG_ID,
 ];
 
 /**
