@@ -72,6 +72,7 @@ function makeManifestation(
     replacesManifestationId: null,
     interactionOverrides: partial.interactionOverrides ?? [],
     isBaseStatTransfer: partial.isBaseStatTransfer ?? false,
+    triggerCondition: null,
     ...partial,
   };
 }

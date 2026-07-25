@@ -21,7 +21,16 @@ import {
   inMissionToCauseTrigger,
 } from "../src/lib/path-carver/death-resist-trigger";
 import { computeReviewTagTotals } from "../src/lib/path-carver/aggregate-tag-scalars";
-import { createManifestationApplyContext } from "../src/lib/path-carver/manifestation-apply";
+import {
+  createManifestationApplyContext,
+  evaluateManifestationApply,
+} from "../src/lib/path-carver/manifestation-apply";
+import {
+  SPECIAL_WHEN_DEATH_RESIST_TRIGGER_TAG_ID,
+  SPECIAL_WHEN_POSSE_TAG_ID,
+  SUPPORT_CREATE_POSSE_TAG_ID,
+  buildTriggerCounts,
+} from "../src/lib/path-carver/trigger-condition";
 import {
   buildAwakenersById,
   scaleValueScalar,
@@ -99,6 +108,7 @@ function makeManifestation(
     replacesManifestationId: null,
     interactionOverrides: partial.interactionOverrides ?? [],
     isBaseStatTransfer: partial.isBaseStatTransfer ?? false,
+    triggerCondition: null,
     ...partial,
   };
 }
@@ -568,6 +578,189 @@ console.log("\nDeath Resist full tag 12 (ATM + Base stat) via computeReviewTagTo
     synth147?.tagName === inMissionTag.tagName,
     `In Mission name resolved (got ${synth147?.tagName})`,
   );
+}
+
+console.log("\nTrigger condition gating");
+{
+  const whenDr = makeTag(
+    SPECIAL_WHEN_DEATH_RESIST_TRIGGER_TAG_ID,
+    "Special.When.Death Resist Trigger",
+  );
+  const whenPosse = makeTag(SPECIAL_WHEN_POSSE_TAG_ID, "Special.When.Posse");
+  const createPosse = makeTag(SUPPORT_CREATE_POSSE_TAG_ID, "Support.Create.Posse");
+  const critTag = makeTag(17, "Support.Crit Damage", true);
+  const ampTag = makeTag(16, "Support.Damage AMP", true);
+  const unknownWhenId = 108; // Special.When.Pursuit — not in Cause→When map
+
+  // Null trigger unchanged
+  {
+    const counts = buildTriggerCounts(new Map([[88, 3]]));
+    assert(counts.get(89) === 3, "Cause 88 → When 89 count 3");
+    const m = makeManifestation({
+      id: 1,
+      tagId: critTag.id,
+      tagName: critTag.tagName,
+      valueScalar: 0.15,
+      triggerCondition: null,
+    });
+    const ctx = createManifestationApplyContext([], [], counts);
+    const result = evaluateManifestationApply(m, ctx);
+    assert(result.applied === true, "null trigger still applied");
+    assert(result.triggerTimes == null, "null trigger has no times");
+  }
+
+  // Cause 88 scalar 3 → When 89-gated row contributes 3 × scalar via computeReviewTagTotals
+  {
+    const baseTag = makeTag(
+      DEFENDER_BASE_DEATH_RESIST_TAG_ID,
+      "Defender.Base Death Resist",
+      true,
+    );
+    const inMissionTag = makeTag(
+      IN_MISSION_DEATH_RESIST_TAG_ID,
+      "Defender.Base Death Resist.In Mission Death Resist",
+      true,
+    );
+    const causeTag = makeTag(
+      SPECIAL_CAUSE_DEATH_RESIST_TRIGGER_TAG_ID,
+      "Special.Cause.Death Resist Trigger",
+    );
+    const tagsById: Record<number, Tag> = {
+      [baseTag.id]: baseTag,
+      [inMissionTag.id]: inMissionTag,
+      [causeTag.id]: causeTag,
+      [whenDr.id]: whenDr,
+      [critTag.id]: critTag,
+    };
+    // Base 5 → In Mission 2 → Cause 2; gated Crit 0.15 → 0.30
+    const awakener = makeAwakener({ id: 1, deathResist: 5 });
+    const gated = makeManifestation({
+      id: 20,
+      tagId: critTag.id,
+      tagName: critTag.tagName,
+      valueScalar: 0.15,
+      triggerCondition: SPECIAL_WHEN_DEATH_RESIST_TRIGGER_TAG_ID,
+      sourceKind: "wheel",
+      awakenerId: 1,
+    });
+    const teamData: TeamData = {
+      ...createEmptyTeamData(),
+      awakeners: [awakener],
+      manifestations: [gated],
+      tagsById,
+    };
+    const { totalsByTagId, triggerCounts } = computeReviewTagTotals(
+      teamData,
+      createManifestationApplyContext([awakener], []),
+    );
+    assert(
+      triggerCounts.get(SPECIAL_WHEN_DEATH_RESIST_TRIGGER_TAG_ID) === 2,
+      `When DR count 2 (got ${triggerCounts.get(SPECIAL_WHEN_DEATH_RESIST_TRIGGER_TAG_ID)})`,
+    );
+    assert(
+      Math.abs((totalsByTagId.get(critTag.id) ?? 0) - 0.3) < 1e-9,
+      `gated Crit 0.15×2 = 0.3 (got ${totalsByTagId.get(critTag.id)})`,
+    );
+  }
+
+  // Cause 0 / unknown When 108 → gated row Applied=no
+  {
+    const tagsById: Record<number, Tag> = {
+      [ampTag.id]: ampTag,
+    };
+    const awakener = makeAwakener({ id: 1 });
+    const gated = makeManifestation({
+      id: 21,
+      tagId: ampTag.id,
+      tagName: ampTag.tagName,
+      valueScalar: 0.4,
+      triggerCondition: unknownWhenId,
+      sourceKind: "wheel",
+    });
+    const teamData: TeamData = {
+      ...createEmptyTeamData(),
+      awakeners: [awakener],
+      manifestations: [gated],
+      tagsById,
+    };
+    const { totalsByTagId, triggerCounts } = computeReviewTagTotals(
+      teamData,
+      createManifestationApplyContext([awakener], []),
+    );
+    assert(
+      (triggerCounts.get(unknownWhenId) ?? 0) === 0,
+      "unknown When not in counts",
+    );
+    assert(
+      (totalsByTagId.get(ampTag.id) ?? 0) === 0,
+      "Pursuit-gated AMP unapplied",
+    );
+    const ctx = createManifestationApplyContext(
+      [awakener],
+      [],
+      triggerCounts,
+    );
+    const evalResult = evaluateManifestationApply(gated, ctx);
+    assert(evalResult.applied === false, "unknown When → not applied");
+    assert(
+      evalResult.reason === "trigger_condition",
+      "reason is trigger_condition",
+    );
+  }
+
+  // Posse: sum of tag 52 → When 129 count
+  {
+    const tagsById: Record<number, Tag> = {
+      [createPosse.id]: createPosse,
+      [whenPosse.id]: whenPosse,
+      [critTag.id]: critTag,
+    };
+    const awakener = makeAwakener({ id: 1 });
+    const create1 = makeManifestation({
+      id: 30,
+      tagId: createPosse.id,
+      tagName: createPosse.tagName,
+      valueScalar: 1,
+      sourceKind: "wheel",
+    });
+    const create2 = makeManifestation({
+      id: 31,
+      tagId: createPosse.id,
+      tagName: createPosse.tagName,
+      valueScalar: 1,
+      sourceKind: "wheel",
+    });
+    const gated = makeManifestation({
+      id: 32,
+      tagId: critTag.id,
+      tagName: critTag.tagName,
+      valueScalar: 0.05,
+      triggerCondition: SPECIAL_WHEN_POSSE_TAG_ID,
+      sourceKind: "wheel",
+    });
+    const teamData: TeamData = {
+      ...createEmptyTeamData(),
+      awakeners: [awakener],
+      manifestations: [create1, create2, gated],
+      tagsById,
+    };
+    const { totalsByTagId, triggerCounts } = computeReviewTagTotals(
+      teamData,
+      createManifestationApplyContext([awakener], []),
+    );
+    assert(
+      triggerCounts.get(SPECIAL_WHEN_POSSE_TAG_ID) === 2,
+      `When Posse count 2 (got ${triggerCounts.get(SPECIAL_WHEN_POSSE_TAG_ID)})`,
+    );
+    assert(
+      Math.abs((totalsByTagId.get(critTag.id) ?? 0) - 0.1) < 1e-9,
+      `Posse-gated Crit 0.05×2 = 0.1 (got ${totalsByTagId.get(critTag.id)})`,
+    );
+    assert(
+      (totalsByTagId.get(createPosse.id) ?? 0) === 2,
+      "Create.Posse totals still counted",
+    );
+  }
 }
 
 console.log("\nAll Phase 2b.1 smoke checks passed.");

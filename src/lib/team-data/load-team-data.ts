@@ -94,6 +94,7 @@ const AWAKENER_MANIFESTATION_SELECT = `
   id,
   awakener_id,
   tag_id,
+  trigger_condition,
   value_scalar,
   base_hits,
   dependency_stat,
@@ -127,6 +128,7 @@ async function fetchAwakenerManifestations(
 const GEAR_MANIFESTATION_SELECT = `
   id,
   tag_id,
+  trigger_condition,
   value_scalar,
   target_type,
   buff_target_type_restriction,
@@ -139,6 +141,7 @@ const GEAR_MANIFESTATION_SELECT = `
 const COVENANT_MANIFESTATION_SELECT = `
   id,
   tag_id,
+  trigger_condition,
   value_scalar,
   target_type,
   buff_target_type_restriction,
@@ -236,6 +239,7 @@ function mapGearManifestation(
   row: {
     id: number;
     tag_id: number | null;
+    trigger_condition?: number | null;
     value_scalar: number | null;
     target_type: Manifestation["targetType"];
     is_accumulating: boolean;
@@ -269,6 +273,8 @@ function mapGearManifestation(
     sourceName,
     tagId: tag?.id ?? row.tag_id ?? 0,
     tagName: tag?.tagName ?? "Unknown",
+    // Posse rows have no trigger_condition column → always null.
+    triggerCondition: row.trigger_condition ?? null,
     valueScalar: row.value_scalar,
     baseHits: row.base_hits ?? null,
     dependencyStat: row.dependency_stat ?? null,
@@ -741,6 +747,7 @@ export async function fetchTeamData(
       sourceName,
       tagId: tag?.id ?? row.tag_id ?? 0,
       tagName: tag?.tagName ?? "Unknown",
+      triggerCondition: row.trigger_condition ?? null,
       valueScalar: row.value_scalar,
       baseHits: row.base_hits,
       dependencyStat: row.dependency_stat,

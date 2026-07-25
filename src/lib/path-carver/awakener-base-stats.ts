@@ -255,6 +255,7 @@ export function buildBaseStatTransferManifestations(
         sourceName: "Base stat",
         tagId: spec.tagId,
         tagName: tag?.tagName ?? `#${spec.tagId}`,
+        triggerCondition: null,
         valueScalar: value,
         baseHits: null,
         dependencyStat: null,

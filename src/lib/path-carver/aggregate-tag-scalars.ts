@@ -20,6 +20,10 @@ import {
   isManifestationApplied,
   type ManifestationApplyContext,
 } from "@/lib/path-carver/manifestation-apply";
+import {
+  buildTriggerCounts,
+  triggerApplyMultiplier,
+} from "@/lib/path-carver/trigger-condition";
 import type { Awakener, Manifestation, TeamData } from "@/lib/team-data/types";
 
 export type ReviewTagTotals = {
@@ -30,7 +34,31 @@ export type ReviewTagTotals = {
    * transfer manifestations appended (for Review Tags debug / display).
    */
   reviewTeamData: TeamData;
+  /** When tag id → apply-times (from Cause totals). */
+  triggerCounts: Map<number, number>;
 };
+
+/** Clone with value_scalar × multiplier (for N trigger applications). */
+export function scaleManifestationByTrigger(
+  m: Manifestation,
+  multiplier: number,
+): Manifestation {
+  if (multiplier === 1 || m.valueScalar == null) return m;
+  return { ...m, valueScalar: m.valueScalar * multiplier };
+}
+
+function sumCauseTotals(
+  manifestations: readonly Manifestation[],
+  awakenersById: ReadonlyMap<number, Awakener>,
+): Map<number, number> {
+  const totals = new Map<number, number>();
+  for (const m of manifestations) {
+    const scalar = effectiveManifestationScalar(m, awakenersById);
+    if (scalar === 0) continue;
+    totals.set(m.tagId, (totals.get(m.tagId) ?? 0) + scalar);
+  }
+  return totals;
+}
 
 /** Base Layer A sums only (no interactions). Uses dependency-scaled effective scalars. */
 export function aggregateTagScalarsById(
@@ -42,7 +70,9 @@ export function aggregateTagScalarsById(
   const totals = new Map<number, number>();
   for (const m of manifestations) {
     if (!isManifestationApplied(m, applyContext)) continue;
-    const scalar = effectiveManifestationScalar(m, awakenersById);
+    const mult = triggerApplyMultiplier(m, applyContext.triggerCounts);
+    if (mult === 0) continue;
+    const scalar = effectiveManifestationScalar(m, awakenersById) * mult;
     if (scalar === 0) continue;
     totals.set(m.tagId, (totals.get(m.tagId) ?? 0) + scalar);
   }
@@ -51,21 +81,24 @@ export function aggregateTagScalarsById(
 
 /**
  * Review Tags totals:
- * Layer A filter → total base stats (gear + DR + Special.Increase) →
- * inject base-stat transfer tags → Layer B interactions (transfers immune as subjects).
+ * Layer A null-trigger → total base stats → transfers + Death Resist Cause →
+ * Cause→When counts → Layer A triggered (×N) → Layer B interactions.
  */
 export function computeReviewTagTotals(
   teamData: TeamData,
   applyContext: ManifestationApplyContext,
 ): ReviewTagTotals {
-  const appliedReal = teamData.manifestations.filter(
+  // Pass 1: null-trigger only (ignore trigger gate — column is null).
+  const appliedNullTrigger = teamData.manifestations.filter(
     (m) =>
-      !m.isBaseStatTransfer && isManifestationApplied(m, applyContext),
+      !m.isBaseStatTransfer &&
+      m.triggerCondition == null &&
+      isManifestationApplied(m, applyContext),
   );
 
   const totalAwakeners = computeAwakenerTotalBaseStats(
     teamData,
-    appliedReal,
+    appliedNullTrigger,
   );
   const transfers = buildBaseStatTransferManifestations(
     totalAwakeners,
@@ -76,7 +109,7 @@ export function computeReviewTagTotals(
   // Full tag 12 Layer A total: ATM/other + base-stat transfers (not awakener column alone).
   let baseDeathResistTotal = 0;
   let directInMissionTotal = 0;
-  for (const m of [...appliedReal, ...transfers]) {
+  for (const m of [...appliedNullTrigger, ...transfers]) {
     const scalar = effectiveManifestationScalar(m, awakenersById);
     if (scalar === 0) continue;
     if (m.tagId === DEFENDER_BASE_DEATH_RESIST_TAG_ID) {
@@ -92,6 +125,26 @@ export function computeReviewTagTotals(
   );
   const allTransfers = [...transfers, ...derived];
 
+  const causeTotals = sumCauseTotals(
+    [...appliedNullTrigger, ...allTransfers],
+    awakenersById,
+  );
+  const triggerCounts = buildTriggerCounts(causeTotals);
+  const applyWithTriggers: ManifestationApplyContext = {
+    ...applyContext,
+    triggerCounts,
+  };
+
+  // Pass 2: triggered rows — same Layer A gates + count > 0, scaled ×N.
+  const appliedTriggered: Manifestation[] = [];
+  for (const m of teamData.manifestations) {
+    if (m.isBaseStatTransfer) continue;
+    if (m.triggerCondition == null) continue;
+    if (!isManifestationApplied(m, applyWithTriggers)) continue;
+    const mult = triggerApplyMultiplier(m, triggerCounts);
+    appliedTriggered.push(scaleManifestationByTrigger(m, mult));
+  }
+
   const reviewTeamData: TeamData = {
     ...teamData,
     awakeners: totalAwakeners,
@@ -106,12 +159,17 @@ export function computeReviewTagTotals(
     manifestationCount: reviewTeamData.manifestations.length,
   };
 
-  const applied = [...appliedReal, ...allTransfers];
+  const applied = [
+    ...appliedNullTrigger,
+    ...allTransfers,
+    ...appliedTriggered,
+  ];
   const result = applyInteractionsForTeamData(reviewTeamData, applied);
   return {
     totalsByTagId: result.totalsByTagId,
     steps: result.steps,
     reviewTeamData,
+    triggerCounts,
   };
 }
 

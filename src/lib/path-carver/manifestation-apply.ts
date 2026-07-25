@@ -1,13 +1,17 @@
 import type { Awakener, Manifestation, Realm } from "@/lib/team-data/types";
+import { getTriggerCount } from "@/lib/path-carver/trigger-condition";
 
 export type ManifestationApplyReason =
   | "realm"
   | "required_awakener"
-  | "attacker.not_damage_dealer";
+  | "attacker.not_damage_dealer"
+  | "trigger_condition";
 
 export type ManifestationApplyResult = {
   applied: boolean;
   reason: ManifestationApplyReason | null;
+  /** Apply-times from Cause→When; null when ungated. */
+  triggerTimes: number | null;
 };
 
 export type ManifestationApplyContext = {
@@ -16,6 +20,8 @@ export type ManifestationApplyContext = {
   teamAwakenerIds: Set<number>;
   /** Build-step anchors with isDamageDealer === true. */
   damageDealerAwakenerIds: Set<number>;
+  /** When tag id → apply-times. Missing / unknown When → 0. */
+  triggerCounts: ReadonlyMap<number, number>;
 };
 
 export function getTeamRealms(awakeners: Awakener[]): Set<Realm> {
@@ -34,12 +40,14 @@ export function isChaosOnlyTeam(awakeners: Awakener[]): boolean {
 export function createManifestationApplyContext(
   awakeners: Awakener[],
   damageDealerAwakenerIds: Iterable<number> = [],
+  triggerCounts: ReadonlyMap<number, number> = new Map(),
 ): ManifestationApplyContext {
   return {
     teamRealms: getTeamRealms(awakeners),
     teamIsChaosOnly: isChaosOnlyTeam(awakeners),
     teamAwakenerIds: new Set(awakeners.map((a) => a.id)),
     damageDealerAwakenerIds: new Set(damageDealerAwakenerIds),
+    triggerCounts,
   };
 }
 
@@ -59,7 +67,7 @@ function realmAndRequiredAwakenerPass(
     m.requiredAwakenerId != null &&
     !ctx.teamAwakenerIds.has(m.requiredAwakenerId)
   ) {
-    return { applied: false, reason: "required_awakener" };
+    return { applied: false, reason: "required_awakener", triggerTimes: null };
   }
 
   const requiredRealms = [m.requiredRealm, m.requiredRealm2].filter(
@@ -67,7 +75,7 @@ function realmAndRequiredAwakenerPass(
   );
 
   if (requiredRealms.length === 0) {
-    return { applied: true, reason: null };
+    return { applied: true, reason: null, triggerTimes: null };
   }
 
   // Covenant required_realm1/required_realm2 use AND: every non-null realm must match.
@@ -77,10 +85,10 @@ function realmAndRequiredAwakenerPass(
     realmRequirementMet(required, ctx),
   );
   if (!realmsOk) {
-    return { applied: false, reason: "realm" };
+    return { applied: false, reason: "realm", triggerTimes: null };
   }
 
-  return { applied: true, reason: null };
+  return { applied: true, reason: null, triggerTimes: null };
 }
 
 function isAttackerTag(tagName: string): boolean {
@@ -92,35 +100,44 @@ function isAttackerTag(tagName: string): boolean {
  * Posse skips target_type and damage-dealer gates (realm / required_awakener only).
  * Attacker.* (any target_type) requires the owner awakener to be a damage dealer.
  * Base-stat transfer synthetics always apply.
+ * Non-null trigger_condition also requires Cause→When count > 0.
  */
 export function evaluateManifestationApply(
   m: Manifestation,
   ctx: ManifestationApplyContext,
 ): ManifestationApplyResult {
   if (m.isBaseStatTransfer) {
-    return { applied: true, reason: null };
+    return { applied: true, reason: null, triggerTimes: null };
   }
 
   const base = realmAndRequiredAwakenerPass(m, ctx);
   if (!base.applied) return base;
 
   // Posse: skip target_type and damage-dealer gates.
-  if (m.sourceKind === "posse") {
-    return { applied: true, reason: null };
-  }
-
-  if (isAttackerTag(m.tagName)) {
+  if (m.sourceKind !== "posse" && isAttackerTag(m.tagName)) {
     const ownerId = m.awakenerId;
     if (
       ownerId == null ||
       !ctx.damageDealerAwakenerIds.has(ownerId)
     ) {
-      return { applied: false, reason: "attacker.not_damage_dealer" };
+      return {
+        applied: false,
+        reason: "attacker.not_damage_dealer",
+        triggerTimes: null,
+      };
     }
   }
 
-  // Non-Attacker self / single / aoe / null: base scalar counts when realm OK.
-  return { applied: true, reason: null };
+  const triggerTimes = getTriggerCount(m, ctx.triggerCounts);
+  if (triggerTimes != null && triggerTimes <= 0) {
+    return { applied: false, reason: "trigger_condition", triggerTimes: 0 };
+  }
+
+  return {
+    applied: true,
+    reason: null,
+    triggerTimes,
+  };
 }
 
 export function isManifestationApplied(

@@ -365,6 +365,7 @@ export function buildManifestationsForComposition(
       sourceName,
       tagId: 0,
       tagName: raw.tagName,
+      triggerCondition: null,
       valueScalar: raw.valueScalar,
       baseHits: null,
       dependencyStat: raw.dependencyStat,

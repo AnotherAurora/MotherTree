@@ -58,6 +58,9 @@ export function ReviewTagsStep({
   );
   const [mathSteps, setMathSteps] = useState<ScalarMathStep[]>([]);
   const [teamData, setTeamData] = useState<TeamData | null>(null);
+  const [triggerCounts, setTriggerCounts] = useState<Map<number, number>>(
+    () => new Map(),
+  );
 
   const damageDealerAwakenerIds = useMemo(() => {
     const ids: number[] = [];
@@ -90,6 +93,7 @@ export function ReviewTagsStep({
         setScalarTotals(new Map());
         setMathSteps([]);
         setTeamData(null);
+        setTriggerCounts(new Map());
         return;
       }
 
@@ -97,13 +101,12 @@ export function ReviewTagsStep({
         result.data.awakeners,
         damageDealerAwakenerIds,
       );
-      const { totalsByTagId, steps, reviewTeamData } = computeReviewTagTotals(
-        result.data,
-        applyContext,
-      );
+      const { totalsByTagId, steps, reviewTeamData, triggerCounts: counts } =
+        computeReviewTagTotals(result.data, applyContext);
       setTeamData(reviewTeamData);
       setScalarTotals(totalsByTagId);
       setMathSteps(steps);
+      setTriggerCounts(counts);
 
       const tagRows: ManifestedTagRow[] = [];
 
@@ -145,8 +148,9 @@ export function ReviewTagsStep({
     return createManifestationApplyContext(
       teamData.awakeners,
       damageDealerAwakenerIds,
+      triggerCounts,
     );
-  }, [teamData, damageDealerAwakenerIds]);
+  }, [teamData, damageDealerAwakenerIds, triggerCounts]);
 
   function toggleTag(tag: ManifestedTagRow) {
     if (selectedIds.has(tag.tagId)) {

@@ -76,6 +76,8 @@ export type Manifestation = {
   sourceName: string | null;
   tagId: number;
   tagName: string;
+  /** FK to tag.id — When.* condition; null = no trigger gate. */
+  triggerCondition: number | null;
   valueScalar: number | null;
   baseHits: number | null;
   dependencyStat: AllStats | null;

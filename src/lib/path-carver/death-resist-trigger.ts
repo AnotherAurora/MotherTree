@@ -60,6 +60,7 @@ function makeDerivedTransfer(
     sourceName: "Death Resist convert",
     tagId,
     tagName: tag?.tagName ?? `#${tagId}`,
+    triggerCondition: null,
     valueScalar,
     baseHits: null,
     dependencyStat: null,
