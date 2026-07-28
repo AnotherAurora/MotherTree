@@ -9,9 +9,17 @@ export type Realm =
   | "caro"
   | "propagation caro"
   | "aequor"
-  | "divine aequor"
+  | "benthos aequor"
   | "ultra"
-  | "singularity ultra";
+  | "singularity ultra"
+  | "primordia chaos";
+
+/** Realm row used for team replace / family resolution. */
+export type RealmLookupRow = {
+  id: number;
+  name: string;
+  replace: number | null;
+};
 export type SourceType = Database["public"]["Enums"]["source_type"];
 export type TargetType = Database["public"]["Enums"]["target_type"];
 export type ManifestationSourceKind =
@@ -164,6 +172,8 @@ export type TeamData = {
   manifestations: Manifestation[];
   defaultInteractions: DefaultInteraction[];
   tagsById: Record<number, Tag>;
+  /** All realm rows (id / name / replace) for team realm resolution. */
+  realms: RealmLookupRow[];
   /** Per-slot wheel/covenant stat + stat_amount for total base stats. */
   gearStatContributions: GearStatContribution[];
   summary: TeamDataSummary;
@@ -175,6 +185,7 @@ export function createEmptyTeamData(): TeamData {
     manifestations: [],
     defaultInteractions: [],
     tagsById: {},
+    realms: [],
     gearStatContributions: [],
     summary: {
       awakenerCount: 0,

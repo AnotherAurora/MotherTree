@@ -4,7 +4,9 @@ import {
   applyManifestationReplacements,
   effectiveEnlightenment,
 } from "@/lib/team-data/resolve-manifestations";
-import type { AllStats, Realm } from "@/lib/team-data/types";
+import { CHAOS_REALM_ID } from "@/lib/team-data/realm";
+import { resolveTeamRealms } from "@/lib/team-data/resolve-team-realms";
+import type { AllStats, Realm, RealmLookupRow } from "@/lib/team-data/types";
 import type {
   CovenantGearOption,
   DesireDemandRow,
@@ -17,7 +19,7 @@ import type {
 import type { Manifestation } from "@/lib/team-data/types";
 import { computeFulfillment } from "@/lib/simulator/fulfillment";
 
-type RealmRef = { name: string } | null;
+type RealmRef = { name: string; replace?: number | null } | null;
 
 function realmName(ref: RealmRef | undefined): Realm | null {
   return (ref?.name as Realm | undefined) ?? null;
@@ -27,6 +29,9 @@ export type CatalogAwakener = {
   id: number;
   name: string;
   realm: Realm | null;
+  realmId: number | null;
+  /** `replace ?? id` — used for max-2 family limit. */
+  realmFamilyId: number | null;
   enlightenment: number;
 };
 
@@ -41,19 +46,37 @@ type RawManifestation = {
   dependencyStat: AllStats | null;
 };
 
-function matchesSlotRealmRequirement(
-  requiredRealm: Realm | null,
-  requiredRealm2: Realm | null,
-  slotRealm: Realm | null,
+function slotSatisfiesRequiredRealm(
+  requiredId: number | null,
+  slotRealmId: number | null,
+  realms: RealmLookupRow[],
 ): boolean {
-  if (requiredRealm == null && requiredRealm2 == null) return true;
-  if (slotRealm == null) return true;
-  return requiredRealm === slotRealm || requiredRealm2 === slotRealm;
+  if (requiredId == null) return true;
+  if (slotRealmId == null) return true;
+  return resolveTeamRealms([slotRealmId], realms).satisfiesRequiredRealm(
+    requiredId,
+    "present",
+  );
+}
+
+function matchesSlotRealmRequirement(
+  requiredRealmId: number | null,
+  requiredRealmId2: number | null,
+  slotRealmId: number | null,
+  realms: RealmLookupRow[],
+): boolean {
+  if (requiredRealmId == null && requiredRealmId2 == null) return true;
+  if (slotRealmId == null) return true;
+  const ids = [requiredRealmId, requiredRealmId2].filter(
+    (id): id is number => id != null,
+  );
+  return ids.every((id) => slotSatisfiesRequiredRealm(id, slotRealmId, realms));
 }
 
 export type SimulatorCatalog = {
   desire: DesireDetail;
   awakeners: CatalogAwakener[];
+  realms: RealmLookupRow[];
   posseOptions: GearOption[];
   wheelOptions: WheelGearOption[];
   covenantOptions: CovenantGearOption[];
@@ -176,10 +199,13 @@ export async function loadSimulatorCatalog(
     wheelManifestResult,
     covenantManifestResult,
     posseManifestResult,
+    realmsResult,
   ] = await Promise.all([
     supabase
       .from("awakener")
-      .select("id, name, realm_ref:realm!awakener_realm_fkey(name), enlightenment")
+      .select(
+        "id, name, realm, realm_ref:realm!awakener_realm_fkey(name, replace), enlightenment",
+      )
       .is("deleted_at", null),
     supabase.from("posse").select("id, name").is("deleted_at", null),
     supabase
@@ -214,6 +240,7 @@ export async function loadSimulatorCatalog(
         "posse_id, tag_id, value_scalar, required_realm, required_realm_ref:realm!required_realm(name), required_awakener, dependency_stat",
       )
       .is("deleted_at", null),
+    supabase.from("realm").select("id, name, replace").is("deleted_at", null),
   ]);
 
   for (const result of [
@@ -225,9 +252,16 @@ export async function loadSimulatorCatalog(
     wheelManifestResult,
     covenantManifestResult,
     posseManifestResult,
+    realmsResult,
   ]) {
     if (result.error) throw new Error(result.error.message);
   }
+
+  const realms: RealmLookupRow[] = (realmsResult.data ?? []).map((row) => ({
+    id: row.id,
+    name: row.name,
+    replace: row.replace,
+  }));
 
   const allTagIds = new Set<number>();
   for (const row of awakenerManifestResult.data ?? []) {
@@ -246,12 +280,22 @@ export async function loadSimulatorCatalog(
   const tagNames = await loadTagNameMap(supabase, [...allTagIds]);
 
   const awakeners: CatalogAwakener[] = (awakenerResult.data ?? []).map(
-    (row) => ({
-      id: row.id,
-      name: row.name ?? `#${row.id}`,
-      realm: realmName(row.realm_ref as RealmRef),
-      enlightenment: effectiveEnlightenment(row.enlightenment),
-    }),
+    (row) => {
+      const realmRef = row.realm_ref as {
+        name: string;
+        replace: number | null;
+      } | null;
+      const realmId = row.realm ?? null;
+      return {
+        id: row.id,
+        name: row.name ?? `#${row.id}`,
+        realm: realmName(realmRef),
+        realmId,
+        realmFamilyId:
+          realmId == null ? null : (realmRef?.replace ?? realmId),
+        enlightenment: effectiveEnlightenment(row.enlightenment),
+      };
+    },
   );
 
   const awakenerManifestations = new Map<number, RawManifestation[]>();
@@ -331,6 +375,7 @@ export async function loadSimulatorCatalog(
   return {
     desire,
     awakeners,
+    realms,
     posseOptions: (posseResult.data ?? []).map((p) => ({
       value: p.id,
       label: p.name ?? `#${p.id}`,
@@ -363,13 +408,10 @@ export function buildManifestationsForComposition(
   const selectedAwakenerIds = composition.slots
     .map((s) => s.awakenerId)
     .filter((id): id is number => id != null);
-  const realms = [
-    ...new Set(
-      selectedAwakenerIds
-        .map((id) => catalog.awakeners.find((a) => a.id === id)?.realm)
-        .filter((r): r is Realm => r != null),
-    ),
-  ];
+  const teamRealmIds = selectedAwakenerIds.map(
+    (id) => catalog.awakeners.find((a) => a.id === id)?.realmId,
+  );
+  const teamRealms = resolveTeamRealms(teamRealmIds, catalog.realms);
 
   function pushRaw(
     raw: RawManifestation,
@@ -418,15 +460,16 @@ export function buildManifestationsForComposition(
   for (const [slotIndex, slot] of composition.slots.entries()) {
     if (slot.awakenerId != null) {
       const awakener = catalog.awakeners.find((a) => a.id === slot.awakenerId);
-      const slotRealm = awakener?.realm ?? null;
+      const slotRealmId = awakener?.realmId ?? null;
       const awakenerName = awakener?.name ?? `#${slot.awakenerId}`;
       const rows = catalog.awakenerManifestations.get(slot.awakenerId) ?? [];
       for (const raw of rows) {
         if (
           !matchesSlotRealmRequirement(
-            raw.requiredRealm,
-            raw.requiredRealm2,
-            slotRealm,
+            raw.requiredRealmId,
+            raw.requiredRealmId2,
+            slotRealmId,
+            catalog.realms,
           )
         ) {
           continue;
@@ -441,9 +484,10 @@ export function buildManifestationsForComposition(
         for (const raw of wheelRows) {
           if (
             !matchesSlotRealmRequirement(
-              raw.requiredRealm,
-              raw.requiredRealm2,
-              slotRealm,
+              raw.requiredRealmId,
+              raw.requiredRealmId2,
+              slotRealmId,
+              catalog.realms,
             )
           ) {
             continue;
@@ -459,9 +503,10 @@ export function buildManifestationsForComposition(
         for (const raw of wheelRows) {
           if (
             !matchesSlotRealmRequirement(
-              raw.requiredRealm,
-              raw.requiredRealm2,
-              slotRealm,
+              raw.requiredRealmId,
+              raw.requiredRealmId2,
+              slotRealmId,
+              catalog.realms,
             )
           ) {
             continue;
@@ -480,9 +525,10 @@ export function buildManifestationsForComposition(
         for (const raw of covenantRows) {
           if (
             !matchesSlotRealmRequirement(
-              raw.requiredRealm,
-              raw.requiredRealm2,
-              slotRealm,
+              raw.requiredRealmId,
+              raw.requiredRealmId2,
+              slotRealmId,
+              catalog.realms,
             )
           ) {
             continue;
@@ -510,12 +556,12 @@ export function buildManifestationsForComposition(
       ) {
         continue;
       }
-      if (
-        raw.requiredRealm != null &&
-        realms.length > 0 &&
-        !realms.includes(raw.requiredRealm)
-      ) {
-        continue;
+      if (raw.requiredRealmId != null) {
+        const mode =
+          raw.requiredRealmId === CHAOS_REALM_ID ? "exclusive" : "present";
+        if (!teamRealms.satisfiesRequiredRealm(raw.requiredRealmId, mode)) {
+          continue;
+        }
       }
       pushRaw(raw, "posse", null, null, posseName);
     }

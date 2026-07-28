@@ -503,6 +503,7 @@ function resolveOpAndFactor(
   interaction: DefaultInteraction,
   override: InteractionOverride | null,
   ownerAwakener: Awakener | null,
+  tagIsPercent = false,
 ): { op: OperationType; factor: number; disabled: boolean } {
   if (override?.isDisabled) {
     return {
@@ -517,6 +518,7 @@ function resolveOpAndFactor(
     override,
     interaction.defaultFactor,
     ownerAwakener,
+    tagIsPercent,
   );
 
   return { op, factor, disabled: false };
@@ -575,6 +577,7 @@ function applyPresenceMultiplyOnce(
   targets: Tag[],
   modifierTagId: number,
   modifierTagName: string,
+  modifierTagIsPercent: boolean,
   steps: ScalarMathStep[],
   pass: number,
   presenceApplied: Set<string>,
@@ -634,6 +637,7 @@ function applyPresenceMultiplyOnce(
           interaction,
           override,
           ownerAwakener,
+          modifierTagIsPercent,
         );
         factor = resolved.factor;
         break;
@@ -772,6 +776,7 @@ function applyInteractionOnto(
     tagsById[modifierTagId]?.tagName ??
     interaction.modifierTagName ??
     `#${modifierTagId}`;
+  const modifierTagIsPercent = tagsById[modifierTagId]?.isPercent === true;
 
   const modifierManifests = collectModifierManifestations(
     appliedManifestations,
@@ -806,6 +811,7 @@ function applyInteractionOnto(
       targets,
       modifierTagId,
       modifierTagName,
+      modifierTagIsPercent,
       steps,
       pass,
       presenceApplied,
@@ -866,6 +872,7 @@ function applyInteractionOnto(
         interaction,
         override,
         ownerAwakener,
+        modifierTagIsPercent,
       );
       if (resolved.disabled) continue;
 
@@ -945,6 +952,7 @@ function applyInteractionOnto(
           interaction,
           override,
           ownerAwakener,
+          modifierTagIsPercent,
         );
         defaultOp = resolved.op;
         defaultFactor = resolved.factor;
@@ -998,6 +1006,7 @@ function applyInteractionOnto(
           interaction,
           override,
           ownerAwakener,
+          modifierTagIsPercent,
         );
         applyOpAndRecord(
           next,
@@ -1076,6 +1085,7 @@ function applyInteractionOnto(
             interaction,
             override,
             ownerAwakener,
+            modifierTagIsPercent,
           );
           applyOpAndRecord(
             next,
@@ -1152,6 +1162,7 @@ function applyInteractionOnto(
           interaction,
           override,
           ownerAwakener,
+          modifierTagIsPercent,
         );
         applyOpAndRecord(
           next,
@@ -1305,7 +1316,11 @@ function runInteractionsForLeafContext(
 
   for (const m of options.appliedManifestations) {
     const raw = m.valueScalar ?? 0;
-    const scalar = effectiveManifestationScalar(m, options.awakenersById);
+    const scalar = effectiveManifestationScalar(
+      m,
+      options.awakenersById,
+      options.tagsById,
+    );
     if (scalar === 0 && raw === 0) continue;
     if (scalar === 0) continue;
     mergeOwnerValue(
@@ -1446,7 +1461,7 @@ export function applyInteractions(
   // Record every applied manifestation's base once (raw vs effective).
   for (const m of applied) {
     const raw = m.valueScalar ?? 0;
-    const scalar = effectiveManifestationScalar(m, awakenersById);
+    const scalar = effectiveManifestationScalar(m, awakenersById, input.tagsById);
     if (scalar === 0) continue;
     steps.push({
       kind: "base",
@@ -1467,7 +1482,7 @@ export function applyInteractions(
   );
 
   const subjects = applied.filter((m) => {
-    const scalar = effectiveManifestationScalar(m, awakenersById);
+    const scalar = effectiveManifestationScalar(m, awakenersById, input.tagsById);
     return scalar !== 0;
   });
 
@@ -1480,7 +1495,11 @@ export function applyInteractions(
     for (const subject of subjects) {
       // Base-stat transfers: contribute absolute scalar; never receive interactions.
       if (subject.isBaseStatTransfer) {
-        const scalar = effectiveManifestationScalar(subject, awakenersById);
+        const scalar = effectiveManifestationScalar(
+          subject,
+          awakenersById,
+          input.tagsById,
+        );
         if (scalar !== 0) {
           mergeOwnerValue(
             mergedOwnerValues,

@@ -182,6 +182,7 @@ function applyDiminishingReturns(byId: Map<number, Awakener>): void {
 function applySpecialIncreaseBaseKeyflare(
   byId: Map<number, Awakener>,
   appliedManifestations: readonly Manifestation[],
+  tagsById: Readonly<Record<number, Tag>>,
 ): void {
   const preBoostById = buildAwakenersById([...byId.values()]);
   const boostSumByAwakener = new Map<number, number>();
@@ -191,7 +192,7 @@ function applySpecialIncreaseBaseKeyflare(
     if (m.isBaseStatTransfer) continue;
     if (m.awakenerId == null) continue;
 
-    const scalar = effectiveManifestationScalar(m, preBoostById);
+    const scalar = effectiveManifestationScalar(m, preBoostById, tagsById);
     boostSumByAwakener.set(
       m.awakenerId,
       (boostSumByAwakener.get(m.awakenerId) ?? 0) + scalar,
@@ -211,7 +212,7 @@ function applySpecialIncreaseBaseKeyflare(
  * Special.Increase Base Keyflare. Result feeds dependency_stat scaling.
  */
 export function computeAwakenerTotalBaseStats(
-  teamData: Pick<TeamData, "awakeners" | "gearStatContributions">,
+  teamData: Pick<TeamData, "awakeners" | "gearStatContributions" | "tagsById">,
   appliedManifestations: readonly Manifestation[],
 ): Awakener[] {
   const byId = sumGearOntoAwakeners(
@@ -219,7 +220,11 @@ export function computeAwakenerTotalBaseStats(
     teamData.gearStatContributions,
   );
   applyDiminishingReturns(byId);
-  applySpecialIncreaseBaseKeyflare(byId, appliedManifestations);
+  applySpecialIncreaseBaseKeyflare(
+    byId,
+    appliedManifestations,
+    teamData.tagsById,
+  );
   return [...byId.values()];
 }
 

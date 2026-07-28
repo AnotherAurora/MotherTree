@@ -4,6 +4,7 @@ import type {
   InteractionOverride,
   Manifestation,
   ManifestationSourceKind,
+  Tag,
 } from "@/lib/team-data/types";
 
 /** Percent dependency_stat: both operands ×100 before multiply. */
@@ -70,13 +71,13 @@ export function isPercentDependencyStat(stat: AllStats): boolean {
 
 /**
  * Ceil after dependency_stat scaling — same precision as multiply ops:
- * percent deps → 2 decimal places; otherwise whole number.
+ * tag.is_percent → 2 decimal places; otherwise whole number.
  */
 function ceilAfterDependencyScale(
   product: number,
-  isPercentDep: boolean,
+  tagIsPercent: boolean,
 ): number {
-  if (isPercentDep) return Math.ceil(product * 100) / 100;
+  if (tagIsPercent) return Math.ceil(product * 100) / 100;
   return Math.ceil(product);
 }
 
@@ -87,8 +88,9 @@ function ceilAfterDependencyScale(
  * - team_max_hp / enemy_max_hp: raw
  * - null dependency_stat: raw
  * - null awakener stat: treat as 0
- * - percent stats: (raw * 100) * (stat * 100), then ceil to 2 dp
- * - else: raw * stat, then ceil to whole number
+ * - percent dependency_stat: (raw * 100) * (stat * 100)
+ * - else: raw * stat
+ * - Ceil follows tag.is_percent (2 dp) vs whole number — not dependency_stat %
  * - Unscaled rows are not ceiled
  */
 export function scaleValueScalar(
@@ -96,6 +98,7 @@ export function scaleValueScalar(
   dependencyStat: AllStats | null,
   awakener: Awakener | null,
   sourceKind?: ManifestationSourceKind,
+  tagIsPercent = false,
 ): number {
   if (raw == null) return 0;
   if (sourceKind === "posse") return raw;
@@ -107,11 +110,11 @@ export function scaleValueScalar(
       ? (awakenerStatForDependency(awakener, dependencyStat) ?? 0)
       : 0;
 
-  const isPercent = PERCENT_DEPENDENCY_STATS.has(dependencyStat);
-  const product = isPercent
+  const isPercentDep = PERCENT_DEPENDENCY_STATS.has(dependencyStat);
+  const product = isPercentDep
     ? raw * 100 * (statValue * 100)
     : raw * statValue;
-  return ceilAfterDependencyScale(product, isPercent);
+  return ceilAfterDependencyScale(product, tagIsPercent);
 }
 
 export function ownerAwakenerForManifestation(
@@ -126,24 +129,27 @@ export function ownerAwakenerForManifestation(
 export function effectiveManifestationScalar(
   m: Manifestation,
   awakenersById: ReadonlyMap<number, Awakener>,
+  tagsById: Readonly<Record<number, Tag>>,
 ): number {
   return scaleValueScalar(
     m.valueScalar,
     m.dependencyStat,
     ownerAwakenerForManifestation(m, awakenersById),
     m.sourceKind,
+    tagsById[m.tagId]?.isPercent === true,
   );
 }
 
 /**
  * Effective factor from an override value_scalar (scaled by override.dependency_stat).
  * Owner = parent ATM awakener. Falls back to interaction defaultFactor when override
- * has no value_scalar.
+ * has no value_scalar. Ceil precision follows the modifier tag's is_percent.
  */
 export function effectiveOverrideFactor(
   override: InteractionOverride | null,
   defaultFactor: number | null,
   ownerAwakener: Awakener | null,
+  tagIsPercent = false,
 ): number {
   if (override?.valueScalar != null) {
     return scaleValueScalar(
@@ -151,6 +157,7 @@ export function effectiveOverrideFactor(
       override.dependencyStat,
       ownerAwakener,
       "awakener",
+      tagIsPercent,
     );
   }
   return defaultFactor ?? 0;

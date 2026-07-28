@@ -939,6 +939,8 @@ export type Database = {
         Row: {
           created_at: string | null
           deleted_at: string | null
+          dependency_stat: Database["public"]["Enums"]["all_stats"] | null
+          doubles_when_pure: boolean
           id: number
           is_accumulating: boolean
           is_permanent: boolean | null
@@ -952,6 +954,8 @@ export type Database = {
         Insert: {
           created_at?: string | null
           deleted_at?: string | null
+          dependency_stat?: Database["public"]["Enums"]["all_stats"] | null
+          doubles_when_pure?: boolean
           id?: number
           is_accumulating?: boolean
           is_permanent?: boolean | null
@@ -965,6 +969,8 @@ export type Database = {
         Update: {
           created_at?: string | null
           deleted_at?: string | null
+          dependency_stat?: Database["public"]["Enums"]["all_stats"] | null
+          doubles_when_pure?: boolean
           id?: number
           is_accumulating?: boolean
           is_permanent?: boolean | null
@@ -1263,7 +1269,7 @@ export type Database = {
         | "divine aequor"
         | "ultra"
         | "singularity ultra"
-      realm_match_mode: "present" | "exclusive"
+      realm_match_mode: "present" | "exclusive" | "combo"
       source_type: "command card" | "exalt" | "tentacle" | "rouse" | "talent"
       target_type: "self" | "single" | "aoe"
     }
@@ -1431,7 +1437,7 @@ export const Constants = {
         "ultra",
         "singularity ultra",
       ],
-      realm_match_mode: ["present", "exclusive"],
+      realm_match_mode: ["present", "exclusive", "combo"],
       source_type: ["command card", "exalt", "tentacle", "rouse", "talent"],
       target_type: ["self", "single", "aoe"],
     },

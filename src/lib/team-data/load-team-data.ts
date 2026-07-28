@@ -15,6 +15,7 @@ import {
   type Manifestation,
   type Layer,
   type Realm,
+  type RealmLookupRow,
   type Tag,
   type TeamData,
   type TeamDataInput,
@@ -180,20 +181,10 @@ const COVENANT_MANIFESTATION_SELECT = `
   tag!tag_id(id, tag_name, layer, is_percent, is_additive)
 `;
 
-function matchesCovenantSlotRealm(
-  requiredRealm1: Realm | null,
-  requiredRealm2: Realm | null,
-  slotRealm: Realm | null,
-): boolean {
-  if (requiredRealm1 == null && requiredRealm2 == null) return true;
-  if (slotRealm == null) return true;
-  return requiredRealm1 === slotRealm || requiredRealm2 === slotRealm;
-}
-
 async function fetchWheelManifestations(
   supabase: SupabaseClient<Database>,
   wheelId: number,
-  slotRealm: Realm | null,
+  _slotRealm: Realm | null,
 ) {
   const { data, error } = await supabase
     .from("wheel_tag_manifestation")
@@ -203,18 +194,15 @@ async function fetchWheelManifestations(
 
   if (error) throw new Error(error.message);
 
-  return (data ?? []).filter((row) => {
-    const required = realmName(row.required_realm_ref as RealmRef);
-    if (required == null) return true;
-    if (slotRealm == null) return true;
-    return required === slotRealm;
-  });
+  // Realm gating is soft-filtered later via isManifestationApplied so
+  // debug can show gated gear tags as Applied: no (incl. replacer→base).
+  return data ?? [];
 }
 
 async function fetchCovenantManifestations(
   supabase: SupabaseClient<Database>,
   covenantId: number,
-  slotRealm: Realm | null,
+  _slotRealm: Realm | null,
 ) {
   const { data, error } = await supabase
     .from("covenant_tag_manifestation")
@@ -224,19 +212,13 @@ async function fetchCovenantManifestations(
 
   if (error) throw new Error(error.message);
 
-  return (data ?? []).filter((row) =>
-    matchesCovenantSlotRealm(
-      realmName(row.required_realm1_ref as RealmRef),
-      realmName(row.required_realm2_ref as RealmRef),
-      slotRealm,
-    ),
-  );
+  return data ?? [];
 }
 
 async function fetchPosseManifestations(
   supabase: SupabaseClient<Database>,
   posseId: number,
-  realms: Realm[],
+  _realms: Realm[],
 ) {
   const { data, error } = await supabase
     .from("posse_tag_manifestation")
@@ -246,15 +228,9 @@ async function fetchPosseManifestations(
 
   if (error) throw new Error(error.message);
 
-  // required_awakener is soft-filtered later via isManifestationApplied so
-  // debug can show gated posse tags as Applied: no.
-  return (data ?? []).filter((row) => {
-    const required = realmName(row.required_realm_ref as RealmRef);
-    if (required != null && realms.length > 0 && !realms.includes(required)) {
-      return false;
-    }
-    return true;
-  });
+  // required_awakener / required_realm are soft-filtered later via
+  // isManifestationApplied so debug can show gated posse tags as Applied: no.
+  return data ?? [];
 }
 
 function mapGearManifestation(
@@ -525,6 +501,11 @@ export async function fetchTeamData(
     )
     .is("deleted_at", null);
 
+  const realmsQuery = supabase
+    .from("realm")
+    .select("id, name, replace")
+    .is("deleted_at", null);
+
   const awakenerResult =
     awakenerIds.length > 0
       ? await supabase
@@ -536,7 +517,10 @@ export async function fetchTeamData(
           .is("deleted_at", null)
       : { data: [], error: null };
 
-  const defaultInteractionResult = await defaultInteractionsQuery;
+  const [defaultInteractionResult, realmsResult] = await Promise.all([
+    defaultInteractionsQuery,
+    realmsQuery,
+  ]);
 
   if (awakenerResult.error) {
     throw new Error(awakenerResult.error.message);
@@ -544,6 +528,15 @@ export async function fetchTeamData(
   if (defaultInteractionResult.error) {
     throw new Error(defaultInteractionResult.error.message);
   }
+  if (realmsResult.error) {
+    throw new Error(realmsResult.error.message);
+  }
+
+  const realmLookup: RealmLookupRow[] = (realmsResult.data ?? []).map((row) => ({
+    id: row.id,
+    name: row.name,
+    replace: row.replace,
+  }));
 
   const awakenerById = new Map(
     (awakenerResult.data ?? []).map((row) => [
@@ -854,6 +847,7 @@ export async function fetchTeamData(
     manifestations,
     defaultInteractions,
     tagsById,
+    realms: realmLookup,
     gearStatContributions,
   };
 

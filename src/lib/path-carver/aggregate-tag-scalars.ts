@@ -24,7 +24,13 @@ import {
   buildTriggerCounts,
   triggerApplyMultiplier,
 } from "@/lib/path-carver/trigger-condition";
-import type { Awakener, Manifestation, TeamData } from "@/lib/team-data/types";
+import type {
+  Awakener,
+  Manifestation,
+  RealmLookupRow,
+  Tag,
+  TeamData,
+} from "@/lib/team-data/types";
 
 export type ReviewTagTotals = {
   totalsByTagId: Map<number, number>;
@@ -50,10 +56,11 @@ export function scaleManifestationByTrigger(
 function sumCauseTotals(
   manifestations: readonly Manifestation[],
   awakenersById: ReadonlyMap<number, Awakener>,
+  tagsById: Readonly<Record<number, Tag>>,
 ): Map<number, number> {
   const totals = new Map<number, number>();
   for (const m of manifestations) {
-    const scalar = effectiveManifestationScalar(m, awakenersById);
+    const scalar = effectiveManifestationScalar(m, awakenersById, tagsById);
     if (scalar === 0) continue;
     totals.set(m.tagId, (totals.get(m.tagId) ?? 0) + scalar);
   }
@@ -65,6 +72,7 @@ export function aggregateTagScalarsById(
   manifestations: Manifestation[],
   applyContext: ManifestationApplyContext,
   awakeners: readonly Awakener[] = [],
+  tagsById: Readonly<Record<number, Tag>> = {},
 ): Map<number, number> {
   const awakenersById = buildAwakenersById(awakeners);
   const totals = new Map<number, number>();
@@ -72,7 +80,8 @@ export function aggregateTagScalarsById(
     if (!isManifestationApplied(m, applyContext)) continue;
     const mult = triggerApplyMultiplier(m, applyContext.triggerCounts);
     if (mult === 0) continue;
-    const scalar = effectiveManifestationScalar(m, awakenersById) * mult;
+    const scalar =
+      effectiveManifestationScalar(m, awakenersById, tagsById) * mult;
     if (scalar === 0) continue;
     totals.set(m.tagId, (totals.get(m.tagId) ?? 0) + scalar);
   }
@@ -110,7 +119,11 @@ export function computeReviewTagTotals(
   let baseDeathResistTotal = 0;
   let directInMissionTotal = 0;
   for (const m of [...appliedNullTrigger, ...transfers]) {
-    const scalar = effectiveManifestationScalar(m, awakenersById);
+    const scalar = effectiveManifestationScalar(
+      m,
+      awakenersById,
+      teamData.tagsById,
+    );
     if (scalar === 0) continue;
     if (m.tagId === DEFENDER_BASE_DEATH_RESIST_TAG_ID) {
       baseDeathResistTotal += scalar;
@@ -128,6 +141,7 @@ export function computeReviewTagTotals(
   const causeTotals = sumCauseTotals(
     [...appliedNullTrigger, ...allTransfers],
     awakenersById,
+    teamData.tagsById,
   );
   const triggerCounts = buildTriggerCounts(causeTotals);
   const applyWithTriggers: ManifestationApplyContext = {
@@ -177,11 +191,19 @@ export function aggregateTagScalarsForAwakeners(
   manifestations: Manifestation[],
   awakeners: Awakener[],
   damageDealerAwakenerIds: Iterable<number> = [],
+  realms: Iterable<RealmLookupRow> = [],
+  tagsById: Readonly<Record<number, Tag>> = {},
 ): Map<number, number> {
   return aggregateTagScalarsById(
     manifestations,
-    createManifestationApplyContext(awakeners, damageDealerAwakenerIds),
+    createManifestationApplyContext(
+      awakeners,
+      damageDealerAwakenerIds,
+      new Map(),
+      realms,
+    ),
     awakeners,
+    tagsById,
   );
 }
 

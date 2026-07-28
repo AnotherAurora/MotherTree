@@ -9,7 +9,7 @@ import {
   buildAwakenersById,
   effectiveManifestationScalar,
 } from "@/lib/path-carver/effective-value-scalar";
-import type { Awakener, Manifestation, TeamData } from "@/lib/team-data/types";
+import type { Awakener, Manifestation, Tag, TeamData } from "@/lib/team-data/types";
 import type { SlotState } from "@/lib/simulator/types";
 
 type ReviewTagsDebugProps = {
@@ -35,10 +35,11 @@ function formatCell(value: string | number | null | undefined): string {
 function formatScalarCell(
   m: Manifestation,
   awakenersById: ReadonlyMap<number, Awakener>,
+  tagsById: Readonly<Record<number, Tag>>,
 ): string {
   const raw = m.valueScalar;
   if (raw == null) return "—";
-  const effective = effectiveManifestationScalar(m, awakenersById);
+  const effective = effectiveManifestationScalar(m, awakenersById, tagsById);
   if (
     m.dependencyStat == null ||
     m.sourceKind === "posse" ||
@@ -75,10 +76,12 @@ function ManifestationTable({
   tags,
   applyContext,
   awakenersById,
+  tagsById,
 }: {
   tags: Manifestation[];
   applyContext: ManifestationApplyContext;
   awakenersById: ReadonlyMap<number, Awakener>;
+  tagsById: Readonly<Record<number, Tag>>;
 }) {
   if (tags.length === 0) {
     return <p className="text-zinc-400">None</p>;
@@ -122,7 +125,7 @@ function ManifestationTable({
               >
                 <td className="px-2 py-1.5 text-zinc-700">{m.tagName}</td>
                 <td className="px-2 py-1.5 tabular-nums">
-                  {formatScalarCell(m, awakenersById)}
+                  {formatScalarCell(m, awakenersById, tagsById)}
                 </td>
                 <td
                   className={
@@ -164,11 +167,13 @@ function SourceSubsection({
   tags,
   applyContext,
   awakenersById,
+  tagsById,
 }: {
   title: string;
   tags: Manifestation[];
   applyContext: ManifestationApplyContext;
   awakenersById: ReadonlyMap<number, Awakener>;
+  tagsById: Readonly<Record<number, Tag>>;
 }) {
   return (
     <div className="space-y-1">
@@ -179,6 +184,7 @@ function SourceSubsection({
         tags={tags}
         applyContext={applyContext}
         awakenersById={awakenersById}
+        tagsById={tagsById}
       />
     </div>
   );
@@ -244,15 +250,15 @@ export function ReviewTagsDebug({
   );
 
   const teamRealmList = useMemo(() => {
-    const names = [
-      ...new Set(
-        teamData.awakeners
-          .map((a) => a.realm)
-          .filter((r): r is NonNullable<typeof r> => r != null),
-      ),
-    ];
-    return names.sort().join(", ") || "none";
-  }, [teamData.awakeners]);
+    const effective = [...applyContext.teamRealmIds];
+    const nameById = new Map(
+      teamData.realms.map((r) => [r.id, r.name] as const),
+    );
+    const names = effective
+      .map((id) => nameById.get(id) ?? `#${id}`)
+      .sort((a, b) => a.localeCompare(b));
+    return names.join(", ") || "none";
+  }, [applyContext.teamRealmIds, teamData.realms]);
 
   const damageDealerList = useMemo(() => {
     const names: string[] = [];
@@ -299,18 +305,21 @@ export function ReviewTagsDebug({
                   tags={group.awakenerTags}
                   applyContext={applyContext}
                   awakenersById={awakenersById}
+                  tagsById={teamData.tagsById}
                 />
                 <SourceSubsection
                   title="Covenant tags"
                   tags={group.covenantTags}
                   applyContext={applyContext}
                   awakenersById={awakenersById}
+                  tagsById={teamData.tagsById}
                 />
                 <SourceSubsection
                   title="Wheel tags"
                   tags={group.wheelTags}
                   applyContext={applyContext}
                   awakenersById={awakenersById}
+                  tagsById={teamData.tagsById}
                 />
               </div>
             </div>
@@ -324,6 +333,7 @@ export function ReviewTagsDebug({
               tags={posseTags}
               applyContext={applyContext}
               awakenersById={awakenersById}
+              tagsById={teamData.tagsById}
             />
           </div>
         </div>

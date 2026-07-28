@@ -100,6 +100,8 @@ export function ReviewTagsStep({
       const applyContext = createManifestationApplyContext(
         result.data.awakeners,
         damageDealerAwakenerIds,
+        new Map(),
+        result.data.realms,
       );
       const { totalsByTagId, steps, reviewTeamData, triggerCounts: counts } =
         computeReviewTagTotals(result.data, applyContext);
@@ -149,6 +151,7 @@ export function ReviewTagsStep({
       teamData.awakeners,
       damageDealerAwakenerIds,
       triggerCounts,
+      teamData.realms,
     );
   }, [teamData, damageDealerAwakenerIds, triggerCounts]);
 

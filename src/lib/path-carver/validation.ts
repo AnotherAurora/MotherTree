@@ -1,5 +1,5 @@
 import {
-  getRealmsFromSlots,
+  getRealmFamilyIdsFromSlots,
 } from "@/components/simulator/awakener-selection";
 import {
   isSsrWithoutEnlightenment15,
@@ -100,9 +100,9 @@ export function validateAwakenerConstraints(
     seen.add(slot.awakenerId);
   }
 
-  const realms = getRealmsFromSlots(slots, optionMap);
-  if (realms.size > 2) {
-    errors.push(`${realms.size} realms selected (max 2)`);
+  const families = getRealmFamilyIdsFromSlots(slots, optionMap);
+  if (families.size > 2) {
+    errors.push(`${families.size} realm families selected (max 2)`);
   }
 
   return result(errors.length === 0, errors);

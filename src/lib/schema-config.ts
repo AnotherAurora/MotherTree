@@ -203,6 +203,20 @@ export const TABLE_CONFIGS: TableConfig[] = [
         inlineEditable: true,
       },
       {
+        name: "dependency_stat",
+        label: "Dependency Stat",
+        type: "enum",
+        enumName: "all_stats",
+        inlineEditable: true,
+      },
+      {
+        name: "doubles_when_pure",
+        label: "Doubles When Pure",
+        type: "boolean",
+        defaultValue: false,
+        inlineEditable: true,
+      },
+      {
         name: "is_accumulating",
         label: "Is Accumulating",
         type: "boolean",

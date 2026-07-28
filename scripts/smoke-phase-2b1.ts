@@ -174,9 +174,13 @@ console.log("\nGear sum into total base stats");
       statAmount: 5,
     },
   ];
-  const teamSlice: Pick<TeamData, "awakeners" | "gearStatContributions"> = {
+  const teamSlice: Pick<
+    TeamData,
+    "awakeners" | "gearStatContributions" | "tagsById"
+  > = {
     awakeners: [awakener],
     gearStatContributions: contributions,
+    tagsById: {},
   };
   const [total] = computeAwakenerTotalBaseStats(teamSlice, []);
   assert(total.atk === 135, `atk 100+10+20+5 = 135 (got ${total.atk})`);
@@ -192,6 +196,7 @@ console.log("\nSpecial.Increase Base Keyflare stacking (additive on original)");
   const specialTag = makeTag(
     SPECIAL_INCREASE_BASE_KEYFLARE_TAG_ID,
     "Special.Increase Base Keyflare",
+    true,
   );
   const applied = [
     makeManifestation({
@@ -208,7 +213,11 @@ console.log("\nSpecial.Increase Base Keyflare stacking (additive on original)");
     }),
   ];
   const [total] = computeAwakenerTotalBaseStats(
-    { awakeners: [awakener], gearStatContributions: [] },
+    {
+      awakeners: [awakener],
+      gearStatContributions: [],
+      tagsById: { [specialTag.id]: specialTag },
+    },
     applied,
   );
   assert(
@@ -223,6 +232,7 @@ console.log("\ndependency_stat uses post–Special.Increase keyflare");
   const specialTag = makeTag(
     SPECIAL_INCREASE_BASE_KEYFLARE_TAG_ID,
     "Special.Increase Base Keyflare",
+    true,
   );
   const applied = [
     makeManifestation({
@@ -233,7 +243,11 @@ console.log("\ndependency_stat uses post–Special.Increase keyflare");
     }),
   ];
   const [total] = computeAwakenerTotalBaseStats(
-    { awakeners: [awakener], gearStatContributions: [] },
+    {
+      awakeners: [awakener],
+      gearStatContributions: [],
+      tagsById: { [specialTag.id]: specialTag },
+    },
     applied,
   );
   // ceil(15 * 1.1) = 17; raw 2 * 17 → 34
@@ -263,7 +277,7 @@ console.log("\nSynthetic transfers + interaction immunity / modifier role");
     aliemusRegen: 0.2,
   });
   const [total] = computeAwakenerTotalBaseStats(
-    { awakeners: [awakener], gearStatContributions: [] },
+    { awakeners: [awakener], gearStatContributions: [], tagsById },
     [],
   );
   const transfers = buildBaseStatTransferManifestations([total], tagsById);

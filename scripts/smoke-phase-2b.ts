@@ -121,8 +121,18 @@ console.log("Part A — dependency_stat scaling");
     "atk ceil to whole: 0.45 * 201 → 91",
   );
   assert(
+    scaleValueScalar(
+      0.45,
+      "atk",
+      makeAwakener({ id: 5, atk: 201 }),
+      "awakener",
+      true,
+    ) === 90.45,
+    "atk + tag %: ceil to 2dp 0.45*201 → 90.45",
+  );
+  assert(
     scaleValueScalar(0.01, "damage_amp", awakener, "awakener") === 10,
-    "damage_amp percent form",
+    "damage_amp percent form (tag non-%: whole ceil)",
   );
   assert(
     scaleValueScalar(
@@ -130,16 +140,27 @@ console.log("Part A — dependency_stat scaling");
       "damage_amp",
       makeAwakener({ id: 4, damageAmp: 0.1 }),
       "awakener",
+      true,
     ) === 1.24,
-    "damage_amp ceil to 2dp: 1.231 → 1.24",
+    "damage_amp + tag %: ceil to 2dp 1.231 → 1.24",
+  );
+  assert(
+    scaleValueScalar(
+      0.001231,
+      "damage_amp",
+      makeAwakener({ id: 6, damageAmp: 0.1 }),
+      "awakener",
+      false,
+    ) === 2,
+    "damage_amp + tag non-%: ceil whole 1.231 → 2",
   );
   assert(
     scaleValueScalar(2, "keyflare_regen", awakener, "awakener") === 1,
     "keyflare_regen → keyflareRegen then ceil whole (0.1 → 1)",
   );
   assert(
-    scaleValueScalar(0.01, "crit_dmg", awakener, "awakener") === 50,
-    "crit_dmg percent (not crit_damage)",
+    scaleValueScalar(0.01, "crit_dmg", awakener, "awakener", true) === 50,
+    "crit_dmg percent form (tag %)",
   );
   assert(
     scaleValueScalar(10, "team_max_hp", awakener, "awakener") === 10,

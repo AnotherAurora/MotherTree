@@ -22,33 +22,33 @@ import type { Database } from "@/lib/database.types";
 
 const TOP_GEAR_CANDIDATES = 5;
 
-function getRealmsFromSlots(
+function getRealmFamilyIdsFromSlots(
   slots: SlotState[],
   catalog: SimulatorCatalog,
-): Set<string> {
-  const realms = new Set<string>();
+): Set<number> {
+  const families = new Set<number>();
   for (const slot of slots) {
     if (slot.awakenerId == null) continue;
     const awakener = catalog.awakeners.find((a) => a.id === slot.awakenerId);
-    if (awakener?.realm) realms.add(awakener.realm);
+    if (awakener?.realmFamilyId != null) families.add(awakener.realmFamilyId);
   }
-  return realms;
+  return families;
 }
 
-function wouldExceedRealmLimit(
+function wouldExceedRealmFamilyLimit(
   awakenerId: number,
   slots: SlotState[],
   catalog: SimulatorCatalog,
   excludeIndex?: number,
 ): boolean {
   const awakener = catalog.awakeners.find((a) => a.id === awakenerId);
-  if (!awakener?.realm) return false;
-  const realms = getRealmsFromSlots(
+  if (awakener?.realmFamilyId == null) return false;
+  const families = getRealmFamilyIdsFromSlots(
     slots.filter((_, i) => i !== excludeIndex),
     catalog,
   );
-  realms.add(awakener.realm);
-  return realms.size > 2;
+  families.add(awakener.realmFamilyId);
+  return families.size > 2;
 }
 
 function getSelectedAwakenerIds(
@@ -77,10 +77,10 @@ function validateAnchorConstraints(
   }
 
   const allIds = [startAwakenerId, ...otherAnchors];
-  const awakenerRealms = allIds
-    .map((id) => catalog.awakeners.find((a) => a.id === id)?.realm)
-    .filter((r): r is NonNullable<typeof r> => r != null);
-  if (new Set(awakenerRealms).size > 2) {
+  const familyIds = allIds
+    .map((id) => catalog.awakeners.find((a) => a.id === id)?.realmFamilyId)
+    .filter((id): id is number => id != null);
+  if (new Set(familyIds).size > 2) {
     return "Cannot satisfy anchored awakeners within the 2-realm limit.";
   }
 
@@ -124,7 +124,7 @@ function pickBestAwakenerForSlot(
   for (const awakener of catalog.awakeners) {
     if (isEntityBanned(banSet, "awakener", awakener.id)) continue;
     if (selectedElsewhere.has(awakener.id)) continue;
-    if (wouldExceedRealmLimit(awakener.id, slots, catalog, slotIndex)) continue;
+    if (wouldExceedRealmFamilyLimit(awakener.id, slots, catalog, slotIndex)) continue;
 
     const trialSlots = slots.map((s, i) =>
       i === slotIndex ? { ...s, awakenerId: awakener.id } : s,

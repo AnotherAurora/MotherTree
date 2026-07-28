@@ -25,6 +25,9 @@ export type AwakenerRelatedTags = {
 
 export type SimulatorAwakenerOption = ForeignKeyOption & {
   realm: string | null;
+  realmId: number | null;
+  /** `replace ?? id` — used for max-2 family limit. */
+  realmFamilyId: number | null;
 };
 
 export async function getSimulatorAwakenerOptions(): Promise<
@@ -34,17 +37,29 @@ export async function getSimulatorAwakenerOptions(): Promise<
     const supabase = createAdminClient();
     const { data, error } = await supabase
       .from("awakener")
-      .select("id, name, realm_ref:realm!awakener_realm_fkey(name)")
+      .select(
+        "id, name, realm, realm_ref:realm!awakener_realm_fkey(name, replace)",
+      )
       .is("deleted_at", null)
       .order("name");
 
     if (error) return { success: false, error: error.message };
 
-    const options: SimulatorAwakenerOption[] = (data ?? []).map((row) => ({
-      value: row.id,
-      label: row.name ?? `#${row.id}`,
-      realm: (row.realm_ref as { name: string } | null)?.name ?? null,
-    }));
+    const options: SimulatorAwakenerOption[] = (data ?? []).map((row) => {
+      const realmRef = row.realm_ref as {
+        name: string;
+        replace: number | null;
+      } | null;
+      const realmId = row.realm ?? null;
+      return {
+        value: row.id,
+        label: row.name ?? `#${row.id}`,
+        realm: realmRef?.name ?? null,
+        realmId,
+        realmFamilyId:
+          realmId == null ? null : (realmRef?.replace ?? realmId),
+      };
+    });
 
     return { success: true, data: options };
   } catch (error) {
