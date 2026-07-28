@@ -116,7 +116,7 @@ async function buildManifestationLabels(
   const { data, error } = await supabase
     .from("awakener_tag_manifestation")
     .select(
-      "id, awakener:awakener_id(name), tag:tag_id(tag_name)",
+      "id, awakener!awakener_id(name), tag!tag_id(tag_name)",
     )
     .in("id", ids);
 

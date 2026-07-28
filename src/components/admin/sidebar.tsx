@@ -8,6 +8,7 @@ import {
   CircleDot,
   Database,
   FlaskConical,
+  Globe,
   PenLine,
   GitBranch,
   Heart,
@@ -25,6 +26,8 @@ import { SIDEBAR_NAV_GROUPS, TABLE_CONFIG_MAP } from "@/lib/schema-config";
 
 const ICONS: Partial<Record<TableName, ComponentType<{ className?: string }>>> = {
   tag: Tags,
+  realm: Globe,
+  realm_tag_manifestation: Layers,
   awakener: Sparkles,
   desire: Heart,
   desire_template: LayoutTemplate,

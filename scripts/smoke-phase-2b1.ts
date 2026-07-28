@@ -54,6 +54,7 @@ function makeAwakener(partial: Partial<Awakener> & { id: number }): Awakener {
   return {
     name: partial.name ?? `A${partial.id}`,
     realm: partial.realm ?? "chaos",
+    realmId: partial.realmId ?? 1,
     con: partial.con ?? null,
     atk: partial.atk ?? null,
     def: partial.def ?? null,
@@ -105,6 +106,8 @@ function makeManifestation(
     requiredAwakenerName: null,
     requiredRealm: null,
     requiredRealm2: null,
+    requiredRealmId: null,
+    requiredRealmId2: null,
     replacesManifestationId: null,
     interactionOverrides: partial.interactionOverrides ?? [],
     isBaseStatTransfer: partial.isBaseStatTransfer ?? false,

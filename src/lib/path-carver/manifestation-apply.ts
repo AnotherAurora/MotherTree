@@ -1,4 +1,5 @@
-import type { Awakener, Manifestation, Realm } from "@/lib/team-data/types";
+import type { Awakener, Manifestation } from "@/lib/team-data/types";
+import { CHAOS_REALM_ID } from "@/lib/team-data/realm";
 import { getTriggerCount } from "@/lib/path-carver/trigger-condition";
 
 export type ManifestationApplyReason =
@@ -15,7 +16,7 @@ export type ManifestationApplyResult = {
 };
 
 export type ManifestationApplyContext = {
-  teamRealms: Set<Realm>;
+  teamRealmIds: Set<number>;
   teamIsChaosOnly: boolean;
   teamAwakenerIds: Set<number>;
   /** Build-step anchors with isDamageDealer === true. */
@@ -24,17 +25,17 @@ export type ManifestationApplyContext = {
   triggerCounts: ReadonlyMap<number, number>;
 };
 
-export function getTeamRealms(awakeners: Awakener[]): Set<Realm> {
-  const realms = new Set<Realm>();
+export function getTeamRealmIds(awakeners: Awakener[]): Set<number> {
+  const realmIds = new Set<number>();
   for (const awakener of awakeners) {
-    if (awakener.realm != null) realms.add(awakener.realm);
+    if (awakener.realmId != null) realmIds.add(awakener.realmId);
   }
-  return realms;
+  return realmIds;
 }
 
 export function isChaosOnlyTeam(awakeners: Awakener[]): boolean {
   if (awakeners.length === 0) return false;
-  return awakeners.every((a) => a.realm === "chaos");
+  return awakeners.every((a) => a.realmId === CHAOS_REALM_ID);
 }
 
 export function createManifestationApplyContext(
@@ -43,7 +44,7 @@ export function createManifestationApplyContext(
   triggerCounts: ReadonlyMap<number, number> = new Map(),
 ): ManifestationApplyContext {
   return {
-    teamRealms: getTeamRealms(awakeners),
+    teamRealmIds: getTeamRealmIds(awakeners),
     teamIsChaosOnly: isChaosOnlyTeam(awakeners),
     teamAwakenerIds: new Set(awakeners.map((a) => a.id)),
     damageDealerAwakenerIds: new Set(damageDealerAwakenerIds),
@@ -52,11 +53,11 @@ export function createManifestationApplyContext(
 }
 
 function realmRequirementMet(
-  required: Realm,
+  requiredId: number,
   ctx: ManifestationApplyContext,
 ): boolean {
-  if (required === "chaos") return ctx.teamIsChaosOnly;
-  return ctx.teamRealms.has(required);
+  if (requiredId === CHAOS_REALM_ID) return ctx.teamIsChaosOnly;
+  return ctx.teamRealmIds.has(requiredId);
 }
 
 function realmAndRequiredAwakenerPass(
@@ -70,19 +71,19 @@ function realmAndRequiredAwakenerPass(
     return { applied: false, reason: "required_awakener", triggerTimes: null };
   }
 
-  const requiredRealms = [m.requiredRealm, m.requiredRealm2].filter(
-    (realm): realm is Realm => realm != null,
+  const requiredRealmIds = [m.requiredRealmId, m.requiredRealmId2].filter(
+    (realmId): realmId is number => realmId != null,
   );
 
-  if (requiredRealms.length === 0) {
+  if (requiredRealmIds.length === 0) {
     return { applied: true, reason: null, triggerTimes: null };
   }
 
   // Covenant required_realm1/required_realm2 use AND: every non-null realm must match.
   // Note: chaos + another realm (e.g. chaos + ultra) can never both be satisfied —
   // chaos-only means no other realms on the team, so such rows always stay unapplied.
-  const realmsOk = requiredRealms.every((required) =>
-    realmRequirementMet(required, ctx),
+  const realmsOk = requiredRealmIds.every((requiredId) =>
+    realmRequirementMet(requiredId, ctx),
   );
   if (!realmsOk) {
     return { applied: false, reason: "realm", triggerTimes: null };

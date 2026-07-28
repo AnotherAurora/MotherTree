@@ -56,7 +56,7 @@ export type Database = {
           id: number
           keyflare_regen: number | null
           name: string | null
-          realm: Database["public"]["Enums"]["realm"] | null
+          realm: number | null
           realm_mastery: number | null
           sigil_yield: number | null
           updated_at: string | null
@@ -77,7 +77,7 @@ export type Database = {
           id?: number
           keyflare_regen?: number | null
           name?: string | null
-          realm?: Database["public"]["Enums"]["realm"] | null
+          realm?: number | null
           realm_mastery?: number | null
           sigil_yield?: number | null
           updated_at?: string | null
@@ -98,12 +98,20 @@ export type Database = {
           id?: number
           keyflare_regen?: number | null
           name?: string | null
-          realm?: Database["public"]["Enums"]["realm"] | null
+          realm?: number | null
           realm_mastery?: number | null
           sigil_yield?: number | null
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "awakener_realm_fkey"
+            columns: ["realm"]
+            isOneToOne: false
+            referencedRelation: "realm"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       awakener_tag_manifestation: {
         Row: {
@@ -121,7 +129,7 @@ export type Database = {
           metadata: string | null
           replaces_manifestation_id: number | null
           required_enlightenment: number | null
-          required_realm: Database["public"]["Enums"]["realm"] | null
+          required_realm: number | null
           source_type: Database["public"]["Enums"]["source_type"] | null
           tag_id: number
           target_type: Database["public"]["Enums"]["target_type"] | null
@@ -144,7 +152,7 @@ export type Database = {
           metadata?: string | null
           replaces_manifestation_id?: number | null
           required_enlightenment?: number | null
-          required_realm?: Database["public"]["Enums"]["realm"] | null
+          required_realm?: number | null
           source_type?: Database["public"]["Enums"]["source_type"] | null
           tag_id: number
           target_type?: Database["public"]["Enums"]["target_type"] | null
@@ -167,7 +175,7 @@ export type Database = {
           metadata?: string | null
           replaces_manifestation_id?: number | null
           required_enlightenment?: number | null
-          required_realm?: Database["public"]["Enums"]["realm"] | null
+          required_realm?: number | null
           source_type?: Database["public"]["Enums"]["source_type"] | null
           tag_id?: number
           target_type?: Database["public"]["Enums"]["target_type"] | null
@@ -188,6 +196,13 @@ export type Database = {
             columns: ["replaces_manifestation_id"]
             isOneToOne: false
             referencedRelation: "awakener_tag_manifestation"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "awakener_tag_manifestation_required_realm_fkey"
+            columns: ["required_realm"]
+            isOneToOne: false
+            referencedRelation: "realm"
             referencedColumns: ["id"]
           },
           {
@@ -253,8 +268,8 @@ export type Database = {
           is_permanent: boolean | null
           metadata: string | null
           replaces_manifestation_id: number | null
-          required_realm1: Database["public"]["Enums"]["realm"] | null
-          required_realm2: Database["public"]["Enums"]["realm"] | null
+          required_realm1: number | null
+          required_realm2: number | null
           tag_id: number | null
           target_type: Database["public"]["Enums"]["target_type"] | null
           trigger_condition: number | null
@@ -274,8 +289,8 @@ export type Database = {
           is_permanent?: boolean | null
           metadata?: string | null
           replaces_manifestation_id?: number | null
-          required_realm1?: Database["public"]["Enums"]["realm"] | null
-          required_realm2?: Database["public"]["Enums"]["realm"] | null
+          required_realm1?: number | null
+          required_realm2?: number | null
           tag_id?: number | null
           target_type?: Database["public"]["Enums"]["target_type"] | null
           trigger_condition?: number | null
@@ -295,8 +310,8 @@ export type Database = {
           is_permanent?: boolean | null
           metadata?: string | null
           replaces_manifestation_id?: number | null
-          required_realm1?: Database["public"]["Enums"]["realm"] | null
-          required_realm2?: Database["public"]["Enums"]["realm"] | null
+          required_realm1?: number | null
+          required_realm2?: number | null
           tag_id?: number | null
           target_type?: Database["public"]["Enums"]["target_type"] | null
           trigger_condition?: number | null
@@ -316,6 +331,20 @@ export type Database = {
             columns: ["replaces_manifestation_id"]
             isOneToOne: false
             referencedRelation: "covenant_tag_manifestation"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "covenant_tag_manifestation_required_realm1_fkey"
+            columns: ["required_realm1"]
+            isOneToOne: false
+            referencedRelation: "realm"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "covenant_tag_manifestation_required_realm2_fkey"
+            columns: ["required_realm2"]
+            isOneToOne: false
+            referencedRelation: "realm"
             referencedColumns: ["id"]
           },
           {
@@ -794,7 +823,7 @@ export type Database = {
           metadata: string | null
           posse_id: number | null
           required_awakener: number | null
-          required_realm: Database["public"]["Enums"]["realm"] | null
+          required_realm: number | null
           tag_id: number | null
           target_type: Database["public"]["Enums"]["target_type"] | null
           updated_at: string | null
@@ -814,7 +843,7 @@ export type Database = {
           metadata?: string | null
           posse_id?: number | null
           required_awakener?: number | null
-          required_realm?: Database["public"]["Enums"]["realm"] | null
+          required_realm?: number | null
           tag_id?: number | null
           target_type?: Database["public"]["Enums"]["target_type"] | null
           updated_at?: string | null
@@ -834,7 +863,7 @@ export type Database = {
           metadata?: string | null
           posse_id?: number | null
           required_awakener?: number | null
-          required_realm?: Database["public"]["Enums"]["realm"] | null
+          required_realm?: number | null
           tag_id?: number | null
           target_type?: Database["public"]["Enums"]["target_type"] | null
           updated_at?: string | null
@@ -856,7 +885,106 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "posse_tag_manifestation_required_realm_fkey"
+            columns: ["required_realm"]
+            isOneToOne: false
+            referencedRelation: "realm"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "posse_tag_manifestation_tag_id_fkey"
+            columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "tag"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      realm: {
+        Row: {
+          created_at: string | null
+          deleted_at: string | null
+          id: number
+          name: string
+          replace: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          deleted_at?: string | null
+          id?: number
+          name: string
+          replace?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          deleted_at?: string | null
+          id?: number
+          name?: string
+          replace?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "realm_replace_fkey"
+            columns: ["replace"]
+            isOneToOne: false
+            referencedRelation: "realm"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      realm_tag_manifestation: {
+        Row: {
+          created_at: string | null
+          deleted_at: string | null
+          id: number
+          is_accumulating: boolean
+          is_permanent: boolean | null
+          metadata: string | null
+          realm_id: number
+          required_realm_mode: Database["public"]["Enums"]["realm_match_mode"]
+          tag_id: number
+          updated_at: string | null
+          value_scalar: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          deleted_at?: string | null
+          id?: number
+          is_accumulating?: boolean
+          is_permanent?: boolean | null
+          metadata?: string | null
+          realm_id: number
+          required_realm_mode?: Database["public"]["Enums"]["realm_match_mode"]
+          tag_id: number
+          updated_at?: string | null
+          value_scalar?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          deleted_at?: string | null
+          id?: number
+          is_accumulating?: boolean
+          is_permanent?: boolean | null
+          metadata?: string | null
+          realm_id?: number
+          required_realm_mode?: Database["public"]["Enums"]["realm_match_mode"]
+          tag_id?: number
+          updated_at?: string | null
+          value_scalar?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "realm_tag_manifestation_realm_id_fkey"
+            columns: ["realm_id"]
+            isOneToOne: false
+            referencedRelation: "realm"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "realm_tag_manifestation_tag_id_fkey"
             columns: ["tag_id"]
             isOneToOne: false
             referencedRelation: "tag"
@@ -1018,7 +1146,7 @@ export type Database = {
           is_accumulating: boolean
           is_permanent: boolean | null
           metadata: string | null
-          required_realm: Database["public"]["Enums"]["realm"] | null
+          required_realm: number | null
           tag_id: number | null
           target_type: Database["public"]["Enums"]["target_type"] | null
           trigger_condition: number | null
@@ -1037,7 +1165,7 @@ export type Database = {
           is_accumulating?: boolean
           is_permanent?: boolean | null
           metadata?: string | null
-          required_realm?: Database["public"]["Enums"]["realm"] | null
+          required_realm?: number | null
           tag_id?: number | null
           target_type?: Database["public"]["Enums"]["target_type"] | null
           trigger_condition?: number | null
@@ -1056,7 +1184,7 @@ export type Database = {
           is_accumulating?: boolean
           is_permanent?: boolean | null
           metadata?: string | null
-          required_realm?: Database["public"]["Enums"]["realm"] | null
+          required_realm?: number | null
           tag_id?: number | null
           target_type?: Database["public"]["Enums"]["target_type"] | null
           trigger_condition?: number | null
@@ -1065,6 +1193,13 @@ export type Database = {
           wheel_id?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "wheel_tag_manifestation_required_realm_fkey"
+            columns: ["required_realm"]
+            isOneToOne: false
+            referencedRelation: "realm"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "wheel_tag_manifestation_tag_id_fkey"
             columns: ["tag_id"]
@@ -1120,7 +1255,7 @@ export type Database = {
         | "multiply_one_plus"
         | "multiply"
       rarity: "SSR" | "SR" | "R" | "N"
-      realm:
+      realm_enum_obsolete:
         | "chaos"
         | "caro"
         | "propagation caro"
@@ -1128,6 +1263,7 @@ export type Database = {
         | "divine aequor"
         | "ultra"
         | "singularity ultra"
+      realm_match_mode: "present" | "exclusive"
       source_type: "command card" | "exalt" | "tentacle" | "rouse" | "talent"
       target_type: "self" | "single" | "aoe"
     }
@@ -1286,7 +1422,7 @@ export const Constants = {
         "multiply",
       ],
       rarity: ["SSR", "SR", "R", "N"],
-      realm: [
+      realm_enum_obsolete: [
         "chaos",
         "caro",
         "propagation caro",
@@ -1295,6 +1431,7 @@ export const Constants = {
         "ultra",
         "singularity ultra",
       ],
+      realm_match_mode: ["present", "exclusive"],
       source_type: ["command card", "exalt", "tentacle", "rouse", "talent"],
       target_type: ["self", "single", "aoe"],
     },

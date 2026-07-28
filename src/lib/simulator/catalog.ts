@@ -17,6 +17,12 @@ import type {
 import type { Manifestation } from "@/lib/team-data/types";
 import { computeFulfillment } from "@/lib/simulator/fulfillment";
 
+type RealmRef = { name: string } | null;
+
+function realmName(ref: RealmRef | undefined): Realm | null {
+  return (ref?.name as Realm | undefined) ?? null;
+}
+
 export type CatalogAwakener = {
   id: number;
   name: string;
@@ -29,6 +35,8 @@ type RawManifestation = {
   valueScalar: number;
   requiredRealm: Realm | null;
   requiredRealm2: Realm | null;
+  requiredRealmId: number | null;
+  requiredRealmId2: number | null;
   requiredAwakenerId: number | null;
   dependencyStat: AllStats | null;
 };
@@ -72,9 +80,12 @@ function toRawManifestations(
   rows: Array<{
     tag_id: number | null;
     value_scalar: number | null;
-    required_realm?: Realm | null;
-    required_realm1?: Realm | null;
-    required_realm2?: Realm | null;
+    required_realm?: number | null;
+    required_realm1?: number | null;
+    required_realm2?: number | null;
+    required_realm_ref?: RealmRef;
+    required_realm1_ref?: RealmRef;
+    required_realm2_ref?: RealmRef;
     required_awakener?: number | null;
     replaces_manifestation_id?: number | null;
     dependency_stat?: AllStats | null;
@@ -92,8 +103,12 @@ function toRawManifestations(
   return withReplacement.map(({ row }) => ({
     tagName: tagNames.get(row.tag_id ?? -1) ?? "Unknown",
     valueScalar: row.value_scalar ?? 0,
-    requiredRealm: row.required_realm ?? row.required_realm1 ?? null,
-    requiredRealm2: row.required_realm2 ?? null,
+    requiredRealm:
+      realmName(row.required_realm_ref) ??
+      realmName(row.required_realm1_ref),
+    requiredRealm2: realmName(row.required_realm2_ref),
+    requiredRealmId: row.required_realm ?? row.required_realm1 ?? null,
+    requiredRealmId2: row.required_realm2 ?? null,
     requiredAwakenerId: row.required_awakener ?? null,
     dependencyStat: row.dependency_stat ?? null,
   }));
@@ -164,7 +179,7 @@ export async function loadSimulatorCatalog(
   ] = await Promise.all([
     supabase
       .from("awakener")
-      .select("id, name, realm, enlightenment")
+      .select("id, name, realm_ref:realm!awakener_realm_fkey(name), enlightenment")
       .is("deleted_at", null),
     supabase.from("posse").select("id, name").is("deleted_at", null),
     supabase
@@ -178,23 +193,25 @@ export async function loadSimulatorCatalog(
     supabase
       .from("awakener_tag_manifestation")
       .select(
-        "awakener_id, tag_id, value_scalar, required_realm, required_enlightenment, replaces_manifestation_id",
+        "awakener_id, tag_id, value_scalar, required_realm, required_realm_ref:realm!required_realm(name), required_enlightenment, replaces_manifestation_id",
       )
       .is("deleted_at", null),
     supabase
       .from("wheel_tag_manifestation")
-      .select("wheel_id, tag_id, value_scalar, required_realm")
+      .select(
+        "wheel_id, tag_id, value_scalar, required_realm, required_realm_ref:realm!required_realm(name)",
+      )
       .is("deleted_at", null),
     supabase
       .from("covenant_tag_manifestation")
       .select(
-        "covenant_id, tag_id, value_scalar, required_realm1, required_realm2, replaces_manifestation_id",
+        "covenant_id, tag_id, value_scalar, required_realm1, required_realm2, required_realm1_ref:realm!required_realm1(name), required_realm2_ref:realm!required_realm2(name), replaces_manifestation_id",
       )
       .is("deleted_at", null),
     supabase
       .from("posse_tag_manifestation")
       .select(
-        "posse_id, tag_id, value_scalar, required_realm, required_awakener, dependency_stat",
+        "posse_id, tag_id, value_scalar, required_realm, required_realm_ref:realm!required_realm(name), required_awakener, dependency_stat",
       )
       .is("deleted_at", null),
   ]);
@@ -232,7 +249,7 @@ export async function loadSimulatorCatalog(
     (row) => ({
       id: row.id,
       name: row.name ?? `#${row.id}`,
-      realm: row.realm,
+      realm: realmName(row.realm_ref as RealmRef),
       enlightenment: effectiveEnlightenment(row.enlightenment),
     }),
   );
@@ -256,11 +273,15 @@ export async function loadSimulatorCatalog(
     rows: Array<{
       tag_id: number | null;
       value_scalar: number | null;
-      required_realm?: Realm | null;
-      required_realm1?: Realm | null;
-      required_realm2?: Realm | null;
+      required_realm?: number | null;
+      required_realm1?: number | null;
+      required_realm2?: number | null;
+      required_realm_ref?: RealmRef;
+      required_realm1_ref?: RealmRef;
+      required_realm2_ref?: RealmRef;
       required_awakener?: number | null;
       replaces_manifestation_id?: number | null;
+      dependency_stat?: AllStats | null;
     }>,
     idField: string,
     entityId: number,
@@ -379,6 +400,8 @@ export function buildManifestationsForComposition(
       requiredAwakenerName: null,
       requiredRealm: raw.requiredRealm,
       requiredRealm2: raw.requiredRealm2,
+      requiredRealmId: raw.requiredRealmId,
+      requiredRealmId2: raw.requiredRealmId2,
       replacesManifestationId: null,
       interactionOverrides: [],
       isBaseStatTransfer: false,

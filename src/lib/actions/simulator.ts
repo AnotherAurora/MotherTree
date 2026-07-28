@@ -34,7 +34,7 @@ export async function getSimulatorAwakenerOptions(): Promise<
     const supabase = createAdminClient();
     const { data, error } = await supabase
       .from("awakener")
-      .select("id, name, realm")
+      .select("id, name, realm_ref:realm!awakener_realm_fkey(name)")
       .is("deleted_at", null)
       .order("name");
 
@@ -43,7 +43,7 @@ export async function getSimulatorAwakenerOptions(): Promise<
     const options: SimulatorAwakenerOption[] = (data ?? []).map((row) => ({
       value: row.id,
       label: row.name ?? `#${row.id}`,
-      realm: row.realm,
+      realm: (row.realm_ref as { name: string } | null)?.name ?? null,
     }));
 
     return { success: true, data: options };
@@ -81,7 +81,7 @@ export async function getAwakenerRelatedTags(
     const manifestationResult = await supabase
       .from("awakener_tag_manifestation")
       .select(
-        "id, awakener_id, required_enlightenment, replaces_manifestation_id, tag:tag_id(tag_name)",
+        "id, awakener_id, required_enlightenment, replaces_manifestation_id, tag!tag_id(tag_name)",
       )
       .eq("awakener_id", awakenerId)
       .lte(
@@ -112,7 +112,7 @@ export async function getAwakenerRelatedTags(
       const { data: overrides, error: overrideError } = await supabase
         .from("manifestation_interaction_override")
         .select(
-          "id, manifestation_id, modifier_tag:modifier_tag_id(tag_name), is_disabled",
+          "id, manifestation_id, modifier_tag:tag!modifier_tag_id(tag_name), is_disabled",
         )
         .in("manifestation_id", manifestationIds)
         .is("deleted_at", null);

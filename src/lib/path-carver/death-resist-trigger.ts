@@ -74,6 +74,8 @@ function makeDerivedTransfer(
     requiredAwakenerName: null,
     requiredRealm: null,
     requiredRealm2: null,
+    requiredRealmId: null,
+    requiredRealmId2: null,
     replacesManifestationId: null,
     interactionOverrides: [],
     isBaseStatTransfer: true,

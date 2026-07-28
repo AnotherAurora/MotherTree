@@ -243,10 +243,16 @@ export function ReviewTagsDebug({
     [teamData.manifestations],
   );
 
-  const teamRealmList = useMemo(
-    () => [...applyContext.teamRealms].sort().join(", ") || "none",
-    [applyContext.teamRealms],
-  );
+  const teamRealmList = useMemo(() => {
+    const names = [
+      ...new Set(
+        teamData.awakeners
+          .map((a) => a.realm)
+          .filter((r): r is NonNullable<typeof r> => r != null),
+      ),
+    ];
+    return names.sort().join(", ") || "none";
+  }, [teamData.awakeners]);
 
   const damageDealerList = useMemo(() => {
     const names: string[] = [];

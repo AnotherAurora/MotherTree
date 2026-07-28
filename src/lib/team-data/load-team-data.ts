@@ -90,6 +90,12 @@ function uniqueAwakenerIds(input: TeamDataInput): number[] {
   return [...ids];
 }
 
+type RealmRef = { name: string } | null;
+
+function realmName(ref: RealmRef | undefined): Realm | null {
+  return (ref?.name as Realm | undefined) ?? null;
+}
+
 const AWAKENER_MANIFESTATION_SELECT = `
   id,
   awakener_id,
@@ -105,8 +111,9 @@ const AWAKENER_MANIFESTATION_SELECT = `
   is_accumulating,
   required_enlightenment,
   required_realm,
+  required_realm_ref:realm!required_realm(name),
   replaces_manifestation_id,
-  tag:tag_id(id, tag_name, layer, is_percent, is_additive)
+  tag!tag_id(id, tag_name, layer, is_percent, is_additive)
 `;
 
 async function fetchAwakenerManifestations(
@@ -135,7 +142,24 @@ const GEAR_MANIFESTATION_SELECT = `
   metadata,
   is_accumulating,
   required_realm,
-  tag:tag_id(id, tag_name, layer, is_percent, is_additive)
+  required_realm_ref:realm!required_realm(name),
+  tag!tag_id(id, tag_name, layer, is_percent, is_additive)
+`;
+
+const POSSE_MANIFESTATION_SELECT = `
+  id,
+  tag_id,
+  value_scalar,
+  target_type,
+  buff_target_type_restriction,
+  metadata,
+  is_accumulating,
+  required_realm,
+  required_realm_ref:realm!required_realm(name),
+  required_awakener,
+  dependency_stat,
+  required_awakener_ref:awakener!required_awakener(id, name),
+  tag!tag_id(id, tag_name, layer, is_percent, is_additive)
 `;
 
 const COVENANT_MANIFESTATION_SELECT = `
@@ -150,8 +174,10 @@ const COVENANT_MANIFESTATION_SELECT = `
   is_accumulating,
   required_realm1,
   required_realm2,
+  required_realm1_ref:realm!required_realm1(name),
+  required_realm2_ref:realm!required_realm2(name),
   replaces_manifestation_id,
-  tag:tag_id(id, tag_name, layer, is_percent, is_additive)
+  tag!tag_id(id, tag_name, layer, is_percent, is_additive)
 `;
 
 function matchesCovenantSlotRealm(
@@ -169,19 +195,20 @@ async function fetchWheelManifestations(
   wheelId: number,
   slotRealm: Realm | null,
 ) {
-  let query = supabase
+  const { data, error } = await supabase
     .from("wheel_tag_manifestation")
     .select(`${GEAR_MANIFESTATION_SELECT}, dependency_stat`)
     .eq("wheel_id", wheelId)
     .is("deleted_at", null);
 
-  if (slotRealm) {
-    query = query.or(`required_realm.is.null,required_realm.eq.${slotRealm}`);
-  }
-
-  const { data, error } = await query;
   if (error) throw new Error(error.message);
-  return data ?? [];
+
+  return (data ?? []).filter((row) => {
+    const required = realmName(row.required_realm_ref as RealmRef);
+    if (required == null) return true;
+    if (slotRealm == null) return true;
+    return required === slotRealm;
+  });
 }
 
 async function fetchCovenantManifestations(
@@ -199,8 +226,8 @@ async function fetchCovenantManifestations(
 
   return (data ?? []).filter((row) =>
     matchesCovenantSlotRealm(
-      row.required_realm1,
-      row.required_realm2,
+      realmName(row.required_realm1_ref as RealmRef),
+      realmName(row.required_realm2_ref as RealmRef),
       slotRealm,
     ),
   );
@@ -213,9 +240,7 @@ async function fetchPosseManifestations(
 ) {
   const { data, error } = await supabase
     .from("posse_tag_manifestation")
-    .select(
-      `${GEAR_MANIFESTATION_SELECT}, required_awakener, dependency_stat, required_awakener_ref:awakener!required_awakener(id, name)`,
-    )
+    .select(POSSE_MANIFESTATION_SELECT)
     .eq("posse_id", posseId)
     .is("deleted_at", null);
 
@@ -224,11 +249,8 @@ async function fetchPosseManifestations(
   // required_awakener is soft-filtered later via isManifestationApplied so
   // debug can show gated posse tags as Applied: no.
   return (data ?? []).filter((row) => {
-    if (
-      row.required_realm != null &&
-      realms.length > 0 &&
-      !realms.includes(row.required_realm)
-    ) {
+    const required = realmName(row.required_realm_ref as RealmRef);
+    if (required != null && realms.length > 0 && !realms.includes(required)) {
       return false;
     }
     return true;
@@ -243,8 +265,10 @@ function mapGearManifestation(
     value_scalar: number | null;
     target_type: Manifestation["targetType"];
     is_accumulating: boolean;
-    required_realm: Realm | null;
-    required_realm2?: Realm | null;
+    requiredRealm: Realm | null;
+    requiredRealm2?: Realm | null;
+    requiredRealmId?: number | null;
+    requiredRealmId2?: number | null;
     replaces_manifestation_id?: number | null;
     required_awakener?: number | null;
     required_awakener_ref?: { id: number; name: string | null } | null;
@@ -286,8 +310,10 @@ function mapGearManifestation(
     requiredEnlightenment: null,
     requiredAwakenerId,
     requiredAwakenerName,
-    requiredRealm: row.required_realm,
-    requiredRealm2: row.required_realm2 ?? null,
+    requiredRealm: row.requiredRealm,
+    requiredRealm2: row.requiredRealm2 ?? null,
+    requiredRealmId: row.requiredRealmId ?? null,
+    requiredRealmId2: row.requiredRealmId2 ?? null,
     replacesManifestationId: row.replaces_manifestation_id ?? null,
     interactionOverrides: [],
     isBaseStatTransfer: false,
@@ -504,7 +530,7 @@ export async function fetchTeamData(
       ? await supabase
           .from("awakener")
           .select(
-            "id, name, realm, con, atk, def, keyflare_regen, damage_amp, crit_rate, crit_dmg, realm_mastery, base_aliemus, aliemus_regen, sigil_yield, death_resist, enlightenment",
+            "id, name, realm, realm_ref:realm!awakener_realm_fkey(name), con, atk, def, keyflare_regen, damage_amp, crit_rate, crit_dmg, realm_mastery, base_aliemus, aliemus_regen, sigil_yield, death_resist, enlightenment",
           )
           .in("id", awakenerIds)
           .is("deleted_at", null)
@@ -520,7 +546,14 @@ export async function fetchTeamData(
   }
 
   const awakenerById = new Map(
-    (awakenerResult.data ?? []).map((row) => [row.id, row]),
+    (awakenerResult.data ?? []).map((row) => [
+      row.id,
+      {
+        ...row,
+        realm: realmName(row.realm_ref as RealmRef),
+        realmId: row.realm,
+      },
+    ]),
   );
 
   const rawAwakenerManifestationRows = (
@@ -545,7 +578,8 @@ export async function fetchTeamData(
   const awakeners: Awakener[] = (awakenerResult.data ?? []).map((row) => ({
     id: row.id,
     name: row.name,
-    realm: row.realm,
+    realm: realmName(row.realm_ref as RealmRef),
+    realmId: row.realm,
     con: row.con,
     atk: row.atk,
     def: row.def,
@@ -608,7 +642,11 @@ export async function fetchTeamData(
               if (tag) collectTags(tagsById, tag);
               manifestations.push(
                 mapGearManifestation(
-                  row,
+                  {
+                    ...row,
+                    requiredRealm: realmName(row.required_realm_ref as RealmRef),
+                    requiredRealmId: row.required_realm ?? null,
+                  },
                   "wheel",
                   slotIndex,
                   slot.awakenerId,
@@ -640,7 +678,11 @@ export async function fetchTeamData(
               if (tag) collectTags(tagsById, tag);
               manifestations.push(
                 mapGearManifestation(
-                  row,
+                  {
+                    ...row,
+                    requiredRealm: realmName(row.required_realm_ref as RealmRef),
+                    requiredRealmId: row.required_realm ?? null,
+                  },
                   "wheel",
                   slotIndex,
                   slot.awakenerId,
@@ -683,8 +725,10 @@ export async function fetchTeamData(
               mapGearManifestation(
                 {
                   ...row,
-                  required_realm: row.required_realm1 ?? null,
-                  required_realm2: row.required_realm2 ?? null,
+                  requiredRealm: realmName(row.required_realm1_ref as RealmRef),
+                  requiredRealm2: realmName(row.required_realm2_ref as RealmRef),
+                  requiredRealmId: row.required_realm1 ?? null,
+                  requiredRealmId2: row.required_realm2 ?? null,
                 },
                 "covenant",
                 slotIndex,
@@ -703,7 +747,7 @@ export async function fetchTeamData(
     const sourceName = posseNamesById.get(posseId) ?? `#${posseId}`;
     const realms = [
       ...new Set(
-        (awakenerResult.data ?? [])
+        [...awakenerById.values()]
           .map((a) => a.realm)
           .filter((r): r is Realm => r != null),
       ),
@@ -714,7 +758,17 @@ export async function fetchTeamData(
           const tag = parseTagRef(row.tag as TagRef);
           if (tag) collectTags(tagsById, tag);
           manifestations.push(
-            mapGearManifestation(row, "posse", null, null, sourceName),
+            mapGearManifestation(
+              {
+                ...row,
+                requiredRealm: realmName(row.required_realm_ref as RealmRef),
+                requiredRealmId: row.required_realm ?? null,
+              },
+              "posse",
+              null,
+              null,
+              sourceName,
+            ),
           );
         }
       }),
@@ -759,8 +813,10 @@ export async function fetchTeamData(
       requiredEnlightenment: row.required_enlightenment,
       requiredAwakenerId: null,
       requiredAwakenerName: null,
-      requiredRealm: row.required_realm,
+      requiredRealm: realmName(row.required_realm_ref as RealmRef),
       requiredRealm2: null,
+      requiredRealmId: row.required_realm ?? null,
+      requiredRealmId2: null,
       replacesManifestationId: row.replaces_manifestation_id,
       interactionOverrides: overridesByManifestationId.get(row.id) ?? [],
       isBaseStatTransfer: false,

@@ -8,6 +8,8 @@ const PAGE_SIZE = 1000;
 
 const TABLES: TableName[] = [
   "tag",
+  "realm",
+  "realm_tag_manifestation",
   "awakener",
   "desire",
   "desire_template",

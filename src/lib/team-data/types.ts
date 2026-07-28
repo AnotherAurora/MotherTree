@@ -3,7 +3,15 @@ import type { Database } from "@/lib/database.types";
 export type AllStats = Database["public"]["Enums"]["all_stats"];
 export type Layer = Database["public"]["Enums"]["layer"];
 export type OperationType = Database["public"]["Enums"]["operation_type"];
-export type Realm = Database["public"]["Enums"]["realm"];
+/** Realm display name from `realm.name` (lookup table), not a DB enum. */
+export type Realm =
+  | "chaos"
+  | "caro"
+  | "propagation caro"
+  | "aequor"
+  | "divine aequor"
+  | "ultra"
+  | "singularity ultra";
 export type SourceType = Database["public"]["Enums"]["source_type"];
 export type TargetType = Database["public"]["Enums"]["target_type"];
 export type ManifestationSourceKind =
@@ -40,7 +48,10 @@ export type Tag = {
 export type Awakener = {
   id: number;
   name: string | null;
+  /** Display name from `realm.name`. */
   realm: Realm | null;
+  /** FK to `realm.id`. */
+  realmId: number | null;
   con: number | null;
   atk: number | null;
   def: number | null;
@@ -89,8 +100,12 @@ export type Manifestation = {
   requiredEnlightenment: number | null;
   requiredAwakenerId: number | null;
   requiredAwakenerName: string | null;
+  /** Display name from `realm.name`. */
   requiredRealm: Realm | null;
   requiredRealm2: Realm | null;
+  /** FK to `realm.id`. */
+  requiredRealmId: number | null;
+  requiredRealmId2: number | null;
   replacesManifestationId: number | null;
   interactionOverrides: InteractionOverride[];
   /**
