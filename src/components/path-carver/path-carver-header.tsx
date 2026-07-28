@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { ForeignKeyCombobox } from "@/components/admin/foreign-key-combobox";
+import { RealmDisplay } from "@/components/simulator/realm-display";
 import type { SimulatorGearOptions } from "@/lib/actions/simulator-flow";
 import type { WizardStep } from "@/lib/path-carver/types";
 import { cn } from "@/lib/utils";
@@ -86,7 +87,7 @@ export function PathCarverHeader({
             <Label className="text-xs font-medium uppercase tracking-wide text-zinc-500">
               Realm
             </Label>
-            <DisplayValue value={realm} />
+            <RealmDisplay value={realm} />
           </div>
           {step === "build" && (
             <div className="space-y-2">
@@ -98,6 +99,7 @@ export function PathCarverHeader({
                 onChange={onPosseChange}
                 options={gearOptions.posse}
                 placeholder="Select posse..."
+                assetKind="posse"
               />
             </div>
           )}

@@ -12,7 +12,8 @@
     "db:dump": "tsx --env-file=.env.local scripts/export-sample-data.ts",
     "db:seed-simulator": "tsx --env-file=.env.local scripts/seed-simulator-data.ts",
     "db:unseed-simulator": "tsx --env-file=.env.local scripts/unseed-simulator-data.ts",
-    "db:pull": "npx supabase db pull"
+    "db:pull": "npx supabase db pull",
+    "generate:skeydb-assets": "tsx scripts/generate-skeydb-asset-maps.ts"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.15",

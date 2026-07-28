@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { ForeignKeyCombobox } from "@/components/admin/foreign-key-combobox";
+import { RealmDisplay } from "@/components/simulator/realm-display";
 import type { SimulatorGearOptions } from "@/lib/actions/simulator-flow";
 
 type SimulatorHeaderProps = {
@@ -64,7 +65,7 @@ export function SimulatorHeader({
             <Label className="text-xs font-medium uppercase tracking-wide text-zinc-500">
               Realm
             </Label>
-            <DisplayValue value={realm} />
+            <RealmDisplay value={realm} />
           </div>
           <div className="space-y-2">
             <Label className="text-xs font-medium uppercase tracking-wide text-zinc-500">
@@ -75,6 +76,7 @@ export function SimulatorHeader({
               onChange={onPosseChange}
               options={gearOptions.posse}
               placeholder="Select posse..."
+              assetKind="posse"
             />
           </div>
         </div>

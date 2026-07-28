@@ -4,9 +4,18 @@ import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ForeignKeyCombobox } from "@/components/admin/foreign-key-combobox";
 import { EnumSelect } from "@/components/admin/enum-select";
+import { AssetIcon } from "@/lib/assets/asset-icon";
+import {
+  resolveSkeydbAssetUrl,
+  type AssetKind,
+} from "@/lib/assets/resolve-asset-url";
 import type { BanEntry, BanEntityType } from "@/lib/simulator/types";
 import type { SimulatorAwakenerOption } from "@/lib/actions/simulator";
 import type { SimulatorGearOptions } from "@/lib/actions/simulator-flow";
+
+function banAssetKind(entityType: BanEntityType): AssetKind {
+  return entityType;
+}
 
 const ENTITY_TYPE_OPTIONS = [
   "awakener",
@@ -119,6 +128,7 @@ export function BanListPanel({
             onChange={setEntityId}
             options={availableOptions}
             placeholder={`Select ${entityType}...`}
+            assetKind={banAssetKind(entityType)}
           />
           <Button size="sm" onClick={handleAdd} disabled={entityId == null}>
             Add ban
@@ -134,9 +144,17 @@ export function BanListPanel({
                 key={banEntryKey(entry)}
                 type="button"
                 onClick={() => onRemove(entry)}
-                className="rounded-full bg-red-50 px-2 py-0.5 text-xs text-red-700 transition-colors hover:bg-red-100"
+                className="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-2 py-0.5 text-xs text-red-700 transition-colors hover:bg-red-100"
                 title="Click to remove"
               >
+                <AssetIcon
+                  src={resolveSkeydbAssetUrl(
+                    banAssetKind(entry.entityType),
+                    entry.label,
+                  )}
+                  size={entry.entityType === "covenant" ? 28 : 20}
+                  darkChip={entry.entityType === "posse"}
+                />
                 {entry.entityType} · {entry.label}
               </button>
             ))}

@@ -8,6 +8,11 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { AssetIcon } from "@/lib/assets/asset-icon";
+import {
+  resolveSkeydbAssetUrl,
+  type AssetKind,
+} from "@/lib/assets/resolve-asset-url";
 import { cn } from "@/lib/utils";
 import type { ForeignKeyOption } from "@/lib/actions/crud";
 
@@ -17,6 +22,7 @@ type ForeignKeyComboboxProps = {
   options: ForeignKeyOption[];
   placeholder?: string;
   disabled?: boolean;
+  assetKind?: AssetKind;
 };
 
 export function ForeignKeyCombobox({
@@ -25,6 +31,7 @@ export function ForeignKeyCombobox({
   options,
   placeholder = "Select...",
   disabled = false,
+  assetKind,
 }: ForeignKeyComboboxProps) {
   const [open, setOpen] = React.useState(false);
   const [search, setSearch] = React.useState("");
@@ -33,6 +40,10 @@ export function ForeignKeyCombobox({
   const filtered = options.filter((option) =>
     option.label.toLowerCase().includes(search.toLowerCase()),
   );
+  const selectedSrc =
+    assetKind && selected
+      ? resolveSkeydbAssetUrl(assetKind, selected.label)
+      : undefined;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -46,8 +57,17 @@ export function ForeignKeyCombobox({
           title={selected?.label}
           className="w-full justify-between font-normal"
         >
-          <span className="min-w-0 truncate">
-            {selected ? selected.label : placeholder}
+          <span className="flex min-w-0 items-center gap-2 truncate">
+            {assetKind ? (
+              <AssetIcon
+                src={selectedSrc}
+                size={assetKind === "covenant" ? 28 : 20}
+                darkChip={assetKind === "posse"}
+              />
+            ) : null}
+            <span className="min-w-0 truncate">
+              {selected ? selected.label : placeholder}
+            </span>
           </span>
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
@@ -78,31 +98,44 @@ export function ForeignKeyCombobox({
               No results found.
             </p>
           ) : (
-            filtered.map((option) => (
-              <button
-                key={option.value}
-                type="button"
-                className={cn(
-                  "flex w-full items-center rounded-sm px-2 py-1.5 text-left text-sm hover:bg-zinc-100",
-                  value === option.value && "bg-zinc-100",
-                )}
-                onClick={() => {
-                  onChange(option.value);
-                  setOpen(false);
-                  setSearch("");
-                }}
-              >
-                <Check
+            filtered.map((option) => {
+              const optionSrc = assetKind
+                ? resolveSkeydbAssetUrl(assetKind, option.label)
+                : undefined;
+              return (
+                <button
+                  key={option.value}
+                  type="button"
                   className={cn(
-                    "mr-2 h-4 w-4",
-                    value === option.value ? "opacity-100" : "opacity-0",
+                    "flex w-full items-center rounded-sm px-2 py-1.5 text-left text-sm hover:bg-zinc-100",
+                    value === option.value && "bg-zinc-100",
                   )}
-                />
-                <span className="min-w-0 flex-1 truncate" title={option.label}>
-                  {option.label}
-                </span>
-              </button>
-            ))
+                  onClick={() => {
+                    onChange(option.value);
+                    setOpen(false);
+                    setSearch("");
+                  }}
+                >
+                  <Check
+                    className={cn(
+                      "mr-2 h-4 w-4 shrink-0",
+                      value === option.value ? "opacity-100" : "opacity-0",
+                    )}
+                  />
+                  {assetKind ? (
+                    <AssetIcon
+                      src={optionSrc}
+                      size={assetKind === "covenant" ? 28 : 20}
+                      className="mr-2"
+                      darkChip={assetKind === "posse"}
+                    />
+                  ) : null}
+                  <span className="min-w-0 flex-1 truncate" title={option.label}>
+                    {option.label}
+                  </span>
+                </button>
+              );
+            })
           )}
         </div>
       </PopoverContent>

@@ -168,6 +168,7 @@ export function AwakenerSlotRow({
               onChange={(awakenerId) => onChange({ ...slot, awakenerId })}
               options={awakenerOptions}
               placeholder="Select awakener..."
+              assetKind="awakener"
             />
           </div>
           <div className="space-y-1.5">
@@ -177,6 +178,7 @@ export function AwakenerSlotRow({
               onChange={(covenantId) => onChange({ ...slot, covenantId })}
               options={covenantOptions}
               placeholder="Select covenant..."
+              assetKind="covenant"
             />
           </div>
           <div className="space-y-1.5">
@@ -186,6 +188,7 @@ export function AwakenerSlotRow({
               onChange={(wheel1Id) => onChange({ ...slot, wheel1Id })}
               options={wheel1Options}
               placeholder="Select wheel..."
+              assetKind="wheel"
             />
           </div>
           <div className="space-y-1.5">
@@ -195,6 +198,7 @@ export function AwakenerSlotRow({
               onChange={(wheel2Id) => onChange({ ...slot, wheel2Id })}
               options={wheel2Options}
               placeholder="Select wheel..."
+              assetKind="wheel"
             />
           </div>
         </div>

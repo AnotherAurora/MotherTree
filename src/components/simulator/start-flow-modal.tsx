@@ -90,6 +90,7 @@ export function StartFlowModal({
               onChange={setStartAwakenerId}
               options={awakenerOptions}
               placeholder="Select awakener..."
+              assetKind="awakener"
             />
             <div className="flex justify-end gap-2">
               <Button
