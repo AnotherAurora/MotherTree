@@ -6,6 +6,7 @@
  */
 import { applyInteractions } from "../src/lib/path-carver/apply-interactions";
 import {
+  applyAliemusDiminishingReturn,
   applyKeyflareDiminishingReturn,
   buildBaseStatTransferManifestations,
   computeAwakenerTotalBaseStats,
@@ -272,14 +273,22 @@ console.log("\nSynthetic transfers + interaction immunity / modifier role");
     [activeTag.id]: activeTag,
   };
 
+  const aliemusSum = 2.4;
+  const expectedAliemus = applyAliemusDiminishingReturn(aliemusSum);
+  assert(expectedAliemus === 3, `DR(2.4) → 3 (got ${expectedAliemus})`);
+
   const awakener = makeAwakener({
     id: 1,
     critDmg: 0.5,
-    aliemusRegen: 0.2,
+    aliemusRegen: aliemusSum,
   });
   const [total] = computeAwakenerTotalBaseStats(
     { awakeners: [awakener], gearStatContributions: [], tagsById },
     [],
+  );
+  assert(
+    total.aliemusRegen === expectedAliemus,
+    `total aliemusRegen after DR = ${expectedAliemus} (got ${total.aliemusRegen})`,
   );
   const transfers = buildBaseStatTransferManifestations([total], tagsById);
   const syntheticCrit = transfers.find((m) => m.tagId === 17);
@@ -291,8 +300,8 @@ console.log("\nSynthetic transfers + interaction immunity / modifier role");
     "crit_dmg transfer target_type=self",
   );
   assert(
-    syntheticAliemus!.valueScalar === 0.2,
-    "aliemus transfer value matches base",
+    syntheticAliemus!.valueScalar === expectedAliemus,
+    `aliemus transfer value matches DR (${syntheticAliemus!.valueScalar})`,
   );
 
   const active = makeManifestation({
@@ -345,11 +354,48 @@ console.log("\nSynthetic transfers + interaction immunity / modifier role");
     (result.totalsByTagId.get(activeTag.id) ?? 0) === 150,
     `synthetic Crit Damage modifies Active (${result.totalsByTagId.get(activeTag.id)})`,
   );
-  // Synthetic Aliemus stays 0.2 — Increase Gain must not change transfer subject
+  // Synthetic Aliemus stays at DR result — Increase Gain must not change transfer subject
   assert(
-    (result.totalsByTagId.get(aliemusTag.id) ?? 0) === 0.2,
+    (result.totalsByTagId.get(aliemusTag.id) ?? 0) === expectedAliemus,
     `synthetic Aliemus immune to Increase Gain (${result.totalsByTagId.get(aliemusTag.id)})`,
   );
+}
+
+console.log("\nAliemus regen: gear sum then DR");
+{
+  assert(applyAliemusDiminishingReturn(4.8) === 5, "DR(4.8) → 5");
+  assert(applyAliemusDiminishingReturn(7.2) === 7, "DR(7.2) → 7");
+
+  const awakener = makeAwakener({ id: 1, aliemusRegen: 4.8 });
+  const contributions: GearStatContribution[] = [
+    {
+      awakenerId: 1,
+      sourceKind: "wheel",
+      entityId: 10,
+      stat: "aliemus_regen",
+      statAmount: 2.4,
+    },
+  ];
+  const [total] = computeAwakenerTotalBaseStats(
+    { awakeners: [awakener], gearStatContributions: contributions, tagsById: {} },
+    [],
+  );
+  assert(
+    total.aliemusRegen === 7,
+    `aliemus 4.8+2.4 → DR → 7 (got ${total.aliemusRegen})`,
+  );
+
+  const aliemusTag = makeTag(28, "Support.Aliemus", false);
+  const transfers = buildBaseStatTransferManifestations([total], {
+    [aliemusTag.id]: aliemusTag,
+  });
+  const synthetic = transfers.find((m) => m.tagId === 28);
+  assert(synthetic != null, "synthetic Support.Aliemus after gear+DR");
+  assert(
+    synthetic!.valueScalar === 7,
+    `transfer value_scalar = 7 (got ${synthetic!.valueScalar})`,
+  );
+  assert(synthetic!.targetType === "self", "aliemus transfer target_type=self");
 }
 
 console.log("\nDeath Resist → In Mission → Cause Trigger (pure)");

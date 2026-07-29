@@ -81,11 +81,11 @@ export function applyKeyflareDiminishingReturn(x: number): number {
 }
 
 /**
- * Aliemus regen diminishing return — formula TBD.
- * TODO: replace passthrough when formula is defined.
+ * Aliemus regen diminishing return:
+ * ceil(x * (1 - (x / 0.2) / (x / 0.2 + 360)))
  */
 export function applyAliemusDiminishingReturn(x: number): number {
-  return x;
+  return Math.ceil(x * (1 - x / 0.2 / (x / 0.2 + 360)));
 }
 
 function cloneAwakener(a: Awakener): Awakener {

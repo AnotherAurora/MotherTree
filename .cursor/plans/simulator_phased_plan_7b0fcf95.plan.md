@@ -564,7 +564,7 @@ Replace raw `awakener` table stats for `dependency_stat` with **total base stats
 
 1. Sum per awakener: table stats + wheel1 + wheel2 + covenant (`stat` / `stat_amount` when set)
 2. **keyflare_regen DR:** `Math.ceil(15 + 144 * (x - 15) / (x + 129))`
-3. **aliemus_regen DR:** TODO passthrough (sum only)
+3. **aliemus_regen DR:** `Math.ceil(x * (1 - (x / 0.2) / (x / 0.2 + 360)))`
 4. **Special.Increase Base Keyflare** (tag id **131**):  
    `finalKeyflare = Math.ceil(originalDr * (1 + Σ effective value_scalar))`  
    Multiple sources use the same original (additive scalars). Scale those rows with **pre-boost** totals if they have `dependency_stat`.
