@@ -3,6 +3,7 @@ import {
   effectiveManifestationScalar,
 } from "@/lib/path-carver/effective-value-scalar";
 import {
+  DEFENDER_MAX_HP_UP_TAG_ID,
   IN_MISSION_DEATH_RESIST_TAG_ID,
   SPECIAL_CAUSE_DEATH_RESIST_TRIGGER_TAG_ID,
 } from "@/lib/path-carver/death-resist-trigger";
@@ -69,6 +70,7 @@ export const REQUIRED_BASE_STAT_TAG_IDS: readonly number[] = [
   SPECIAL_INCREASE_BASE_KEYFLARE_TAG_ID,
   IN_MISSION_DEATH_RESIST_TAG_ID,
   SPECIAL_CAUSE_DEATH_RESIST_TRIGGER_TAG_ID,
+  DEFENDER_MAX_HP_UP_TAG_ID,
 ];
 
 /**

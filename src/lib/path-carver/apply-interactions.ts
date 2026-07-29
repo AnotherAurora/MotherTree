@@ -118,6 +118,8 @@ export type ApplyInteractionsInput = {
    * Omit only for internal sub-calls that already baked context in.
    */
   leafContext?: SourceType | null;
+  /** Final team Max HP for dependency_stat=team_max_hp resolution. */
+  teamMaxHp?: number | null;
 };
 
 export type ApplyInteractionsResult = {
@@ -504,6 +506,7 @@ function resolveOpAndFactor(
   override: InteractionOverride | null,
   ownerAwakener: Awakener | null,
   tagIsPercent = false,
+  teamMaxHp?: number | null,
 ): { op: OperationType; factor: number; disabled: boolean } {
   if (override?.isDisabled) {
     return {
@@ -519,6 +522,7 @@ function resolveOpAndFactor(
     interaction.defaultFactor,
     ownerAwakener,
     tagIsPercent,
+    teamMaxHp,
   );
 
   return { op, factor, disabled: false };
@@ -585,6 +589,7 @@ function applyPresenceMultiplyOnce(
   awakenersById: ReadonlyMap<number, Awakener>,
   buffRestrictionMet: SourceType | undefined,
   leafContext: SourceType | null | undefined,
+  teamMaxHp?: number | null,
 ): void {
   for (const target of targets) {
     const presenceKey = `${modifierTagId}:${target.id}`;
@@ -638,6 +643,7 @@ function applyPresenceMultiplyOnce(
           override,
           ownerAwakener,
           modifierTagIsPercent,
+          teamMaxHp,
         );
         factor = resolved.factor;
         break;
@@ -759,6 +765,7 @@ function applyInteractionOnto(
   awakenersById: ReadonlyMap<number, Awakener>,
   leafContext: SourceType | null | undefined,
   awakenerNamesById?: ReadonlyMap<number, string>,
+  teamMaxHp?: number | null,
 ): void {
   const modifierTagId = interaction.modifierTagId;
   const targetTagName = interaction.targetTagName;
@@ -819,6 +826,7 @@ function applyInteractionOnto(
       awakenersById,
       buffRestrictionMet,
       leafContext,
+      teamMaxHp,
     );
     return;
   }
@@ -873,6 +881,7 @@ function applyInteractionOnto(
         override,
         ownerAwakener,
         modifierTagIsPercent,
+        teamMaxHp,
       );
       if (resolved.disabled) continue;
 
@@ -953,6 +962,7 @@ function applyInteractionOnto(
           override,
           ownerAwakener,
           modifierTagIsPercent,
+          teamMaxHp,
         );
         defaultOp = resolved.op;
         defaultFactor = resolved.factor;
@@ -1007,6 +1017,7 @@ function applyInteractionOnto(
           override,
           ownerAwakener,
           modifierTagIsPercent,
+          teamMaxHp,
         );
         applyOpAndRecord(
           next,
@@ -1086,6 +1097,7 @@ function applyInteractionOnto(
             override,
             ownerAwakener,
             modifierTagIsPercent,
+            teamMaxHp,
           );
           applyOpAndRecord(
             next,
@@ -1163,6 +1175,7 @@ function applyInteractionOnto(
           override,
           ownerAwakener,
           modifierTagIsPercent,
+          teamMaxHp,
         );
         applyOpAndRecord(
           next,
@@ -1285,6 +1298,7 @@ type RunInteractionsOptions = {
   recordBaseSteps: boolean;
   /** When false, skip Special conversions (caller runs once after merge). */
   runSpecial: boolean;
+  teamMaxHp?: number | null;
 };
 
 type RunInteractionsResult = {
@@ -1320,6 +1334,7 @@ function runInteractionsForLeafContext(
       m,
       options.awakenersById,
       options.tagsById,
+      options.teamMaxHp,
     );
     if (scalar === 0 && raw === 0) continue;
     if (scalar === 0) continue;
@@ -1371,6 +1386,7 @@ function runInteractionsForLeafContext(
         options.awakenersById,
         options.leafContext,
         options.awakenerNamesById,
+        options.teamMaxHp,
       );
     }
 
@@ -1461,7 +1477,12 @@ export function applyInteractions(
   // Record every applied manifestation's base once (raw vs effective).
   for (const m of applied) {
     const raw = m.valueScalar ?? 0;
-    const scalar = effectiveManifestationScalar(m, awakenersById, input.tagsById);
+    const scalar = effectiveManifestationScalar(
+      m,
+      awakenersById,
+      input.tagsById,
+      input.teamMaxHp,
+    );
     if (scalar === 0) continue;
     steps.push({
       kind: "base",
@@ -1482,7 +1503,12 @@ export function applyInteractions(
   );
 
   const subjects = applied.filter((m) => {
-    const scalar = effectiveManifestationScalar(m, awakenersById, input.tagsById);
+    const scalar = effectiveManifestationScalar(
+      m,
+      awakenersById,
+      input.tagsById,
+      input.teamMaxHp,
+    );
     return scalar !== 0;
   });
 
@@ -1499,6 +1525,7 @@ export function applyInteractions(
           subject,
           awakenersById,
           input.tagsById,
+          input.teamMaxHp,
         );
         if (scalar !== 0) {
           mergeOwnerValue(
@@ -1522,6 +1549,7 @@ export function applyInteractions(
         awakenerNamesById: input.awakenerNamesById,
         recordBaseSteps: false,
         runSpecial: false,
+        teamMaxHp: input.teamMaxHp,
       });
 
       const owner = ownerKeyFor(subject);
@@ -1560,6 +1588,7 @@ export function applyInteractions(
       awakenerNamesById: input.awakenerNamesById,
       recordBaseSteps: false,
       runSpecial: false,
+      teamMaxHp: input.teamMaxHp,
     });
 
     const teamOnceTargetIds = new Set<number>();
@@ -1646,6 +1675,7 @@ export function applyInteractions(
 export function applyInteractionsForTeamData(
   teamData: TeamData,
   appliedManifestations: Manifestation[],
+  teamMaxHp?: number | null,
 ): ApplyInteractionsResult {
   const awakenerNamesById = new Map<number, string>();
   for (const awakener of teamData.awakeners) {
@@ -1661,5 +1691,6 @@ export function applyInteractionsForTeamData(
     tagsById: teamData.tagsById,
     awakenersById: buildAwakenersById(teamData.awakeners),
     awakenerNamesById,
+    teamMaxHp,
   });
 }

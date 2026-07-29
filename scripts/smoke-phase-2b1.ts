@@ -14,6 +14,7 @@ import {
 } from "../src/lib/path-carver/awakener-base-stats";
 import {
   DEFENDER_BASE_DEATH_RESIST_TAG_ID,
+  DEFENDER_MAX_HP_UP_TAG_ID,
   IN_MISSION_DEATH_RESIST_TAG_ID,
   SPECIAL_CAUSE_DEATH_RESIST_TRIGGER_TAG_ID,
   baseDeathResistToInMission,
@@ -391,26 +392,36 @@ console.log("\nDeath Resist derived transfers (builder + Layer B)");
     SPECIAL_CAUSE_DEATH_RESIST_TRIGGER_TAG_ID,
     "Special.Cause.Death Resist Trigger",
   );
+  const maxHpUpTag = makeTag(
+    DEFENDER_MAX_HP_UP_TAG_ID,
+    "Defender.Max HP Up",
+    true,
+  );
 
   const tagsById: Record<number, Tag> = {
     [baseTag.id]: baseTag,
     [inMissionTag.id]: inMissionTag,
     [causeTag.id]: causeTag,
+    [maxHpUpTag.id]: maxHpUpTag,
   };
 
-  // 500% base → synth In Mission 2, Cause 2
+  // 500% base → synth In Mission 2, Cause 2, Max HP Up 3
   {
     const derived = buildDeathResistDerivedManifestations(5, 0, tagsById);
     const synth147 = derived.find((m) => m.tagId === inMissionTag.id);
     const synth88 = derived.find((m) => m.tagId === causeTag.id);
+    const synth130 = derived.find((m) => m.tagId === DEFENDER_MAX_HP_UP_TAG_ID);
     assert(synth147 != null, "synth In Mission present");
     assert(synth88 != null, "synth Cause present");
+    assert(synth130 != null, "synth Max HP Up present");
     assert(synth147!.valueScalar === 2, "synth In Mission value 2");
     assert(synth88!.valueScalar === 2, "synth Cause value 2");
+    assert(synth130!.valueScalar === 3, "synth Max HP Up reduction 3");
     assert(synth147!.isBaseStatTransfer === true, "In Mission is transfer");
     assert(synth147!.targetType === "aoe", "In Mission target_type aoe");
     assert(synth88!.isBaseStatTransfer === true, "Cause is transfer");
     assert(synth88!.targetType === "aoe", "Cause target_type aoe");
+    assert(synth130!.isBaseStatTransfer === true, "Max HP Up is transfer");
 
     const baseM = makeManifestation({
       id: 1,
@@ -534,6 +545,10 @@ console.log("\nDeath Resist full tag 12 (ATM + Base stat) via computeReviewTagTo
     REQUIRED_BASE_STAT_TAG_IDS.includes(SPECIAL_CAUSE_DEATH_RESIST_TRIGGER_TAG_ID),
     "required tags include Cause 88",
   );
+  assert(
+    REQUIRED_BASE_STAT_TAG_IDS.includes(DEFENDER_MAX_HP_UP_TAG_ID),
+    "required tags include Max HP Up 130",
+  );
 
   const baseTag = makeTag(
     DEFENDER_BASE_DEATH_RESIST_TAG_ID,
@@ -549,13 +564,19 @@ console.log("\nDeath Resist full tag 12 (ATM + Base stat) via computeReviewTagTo
     SPECIAL_CAUSE_DEATH_RESIST_TRIGGER_TAG_ID,
     "Special.Cause.Death Resist Trigger",
   );
+  const maxHpUpTag = makeTag(
+    DEFENDER_MAX_HP_UP_TAG_ID,
+    "Defender.Max HP Up",
+    true,
+  );
   const tagsById: Record<number, Tag> = {
     [baseTag.id]: baseTag,
     [inMissionTag.id]: inMissionTag,
     [causeTag.id]: causeTag,
+    [maxHpUpTag.id]: maxHpUpTag,
   };
 
-  // Base stat 3.024 + ATM 1.0 = 4.024 → In Mission 1.024 → Cause 1
+  // Base stat 3.024 + ATM 1.0 = 4.024 → In Mission 1.024 → Cause 1; Max HP Up 3
   const awakener = makeAwakener({ id: 1, deathResist: 3.024 });
   const atm = makeManifestation({
     id: 10,
@@ -587,6 +608,10 @@ console.log("\nDeath Resist full tag 12 (ATM + Base stat) via computeReviewTagTo
   assert(
     (totalsByTagId.get(causeTag.id) ?? 0) === 1,
     `Cause 1 (got ${totalsByTagId.get(causeTag.id)})`,
+  );
+  assert(
+    (totalsByTagId.get(maxHpUpTag.id) ?? 0) === 3,
+    `Max HP Up reduction capped at 3 (got ${totalsByTagId.get(maxHpUpTag.id)})`,
   );
   const synth147 = reviewTeamData.manifestations.find(
     (m) => m.tagId === inMissionTag.id && m.isBaseStatTransfer,
@@ -642,10 +667,16 @@ console.log("\nTrigger condition gating");
       SPECIAL_CAUSE_DEATH_RESIST_TRIGGER_TAG_ID,
       "Special.Cause.Death Resist Trigger",
     );
+    const maxHpUpTag = makeTag(
+      DEFENDER_MAX_HP_UP_TAG_ID,
+      "Defender.Max HP Up",
+      true,
+    );
     const tagsById: Record<number, Tag> = {
       [baseTag.id]: baseTag,
       [inMissionTag.id]: inMissionTag,
       [causeTag.id]: causeTag,
+      [maxHpUpTag.id]: maxHpUpTag,
       [whenDr.id]: whenDr,
       [critTag.id]: critTag,
     };

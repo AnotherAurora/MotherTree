@@ -8,6 +8,7 @@ import {
 } from "@/lib/path-carver/awakener-base-stats";
 import {
   DEFENDER_BASE_DEATH_RESIST_TAG_ID,
+  DEFENDER_MAX_HP_UP_TAG_ID,
   IN_MISSION_DEATH_RESIST_TAG_ID,
   buildDeathResistDerivedManifestations,
 } from "@/lib/path-carver/death-resist-trigger";
@@ -20,6 +21,10 @@ import {
   isManifestationApplied,
   type ManifestationApplyContext,
 } from "@/lib/path-carver/manifestation-apply";
+import {
+  computeTeamMaxHp,
+  type TeamMaxHpResult,
+} from "@/lib/path-carver/team-max-hp";
 import {
   buildTriggerCounts,
   triggerApplyMultiplier,
@@ -42,6 +47,8 @@ export type ReviewTagTotals = {
   reviewTeamData: TeamData;
   /** When tag id → apply-times (from Cause totals). */
   triggerCounts: Map<number, number>;
+  /** Team Max HP breakdown (baseline + Max HP Up bonus). */
+  teamMaxHp: TeamMaxHpResult;
 };
 
 /** Clone with value_scalar × multiplier (for N trigger applications). */
@@ -67,12 +74,27 @@ function sumCauseTotals(
   return totals;
 }
 
+/** Sum Layer A Max HP Up (tag 130) before interactions — no teamMaxHp context yet. */
+function sumMaxHpUpTotal(
+  manifestations: readonly Manifestation[],
+  awakenersById: ReadonlyMap<number, Awakener>,
+  tagsById: Readonly<Record<number, Tag>>,
+): number {
+  let total = 0;
+  for (const m of manifestations) {
+    if (m.tagId !== DEFENDER_MAX_HP_UP_TAG_ID) continue;
+    total += effectiveManifestationScalar(m, awakenersById, tagsById);
+  }
+  return total;
+}
+
 /** Base Layer A sums only (no interactions). Uses dependency-scaled effective scalars. */
 export function aggregateTagScalarsById(
   manifestations: Manifestation[],
   applyContext: ManifestationApplyContext,
   awakeners: readonly Awakener[] = [],
   tagsById: Readonly<Record<number, Tag>> = {},
+  teamMaxHp?: number | null,
 ): Map<number, number> {
   const awakenersById = buildAwakenersById(awakeners);
   const totals = new Map<number, number>();
@@ -81,7 +103,8 @@ export function aggregateTagScalarsById(
     const mult = triggerApplyMultiplier(m, applyContext.triggerCounts);
     if (mult === 0) continue;
     const scalar =
-      effectiveManifestationScalar(m, awakenersById, tagsById) * mult;
+      effectiveManifestationScalar(m, awakenersById, tagsById, teamMaxHp) *
+      mult;
     if (scalar === 0) continue;
     totals.set(m.tagId, (totals.get(m.tagId) ?? 0) + scalar);
   }
@@ -90,8 +113,9 @@ export function aggregateTagScalarsById(
 
 /**
  * Review Tags totals:
- * Layer A null-trigger → total base stats → transfers + Death Resist Cause →
- * Cause→When counts → Layer A triggered (×N) → Layer B interactions.
+ * Layer A null-trigger → total base stats → transfers + Death Resist Cause +
+ * Max HP Up from DR → Cause→When counts → Layer A triggered (×N) →
+ * team Max HP → Layer B interactions (with team_max_hp resolved).
  */
 export function computeReviewTagTotals(
   teamData: TeamData,
@@ -159,6 +183,23 @@ export function computeReviewTagTotals(
     appliedTriggered.push(scaleManifestationByTrigger(m, mult));
   }
 
+  const applied = [
+    ...appliedNullTrigger,
+    ...allTransfers,
+    ...appliedTriggered,
+  ];
+
+  // Pre-interaction Max HP Up (includes DR-reduction synthetic + record rows).
+  const maxHpUpTotal = sumMaxHpUpTotal(
+    applied,
+    awakenersById,
+    teamData.tagsById,
+  );
+  const teamMaxHp = computeTeamMaxHp({
+    awakeners: totalAwakeners,
+    maxHpUpTotal,
+  });
+
   const reviewTeamData: TeamData = {
     ...teamData,
     awakeners: totalAwakeners,
@@ -173,17 +214,17 @@ export function computeReviewTagTotals(
     manifestationCount: reviewTeamData.manifestations.length,
   };
 
-  const applied = [
-    ...appliedNullTrigger,
-    ...allTransfers,
-    ...appliedTriggered,
-  ];
-  const result = applyInteractionsForTeamData(reviewTeamData, applied);
+  const result = applyInteractionsForTeamData(
+    reviewTeamData,
+    applied,
+    teamMaxHp.finalMaxHp,
+  );
   return {
     totalsByTagId: result.totalsByTagId,
     steps: result.steps,
     reviewTeamData,
     triggerCounts,
+    teamMaxHp,
   };
 }
 
@@ -193,6 +234,7 @@ export function aggregateTagScalarsForAwakeners(
   damageDealerAwakenerIds: Iterable<number> = [],
   realms: Iterable<RealmLookupRow> = [],
   tagsById: Readonly<Record<number, Tag>> = {},
+  teamMaxHp?: number | null,
 ): Map<number, number> {
   return aggregateTagScalarsById(
     manifestations,
@@ -204,6 +246,7 @@ export function aggregateTagScalarsForAwakeners(
     ),
     awakeners,
     tagsById,
+    teamMaxHp,
   );
 }
 

@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ReviewTagsBaseStatsDebug } from "@/components/path-carver/review-tags-base-stats-debug";
 import { ReviewTagsDebug } from "@/components/path-carver/review-tags-debug";
 import { ReviewTagsMathDebug } from "@/components/path-carver/review-tags-math-debug";
+import { ReviewTagsTeamMaxHpDebug } from "@/components/path-carver/review-tags-team-max-hp-debug";
 import { loadTeamData } from "@/lib/actions/team-data";
 import type { TeamData } from "@/lib/team-data/types";
 import {
@@ -14,6 +15,7 @@ import {
   getScalarForTag,
 } from "@/lib/path-carver/aggregate-tag-scalars";
 import type { ScalarMathStep } from "@/lib/path-carver/apply-interactions";
+import type { TeamMaxHpResult } from "@/lib/path-carver/team-max-hp";
 import { createManifestationApplyContext } from "@/lib/path-carver/manifestation-apply";
 import type {
   AnchoredAwakenerState,
@@ -61,6 +63,7 @@ export function ReviewTagsStep({
   const [triggerCounts, setTriggerCounts] = useState<Map<number, number>>(
     () => new Map(),
   );
+  const [teamMaxHp, setTeamMaxHp] = useState<TeamMaxHpResult | null>(null);
 
   const damageDealerAwakenerIds = useMemo(() => {
     const ids: number[] = [];
@@ -94,6 +97,7 @@ export function ReviewTagsStep({
         setMathSteps([]);
         setTeamData(null);
         setTriggerCounts(new Map());
+        setTeamMaxHp(null);
         return;
       }
 
@@ -103,12 +107,18 @@ export function ReviewTagsStep({
         new Map(),
         result.data.realms,
       );
-      const { totalsByTagId, steps, reviewTeamData, triggerCounts: counts } =
-        computeReviewTagTotals(result.data, applyContext);
+      const {
+        totalsByTagId,
+        steps,
+        reviewTeamData,
+        triggerCounts: counts,
+        teamMaxHp: hp,
+      } = computeReviewTagTotals(result.data, applyContext);
       setTeamData(reviewTeamData);
       setScalarTotals(totalsByTagId);
       setMathSteps(steps);
       setTriggerCounts(counts);
+      setTeamMaxHp(hp);
 
       const tagRows: ManifestedTagRow[] = [];
 
@@ -271,12 +281,14 @@ export function ReviewTagsStep({
             teamData={teamData}
             slots={slots}
             applyContext={applyContext}
+            teamMaxHp={teamMaxHp?.finalMaxHp ?? null}
           />
           <ReviewTagsMathDebug
             steps={mathSteps}
             awakeners={teamData.awakeners}
           />
           <ReviewTagsBaseStatsDebug awakeners={teamData.awakeners} />
+          {teamMaxHp && <ReviewTagsTeamMaxHpDebug teamMaxHp={teamMaxHp} />}
         </>
       )}
     </div>

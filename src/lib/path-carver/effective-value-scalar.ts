@@ -16,11 +16,8 @@ const PERCENT_DEPENDENCY_STATS = new Set<AllStats>([
   "death_resist",
 ]);
 
-/** Keep raw value_scalar; do not scale. */
-const IGNORED_DEPENDENCY_STATS = new Set<AllStats>([
-  "team_max_hp",
-  "enemy_max_hp",
-]);
+/** Keep raw value_scalar; do not scale (even when teamMaxHp context exists). */
+const ALWAYS_IGNORED_DEPENDENCY_STATS = new Set<AllStats>(["enemy_max_hp"]);
 
 /**
  * Map dependency_stat enum → awakener field.
@@ -85,7 +82,8 @@ function ceilAfterDependencyScale(
  * Phase 2b Part A — resolve effective value_scalar via dependency_stat.
  *
  * - posse: always raw (ignore dependency_stat)
- * - team_max_hp / enemy_max_hp: raw
+ * - enemy_max_hp: raw
+ * - team_max_hp: raw when teamMaxHp context missing; else raw × teamMaxHp
  * - null dependency_stat: raw
  * - null awakener stat: treat as 0
  * - percent dependency_stat: (raw * 100) * (stat * 100)
@@ -99,11 +97,17 @@ export function scaleValueScalar(
   awakener: Awakener | null,
   sourceKind?: ManifestationSourceKind,
   tagIsPercent = false,
+  teamMaxHp?: number | null,
 ): number {
   if (raw == null) return 0;
   if (sourceKind === "posse") return raw;
   if (dependencyStat == null) return raw;
-  if (IGNORED_DEPENDENCY_STATS.has(dependencyStat)) return raw;
+  if (ALWAYS_IGNORED_DEPENDENCY_STATS.has(dependencyStat)) return raw;
+
+  if (dependencyStat === "team_max_hp") {
+    if (teamMaxHp == null) return raw;
+    return ceilAfterDependencyScale(raw * teamMaxHp, tagIsPercent);
+  }
 
   const statValue =
     awakener != null
@@ -130,6 +134,7 @@ export function effectiveManifestationScalar(
   m: Manifestation,
   awakenersById: ReadonlyMap<number, Awakener>,
   tagsById: Readonly<Record<number, Tag>>,
+  teamMaxHp?: number | null,
 ): number {
   return scaleValueScalar(
     m.valueScalar,
@@ -137,6 +142,7 @@ export function effectiveManifestationScalar(
     ownerAwakenerForManifestation(m, awakenersById),
     m.sourceKind,
     tagsById[m.tagId]?.isPercent === true,
+    teamMaxHp,
   );
 }
 
@@ -150,6 +156,7 @@ export function effectiveOverrideFactor(
   defaultFactor: number | null,
   ownerAwakener: Awakener | null,
   tagIsPercent = false,
+  teamMaxHp?: number | null,
 ): number {
   if (override?.valueScalar != null) {
     return scaleValueScalar(
@@ -158,6 +165,7 @@ export function effectiveOverrideFactor(
       ownerAwakener,
       "awakener",
       tagIsPercent,
+      teamMaxHp,
     );
   }
   return defaultFactor ?? 0;

@@ -594,6 +594,32 @@ Keyflare is **not** transferred to a tag; it only feeds `dependency_stat` (after
 
 ---
 
+## Phase 2b.2 — Team Max HP (`all_stats.team_max_hp`)
+
+**Depends on:** Phase 2b.1.
+
+### Goal
+
+Compute Path Carver **team Max HP** from total base CON × `AcountLevelConfig` HpMultiplier, emit synthetic **Defender.Max HP Up** (tag 130) from Death Resist reduction, and resolve `dependency_stat=team_max_hp` to `finalMaxHp`.
+
+### Locked formula
+
+- Defaults: account level 60, awakener levels 60; average always ÷ 4 slots
+- `baselineMaxHp = ceil(sumCON * HpMultiplier[effectiveHpLevel])`
+- Full 1–100 multiplier table: [`account-level-hp-multipliers.ts`](src/lib/path-carver/account-level-hp-multipliers.ts)
+- DR reduction → tag 130; `bonusMaxHp = ceil(baseline * maxHpUpTotal)` (0.1 = +10%; Max HP Up is not Death Resist)
+- `enemy_max_hp` remains ignored
+
+### Primary files
+
+- [`src/lib/path-carver/team-max-hp.ts`](src/lib/path-carver/team-max-hp.ts)
+- [`src/lib/path-carver/death-resist-trigger.ts`](src/lib/path-carver/death-resist-trigger.ts)
+- [`src/lib/path-carver/aggregate-tag-scalars.ts`](src/lib/path-carver/aggregate-tag-scalars.ts)
+- [`src/lib/path-carver/effective-value-scalar.ts`](src/lib/path-carver/effective-value-scalar.ts)
+- Smoke: `npx tsx scripts/smoke-team-max-hp.ts`
+
+---
+
 ## Phase 2c — Damage layers + Calculation List
 
 **Depends on:** Phase 2a + 2b (stable Review Tags interaction math with leaf-gated buff restriction).
@@ -670,6 +696,7 @@ Path Carver upserts a single `desire_template` per `desire_id`.
 ## Suggested implementation order (from now)
 
 1. **Phase 2b.1** — awakener total base stats + transfer tags + Special.Increase Base Keyflare (done when implemented)
-2. **Phase 2c** — layer terms x/y/z/f + 4-layer formula + Calculation List breakdown (replace temp op order)
-3. **Phase 3** — desire_demand / radar / simulator port
-4. **Phase 4** — Smart recommend / search
+2. **Phase 2b.2** — team Max HP (`all_stats.team_max_hp`): CON × HpMultiplier + Max HP Up from DR reduction; resolve for dependency scaling (see dedicated Team Max HP plan)
+3. **Phase 2c** — layer terms x/y/z/f + 4-layer formula + Calculation List breakdown (replace temp op order)
+4. **Phase 3** — desire_demand / radar / simulator port
+5. **Phase 4** — Smart recommend / search

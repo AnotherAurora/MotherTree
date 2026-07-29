@@ -16,6 +16,8 @@ type ReviewTagsDebugProps = {
   teamData: TeamData;
   slots: SlotState[];
   applyContext: ManifestationApplyContext;
+  /** Final team Max HP for dependency_stat=team_max_hp display. */
+  teamMaxHp?: number | null;
 };
 
 type AwakenerGroup = {
@@ -36,14 +38,20 @@ function formatScalarCell(
   m: Manifestation,
   awakenersById: ReadonlyMap<number, Awakener>,
   tagsById: Readonly<Record<number, Tag>>,
+  teamMaxHp?: number | null,
 ): string {
   const raw = m.valueScalar;
   if (raw == null) return "—";
-  const effective = effectiveManifestationScalar(m, awakenersById, tagsById);
+  const effective = effectiveManifestationScalar(
+    m,
+    awakenersById,
+    tagsById,
+    teamMaxHp,
+  );
   if (
     m.dependencyStat == null ||
     m.sourceKind === "posse" ||
-    m.dependencyStat === "team_max_hp" ||
+    (m.dependencyStat === "team_max_hp" && teamMaxHp == null) ||
     m.dependencyStat === "enemy_max_hp" ||
     effective === raw
   ) {
@@ -77,11 +85,13 @@ function ManifestationTable({
   applyContext,
   awakenersById,
   tagsById,
+  teamMaxHp,
 }: {
   tags: Manifestation[];
   applyContext: ManifestationApplyContext;
   awakenersById: ReadonlyMap<number, Awakener>;
   tagsById: Readonly<Record<number, Tag>>;
+  teamMaxHp?: number | null;
 }) {
   if (tags.length === 0) {
     return <p className="text-zinc-400">None</p>;
@@ -125,7 +135,7 @@ function ManifestationTable({
               >
                 <td className="px-2 py-1.5 text-zinc-700">{m.tagName}</td>
                 <td className="px-2 py-1.5 tabular-nums">
-                  {formatScalarCell(m, awakenersById, tagsById)}
+                  {formatScalarCell(m, awakenersById, tagsById, teamMaxHp)}
                 </td>
                 <td
                   className={
@@ -168,12 +178,14 @@ function SourceSubsection({
   applyContext,
   awakenersById,
   tagsById,
+  teamMaxHp,
 }: {
   title: string;
   tags: Manifestation[];
   applyContext: ManifestationApplyContext;
   awakenersById: ReadonlyMap<number, Awakener>;
   tagsById: Readonly<Record<number, Tag>>;
+  teamMaxHp?: number | null;
 }) {
   return (
     <div className="space-y-1">
@@ -185,6 +197,7 @@ function SourceSubsection({
         applyContext={applyContext}
         awakenersById={awakenersById}
         tagsById={tagsById}
+        teamMaxHp={teamMaxHp}
       />
     </div>
   );
@@ -194,6 +207,7 @@ export function ReviewTagsDebug({
   teamData,
   slots,
   applyContext,
+  teamMaxHp,
 }: ReviewTagsDebugProps) {
   const awakenerNameById = useMemo(() => {
     const map = new Map<number, string>();
@@ -306,6 +320,7 @@ export function ReviewTagsDebug({
                   applyContext={applyContext}
                   awakenersById={awakenersById}
                   tagsById={teamData.tagsById}
+                  teamMaxHp={teamMaxHp}
                 />
                 <SourceSubsection
                   title="Covenant tags"
@@ -313,6 +328,7 @@ export function ReviewTagsDebug({
                   applyContext={applyContext}
                   awakenersById={awakenersById}
                   tagsById={teamData.tagsById}
+                  teamMaxHp={teamMaxHp}
                 />
                 <SourceSubsection
                   title="Wheel tags"
@@ -320,6 +336,7 @@ export function ReviewTagsDebug({
                   applyContext={applyContext}
                   awakenersById={awakenersById}
                   tagsById={teamData.tagsById}
+                  teamMaxHp={teamMaxHp}
                 />
               </div>
             </div>
@@ -334,6 +351,7 @@ export function ReviewTagsDebug({
               applyContext={applyContext}
               awakenersById={awakenersById}
               tagsById={teamData.tagsById}
+              teamMaxHp={teamMaxHp}
             />
           </div>
         </div>

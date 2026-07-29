@@ -9,17 +9,39 @@ export const IN_MISSION_DEATH_RESIST_TAG_ID = 147;
 /** Special.Cause.Death Resist Trigger — count from combined In Mission. */
 export const SPECIAL_CAUSE_DEATH_RESIST_TRIGGER_TAG_ID = 88;
 
+/** Defender.Max HP Up — from DR reduction (+ any record/gear Max HP Up rows). */
+export const DEFENDER_MAX_HP_UP_TAG_ID = 130;
+
 /** Max absolute Death Resist removed by the 75% In Mission reduction (300%). */
 const MAX_REDUCTION = 3;
+/** 300% reduced DR maps to at most +10% Max HP. */
+const MAX_HP_UP_FROM_REDUCTION_DIVISOR = 30;
 
 /** Offset so derived ids never collide with baseStatTransferManifestationId. */
 const DERIVED_ID_OFFSET = 1_000_000;
 
 /**
- * Stable negative id for Death Resist derived synthetics (147 / 88).
+ * Stable negative id for Death Resist derived synthetics (147 / 88 / 130).
  */
 export function deathResistDerivedManifestationId(tagId: number): number {
   return -(DERIVED_ID_OFFSET + tagId);
+}
+
+/**
+ * Absolute Death Resist removed when converting Base → In Mission.
+ * Scalars: 1.0 = 100%; reduction capped at 300%.
+ */
+export function baseDeathResistReduction(base: number): number {
+  if (base <= 0) return 0;
+  return Math.min(base * 0.75, MAX_REDUCTION);
+}
+
+/**
+ * Base DR reduction → Defender.Max HP Up fraction.
+ * 300% reduced DR = +10% Max HP cap, so divide the reduced scalar by 30.
+ */
+export function baseDeathResistReductionToMaxHpUp(base: number): number {
+  return baseDeathResistReduction(base) / MAX_HP_UP_FROM_REDUCTION_DIVISOR;
 }
 
 /**
@@ -28,8 +50,7 @@ export function deathResistDerivedManifestationId(tagId: number): number {
  */
 export function baseDeathResistToInMission(base: number): number {
   if (base <= 0) return 0;
-  const reduction = Math.min(base * 0.75, MAX_REDUCTION);
-  return base - reduction;
+  return base - baseDeathResistReduction(base);
 }
 
 /**
@@ -83,21 +104,30 @@ function makeDerivedTransfer(
 }
 
 /**
- * Synthetic In Mission (147) + Cause Trigger (88) transfers from Base Death Resist.
- * Cause uses fromBase + direct In Mission (pre-interaction). Immune as subjects.
+ * Synthetic In Mission (147) + Cause Trigger (88) + Max HP Up (130) from Base DR.
+ * Max HP Up uses direct HP-fraction units (0.1 = +10%), so DR reduction is
+ * converted via reduction/30. Cause uses fromBase + direct In Mission.
+ * Immune as interaction subjects.
  */
 export function buildDeathResistDerivedManifestations(
   baseDeathResistTotal: number,
   directInMissionTotal: number,
   tagsById: Record<number, Tag>,
 ): Manifestation[] {
-  const fromBase = baseDeathResistToInMission(baseDeathResistTotal);
+  const reduction = baseDeathResistReduction(baseDeathResistTotal);
+  const maxHpUp = baseDeathResistReductionToMaxHpUp(baseDeathResistTotal);
+  const fromBase = baseDeathResistTotal > 0 ? baseDeathResistTotal - reduction : 0;
   const cause = inMissionToCauseTrigger(fromBase + directInMissionTotal);
   const out: Manifestation[] = [];
 
   if (fromBase !== 0) {
     out.push(
       makeDerivedTransfer(IN_MISSION_DEATH_RESIST_TAG_ID, tagsById, fromBase),
+    );
+  }
+  if (maxHpUp !== 0) {
+    out.push(
+      makeDerivedTransfer(DEFENDER_MAX_HP_UP_TAG_ID, tagsById, maxHpUp),
     );
   }
   if (cause > 0) {
