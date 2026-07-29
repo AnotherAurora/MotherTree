@@ -939,45 +939,54 @@ export type Database = {
         Row: {
           created_at: string | null
           deleted_at: string | null
+          dependency_rate: number | null
+          dependency_rate_stat: Database["public"]["Enums"]["all_stats"] | null
           dependency_stat: Database["public"]["Enums"]["all_stats"] | null
-          doubles_when_pure: boolean
           id: number
           is_accumulating: boolean
           is_permanent: boolean | null
           metadata: string | null
+          pure_bonus_target: Database["public"]["Enums"]["pure_bonus_target"]
           realm_id: number
           required_realm_mode: Database["public"]["Enums"]["realm_match_mode"]
           tag_id: number
+          trigger_condition: number | null
           updated_at: string | null
           value_scalar: number | null
         }
         Insert: {
           created_at?: string | null
           deleted_at?: string | null
+          dependency_rate?: number | null
+          dependency_rate_stat?: Database["public"]["Enums"]["all_stats"] | null
           dependency_stat?: Database["public"]["Enums"]["all_stats"] | null
-          doubles_when_pure?: boolean
           id?: number
           is_accumulating?: boolean
           is_permanent?: boolean | null
           metadata?: string | null
+          pure_bonus_target?: Database["public"]["Enums"]["pure_bonus_target"]
           realm_id: number
           required_realm_mode?: Database["public"]["Enums"]["realm_match_mode"]
           tag_id: number
+          trigger_condition?: number | null
           updated_at?: string | null
           value_scalar?: number | null
         }
         Update: {
           created_at?: string | null
           deleted_at?: string | null
+          dependency_rate?: number | null
+          dependency_rate_stat?: Database["public"]["Enums"]["all_stats"] | null
           dependency_stat?: Database["public"]["Enums"]["all_stats"] | null
-          doubles_when_pure?: boolean
           id?: number
           is_accumulating?: boolean
           is_permanent?: boolean | null
           metadata?: string | null
+          pure_bonus_target?: Database["public"]["Enums"]["pure_bonus_target"]
           realm_id?: number
           required_realm_mode?: Database["public"]["Enums"]["realm_match_mode"]
           tag_id?: number
+          trigger_condition?: number | null
           updated_at?: string | null
           value_scalar?: number | null
         }
@@ -992,6 +1001,13 @@ export type Database = {
           {
             foreignKeyName: "realm_tag_manifestation_tag_id_fkey"
             columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "tag"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "realm_tag_manifestation_trigger_condition_fkey"
+            columns: ["trigger_condition"]
             isOneToOne: false
             referencedRelation: "tag"
             referencedColumns: ["id"]
@@ -1260,6 +1276,7 @@ export type Database = {
         | "add_scaled"
         | "multiply_one_plus"
         | "multiply"
+      pure_bonus_target: "none" | "value_scalar" | "dependency_rate"
       rarity: "SSR" | "SR" | "R" | "N"
       realm_enum_obsolete:
         | "chaos"
@@ -1427,6 +1444,7 @@ export const Constants = {
         "multiply_one_plus",
         "multiply",
       ],
+      pure_bonus_target: ["none", "value_scalar", "dependency_rate"],
       rarity: ["SSR", "SR", "R", "N"],
       realm_enum_obsolete: [
         "chaos",

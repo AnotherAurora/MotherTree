@@ -197,6 +197,12 @@ export const TABLE_CONFIGS: TableConfig[] = [
         foreignKey: { table: "tag", displayColumn: "tag_name" },
       },
       {
+        name: "trigger_condition",
+        label: "Trigger Condition",
+        type: "foreignKey",
+        foreignKey: { table: "tag", displayColumn: "tag_name" },
+      },
+      {
         name: "value_scalar",
         label: "Value Scalar",
         type: "number",
@@ -210,10 +216,24 @@ export const TABLE_CONFIGS: TableConfig[] = [
         inlineEditable: true,
       },
       {
-        name: "doubles_when_pure",
-        label: "Doubles When Pure",
-        type: "boolean",
-        defaultValue: false,
+        name: "dependency_rate",
+        label: "Dependency Rate",
+        type: "number",
+        inlineEditable: true,
+      },
+      {
+        name: "dependency_rate_stat",
+        label: "Dependency Rate Stat",
+        type: "enum",
+        enumName: "all_stats",
+        inlineEditable: true,
+      },
+      {
+        name: "pure_bonus_target",
+        label: "Pure Bonus Target",
+        type: "enum",
+        enumName: "pure_bonus_target",
+        defaultValue: "none",
         inlineEditable: true,
       },
       {

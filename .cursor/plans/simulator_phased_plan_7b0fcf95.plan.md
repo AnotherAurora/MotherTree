@@ -78,14 +78,14 @@ Path Carver’s **Review Tags** page is the primary surface for testing recommen
 
 ### Not done (next work)
 
-| Area                                       | Status                                                                                    |
-| ------------------------------------------ | ----------------------------------------------------------------------------------------- |
-| `target_type` apply rules                  | Loaded and shown in debug; **not applied** in aggregation                                 |
-| Interaction application                    | `tag_default_interaction` + overrides loaded in `TeamData` but **not applied**            |
-| `dependency_stat` → `value_scalar`         | **Phase 2b done** — ATM/covenant/wheel/override scaled; posse + team/enemy max HP ignored |
+| Area                                       | Status                                                                                     |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------ |
+| `target_type` apply rules                  | Loaded and shown in debug; **not applied** in aggregation                                  |
+| Interaction application                    | `tag_default_interaction` + overrides loaded in `TeamData` but **not applied**             |
+| `dependency_stat` → `value_scalar`         | **Phase 2b done** — ATM/covenant/wheel/override scaled; posse + team/enemy max HP ignored  |
 | `buff_target_type_restriction` leaf-gating | **Phase 2b done** — subject-centric + `substitute`; Option B subject `source_type` context |
-| Damage layers / Calculation List           | Deferred to Phase 2c                                                                      |
-| Simulator using Path Carver math           | Port in Phase 3                                                                           |
+| Damage layers / Calculation List           | Deferred to Phase 2c                                                                       |
+| Simulator using Path Carver math           | Port in Phase 3                                                                            |
 
 ---
 
@@ -110,11 +110,11 @@ Interactions **can chain** across **multiple passes** (e.g. Increase Gain → Su
 
 When applying an interaction op to a matched **target** tag:
 
-| Target / flag | Rule |
-| --- | --- |
-| **`Attacker.*` / `Defender.*`** | Always require Layer A **base-presence** (ignore `substitute`). Do not invent sinks. Gate on base-presence, not `value !== 0`. |
+| Target / flag                     | Rule                                                                                                                                                      |
+| --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **`Attacker.*` / `Defender.*`**   | Always require Layer A **base-presence** (ignore `substitute`). Do not invent sinks. Gate on base-presence, not `value !== 0`.                            |
 | **`substitute = true`** (default) | Modifier may **substitute** for a missing target: apply even when target has no Layer A base (synthesize / write from 0). Example: Fiamma → Final Damage. |
-| **`substitute = false`** | Target must be Layer A base-present; skip if missing. Example: Increase Gain.STR Up → STR Up (no phantom STR → damage). |
+| **`substitute = false`**          | Target must be Layer A base-present; skip if missing. Example: Increase Gain.STR Up → STR Up (no phantom STR → damage).                                   |
 
 Column: `tag_default_interaction.substitute` (boolean, NOT NULL, default `true`). Amplify-only Increase Gain rows should be `false`.
 
@@ -143,10 +143,10 @@ Non-self `add_scaled` into a base-required target (Attacker/Defender, or `substi
 
 Column: `tag_default_interaction.once_per_base` (boolean, NOT NULL, default `true`).
 
-| Value | Meaning |
-| --- | --- |
-| **`true`** (default) | Apply once per matching **subject** base (STR on each Strike, Alert on each Shield). Used in the per-subject interaction runs. |
-| **`false`** | **Team-once flat**: apply the op once for the team into `*team*` (do not amplify every target subject). Example: Embryo Fusion → Aliemu converts Embryo into Aliemu **once**, then that contribution is **summed** with other Aliemu subject bases. |
+| Value                | Meaning                                                                                                                                                                                                                                             |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **`true`** (default) | Apply once per matching **subject** base (STR on each Strike, Alert on each Shield). Used in the per-subject interaction runs.                                                                                                                      |
+| **`false`**          | **Team-once flat**: apply the op once for the team into `*team*` (do not amplify every target subject). Example: Embryo Fusion → Aliemu converts Embryo into Aliemu **once**, then that contribution is **summed** with other Aliemu subject bases. |
 
 Orthogonal to `substitute`. Embryo Fusion → Aliemu rows should be `once_per_base=false`.
 
@@ -369,7 +369,9 @@ Optional: show which interactions applied to which target tags (lightweight; ful
 
 #### Purpose
 
-When `dependency_stat` is non-null, the row’s `value_scalar` is **stat-dependent**:
+When `dependency_stat` is non-null, the row’s `value_scalar` is **stat-dependent**. For realm manifestations, `dependency_stat` is the **base stat/source quantity**. When `dependency_rate` and `dependency_rate_stat` are both non-null, `dependency_rate_stat` is the stat that scales the conversion rate rather than replacing the base-stat role of `dependency_stat`.
+
+**Scope:** `dependency_rate` / `dependency_rate_stat` / `pure_bonus_target` and the rate-scaled / two-row Fiesta rules apply to **`realm_tag_manifestation` only**. Other tables use `dependency_stat` multiply only (posse ignores it).
 
 | Table                                                                                   | Scalar column  | Notes                                                 |
 | --------------------------------------------------------------------------------------- | -------------- | ----------------------------------------------------- |
@@ -378,18 +380,55 @@ When `dependency_stat` is non-null, the row’s `value_scalar` is **stat-depende
 | `posse_tag_manifestation`                                                               | `value_scalar` | **ignore** `dependency_stat`                          |
 
 ```text
-# non-percent dependency_stat
-effective = ceil(value_scalar * awakener.<stat>)
+rate_mult   = 2 when pure_bonus_target = dependency_rate and team is pure, else 1
+scalar_mult = 2 when pure_bonus_target = value_scalar and team is pure, else 1
 
-# percent dependency_stat (see list below)
+# flat (dependency_stat null, no rate pair)
+effective = value_scalar * scalar_mult
+
+# multiply-only (dependency_stat set; dependency_rate null OR dependency_rate_stat null)
+# non-percent tag → ROUND UP to whole number
+effective = ceil(value_scalar * scalar_mult * awakener.<stat>)
+
+# multiply-only
+# percent tag → ROUND UP to 2 decimal places
+effective = ceil(value_scalar * scalar_mult * awakener.<stat> * 100) / 100
+
+# percent dependency_stat special form (ATM/override; see list below)
 effective = ceil(((value_scalar * 100) * (awakener.<stat> * 100)) * 100) / 100
+# (apply scalar_mult to value_scalar first when pure_bonus_target = value_scalar)
+
+# realm base-stat conversion with rate scaling
+# (dependency_stat + dependency_rate + dependency_rate_stat all set)
+# base_stat may be team_max_hp / enemy_max_hp (resolved for realm rows — not ignored)
+base_rate = value_scalar * scalar_mult
+raw = base_stat * (base_rate + dependency_rate * rate_stat * rate_mult)
+# ROUND UP: non-percent tag → whole number; percent tag → 2 dp
+effective = ceil(raw) or ceil(raw * 100) / 100
 ```
 
-Ceil matches multiply-op precision: whole number for non-percent deps; 2 decimal places for percent deps. Unscaled rows (null dep / posse / team_max_hp / enemy_max_hp) are left unchanged (no ceil).
+**Round up (ceil) is required** after dependency / pure scaling:
 
-If `dependency_stat` is null → leave `value_scalar` unchanged.
+- Non-percent tags: ceil to a **whole number** (e.g. Enhance `15 + 0.0075 × 434 × 2 = 21.51 → 22`)
+- Percent tags: ceil to **2 decimal places**
+- Unscaled flat rows with no pure double stay raw (no ceil)
+- ATM/override: `team_max_hp` / `enemy_max_hp` still **ignore** scaling (keep raw `value_scalar`). Realm rows that use those as `dependency_stat` **do** resolve them as `base_stat`.
+
+If `dependency_stat` is null and there is no rate pair → flat branch above.
+
+Do **not** encode Fiesta/Enhance as a single multiplicative row (`base × (1 + rate × RM)`). Use **two additive rows** instead (see row semantics). With `dependency_rate` set but `dependency_rate_stat` null, fall back to multiply-only (rate fields unused).
 
 `tag_default_interaction.default_factor` is **not** a `value_scalar` and is not scaled by `dependency_stat`.
+
+#### Row semantics
+
+- **Flat pure double:** `value_scalar` set, `dependency_stat` null, `pure_bonus_target=value_scalar` → `value_scalar × 2` when pure
+- **Current multiply:** `dependency_stat` set, `dependency_rate` null, `dependency_rate_stat` null → `ceil(value_scalar × scalar_mult × stat)`
+- **Two-row Fiesta / Enhance** (preferred for `base × (1 + 0.0005 × RM × pureMult)`):
+  - Base: flat `value_scalar` (e.g. 15 / 20 / 25 / 40), `pure_bonus_target=none`
+  - RM: `value_scalar = base × 0.0005` (e.g. 0.0075 / 0.01 / 0.0125 / 0.02), `dependency_stat=realm_mastery`, `pure_bonus_target=value_scalar`
+  - Sum then **round up**: pure RM 434 → `15 + 6.51 = 21.51 → 22`, `25 + 10.85 = 35.85 → 36`
+- **Base conversion + scaling stat:** `dependency_stat=team_max_hp`, `value_scalar` base rate (or `0` for RM-only companion), `dependency_rate` + `dependency_rate_stat=realm_mastery`, `pure_bonus_target=dependency_rate` → `ceil(HP × (base_rate + rate × RM × rate_mult))`
 
 #### Percent dependency stats
 
@@ -405,18 +444,18 @@ All other mapped awakener stats use the non-percent form.
 
 #### Enum → awakener column map
 
-| `dependency_stat`              | Awakener field on [`Awakener`](src/lib/team-data/types.ts) |
-| ------------------------------ | ---------------------------------------------------------- |
-| `con` / `atk` / `def`          | `con` / `atk` / `def`                                      |
-| `damage_amp`                   | `damageAmp`                                                |
-| `crit_rate`                    | `critRate`                                                 |
-| `crit_dmg`                     | `critDmg` (never `crit_damage`)                            |
-| `realm_mastery`                | `realmMastery`                                             |
-| `keyflare_regen`               | **`keyflareRegen`** (never `skey`)                         |
-| `aliemus_regen`                | `aliemusRegen`                                             |
-| `sigil_yield`                  | `sigilYield`                                               |
-| `death_resist`                 | `deathResist`                                              |
-| `team_max_hp` / `enemy_max_hp` | **ignore** — do not scale; keep raw `value_scalar`         |
+| `dependency_stat`              | Awakener field on [`Awakener`](src/lib/team-data/types.ts)                                       |
+| ------------------------------ | ------------------------------------------------------------------------------------------------ |
+| `con` / `atk` / `def`          | `con` / `atk` / `def`                                                                            |
+| `damage_amp`                   | `damageAmp`                                                                                      |
+| `crit_rate`                    | `critRate`                                                                                       |
+| `crit_dmg`                     | `critDmg` (never `crit_damage`)                                                                  |
+| `realm_mastery`                | `realmMastery`                                                                                   |
+| `keyflare_regen`               | **`keyflareRegen`** (never `skey`)                                                               |
+| `aliemus_regen`                | `aliemusRegen`                                                                                   |
+| `sigil_yield`                  | `sigilYield`                                                                                     |
+| `death_resist`                 | `deathResist`                                                                                    |
+| `team_max_hp` / `enemy_max_hp` | ATM/override: **ignore** (raw scalar). Realm rate-scaled / HP conversion: resolve as `base_stat` |
 
 Null awakener stat → treat as `0` (effective becomes 0).
 
@@ -534,14 +573,14 @@ Replace raw `awakener` table stats for `dependency_stat` with **total base stats
 
 ### Transfer tag ids
 
-| Base stat | Tag id | `target_type` |
-|-----------|--------|---------------|
-| `damage_amp` | 16 | `aoe` |
-| `crit_rate` | 18 | `self` |
-| `crit_dmg` | 17 | `self` |
-| `realm_mastery` | 63 | `aoe` |
-| `aliemus_regen` | 28 | `self` |
-| `death_resist` | 12 | `aoe` |
+| Base stat       | Tag id | `target_type` |
+| --------------- | ------ | ------------- |
+| `damage_amp`    | 16     | `aoe`         |
+| `crit_rate`     | 18     | `self`        |
+| `crit_dmg`      | 17     | `self`        |
+| `realm_mastery` | 63     | `aoe`         |
+| `aliemus_regen` | 28     | `self`        |
+| `death_resist`  | 12     | `aoe`         |
 
 Keyflare is **not** transferred to a tag; it only feeds `dependency_stat` (after DR + Special.Increase).
 
