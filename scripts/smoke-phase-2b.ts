@@ -75,6 +75,7 @@ function makeManifestation(
     replacesManifestationId: null,
     interactionOverrides: partial.interactionOverrides ?? [],
     isBaseStatTransfer: partial.isBaseStatTransfer ?? false,
+    isCreatedBase: partial.isCreatedBase ?? false,
     triggerCondition: null,
     realmId: null,
     requiredRealmMode: null,
@@ -100,8 +101,8 @@ function makeInteraction(
     exclusionTagName: null,
     defaultFactor: 1,
     buffTargetTypeRestriction: null,
-    substitute: true,
-    oncePerBase: true,
+    createsBase: false,
+    amplifiesSubject: true,
     ...partial,
   };
 }
@@ -246,6 +247,8 @@ console.log("Part B — leaf-gated buff_target_type_restriction");
       mathOperation: "multiply_one_plus",
       defaultFactor: 1,
       buffTargetTypeRestriction: "command card",
+      createsBase: true,
+      amplifiesSubject: false,
     }),
     makeInteraction({
       id: 2,
@@ -255,7 +258,8 @@ console.log("Part B — leaf-gated buff_target_type_restriction");
       targetTagName: active.tagName,
       mathOperation: "multiply_one_plus",
       defaultFactor: 1,
-      buffTargetTypeRestriction: null,
+      createsBase: false,
+      amplifiesSubject: true,
     }),
   ];
 
@@ -581,7 +585,8 @@ console.log("Existence gate — Attacker/Defender sinks; Support synthesizable")
         mathOperation: "multiply_one_plus",
         defaultFactor: 0.3,
         buffTargetTypeRestriction: "command card",
-        substitute: true,
+        createsBase: true,
+        amplifiesSubject: false,
       }),
       makeInteraction({
         id: 2,
@@ -591,7 +596,8 @@ console.log("Existence gate — Attacker/Defender sinks; Support synthesizable")
         targetTagName: active.tagName,
         mathOperation: "multiply_one_plus",
         defaultFactor: 1,
-        substitute: true,
+        createsBase: false,
+        amplifiesSubject: true,
       }),
     ];
     const result = applyInteractions({
@@ -607,6 +613,9 @@ console.log("Existence gate — Attacker/Defender sinks; Support synthesizable")
       ad === 130 || ad === 131,
       `Fiamma chain raises Active Damage (${ad})`,
     );
+    const fd = result.totalsByTagId.get(finalDmg.id) ?? 0;
+    // Restricted create is path-scoped — does not merge into global Final totals.
+    assert(fd === 0, `restricted Fiamma Final not globally merged (${fd})`);
     const fdOp = result.steps.some(
       (s) =>
         s.kind === "op" &&
@@ -617,7 +626,7 @@ console.log("Existence gate — Attacker/Defender sinks; Support synthesizable")
     assert(fdOp, "Fiamma synthesizes Final Damage from 0 on matching leaf path");
   }
 
-  // 4) Create.Insight → Draw / Arithmetica: conduits not merged (no subject base)
+  // 4) Create.Insight → Draw / Arithmetica: unrestricted creates merge Support bases
   {
     const manifests = [
       makeManifestation({
@@ -637,7 +646,8 @@ console.log("Existence gate — Attacker/Defender sinks; Support synthesizable")
         targetTagName: draw.tagName,
         mathOperation: "add_scaled",
         defaultFactor: 1,
-        substitute: true,
+        createsBase: true,
+        amplifiesSubject: false,
       }),
       makeInteraction({
         id: 2,
@@ -647,7 +657,8 @@ console.log("Existence gate — Attacker/Defender sinks; Support synthesizable")
         targetTagName: arithmetica.tagName,
         mathOperation: "multiply_one_plus",
         defaultFactor: 1,
-        substitute: true,
+        createsBase: true,
+        amplifiesSubject: false,
       }),
     ];
     const result = applyInteractions({
@@ -662,17 +673,18 @@ console.log("Existence gate — Attacker/Defender sinks; Support synthesizable")
       "Create.Insight subject total is its base",
     );
     assert(
-      (result.totalsByTagId.get(draw.id) ?? 0) === 0,
-      "Draw conduit-only (no subject) not merged into totals",
+      (result.totalsByTagId.get(draw.id) ?? 0) === 2,
+      `Draw created base merged (${result.totalsByTagId.get(draw.id)})`,
     );
+    // percent multiply from 0: (1+0)*(1+2*1)-1 = 2
     assert(
-      (result.totalsByTagId.get(arithmetica.id) ?? 0) === 0,
-      "Arithmetica conduit-only (no subject) not merged into totals",
+      (result.totalsByTagId.get(arithmetica.id) ?? 0) === 2,
+      `Arithmetica created base merged (${result.totalsByTagId.get(arithmetica.id)})`,
     );
   }
 }
 
-console.log("Subject-centric + substitute regressions");
+console.log("Subject-centric + creates_base / amplifies_subject regressions");
 {
   const awakener = makeAwakener({ id: 1, atk: 100 });
   const awakener2 = makeAwakener({ id: 2, atk: 100 });
@@ -949,7 +961,7 @@ console.log("Subject-centric + substitute regressions");
     );
   }
 
-  // 5) substitute=false: Increase Gain → STR with no STR base → no phantom
+  // 5) createsBase=false: Increase Gain → STR with no STR base → no phantom
   {
     const manifests = [
       makeManifestation({
@@ -976,7 +988,8 @@ console.log("Subject-centric + substitute regressions");
         targetTagName: strUp.tagName,
         mathOperation: "multiply_one_plus",
         defaultFactor: 1,
-        substitute: false,
+        createsBase: false,
+        amplifiesSubject: true,
       }),
       makeInteraction({
         id: 2,
@@ -1006,7 +1019,7 @@ console.log("Subject-centric + substitute regressions");
   }
 }
 
-console.log("once_per_base — team-once flat vs per-subject");
+console.log("creates_base / amplifies_subject — create-once vs per-subject");
 {
   const awakener = makeAwakener({ id: 1 });
   const awakener2 = makeAwakener({ id: 2 });
@@ -1056,7 +1069,8 @@ console.log("once_per_base — team-once flat vs per-subject");
           targetTagName: aliemu.tagName,
           mathOperation: "add_scaled",
           defaultFactor: 1,
-          oncePerBase: false,
+          createsBase: true,
+          amplifiesSubject: false,
         }),
       ],
       tagsById,
@@ -1064,7 +1078,7 @@ console.log("once_per_base — team-once flat vs per-subject");
     });
     assert(
       (result.totalsByTagId.get(aliemu.id) ?? 0) === 18,
-      `once_per_base=false: Aliemu 10+5+3 once (${result.totalsByTagId.get(aliemu.id)})`,
+      `creates_base: Aliemu 10+5+3 once (${result.totalsByTagId.get(aliemu.id)})`,
     );
   }
 
@@ -1081,7 +1095,8 @@ console.log("once_per_base — team-once flat vs per-subject");
           targetTagName: aliemu.tagName,
           mathOperation: "add_scaled",
           defaultFactor: 1,
-          oncePerBase: true,
+          createsBase: false,
+          amplifiesSubject: true,
         }),
       ],
       tagsById,
@@ -1089,7 +1104,182 @@ console.log("once_per_base — team-once flat vs per-subject");
     });
     assert(
       (result.totalsByTagId.get(aliemu.id) ?? 0) === 21,
-      `once_per_base=true: Aliemu each +3 (${result.totalsByTagId.get(aliemu.id)})`,
+      `amplifies_subject: Aliemu each +3 (${result.totalsByTagId.get(aliemu.id)})`,
+    );
+  }
+}
+
+console.log("creates_base focused — Tentacle invent + unrestricted Fiamma");
+{
+  const awakener = makeAwakener({ id: 1, atk: 100 });
+  const awakenersById = buildAwakenersById([awakener]);
+
+  const generate = makeTag(58, "Support.Generate Permanent Tentacle");
+  const tentacle = makeTag(5, "Attacker.Tentacle");
+  const fiamma = makeTag(100, "Support.Fiamma", true);
+  const finalDmg = makeTag(14, "Support.Final Damage", true);
+  const active = makeTag(42, "Attacker.Active Damage");
+
+  {
+    const tagsById: Record<number, Tag> = {
+      [generate.id]: generate,
+      [tentacle.id]: tentacle,
+    };
+    const manifests = [
+      makeManifestation({
+        id: 1,
+        tagId: generate.id,
+        tagName: generate.tagName,
+        valueScalar: 1,
+        targetType: "aoe",
+      }),
+    ];
+    const result = applyInteractions({
+      manifestations: manifests,
+      appliedManifestations: manifests,
+      defaultInteractions: [
+        makeInteraction({
+          id: 1,
+          modifierTagId: generate.id,
+          modifierTagName: generate.tagName,
+          targetTagId: tentacle.id,
+          targetTagName: tentacle.tagName,
+          mathOperation: "add_scaled",
+          defaultFactor: 1,
+          createsBase: true,
+          amplifiesSubject: false,
+        }),
+      ],
+      tagsById,
+      awakenersById,
+    });
+    assert(
+      (result.totalsByTagId.get(tentacle.id) ?? 0) === 1,
+      `Generate invents Tentacle (${result.totalsByTagId.get(tentacle.id)})`,
+    );
+  }
+
+  {
+    const tagsById: Record<number, Tag> = {
+      [fiamma.id]: fiamma,
+      [finalDmg.id]: finalDmg,
+      [active.id]: active,
+    };
+    const manifests = [
+      makeManifestation({
+        id: 1,
+        tagId: fiamma.id,
+        tagName: fiamma.tagName,
+        valueScalar: 1,
+        targetType: "aoe",
+      }),
+      makeManifestation({
+        id: 2,
+        tagId: active.id,
+        tagName: active.tagName,
+        valueScalar: 100,
+        sourceType: "command card",
+      }),
+    ];
+    const result = applyInteractions({
+      manifestations: manifests,
+      appliedManifestations: manifests,
+      defaultInteractions: [
+        makeInteraction({
+          id: 1,
+          modifierTagId: fiamma.id,
+          modifierTagName: fiamma.tagName,
+          targetTagId: finalDmg.id,
+          targetTagName: finalDmg.tagName,
+          mathOperation: "multiply_one_plus",
+          defaultFactor: 0.3,
+          createsBase: true,
+          amplifiesSubject: false,
+        }),
+        makeInteraction({
+          id: 2,
+          modifierTagId: finalDmg.id,
+          modifierTagName: finalDmg.tagName,
+          targetTagId: active.id,
+          targetTagName: active.tagName,
+          mathOperation: "multiply_one_plus",
+          defaultFactor: 1,
+        }),
+      ],
+      tagsById,
+      awakenersById,
+    });
+    const fd = result.totalsByTagId.get(finalDmg.id) ?? 0;
+    const ad = result.totalsByTagId.get(active.id) ?? 0;
+    assert(
+      Math.abs(fd - 0.3) < 0.02,
+      `unrestricted Fiamma Final merged (${fd})`,
+    );
+    assert(ad === 130 || ad === 131, `Active amplified by created Final (${ad})`);
+  }
+
+  {
+    const tagsById: Record<number, Tag> = {
+      [fiamma.id]: fiamma,
+      [finalDmg.id]: finalDmg,
+      [active.id]: active,
+    };
+    const manifests = [
+      makeManifestation({
+        id: 1,
+        tagId: fiamma.id,
+        tagName: fiamma.tagName,
+        valueScalar: 1,
+        targetType: "aoe",
+      }),
+      makeManifestation({
+        id: 2,
+        tagId: finalDmg.id,
+        tagName: finalDmg.tagName,
+        valueScalar: 0.2,
+        targetType: "aoe",
+      }),
+      makeManifestation({
+        id: 3,
+        tagId: active.id,
+        tagName: active.tagName,
+        valueScalar: 100,
+        sourceType: "command card",
+      }),
+    ];
+    const result = applyInteractions({
+      manifestations: manifests,
+      appliedManifestations: manifests,
+      defaultInteractions: [
+        makeInteraction({
+          id: 1,
+          modifierTagId: fiamma.id,
+          modifierTagName: fiamma.tagName,
+          targetTagId: finalDmg.id,
+          targetTagName: finalDmg.tagName,
+          mathOperation: "multiply_one_plus",
+          defaultFactor: 0.3,
+          createsBase: true,
+          amplifiesSubject: false,
+        }),
+        makeInteraction({
+          id: 2,
+          modifierTagId: finalDmg.id,
+          modifierTagName: finalDmg.tagName,
+          targetTagId: active.id,
+          targetTagName: active.tagName,
+          mathOperation: "multiply_one_plus",
+          defaultFactor: 1,
+        }),
+      ],
+      tagsById,
+      awakenersById,
+    });
+    const fd = result.totalsByTagId.get(finalDmg.id) ?? 0;
+    // Layer A 0.2 + created ~0.3 (float ceil may yield 0.31)
+    assert(
+      fd >= 0.5 && fd <= 0.51,
+      `Final = Layer A + Fiamma create, not multiplied subject (${fd})`,
     );
   }
 }

@@ -39,6 +39,11 @@ import {
 } from "@/lib/actions/crud";
 import type { FieldConfig, TableConfig } from "@/lib/schema-config";
 import { getListFields } from "@/lib/schema-config";
+import {
+  CREATES_AMPLIFY_CONFLICT_HINT,
+  hasCreatesAmplifyConflict,
+} from "@/lib/admin-form-warnings";
+import { cn } from "@/lib/utils";
 
 type TableManagerProps = {
   config: TableConfig;
@@ -555,10 +560,22 @@ export function TableManager({
                 <tbody className="divide-y divide-border bg-white">
                   {sortedRecords.map((record) => {
                     const isDeleted = Boolean(record.deleted_at);
+                    const flagConflict =
+                      config.name === "tag_default_interaction" &&
+                      !isDeleted &&
+                      hasCreatesAmplifyConflict(record);
                     return (
                       <tr
                         key={String(record.id)}
-                        className={isDeleted ? "bg-zinc-50 text-zinc-400" : ""}
+                        className={cn(
+                          isDeleted && "bg-zinc-50 text-zinc-400",
+                          flagConflict && "bg-amber-50",
+                        )}
+                        title={
+                          flagConflict
+                            ? CREATES_AMPLIFY_CONFLICT_HINT
+                            : undefined
+                        }
                         onDoubleClick={() => {
                           if (!showDeletedOnly && !isDeleted) {
                             openEdit(record);

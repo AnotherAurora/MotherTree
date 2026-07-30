@@ -96,6 +96,7 @@ function makeManifestation(
     replacesManifestationId: null,
     interactionOverrides: [],
     isBaseStatTransfer: partial.isBaseStatTransfer ?? false,
+    isCreatedBase: partial.isCreatedBase ?? false,
     triggerCondition: partial.triggerCondition ?? null,
     realmId: null,
     requiredRealmMode: null,

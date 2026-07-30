@@ -1059,8 +1059,8 @@ export type Database = {
           id: number
           math_operation: Database["public"]["Enums"]["operation_type"]
           modifier_tag_id: number | null
-          once_per_base: boolean
-          substitute: boolean
+          amplifies_subject: boolean
+          creates_base: boolean
           target_tag_id: number | null
           updated_at: string | null
         }
@@ -1075,8 +1075,8 @@ export type Database = {
           id?: number
           math_operation?: Database["public"]["Enums"]["operation_type"]
           modifier_tag_id?: number | null
-          once_per_base?: boolean
-          substitute?: boolean
+          amplifies_subject?: boolean
+          creates_base?: boolean
           target_tag_id?: number | null
           updated_at?: string | null
         }
@@ -1091,8 +1091,8 @@ export type Database = {
           id?: number
           math_operation?: Database["public"]["Enums"]["operation_type"]
           modifier_tag_id?: number | null
-          once_per_base?: boolean
-          substitute?: boolean
+          amplifies_subject?: boolean
+          creates_base?: boolean
           target_tag_id?: number | null
           updated_at?: string | null
         }

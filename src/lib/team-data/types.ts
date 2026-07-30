@@ -124,6 +124,11 @@ export type Manifestation = {
    * Acts as a modifier in interactions but is immune as an interaction subject/target.
    */
   isBaseStatTransfer: boolean;
+  /**
+   * Synthetic row materialized by a creates_base interaction (Phase 1).
+   * Support created bases are immune as subjects; Attacker/Defender created bases are normal subjects.
+   */
+  isCreatedBase: boolean;
   /** Owning realm for `sourceKind === "realm"`; null otherwise. */
   realmId: number | null;
   /** RTM match mode; null for non-realm rows. */
@@ -172,15 +177,15 @@ export type DefaultInteraction = {
   defaultFactor: number | null;
   buffTargetTypeRestriction: SourceType | null;
   /**
-   * When true, modifier may synthesize target from 0 (e.g. Fiamma → Final Damage).
-   * When false, target must be Layer A base-present. Ignored for Attacker/Defender sinks.
+   * When true, modifier materializes target as a synthetic base (Phase 1).
+   * Intended with amplifiesSubject=false (e.g. Fiamma → Final Damage, Generate → Tentacle).
    */
-  substitute: boolean;
+  createsBase: boolean;
   /**
-   * When true, apply once per matching subject base.
-   * When false, team-once flat (e.g. Embryo Fusion → Aliemu once, then sum with other Aliemu).
+   * When true, apply once per matching subject base (Phase 2).
+   * Intended with createsBase=false (e.g. STR Up → each Active Damage).
    */
-  oncePerBase: boolean;
+  amplifiesSubject: boolean;
 };
 
 export type TeamDataSummary = {

@@ -9,16 +9,17 @@ import {
 import { combineSameTagScalar } from "@/lib/path-carver/combine-same-tag-scalar";
 import { matchesDemandTag } from "@/lib/simulator/tag-matching";
 import type { TeamRealmResolution } from "@/lib/team-data/resolve-team-realms";
-import type {
-  Awakener,
-  DefaultInteraction,
-  InteractionOverride,
-  Manifestation,
-  OperationType,
-  SourceType,
-  Tag,
-  TargetType,
-  TeamData,
+import {
+  NON_REALM_MANIFESTATION_FIELDS,
+  type Awakener,
+  type DefaultInteraction,
+  type InteractionOverride,
+  type Manifestation,
+  type OperationType,
+  type SourceType,
+  type Tag,
+  type TargetType,
+  type TeamData,
 } from "@/lib/team-data/types";
 
 /** Multi-pass chain limit until values stabilize. Documented for Phase 2a/2b. */
@@ -41,15 +42,14 @@ export function isAttackerOrDefenderTag(tagName: string): boolean {
 }
 
 /**
- * Attacker/Defender always require base. Other targets require base when
- * interaction.substitute is false (e.g. Increase Gain must not invent STR Up).
+ * Amplify rows require Layer A / created-base presence.
+ * Create rows (createsBase) may invent Support and Attacker/Defender sinks.
  */
 export function requiresTargetBasePresence(
   interaction: DefaultInteraction,
-  targetTagName: string,
+  _targetTagName: string,
 ): boolean {
-  if (isAttackerOrDefenderTag(targetTagName)) return true;
-  return !interaction.substitute;
+  return !interaction.createsBase;
 }
 
 const TEAM_POOL_OWNER = "*team*";
@@ -761,9 +761,9 @@ function foldTeamPoolIntoCanonicalOwner(
  * Phase 2b: if buff_target_type_restriction is set, apply only when leafContext
  * matches; otherwise skip silently (no dual-branch / no debug line).
  *
- * Existence gate: Attacker/Defender always require Layer A base-presence.
- * Other targets require base when interaction.substitute is false; when true,
- * may synthesize from 0 (e.g. Fiamma → Final Damage).
+ * Existence gate: creates_base may invent any target (including Attacker/Defender).
+ * Amplify rows require Layer A / created-base presence.
+ * Create rows write into *team* (synthetic channel), never into subject owner buckets.
  */
 function applyInteractionOnto(
   interaction: DefaultInteraction,
@@ -985,15 +985,16 @@ function applyInteractionOnto(
 
     if (allDisabled) continue;
 
-    const teamOnce = interaction.oncePerBase === false;
+    const writeToTeamPool =
+      interaction.createsBase && !interaction.amplifiesSubject;
 
-    if (!teamOnce) {
+    if (!writeToTeamPool) {
       foldTeamPoolIntoCanonicalOwner(next, base, target.id, requireBase);
     }
 
     if (defaultOp === "presence_multiply") {
       if (!present) continue;
-      if (teamOnce) {
+      if (writeToTeamPool) {
         applyOpAndRecord(
           next,
           TEAM_POOL_OWNER,
@@ -1074,7 +1075,7 @@ function applyInteractionOnto(
     }
 
     if (defaultOp === "add_scaled") {
-      if (teamOnce) {
+      if (writeToTeamPool) {
         applyOpAndRecord(
           next,
           TEAM_POOL_OWNER,
@@ -1152,7 +1153,7 @@ function applyInteractionOnto(
     }
 
     // multiply_one_plus / multiply
-    if (teamOnce) {
+    if (writeToTeamPool) {
       applyOpAndRecord(
         next,
         TEAM_POOL_OWNER,
@@ -1480,20 +1481,87 @@ function sumOwnerTotalsToTagMap(
 }
 
 /**
+ * Stable negative id for creates_base synthetics (avoids collision with base-stat transfers).
+ */
+export function createdBaseManifestationId(tagId: number): number {
+  return -(900_000 + tagId);
+}
+
+function buildCreatedBaseManifestation(
+  tag: Tag,
+  value: number,
+): Manifestation {
+  return {
+    id: createdBaseManifestationId(tag.id),
+    sourceKind: "posse",
+    awakenerId: null,
+    slotIndex: null,
+    sourceName: "(created base)",
+    tagId: tag.id,
+    tagName: tag.tagName,
+    triggerCondition: null,
+    valueScalar: value,
+    baseHits: null,
+    dependencyStat: null,
+    sourceType: null,
+    targetType: "aoe",
+    buffTargetTypeRestriction: null,
+    metadata: null,
+    isAccumulating: false,
+    requiredEnlightenment: null,
+    requiredAwakenerId: null,
+    requiredAwakenerName: null,
+    requiredRealm: null,
+    requiredRealm2: null,
+    requiredRealmId: null,
+    requiredRealmId2: null,
+    replacesManifestationId: null,
+    interactionOverrides: [],
+    isBaseStatTransfer: false,
+    isCreatedBase: true,
+    ...NON_REALM_MANIFESTATION_FIELDS,
+  };
+}
+
+function collectInteractionTargetIds(
+  interactions: DefaultInteraction[],
+  tagsById: Record<number, Tag>,
+): Set<number> {
+  const ids = new Set<number>();
+  for (const interaction of interactions) {
+    if (interaction.targetTagId != null) {
+      ids.add(interaction.targetTagId);
+    }
+    for (const tag of Object.values(tagsById)) {
+      if (
+        interaction.targetTagName &&
+        matchesDemandTag(tag.tagName, interaction.targetTagName) &&
+        !isExcluded(tag.tagName, interaction.exclusionTagName)
+      ) {
+        ids.add(tag.id);
+      }
+    }
+  }
+  return ids;
+}
+
+/**
  * Layer B — apply tag_default_interaction (+ overrides) and Special conversions.
  *
  * Matching: exact modifier, prefix target, exclusion = tag + descendants.
  * Self-scope: modifier target_type=self only updates same-owner tags.
  * Temp op order: add_scaled then presence_multiply / multiply_one_plus / multiply.
- * Phase 2b Part A: dependency_stat → effective value_scalar (manifest + override).
- * Phase 2b Part B (Option B): subject-centric — every Layer A base is a subject;
- * cohort excludes same-tagId siblings; leafContext = subject.sourceType;
- * merge only that subject's tagId. substitute gates Support synthesize vs require-base;
- * Attacker/Defender always require base. Restricted ops skip when leafContext mismatches.
- * once_per_base=false: team-once pass writes target once into *team*, then merged;
- * those rows are excluded from per-subject runs.
- * Phase 2b.1: isBaseStatTransfer / realm subjects contribute absolute scalar only (no inbound ops)
- * but remain in other subjects' cohorts as modifiers.
+ *
+ * Pipeline:
+ * 1. Phase 1 — unrestricted creates_base: materialize into *team*, emit synthetics.
+ *    Support created bases merge into totals (immune subjects); Attacker/Defender
+ *    created bases become Phase 2 subjects.
+ * 2. Phase 2 — per subject: restricted creates_base as scoped seed, then
+ *    amplifies_subject only. leafContext = subject.sourceType.
+ * 3. Special conversions once on merged totals.
+ *
+ * Phase 2b.1: isBaseStatTransfer / realm / Support isCreatedBase subjects contribute
+ * absolute scalar only (no inbound ops) but remain in other subjects' cohorts as modifiers.
  * is_additive: Layer A same-tag seed + in-pass modifier collapse, and post-pass
  * subject merge (sum vs multiply; percent multiplicative uses (1+v) fold-back).
  */
@@ -1526,14 +1594,100 @@ export function applyInteractions(
     });
   }
 
-  const perBaseInteractions = input.defaultInteractions.filter(
-    (i) => i.oncePerBase !== false,
+  // XOR filters: create = createsBase && !amplifiesSubject; amplify = amplifiesSubject && !createsBase.
+  // Both-true → amplify only; both-false → neither.
+  const unrestrictedCreates = input.defaultInteractions.filter(
+    (i) =>
+      i.createsBase &&
+      !i.amplifiesSubject &&
+      i.buffTargetTypeRestriction == null,
   );
-  const teamOnceInteractions = input.defaultInteractions.filter(
-    (i) => i.oncePerBase === false,
+  const restrictedCreates = input.defaultInteractions.filter(
+    (i) =>
+      i.createsBase &&
+      !i.amplifiesSubject &&
+      i.buffTargetTypeRestriction != null,
   );
+  const amplifyInteractions = input.defaultInteractions.filter(
+    (i) => i.amplifiesSubject && !i.createsBase,
+  );
+  // Both-true soft-warned rows: treat as amplify (require invent off via createsBase still true —
+  // prefer invent-off: include with createsBase forced conceptually by requiring base).
+  // Include both-true as amplify with createsBase left as-is only if we strip invent:
+  const bothTrueAmplify = input.defaultInteractions.filter(
+    (i) => i.amplifiesSubject && i.createsBase,
+  );
+  const amplifyRows =
+    bothTrueAmplify.length === 0
+      ? amplifyInteractions
+      : [
+          ...amplifyInteractions,
+          ...bothTrueAmplify.map((i) => ({ ...i, createsBase: false })),
+        ];
 
-  const subjects = applied.filter((m) => {
+  const mergedOwnerValues: OwnerTotals = new Map();
+  const opSteps: ScalarMathStep[] = [];
+  const createdSynthetics: Manifestation[] = [];
+
+  // Phase 1 — unrestricted materialize into *team*, emit synthetics.
+  if (unrestrictedCreates.length > 0 && applied.length > 0) {
+    const createResult = runInteractionsForLeafContext({
+      appliedManifestations: applied,
+      defaultInteractions: unrestrictedCreates,
+      tagsById: input.tagsById,
+      awakenersById,
+      leafContext: null,
+      awakenerNamesById: input.awakenerNamesById,
+      recordBaseSteps: false,
+      runSpecial: false,
+      teamMaxHp: input.teamMaxHp,
+      realmMasteryTotal: input.realmMasteryTotal,
+      teamRealms: input.teamRealms,
+    });
+
+    const createTargetIds = collectInteractionTargetIds(
+      unrestrictedCreates,
+      input.tagsById,
+    );
+
+    for (const tagId of createTargetIds) {
+      const teamVal = getOwnerValue(
+        createResult.ownerValues,
+        TEAM_POOL_OWNER,
+        tagId,
+      );
+      if (teamVal === 0) continue;
+      const tag = input.tagsById[tagId];
+      if (!tag) continue;
+
+      const synthetic = buildCreatedBaseManifestation(tag, teamVal);
+      createdSynthetics.push(synthetic);
+
+      if (isAttackerOrDefenderTag(tag.tagName)) {
+        // Attacker/Defender created bases become Phase 2 subjects (merged there).
+      } else {
+        // Support created bases: merge absolute into totals now (immune subjects).
+        mergeOwnerValue(
+          mergedOwnerValues,
+          ownerKeyFor(synthetic),
+          tag,
+          tagId,
+          teamVal,
+        );
+      }
+    }
+
+    for (const step of createResult.steps) {
+      if (step.kind !== "op") continue;
+      if (createTargetIds.has(step.tagId)) {
+        opSteps.push(step);
+      }
+    }
+  }
+
+  const phase2Applied = [...applied, ...createdSynthetics];
+
+  const subjects = phase2Applied.filter((m) => {
     const scalar = effectiveManifestationScalar(
       m,
       awakenersById,
@@ -1543,15 +1697,11 @@ export function applyInteractions(
     return scalar !== 0;
   });
 
-  const mergedOwnerValues: OwnerTotals = new Map();
-  const opSteps: ScalarMathStep[] = [];
-
-  if (subjects.length === 0) {
-    // Nothing to evaluate for subjects.
-  } else {
+  if (subjects.length > 0) {
     for (const subject of subjects) {
-      // Base-stat transfers / realm: contribute absolute scalar; never receive interactions.
+      // Immune: absolute scalar only (Support created bases already merged in Phase 1).
       if (isInteractionImmuneSubject(subject)) {
+        if (subject.isCreatedBase) continue;
         const scalar = effectiveManifestationScalar(
           subject,
           awakenersById,
@@ -1570,10 +1720,11 @@ export function applyInteractions(
         continue;
       }
 
-      const cohort = cohortForSubject(applied, subject);
+      const cohort = cohortForSubject(phase2Applied, subject);
+      const subjectInteractions = [...restrictedCreates, ...amplifyRows];
       const result = runInteractionsForLeafContext({
         appliedManifestations: cohort,
-        defaultInteractions: perBaseInteractions,
+        defaultInteractions: subjectInteractions,
         tagsById: input.tagsById,
         awakenersById,
         leafContext: subject.sourceType,
@@ -1599,7 +1750,6 @@ export function applyInteractions(
 
       for (const step of result.steps) {
         if (step.kind !== "op") continue;
-        // Subject-tag ops; also keep restricted ops that applied (debug extra line).
         if (
           step.tagId === subject.tagId ||
           step.buffRestrictionMet != null
@@ -1610,70 +1760,13 @@ export function applyInteractions(
     }
   }
 
-  // Team-once flats: apply once for the team into *team*, merge those target buckets.
-  if (teamOnceInteractions.length > 0 && applied.length > 0) {
-    const teamOnceResult = runInteractionsForLeafContext({
-      appliedManifestations: applied,
-      defaultInteractions: teamOnceInteractions,
-      tagsById: input.tagsById,
-      awakenersById,
-      leafContext: null,
-      awakenerNamesById: input.awakenerNamesById,
-      recordBaseSteps: false,
-      runSpecial: false,
-      teamMaxHp: input.teamMaxHp,
-      realmMasteryTotal: input.realmMasteryTotal,
-      teamRealms: input.teamRealms,
-    });
-
-    const teamOnceTargetIds = new Set<number>();
-    for (const interaction of teamOnceInteractions) {
-      if (interaction.targetTagId != null) {
-        teamOnceTargetIds.add(interaction.targetTagId);
-      }
-      for (const tag of Object.values(input.tagsById)) {
-        if (
-          interaction.targetTagName &&
-          matchesDemandTag(tag.tagName, interaction.targetTagName) &&
-          !isExcluded(tag.tagName, interaction.exclusionTagName)
-        ) {
-          teamOnceTargetIds.add(tag.id);
-        }
-      }
-    }
-
-    for (const tagId of teamOnceTargetIds) {
-      const teamVal = getOwnerValue(
-        teamOnceResult.ownerValues,
-        TEAM_POOL_OWNER,
-        tagId,
-      );
-      if (teamVal !== 0) {
-        mergeOwnerValue(
-          mergedOwnerValues,
-          TEAM_POOL_OWNER,
-          input.tagsById[tagId],
-          tagId,
-          teamVal,
-        );
-      }
-    }
-
-    for (const step of teamOnceResult.steps) {
-      if (step.kind !== "op") continue;
-      if (teamOnceTargetIds.has(step.tagId)) {
-        opSteps.push(step);
-      }
-    }
-  }
-
   steps.push(...opSteps);
 
-  // Special conversions once on merged totals (all applied manifests for presence).
+  // Special conversions once on merged totals (all applied + created for presence).
   applySpecialConversion(
     mergedOwnerValues,
     input.tagsById,
-    applied,
+    phase2Applied,
     SPECIAL_CORROSION_CONVERSION,
     DEBUFF_CORROSION,
     CORROSION_DAMAGE,
@@ -1682,7 +1775,7 @@ export function applyInteractions(
   applySpecialConversion(
     mergedOwnerValues,
     input.tagsById,
-    applied,
+    phase2Applied,
     SPECIAL_EMBERS_CONVERSION,
     DEBUFF_EMBERS,
     EMBERS_DAMAGE,

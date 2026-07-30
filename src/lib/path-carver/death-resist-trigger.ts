@@ -104,6 +104,7 @@ function makeDerivedTransfer(
     replacesManifestationId: null,
     interactionOverrides: [],
     isBaseStatTransfer: true,
+    isCreatedBase: false,
     ...NON_REALM_MANIFESTATION_FIELDS,
   };
 }

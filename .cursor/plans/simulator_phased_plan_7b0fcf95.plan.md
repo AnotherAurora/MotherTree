@@ -83,7 +83,7 @@ Path Carver’s **Review Tags** page is the primary surface for testing recommen
 | `target_type` apply rules                  | Loaded and shown in debug; **not applied** in aggregation                                  |
 | Interaction application                    | `tag_default_interaction` + overrides loaded in `TeamData` but **not applied**             |
 | `dependency_stat` → `value_scalar`         | **Phase 2b done** — ATM/covenant/wheel/override scaled; posse + team/enemy max HP ignored  |
-| `buff_target_type_restriction` leaf-gating | **Phase 2b done** — subject-centric + `substitute`; Option B subject `source_type` context |
+| `buff_target_type_restriction` leaf-gating | **Phase 2b done** — materialize-then-amplify + `creates_base` / `amplifies_subject`; Option B subject `source_type` context |
 | Damage layers / Calculation List           | Deferred to Phase 2c                                                                       |
 | Simulator using Path Carver math           | Port in Phase 3                                                                            |
 
@@ -106,49 +106,32 @@ Global rulebook: when the **modifier** tag is present on the team, change **targ
 
 Interactions **can chain** across **multiple passes** (e.g. Increase Gain → Support buff → Attacker damage). A later pass may use values updated by an earlier pass.
 
-### Existence gate + `substitute`
+### Existence gate + `creates_base` / `amplifies_subject`
 
-When applying an interaction op to a matched **target** tag:
+| Flag / target | Rule |
+| --- | --- |
+| **`creates_base = true`** (with `amplifies_subject = false`) | Modifier **materializes** target as a synthetic base (Phase 1). May invent Support **and** Attacker/Defender sinks. Writes into a synthetic channel (`*team*`), never into existing subject owner buckets. Example: Fiamma → Final Damage; Generate → Tentacle. |
+| **`amplifies_subject = true`** (with `creates_base = false`) | Apply once per matching **existing** subject (Phase 2). Target must be Layer A or created-base present. Example: STR Up → each Active Damage; Increase Gain must not invent STR Up. |
 
-| Target / flag                     | Rule                                                                                                                                                      |
-| --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **`Attacker.*` / `Defender.*`**   | Always require Layer A **base-presence** (ignore `substitute`). Do not invent sinks. Gate on base-presence, not `value !== 0`.                            |
-| **`substitute = true`** (default) | Modifier may **substitute** for a missing target: apply even when target has no Layer A base (synthesize / write from 0). Example: Fiamma → Final Damage. |
-| **`substitute = false`**          | Target must be Layer A base-present; skip if missing. Example: Increase Gain.STR Up → STR Up (no phantom STR → damage).                                   |
-
-Column: `tag_default_interaction.substitute` (boolean, NOT NULL, default `true`). Amplify-only Increase Gain rows should be `false`.
+Intended pairs only (XOR). Same polarity is soft-warned in admin. Defaults: `creates_base=false`, `amplifies_subject=true`.
 
 Prefix / exclusion still apply per matched tag (Strike base-present does not create parent Active Damage). Special Corrosion / Embers conversions are outside this rule.
 
 **Examples:**
 
 - `Support.STR Up` → `Attacker.Active Damage` with no Active Damage base → **skip** (no phantom).
-- `Support.Fiamma` → `Support.Final Damage` (`substitute=true`, no Final Damage base) → `Attacker.Active Damage` (base-present) → **allowed**.
-- `Support.Increase Gain.STR Up` → `Support.STR Up` (`substitute=false`, no STR Up base) → **skip** (does not invent STR Up that chains into damage).
-- `Support.Create.Insight` → `Support.Draw` with `substitute=true` and no Draw base → **allowed**.
+- `Support.Fiamma` → `Support.Final Damage` (`creates_base`) → synthetic Final base → `Attacker.Active Damage` (`amplifies_subject`) → **allowed**.
+- `Support.Increase Gain.STR Up` → `Support.STR Up` (`amplifies_subject`, no STR Up base) → **skip**.
+- `Support.Create.Insight` → `Support.Draw` (`creates_base`) → Draw merged into Review Tags.
+- `Support.Generate Permanent Tentacle` → `Attacker.Tentacle` (`creates_base`) → Tentacle subject invented.
 
-### Subject-centric evaluation (once per base)
+### Pipeline (materialize then amplify)
 
-Every applied Layer A manifestation is a **subject** (Shield, Aliemu, Strike, … — not Attacker-only):
+1. **Phase 1 — unrestricted `creates_base`**: run create rows with null restriction; emit synthetic manifestations; Support created bases merge into totals (immune subjects); Attacker/Defender created bases become Phase 2 subjects.
+2. **Phase 2 — per subject**: restricted `creates_base` as scoped seed (path-local, not globally merged), then `amplifies_subject` only. `leafContext = subject.sourceType`. Merge only the subject’s `tagId`.
+3. **Special conversions** once on merged totals.
 
-1. **Cohort** = all other applied manifests with `tagId !== subject.tagId`, plus the subject (same-tag siblings excluded).
-2. Run full multi-pass interactions with `leafContext = subject.sourceType`.
-3. **Merge** only that subject’s `tagId` on the subject’s owner into team totals; do not merge conduit tags from the run.
-4. Sum across subjects. Special conversions run once on merged totals.
-5. Conduit-only tags (no Layer A base) have no subject ⇒ Review Tags total stays 0 even if synthesized mid-chain elsewhere.
-
-Non-self `add_scaled` into a base-required target (Attacker/Defender, or `substitute=false` Support with base) writes into each **base-present owner** bucket (with that owner’s overrides) — **not** a parallel `*team*` sink track. Substitute synthesis into `*team*` remains for conduits only.
-
-### `once_per_base`
-
-Column: `tag_default_interaction.once_per_base` (boolean, NOT NULL, default `true`).
-
-| Value                | Meaning                                                                                                                                                                                                                                             |
-| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **`true`** (default) | Apply once per matching **subject** base (STR on each Strike, Alert on each Shield). Used in the per-subject interaction runs.                                                                                                                      |
-| **`false`**          | **Team-once flat**: apply the op once for the team into `*team*` (do not amplify every target subject). Example: Embryo Fusion → Aliemu converts Embryo into Aliemu **once**, then that contribution is **summed** with other Aliemu subject bases. |
-
-Orthogonal to `substitute`. Embryo Fusion → Aliemu rows should be `once_per_base=false`.
+Subjects = Layer A applied + created Attacker/Defender synthetics. Cohort excludes same-`tagId` siblings and includes created-base synthetics as modifiers.
 
 ### `buff_target_type_restriction` (on the interaction row)
 
@@ -158,14 +141,14 @@ Renamed from the old `source_type` column on `tag_default_interaction` (oversigh
 
 - Do **not** compute both “restriction met” and “restriction unmet” totals in parallel.
 - When calculating for a **subject** manifestation, carry that manifestation’s `source_type` as **leaf context** for the whole interaction chain.
-- If an interaction’s `buff_target_type_restriction` is set, apply it **only if** `leafContext` matches that value; otherwise skip the interaction for this calculation.
-- If restriction is **null**, the interaction applies regardless of leaf `source_type` (subject to other rules).
+- Restricted `creates_base` rows apply only when `leafContext` matches (scoped seed on that subject path).
+- If restriction is **null**, unrestricted creates run in Phase 1; amplify rows apply regardless of leaf `source_type` (subject to other rules).
 - Restriction does **not** live on `manifestation_interaction_override` for now (may be added later). Gate using `tag_default_interaction.buff_target_type_restriction` only.
-- Example: subject is an `Attacker.Active Damage` contribution with `source_type == command card`. Chain `Support.Enhance → Support.Final Damage` (restriction `command card`) **applies** on this subject path; same chain with a tentacle subject **skips** Enhance. Downstream `Support.Final Damage → Attacker.Active Damage` (no restriction) still applies when its other rules pass.
+- Example: subject is an `Attacker.Active Damage` contribution with `source_type == command card`. Restricted `Support.Enhance → Support.Final Damage` **applies** as a scoped Final seed on this path; same seed with a tentacle subject **skips**. Downstream `Support.Final Damage → Attacker.Active Damage` (`amplifies_subject`) still applies when its other rules pass.
 - Review Tags tag list: still one scalar per tag for the current team calculation (no per-branch columns).
 - **Debug — Scalar Sum math:** if a restricted interaction **applied** (restriction met for this subject), show **one extra** calculation line; if skipped due to restriction, **no** extra line for that interaction.
 
-**Phase ownership:** `dependency_stat` → effective `value_scalar`, subject-centric runs, `substitute`, and leaf-gated buff restriction are **Phase 2b**. Phase 2a applied interactions without dependency scaling and without buff-restriction gating (2a ignored non-null restrictions — already implemented).
+**Phase ownership:** `dependency_stat` → effective `value_scalar`, materialize-then-amplify, `creates_base` / `amplifies_subject`, and leaf-gated buff restriction are **Phase 2b** (redesigned). Phase 2a applied interactions without dependency scaling and without buff-restriction gating (2a ignored non-null restrictions — already implemented).
 
 ### Temporary operation order (2a / 2b only)
 
@@ -351,17 +334,16 @@ Optional: show which interactions applied to which target tags (lightweight; ful
 
 ---
 
-## Phase 2b — `dependency_stat` scaling + subject-centric + `substitute` + buff restriction (DONE)
+## Phase 2b — `dependency_stat` scaling + materialize-then-amplify + buff restriction (DONE)
 
 **Depends on:** Phase 2a interaction resolver (done).
 
 ### Goal
 
 1. Resolve effective `value_scalar` via `dependency_stat` (manifestations + overrides) before interaction math consumes scalars.
-2. **Subject-centric evaluation:** every Layer A base is an isolated subject (Shield / Aliemu / Strike / …); cohort excludes same-tag siblings; merge only subject tag; once-per-base modifiers + overrides.
-3. **`substitute`** on `tag_default_interaction`: synthesize missing Support targets when true; require base when false; Attacker/Defender always require base.
-4. **`once_per_base`**: when false, team-once flat into `*team*` (e.g. Embryo Fusion → Aliemu once) then sum with subject totals; when true, apply in per-subject runs only.
-5. Gate `buff_target_type_restriction` using the **subject manifestation’s `source_type`** as chain context — **one calculation path only** (no dual-branch totals).
+2. **Subject-centric evaluation:** every Layer A base (plus created Attacker/Defender synthetics) is an isolated subject; cohort excludes same-tag siblings; merge only subject tag.
+3. **`creates_base` / `amplifies_subject`**: Phase 1 materializes create rows into synthetic bases (may invent Attacker/Defender); Phase 2 amplifies existing subjects only. Restricted creates are path-scoped seeds. Soft-warn when flags are equal.
+4. Gate `buff_target_type_restriction` using the **subject manifestation’s `source_type`** as chain context — **one calculation path only** (no dual-branch totals).
 
 ---
 

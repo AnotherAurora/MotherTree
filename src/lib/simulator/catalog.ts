@@ -447,6 +447,7 @@ export function buildManifestationsForComposition(
       replacesManifestationId: null,
       interactionOverrides: [],
       isBaseStatTransfer: false,
+      isCreatedBase: false,
       realmId: null,
       requiredRealmMode: null,
       dependencyRate: null,

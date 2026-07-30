@@ -113,6 +113,7 @@ function makeManifestation(
     replacesManifestationId: null,
     interactionOverrides: partial.interactionOverrides ?? [],
     isBaseStatTransfer: partial.isBaseStatTransfer ?? false,
+    isCreatedBase: partial.isCreatedBase ?? false,
     triggerCondition: null,
     realmId: null,
     requiredRealmMode: null,
@@ -138,8 +139,8 @@ function makeInteraction(
     mathOperation: partial.mathOperation ?? "add_scaled",
     defaultFactor: partial.defaultFactor ?? 1,
     buffTargetTypeRestriction: null,
-    substitute: partial.substitute ?? true,
-    oncePerBase: partial.oncePerBase ?? true,
+    createsBase: partial.createsBase ?? false,
+    amplifiesSubject: partial.amplifiesSubject ?? true,
     ...partial,
   };
 }

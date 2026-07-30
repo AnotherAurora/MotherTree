@@ -346,5 +346,14 @@ export function buildAwakenersById(
 
 /** True when the subject contributes absolute scalar only (no inbound ops). */
 export function isInteractionImmuneSubject(m: Manifestation): boolean {
-  return m.isBaseStatTransfer || m.sourceKind === "realm";
+  if (m.isBaseStatTransfer || m.sourceKind === "realm") return true;
+  // Support created bases: absolute merge only; Attacker/Defender created bases are subjects.
+  if (
+    m.isCreatedBase &&
+    !m.tagName.startsWith("Attacker.") &&
+    !m.tagName.startsWith("Defender.")
+  ) {
+    return true;
+  }
+  return false;
 }

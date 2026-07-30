@@ -97,6 +97,7 @@ function makeRealmManifest(
     replacesManifestationId: null,
     interactionOverrides: [],
     isBaseStatTransfer: false,
+    isCreatedBase: false,
     requiredRealmMode: partial.requiredRealmMode ?? "present",
     dependencyRate: partial.dependencyRate ?? null,
     dependencyRateStat: partial.dependencyRateStat ?? null,
@@ -431,6 +432,7 @@ console.log("\nInbound interaction immunity for realm subjects");
     replacesManifestationId: null,
     interactionOverrides: [],
     isBaseStatTransfer: false,
+    isCreatedBase: false,
     realmId: null,
     requiredRealmMode: null,
     dependencyRate: null,
@@ -448,8 +450,8 @@ console.log("\nInbound interaction immunity for realm subjects");
     mathOperation: "add_scaled",
     defaultFactor: 1,
     buffTargetTypeRestriction: null,
-    substitute: false,
-    oncePerBase: true,
+    createsBase: false,
+    amplifiesSubject: true,
   };
   const teamRealms = resolveTeamRealms([CARO], REALMS);
   const result = applyInteractions({

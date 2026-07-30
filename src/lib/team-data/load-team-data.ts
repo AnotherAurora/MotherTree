@@ -300,6 +300,7 @@ function mapGearManifestation(
     replacesManifestationId: row.replaces_manifestation_id ?? null,
     interactionOverrides: [],
     isBaseStatTransfer: false,
+    isCreatedBase: false,
     ...NON_REALM_MANIFESTATION_FIELDS,
   };
 }
@@ -500,8 +501,8 @@ export async function fetchTeamData(
       math_operation,
       default_factor,
       buff_target_type_restriction,
-      substitute,
-      once_per_base,
+      creates_base,
+      amplifies_subject,
       modifier_tag:tag!modifier_tag_id(id, tag_name, layer, is_percent, is_additive),
       target_tag:tag!target_tag_id(id, tag_name, layer, is_percent, is_additive),
       exclusion_tag:tag!exclusion_suffix(id, tag_name, layer, is_percent, is_additive)
@@ -848,6 +849,7 @@ export async function fetchTeamData(
       replacesManifestationId: row.replaces_manifestation_id,
       interactionOverrides: overridesByManifestationId.get(row.id) ?? [],
       isBaseStatTransfer: false,
+    isCreatedBase: false,
       ...NON_REALM_MANIFESTATION_FIELDS,
     });
   }
@@ -883,6 +885,7 @@ export async function fetchTeamData(
       replacesManifestationId: null,
       interactionOverrides: [],
       isBaseStatTransfer: false,
+    isCreatedBase: false,
       realmId: row.realm_id,
       requiredRealmMode: row.required_realm_mode as RealmMatchMode,
       dependencyRate: row.dependency_rate,
@@ -912,8 +915,8 @@ export async function fetchTeamData(
       mathOperation: row.math_operation,
       defaultFactor: row.default_factor,
       buffTargetTypeRestriction: row.buff_target_type_restriction,
-      substitute: row.substitute ?? true,
-      oncePerBase: row.once_per_base ?? true,
+      createsBase: row.creates_base ?? false,
+      amplifiesSubject: row.amplifies_subject ?? true,
     };
   });
 
