@@ -1,4 +1,8 @@
-import type { Manifestation, Tag } from "@/lib/team-data/types";
+import {
+  NON_REALM_MANIFESTATION_FIELDS,
+  type Manifestation,
+  type Tag,
+} from "@/lib/team-data/types";
 
 /** Defender.Base Death Resist — awakener transfer / base total. */
 export const DEFENDER_BASE_DEATH_RESIST_TAG_ID = 12;
@@ -100,6 +104,7 @@ function makeDerivedTransfer(
     replacesManifestationId: null,
     interactionOverrides: [],
     isBaseStatTransfer: true,
+    ...NON_REALM_MANIFESTATION_FIELDS,
   };
 }
 

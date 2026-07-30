@@ -114,6 +114,11 @@ function makeManifestation(
     interactionOverrides: partial.interactionOverrides ?? [],
     isBaseStatTransfer: partial.isBaseStatTransfer ?? false,
     triggerCondition: null,
+    realmId: null,
+    requiredRealmMode: null,
+    dependencyRate: null,
+    dependencyRateStat: null,
+    pureBonusTarget: null,
     ...partial,
   };
 }
@@ -451,7 +456,7 @@ console.log("\nDeath Resist derived transfers (builder + Layer B)");
     [maxHpUpTag.id]: maxHpUpTag,
   };
 
-  // 500% base → synth In Mission 2, Cause 2, Max HP Up 3
+  // 500% base → synth In Mission 2, Cause 2, Max HP Up 0.1 (+10% from 300% reduction / 30)
   {
     const derived = buildDeathResistDerivedManifestations(5, 0, tagsById);
     const synth147 = derived.find((m) => m.tagId === inMissionTag.id);
@@ -462,7 +467,7 @@ console.log("\nDeath Resist derived transfers (builder + Layer B)");
     assert(synth130 != null, "synth Max HP Up present");
     assert(synth147!.valueScalar === 2, "synth In Mission value 2");
     assert(synth88!.valueScalar === 2, "synth Cause value 2");
-    assert(synth130!.valueScalar === 3, "synth Max HP Up reduction 3");
+    assert(synth130!.valueScalar === 0.1, "synth Max HP Up 0.1 (+10%)");
     assert(synth147!.isBaseStatTransfer === true, "In Mission is transfer");
     assert(synth147!.targetType === "aoe", "In Mission target_type aoe");
     assert(synth88!.isBaseStatTransfer === true, "Cause is transfer");
@@ -656,8 +661,8 @@ console.log("\nDeath Resist full tag 12 (ATM + Base stat) via computeReviewTagTo
     `Cause 1 (got ${totalsByTagId.get(causeTag.id)})`,
   );
   assert(
-    (totalsByTagId.get(maxHpUpTag.id) ?? 0) === 3,
-    `Max HP Up reduction capped at 3 (got ${totalsByTagId.get(maxHpUpTag.id)})`,
+    Math.abs((totalsByTagId.get(maxHpUpTag.id) ?? 0) - 0.1) < 1e-9,
+    `Max HP Up from capped reduction → 0.1 (got ${totalsByTagId.get(maxHpUpTag.id)})`,
   );
   const synth147 = reviewTeamData.manifestations.find(
     (m) => m.tagId === inMissionTag.id && m.isBaseStatTransfer,

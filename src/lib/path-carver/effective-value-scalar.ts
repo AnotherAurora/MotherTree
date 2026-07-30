@@ -4,8 +4,10 @@ import type {
   InteractionOverride,
   Manifestation,
   ManifestationSourceKind,
+  PureBonusTarget,
   Tag,
 } from "@/lib/team-data/types";
+import type { TeamRealmResolution } from "@/lib/team-data/resolve-team-realms";
 
 /** Percent dependency_stat: both operands ×100 before multiply. */
 const PERCENT_DEPENDENCY_STATS = new Set<AllStats>([
@@ -18,6 +20,28 @@ const PERCENT_DEPENDENCY_STATS = new Set<AllStats>([
 
 /** Keep raw value_scalar; do not scale (even when teamMaxHp context exists). */
 const ALWAYS_IGNORED_DEPENDENCY_STATS = new Set<AllStats>(["enemy_max_hp"]);
+
+/**
+ * Options for effective scalar resolution.
+ * Legacy call sites may pass `teamMaxHp` as a bare number (4th arg).
+ */
+export type EffectiveScalarOptions = {
+  teamMaxHp?: number | null;
+  /** Team sum of total-base realmMastery (realm rows). */
+  realmMasteryTotal?: number;
+  /** Team realm resolution for purity / combo stacks on realm rows. */
+  teamRealms?: TeamRealmResolution;
+};
+
+export function normalizeEffectiveScalarOptions(
+  teamMaxHpOrOptions?: number | null | EffectiveScalarOptions,
+): EffectiveScalarOptions {
+  if (teamMaxHpOrOptions == null) return {};
+  if (typeof teamMaxHpOrOptions === "number") {
+    return { teamMaxHp: teamMaxHpOrOptions };
+  }
+  return teamMaxHpOrOptions;
+}
 
 /**
  * Map dependency_stat enum → awakener field.
@@ -78,10 +102,144 @@ function ceilAfterDependencyScale(
   return Math.ceil(product);
 }
 
+export function sumTeamRealmMastery(
+  awakeners: Iterable<Awakener>,
+): number {
+  let sum = 0;
+  for (const a of awakeners) {
+    sum += a.realmMastery ?? 0;
+  }
+  return sum;
+}
+
+function teamStatTotal(
+  awakeners: Iterable<Awakener>,
+  stat: AllStats,
+): number {
+  if (stat === "team_max_hp" || stat === "enemy_max_hp") return 0;
+  let sum = 0;
+  for (const a of awakeners) {
+    sum += awakenerStatForDependency(a, stat) ?? 0;
+  }
+  return sum;
+}
+
+function pureMult(
+  target: PureBonusTarget | null | undefined,
+  want: PureBonusTarget,
+  isPure: boolean,
+): number {
+  return target === want && isPure ? 2 : 1;
+}
+
+/**
+ * Realm-only effective scalar (flat / multiply / rate-scaled + pure + combo ×N).
+ */
+export function scaleRealmValueScalar(
+  m: Manifestation,
+  options: EffectiveScalarOptions,
+  tagIsPercent: boolean,
+  awakenersById: ReadonlyMap<number, Awakener>,
+): number {
+  const raw = m.valueScalar;
+  if (raw == null) return 0;
+
+  const realmId = m.realmId;
+  const teamRealms = options.teamRealms;
+  const isPure =
+    realmId != null && teamRealms != null ? teamRealms.isPure(realmId) : false;
+
+  const scalarMult = pureMult(m.pureBonusTarget, "value_scalar", isPure);
+  const rateMult = pureMult(m.pureBonusTarget, "dependency_rate", isPure);
+
+  const hasRatePair =
+    m.dependencyRate != null && m.dependencyRateStat != null;
+
+  let effective: number;
+
+  if (m.dependencyStat == null && !hasRatePair) {
+    // Flat (incl. pure double on value_scalar)
+    effective = raw * scalarMult;
+  } else if (
+    m.dependencyStat != null &&
+    m.dependencyRate != null &&
+    m.dependencyRateStat != null
+  ) {
+    // Rate-scaled: base_stat * (base_rate + rate * rate_stat * rate_mult)
+    const baseStat = resolveRealmBaseStat(
+      m.dependencyStat,
+      options,
+      awakenersById,
+    );
+    const rateStat = resolveRealmRateStat(
+      m.dependencyRateStat,
+      options,
+      awakenersById,
+    );
+    const baseRate = raw * scalarMult;
+    const rawProduct =
+      baseStat * (baseRate + m.dependencyRate * rateStat * rateMult);
+    effective = ceilAfterDependencyScale(rawProduct, tagIsPercent);
+  } else if (m.dependencyStat != null) {
+    // Multiply-only
+    if (ALWAYS_IGNORED_DEPENDENCY_STATS.has(m.dependencyStat)) {
+      effective = raw * scalarMult;
+    } else {
+      const baseStat = resolveRealmBaseStat(
+        m.dependencyStat,
+        options,
+        awakenersById,
+      );
+      if (m.dependencyStat === "team_max_hp" && options.teamMaxHp == null) {
+        effective = raw * scalarMult;
+      } else if (PERCENT_DEPENDENCY_STATS.has(m.dependencyStat)) {
+        const product = raw * scalarMult * 100 * (baseStat * 100);
+        effective = ceilAfterDependencyScale(product, tagIsPercent);
+      } else {
+        effective = ceilAfterDependencyScale(
+          raw * scalarMult * baseStat,
+          tagIsPercent,
+        );
+      }
+    }
+  } else {
+    // dependency_rate set but dependency_rate_stat null → treat as flat
+    effective = raw * scalarMult;
+  }
+
+  if (m.requiredRealmMode === "combo" && teamRealms != null) {
+    effective *= teamRealms.chaosComboStacks;
+  }
+
+  return effective;
+}
+
+function resolveRealmBaseStat(
+  stat: AllStats,
+  options: EffectiveScalarOptions,
+  awakenersById: ReadonlyMap<number, Awakener>,
+): number {
+  if (stat === "enemy_max_hp") return 0;
+  if (stat === "team_max_hp") return options.teamMaxHp ?? 0;
+  if (stat === "realm_mastery") {
+    return options.realmMasteryTotal ?? teamStatTotal(awakenersById.values(), "realm_mastery");
+  }
+  return teamStatTotal(awakenersById.values(), stat);
+}
+
+function resolveRealmRateStat(
+  stat: AllStats,
+  options: EffectiveScalarOptions,
+  awakenersById: ReadonlyMap<number, Awakener>,
+): number {
+  return resolveRealmBaseStat(stat, options, awakenersById);
+}
+
 /**
  * Phase 2b Part A — resolve effective value_scalar via dependency_stat.
  *
  * - posse: always raw (ignore dependency_stat)
+ * - realm: flat / multiply / rate-scaled + pure + combo (see scaleRealmValueScalar)
  * - enemy_max_hp: raw
  * - team_max_hp: raw when teamMaxHp context missing; else raw × teamMaxHp
  * - null dependency_stat: raw
@@ -129,20 +287,27 @@ export function ownerAwakenerForManifestation(
   return awakenersById.get(m.awakenerId) ?? null;
 }
 
-/** Effective scalar for a manifestation row (ATM / covenant / wheel / posse). */
+/** Effective scalar for a manifestation row (ATM / covenant / wheel / posse / realm). */
 export function effectiveManifestationScalar(
   m: Manifestation,
   awakenersById: ReadonlyMap<number, Awakener>,
   tagsById: Readonly<Record<number, Tag>>,
-  teamMaxHp?: number | null,
+  teamMaxHpOrOptions?: number | null | EffectiveScalarOptions,
 ): number {
+  const options = normalizeEffectiveScalarOptions(teamMaxHpOrOptions);
+  const tagIsPercent = tagsById[m.tagId]?.isPercent === true;
+
+  if (m.sourceKind === "realm") {
+    return scaleRealmValueScalar(m, options, tagIsPercent, awakenersById);
+  }
+
   return scaleValueScalar(
     m.valueScalar,
     m.dependencyStat,
     ownerAwakenerForManifestation(m, awakenersById),
     m.sourceKind,
-    tagsById[m.tagId]?.isPercent === true,
-    teamMaxHp,
+    tagIsPercent,
+    options.teamMaxHp,
   );
 }
 
@@ -177,4 +342,9 @@ export function buildAwakenersById(
   const map = new Map<number, Awakener>();
   for (const a of awakeners) map.set(a.id, a);
   return map;
+}
+
+/** True when the subject contributes absolute scalar only (no inbound ops). */
+export function isInteractionImmuneSubject(m: Manifestation): boolean {
+  return m.isBaseStatTransfer || m.sourceKind === "realm";
 }

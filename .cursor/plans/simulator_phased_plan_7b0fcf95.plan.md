@@ -620,6 +620,37 @@ Compute Path Carver **team Max HP** from total base CON × `AcountLevelConfig` H
 
 ---
 
+## Phase 2b.3 — Realm tag manifestations (`realm_tag_manifestation`)
+
+**Depends on:** Phase 2b.1 + 2b.2.
+
+### Goal
+
+Load `realm_tag_manifestation` into Path Carver Review Tags as **team-once** Layer A bases (not per awakener), gated by `realm.replace` + `required_realm_mode`, scaled with realm-only dependency/pure/combo rules, and **interaction-immune** as subjects (like transfers)—except scalars still use **team Max HP** / **team Realm Mastery** as dependency inputs.
+
+### Locked decisions
+
+| Topic | Lock |
+| --- | --- |
+| Apply count | One contribution per matching RTM row |
+| Combo | × `chaosComboStacks` on effective scalar |
+| Replaced realms | Apply only if `realm_id ∈ effectiveRealmIds` |
+| Chaos replaced | Chaos RTM off; `chaosComboStacks === 0` ⇒ all `combo` off |
+| Attacker.\* RTM | Always apply when realm mode gates pass (no damage-dealer check) |
+| `realm_mastery` | Σ total-base `awakener.realmMastery` |
+| Immunity | `sourceKind === "realm"` skips inbound interaction ops |
+
+### Primary files
+
+- [`src/lib/team-data/types.ts`](src/lib/team-data/types.ts) / [`load-team-data.ts`](src/lib/team-data/load-team-data.ts)
+- [`src/lib/path-carver/manifestation-apply.ts`](src/lib/path-carver/manifestation-apply.ts)
+- [`src/lib/path-carver/effective-value-scalar.ts`](src/lib/path-carver/effective-value-scalar.ts)
+- [`src/lib/path-carver/aggregate-tag-scalars.ts`](src/lib/path-carver/aggregate-tag-scalars.ts)
+- [`src/lib/path-carver/apply-interactions.ts`](src/lib/path-carver/apply-interactions.ts)
+- Smoke: `npx tsx scripts/smoke-realm-tags.ts`
+
+---
+
 ## Phase 2c — Damage layers + Calculation List
 
 **Depends on:** Phase 2a + 2b (stable Review Tags interaction math with leaf-gated buff restriction).
@@ -695,8 +726,7 @@ Path Carver upserts a single `desire_template` per `desire_id`.
 
 ## Suggested implementation order (from now)
 
-1. **Phase 2b.1** — awakener total base stats + transfer tags + Special.Increase Base Keyflare (done when implemented)
-2. **Phase 2b.2** — team Max HP (`all_stats.team_max_hp`): CON × HpMultiplier + Max HP Up from DR reduction; resolve for dependency scaling (see dedicated Team Max HP plan)
-3. **Phase 2c** — layer terms x/y/z/f + 4-layer formula + Calculation List breakdown (replace temp op order)
-4. **Phase 3** — desire_demand / radar / simulator port
-5. **Phase 4** — Smart recommend / search
+1. **Phase 2b.3** — realm_tag_manifestation in Path Carver Review Tags (replace / mode / dependency / base immunity)
+2. **Phase 2c** — layer terms x/y/z/f + 4-layer formula + Calculation List breakdown (replace temp op order)
+3. **Phase 3** — desire_demand / radar / simulator port
+4. **Phase 4** — Smart recommend / search

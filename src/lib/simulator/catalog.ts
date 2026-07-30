@@ -447,6 +447,11 @@ export function buildManifestationsForComposition(
       replacesManifestationId: null,
       interactionOverrides: [],
       isBaseStatTransfer: false,
+      realmId: null,
+      requiredRealmMode: null,
+      dependencyRate: null,
+      dependencyRateStat: null,
+      pureBonusTarget: null,
     });
   }
 

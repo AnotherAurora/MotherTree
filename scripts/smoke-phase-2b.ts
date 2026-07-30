@@ -76,6 +76,11 @@ function makeManifestation(
     interactionOverrides: partial.interactionOverrides ?? [],
     isBaseStatTransfer: partial.isBaseStatTransfer ?? false,
     triggerCondition: null,
+    realmId: null,
+    requiredRealmMode: null,
+    dependencyRate: null,
+    dependencyRateStat: null,
+    pureBonusTarget: null,
     ...partial,
   };
 }

@@ -7,14 +7,15 @@ import {
   IN_MISSION_DEATH_RESIST_TAG_ID,
   SPECIAL_CAUSE_DEATH_RESIST_TRIGGER_TAG_ID,
 } from "@/lib/path-carver/death-resist-trigger";
-import type {
-  AllStats,
-  Awakener,
-  GearStatContribution,
-  Manifestation,
-  Tag,
-  TargetType,
-  TeamData,
+import {
+  NON_REALM_MANIFESTATION_FIELDS,
+  type AllStats,
+  type Awakener,
+  type GearStatContribution,
+  type Manifestation,
+  type Tag,
+  type TargetType,
+  type TeamData,
 } from "@/lib/team-data/types";
 
 /** Special.Increase Base Keyflare — boosts keyflare_regen after DR. */
@@ -281,6 +282,7 @@ export function buildBaseStatTransferManifestations(
         replacesManifestationId: null,
         interactionOverrides: [],
         isBaseStatTransfer: true,
+        ...NON_REALM_MANIFESTATION_FIELDS,
       });
     }
   }

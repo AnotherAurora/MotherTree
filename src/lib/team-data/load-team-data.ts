@@ -14,12 +14,15 @@ import {
   type InteractionOverride,
   type Manifestation,
   type Layer,
+  type PureBonusTarget,
   type Realm,
   type RealmLookupRow,
+  type RealmMatchMode,
   type Tag,
   type TeamData,
   type TeamDataInput,
   type TeamDataSlotInput,
+  NON_REALM_MANIFESTATION_FIELDS,
 } from "@/lib/team-data/types";
 
 type TagRef = {
@@ -79,6 +82,10 @@ function buildSummary(context: Omit<TeamData, "summary">): TeamData["summary"] {
     awakenerManifestationCount: countBySourceKind(
       context.manifestations,
       "awakener",
+    ),
+    realmManifestationCount: countBySourceKind(
+      context.manifestations,
+      "realm",
     ),
   };
 }
@@ -293,6 +300,7 @@ function mapGearManifestation(
     replacesManifestationId: row.replaces_manifestation_id ?? null,
     interactionOverrides: [],
     isBaseStatTransfer: false,
+    ...NON_REALM_MANIFESTATION_FIELDS,
   };
 }
 
@@ -506,6 +514,28 @@ export async function fetchTeamData(
     .select("id, name, replace")
     .is("deleted_at", null);
 
+  const realmTagManifestationsQuery = supabase
+    .from("realm_tag_manifestation")
+    .select(
+      `
+      id,
+      realm_id,
+      required_realm_mode,
+      tag_id,
+      trigger_condition,
+      value_scalar,
+      dependency_stat,
+      dependency_rate,
+      dependency_rate_stat,
+      pure_bonus_target,
+      metadata,
+      is_accumulating,
+      tag!tag_id(id, tag_name, layer, is_percent, is_additive),
+      realm_ref:realm!realm_id(id, name)
+    `,
+    )
+    .is("deleted_at", null);
+
   const awakenerResult =
     awakenerIds.length > 0
       ? await supabase
@@ -517,10 +547,12 @@ export async function fetchTeamData(
           .is("deleted_at", null)
       : { data: [], error: null };
 
-  const [defaultInteractionResult, realmsResult] = await Promise.all([
-    defaultInteractionsQuery,
-    realmsQuery,
-  ]);
+  const [defaultInteractionResult, realmsResult, realmTagResult] =
+    await Promise.all([
+      defaultInteractionsQuery,
+      realmsQuery,
+      realmTagManifestationsQuery,
+    ]);
 
   if (awakenerResult.error) {
     throw new Error(awakenerResult.error.message);
@@ -530,6 +562,9 @@ export async function fetchTeamData(
   }
   if (realmsResult.error) {
     throw new Error(realmsResult.error.message);
+  }
+  if (realmTagResult.error) {
+    throw new Error(realmTagResult.error.message);
   }
 
   const realmLookup: RealmLookupRow[] = (realmsResult.data ?? []).map((row) => ({
@@ -813,6 +848,46 @@ export async function fetchTeamData(
       replacesManifestationId: row.replaces_manifestation_id,
       interactionOverrides: overridesByManifestationId.get(row.id) ?? [],
       isBaseStatTransfer: false,
+      ...NON_REALM_MANIFESTATION_FIELDS,
+    });
+  }
+
+  for (const row of realmTagResult.data ?? []) {
+    const tag = parseTagRef(row.tag as TagRef);
+    if (tag) collectTags(tagsById, tag);
+    const realmRef = row.realm_ref as { id: number; name: string } | null;
+    manifestations.push({
+      id: row.id,
+      sourceKind: "realm",
+      awakenerId: null,
+      slotIndex: null,
+      sourceName: realmRef?.name ?? `#${row.realm_id}`,
+      tagId: tag?.id ?? row.tag_id ?? 0,
+      tagName: tag?.tagName ?? "Unknown",
+      triggerCondition: row.trigger_condition ?? null,
+      valueScalar: row.value_scalar,
+      baseHits: null,
+      dependencyStat: row.dependency_stat,
+      sourceType: null,
+      targetType: null,
+      buffTargetTypeRestriction: null,
+      metadata: row.metadata,
+      isAccumulating: row.is_accumulating,
+      requiredEnlightenment: null,
+      requiredAwakenerId: null,
+      requiredAwakenerName: null,
+      requiredRealm: (realmRef?.name as Realm | undefined) ?? null,
+      requiredRealm2: null,
+      requiredRealmId: null,
+      requiredRealmId2: null,
+      replacesManifestationId: null,
+      interactionOverrides: [],
+      isBaseStatTransfer: false,
+      realmId: row.realm_id,
+      requiredRealmMode: row.required_realm_mode as RealmMatchMode,
+      dependencyRate: row.dependency_rate,
+      dependencyRateStat: row.dependency_rate_stat,
+      pureBonusTarget: row.pure_bonus_target as PureBonusTarget,
     });
   }
 

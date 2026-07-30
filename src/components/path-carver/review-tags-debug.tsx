@@ -8,6 +8,8 @@ import {
 import {
   buildAwakenersById,
   effectiveManifestationScalar,
+  sumTeamRealmMastery,
+  type EffectiveScalarOptions,
 } from "@/lib/path-carver/effective-value-scalar";
 import type { Awakener, Manifestation, Tag, TeamData } from "@/lib/team-data/types";
 import type { SlotState } from "@/lib/simulator/types";
@@ -34,11 +36,23 @@ function formatCell(value: string | number | null | undefined): string {
   return String(value);
 }
 
+function scalarOptsForDebug(
+  applyContext: ManifestationApplyContext,
+  awakeners: readonly Awakener[],
+  teamMaxHp?: number | null,
+): EffectiveScalarOptions {
+  return {
+    teamMaxHp,
+    realmMasteryTotal: sumTeamRealmMastery(awakeners),
+    teamRealms: applyContext.teamRealms,
+  };
+}
+
 function formatScalarCell(
   m: Manifestation,
   awakenersById: ReadonlyMap<number, Awakener>,
   tagsById: Readonly<Record<number, Tag>>,
-  teamMaxHp?: number | null,
+  scalarOpts: EffectiveScalarOptions,
 ): string {
   const raw = m.valueScalar;
   if (raw == null) return "—";
@@ -46,11 +60,20 @@ function formatScalarCell(
     m,
     awakenersById,
     tagsById,
-    teamMaxHp,
+    scalarOpts,
   );
+  const teamMaxHp = scalarOpts.teamMaxHp;
   if (
-    m.dependencyStat == null ||
     m.sourceKind === "posse" ||
+    (m.sourceKind !== "realm" &&
+      m.dependencyStat == null &&
+      effective === raw) ||
+    (m.sourceKind === "realm" &&
+      m.dependencyStat == null &&
+      m.dependencyRate == null &&
+      m.pureBonusTarget !== "value_scalar" &&
+      m.requiredRealmMode !== "combo" &&
+      effective === raw) ||
     (m.dependencyStat === "team_max_hp" && teamMaxHp == null) ||
     m.dependencyStat === "enemy_max_hp" ||
     effective === raw
@@ -61,6 +84,11 @@ function formatScalarCell(
 }
 
 function formatRequiredRealm(m: Manifestation): string {
+  if (m.sourceKind === "realm") {
+    const mode = m.requiredRealmMode ?? "present";
+    const name = m.sourceName ?? (m.realmId != null ? `#${m.realmId}` : "—");
+    return `${name} (${mode})`;
+  }
   if (m.requiredRealm != null && m.requiredRealm2 != null) {
     return `${m.requiredRealm}|${m.requiredRealm2}`;
   }
@@ -80,18 +108,37 @@ function formatMetadata(metadata: string | null): string {
   return metadata;
 }
 
+function formatDependency(m: Manifestation): string {
+  if (m.sourceKind === "realm") {
+    const parts: string[] = [];
+    if (m.dependencyStat != null) parts.push(m.dependencyStat);
+    if (m.dependencyRate != null) {
+      parts.push(
+        `rate=${m.dependencyRate}${
+          m.dependencyRateStat != null ? `×${m.dependencyRateStat}` : ""
+        }`,
+      );
+    }
+    if (m.pureBonusTarget != null && m.pureBonusTarget !== "none") {
+      parts.push(`pure→${m.pureBonusTarget}`);
+    }
+    return parts.length > 0 ? parts.join(" ") : "—";
+  }
+  return formatCell(m.dependencyStat);
+}
+
 function ManifestationTable({
   tags,
   applyContext,
   awakenersById,
   tagsById,
-  teamMaxHp,
+  scalarOpts,
 }: {
   tags: Manifestation[];
   applyContext: ManifestationApplyContext;
   awakenersById: ReadonlyMap<number, Awakener>;
   tagsById: Readonly<Record<number, Tag>>;
-  teamMaxHp?: number | null;
+  scalarOpts: EffectiveScalarOptions;
 }) {
   if (tags.length === 0) {
     return <p className="text-zinc-400">None</p>;
@@ -135,7 +182,7 @@ function ManifestationTable({
               >
                 <td className="px-2 py-1.5 text-zinc-700">{m.tagName}</td>
                 <td className="px-2 py-1.5 tabular-nums">
-                  {formatScalarCell(m, awakenersById, tagsById, teamMaxHp)}
+                  {formatScalarCell(m, awakenersById, tagsById, scalarOpts)}
                 </td>
                 <td
                   className={
@@ -162,7 +209,7 @@ function ManifestationTable({
                 </td>
                 <td className="px-2 py-1.5">{formatRequiredRealm(m)}</td>
                 <td className="px-2 py-1.5">{formatRequiredAwakener(m)}</td>
-                <td className="px-2 py-1.5">{formatCell(m.dependencyStat)}</td>
+                <td className="px-2 py-1.5">{formatDependency(m)}</td>
               </tr>
             );
           })}
@@ -178,14 +225,14 @@ function SourceSubsection({
   applyContext,
   awakenersById,
   tagsById,
-  teamMaxHp,
+  scalarOpts,
 }: {
   title: string;
   tags: Manifestation[];
   applyContext: ManifestationApplyContext;
   awakenersById: ReadonlyMap<number, Awakener>;
   tagsById: Readonly<Record<number, Tag>>;
-  teamMaxHp?: number | null;
+  scalarOpts: EffectiveScalarOptions;
 }) {
   return (
     <div className="space-y-1">
@@ -197,7 +244,7 @@ function SourceSubsection({
         applyContext={applyContext}
         awakenersById={awakenersById}
         tagsById={tagsById}
-        teamMaxHp={teamMaxHp}
+        scalarOpts={scalarOpts}
       />
     </div>
   );
@@ -222,6 +269,11 @@ export function ReviewTagsDebug({
     [teamData.awakeners],
   );
 
+  const scalarOpts = useMemo(
+    () => scalarOptsForDebug(applyContext, teamData.awakeners, teamMaxHp),
+    [applyContext, teamData.awakeners, teamMaxHp],
+  );
+
   const groups = useMemo((): AwakenerGroup[] => {
     const result: AwakenerGroup[] = [];
 
@@ -234,7 +286,7 @@ export function ReviewTagsDebug({
       const wheelTags: Manifestation[] = [];
 
       for (const m of teamData.manifestations) {
-        if (m.sourceKind === "posse") continue;
+        if (m.sourceKind === "posse" || m.sourceKind === "realm") continue;
 
         if (m.sourceKind === "awakener" && m.awakenerId === awakenerId) {
           awakenerTags.push(m);
@@ -260,6 +312,11 @@ export function ReviewTagsDebug({
 
   const posseTags = useMemo(
     () => teamData.manifestations.filter((m) => m.sourceKind === "posse"),
+    [teamData.manifestations],
+  );
+
+  const realmTags = useMemo(
+    () => teamData.manifestations.filter((m) => m.sourceKind === "realm"),
     [teamData.manifestations],
   );
 
@@ -294,9 +351,12 @@ export function ReviewTagsDebug({
           {teamData.summary.awakenerManifestationCount} | Posse:{" "}
           {teamData.summary.posseManifestationCount} | Wheel:{" "}
           {teamData.summary.wheelManifestationCount} | Covenant:{" "}
-          {teamData.summary.covenantManifestationCount}
+          {teamData.summary.covenantManifestationCount} | Realm:{" "}
+          {teamData.summary.realmManifestationCount}
           {" | "}
           Team realms: {teamRealmList}
+          {" | "}
+          Combo stacks: {applyContext.teamRealms.chaosComboStacks}
           {" | "}
           Chaos-only team: {applyContext.teamIsChaosOnly ? "yes" : "no"}
           {" | "}
@@ -320,7 +380,7 @@ export function ReviewTagsDebug({
                   applyContext={applyContext}
                   awakenersById={awakenersById}
                   tagsById={teamData.tagsById}
-                  teamMaxHp={teamMaxHp}
+                  scalarOpts={scalarOpts}
                 />
                 <SourceSubsection
                   title="Covenant tags"
@@ -328,7 +388,7 @@ export function ReviewTagsDebug({
                   applyContext={applyContext}
                   awakenersById={awakenersById}
                   tagsById={teamData.tagsById}
-                  teamMaxHp={teamMaxHp}
+                  scalarOpts={scalarOpts}
                 />
                 <SourceSubsection
                   title="Wheel tags"
@@ -336,12 +396,25 @@ export function ReviewTagsDebug({
                   applyContext={applyContext}
                   awakenersById={awakenersById}
                   tagsById={teamData.tagsById}
-                  teamMaxHp={teamMaxHp}
+                  scalarOpts={scalarOpts}
                 />
               </div>
             </div>
           ))
         )}
+
+        <div className="space-y-3 border-t border-zinc-200 pt-3">
+          <p className="text-sm font-medium text-zinc-700">Realm tags</p>
+          <div className="pl-2">
+            <ManifestationTable
+              tags={realmTags}
+              applyContext={applyContext}
+              awakenersById={awakenersById}
+              tagsById={teamData.tagsById}
+              scalarOpts={scalarOpts}
+            />
+          </div>
+        </div>
 
         <div className="space-y-3 border-t border-zinc-200 pt-3">
           <p className="text-sm font-medium text-zinc-700">Posse tags</p>
@@ -351,7 +424,7 @@ export function ReviewTagsDebug({
               applyContext={applyContext}
               awakenersById={awakenersById}
               tagsById={teamData.tagsById}
-              teamMaxHp={teamMaxHp}
+              scalarOpts={scalarOpts}
             />
           </div>
         </div>

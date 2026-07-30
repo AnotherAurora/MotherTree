@@ -15,6 +15,8 @@ import {
 import {
   buildAwakenersById,
   effectiveManifestationScalar,
+  sumTeamRealmMastery,
+  type EffectiveScalarOptions,
 } from "@/lib/path-carver/effective-value-scalar";
 import {
   createManifestationApplyContext,
@@ -64,10 +66,16 @@ function sumCauseTotals(
   manifestations: readonly Manifestation[],
   awakenersById: ReadonlyMap<number, Awakener>,
   tagsById: Readonly<Record<number, Tag>>,
+  scalarOpts?: EffectiveScalarOptions,
 ): Map<number, number> {
   const totals = new Map<number, number>();
   for (const m of manifestations) {
-    const scalar = effectiveManifestationScalar(m, awakenersById, tagsById);
+    const scalar = effectiveManifestationScalar(
+      m,
+      awakenersById,
+      tagsById,
+      scalarOpts,
+    );
     if (scalar === 0) continue;
     totals.set(m.tagId, (totals.get(m.tagId) ?? 0) + scalar);
   }
@@ -79,11 +87,17 @@ function sumMaxHpUpTotal(
   manifestations: readonly Manifestation[],
   awakenersById: ReadonlyMap<number, Awakener>,
   tagsById: Readonly<Record<number, Tag>>,
+  scalarOpts?: EffectiveScalarOptions,
 ): number {
   let total = 0;
   for (const m of manifestations) {
     if (m.tagId !== DEFENDER_MAX_HP_UP_TAG_ID) continue;
-    total += effectiveManifestationScalar(m, awakenersById, tagsById);
+    total += effectiveManifestationScalar(
+      m,
+      awakenersById,
+      tagsById,
+      scalarOpts,
+    );
   }
   return total;
 }
@@ -97,13 +111,18 @@ export function aggregateTagScalarsById(
   teamMaxHp?: number | null,
 ): Map<number, number> {
   const awakenersById = buildAwakenersById(awakeners);
+  const scalarOpts: EffectiveScalarOptions = {
+    teamMaxHp,
+    realmMasteryTotal: sumTeamRealmMastery(awakeners),
+    teamRealms: applyContext.teamRealms,
+  };
   const totals = new Map<number, number>();
   for (const m of manifestations) {
     if (!isManifestationApplied(m, applyContext)) continue;
     const mult = triggerApplyMultiplier(m, applyContext.triggerCounts);
     if (mult === 0) continue;
     const scalar =
-      effectiveManifestationScalar(m, awakenersById, tagsById, teamMaxHp) *
+      effectiveManifestationScalar(m, awakenersById, tagsById, scalarOpts) *
       mult;
     if (scalar === 0) continue;
     totals.set(m.tagId, (totals.get(m.tagId) ?? 0) + scalar);
@@ -139,6 +158,10 @@ export function computeReviewTagTotals(
   );
 
   const awakenersById = buildAwakenersById(totalAwakeners);
+  const earlyScalarOpts: EffectiveScalarOptions = {
+    realmMasteryTotal: sumTeamRealmMastery(totalAwakeners),
+    teamRealms: applyContext.teamRealms,
+  };
   // Full tag 12 Layer A total: ATM/other + base-stat transfers (not awakener column alone).
   let baseDeathResistTotal = 0;
   let directInMissionTotal = 0;
@@ -147,6 +170,7 @@ export function computeReviewTagTotals(
       m,
       awakenersById,
       teamData.tagsById,
+      earlyScalarOpts,
     );
     if (scalar === 0) continue;
     if (m.tagId === DEFENDER_BASE_DEATH_RESIST_TAG_ID) {
@@ -166,6 +190,7 @@ export function computeReviewTagTotals(
     [...appliedNullTrigger, ...allTransfers],
     awakenersById,
     teamData.tagsById,
+    earlyScalarOpts,
   );
   const triggerCounts = buildTriggerCounts(causeTotals);
   const applyWithTriggers: ManifestationApplyContext = {
@@ -194,6 +219,7 @@ export function computeReviewTagTotals(
     applied,
     awakenersById,
     teamData.tagsById,
+    earlyScalarOpts,
   );
   const teamMaxHp = computeTeamMaxHp({
     awakeners: totalAwakeners,
@@ -218,6 +244,7 @@ export function computeReviewTagTotals(
     reviewTeamData,
     applied,
     teamMaxHp.finalMaxHp,
+    applyContext.teamRealms,
   );
   return {
     totalsByTagId: result.totalsByTagId,

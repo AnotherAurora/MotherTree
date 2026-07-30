@@ -8,6 +8,7 @@ import { getTriggerCount } from "@/lib/path-carver/trigger-condition";
 
 export type ManifestationApplyReason =
   | "realm"
+  | "realm.mode"
   | "required_awakener"
   | "attacker.not_damage_dealer"
   | "trigger_condition";
@@ -106,6 +107,40 @@ function realmAndRequiredAwakenerPass(
   return { applied: true, reason: null, triggerTimes: null };
 }
 
+/**
+ * RTM apply: realm_id must be in effectiveRealmIds (replaced bases never apply),
+ * then required_realm_mode (present / exclusive / combo).
+ */
+function realmTagManifestationPass(
+  m: Manifestation,
+  ctx: ManifestationApplyContext,
+): ManifestationApplyResult {
+  const realmId = m.realmId;
+  if (realmId == null) {
+    return { applied: false, reason: "realm", triggerTimes: null };
+  }
+
+  if (!ctx.teamRealms.effectiveRealmIds.has(realmId)) {
+    return { applied: false, reason: "realm", triggerTimes: null };
+  }
+
+  const mode = m.requiredRealmMode ?? "present";
+  if (mode === "present") {
+    return { applied: true, reason: null, triggerTimes: null };
+  }
+  if (mode === "exclusive") {
+    if (!ctx.teamRealms.isPure(realmId)) {
+      return { applied: false, reason: "realm.mode", triggerTimes: null };
+    }
+    return { applied: true, reason: null, triggerTimes: null };
+  }
+  // combo
+  if (ctx.teamRealms.chaosComboStacks <= 0) {
+    return { applied: false, reason: "realm.mode", triggerTimes: null };
+  }
+  return { applied: true, reason: null, triggerTimes: null };
+}
+
 function isAttackerTag(tagName: string): boolean {
   return tagName.startsWith("Attacker.");
 }
@@ -113,7 +148,8 @@ function isAttackerTag(tagName: string): boolean {
 /**
  * Layer A — which manifestations enter team tag totals.
  * Posse skips target_type and damage-dealer gates (realm / required_awakener only).
- * Attacker.* (any target_type) requires the owner awakener to be a damage dealer.
+ * Realm RTM: effective + mode + trigger only (Attacker.* always applies when mode OK).
+ * Attacker.* (any target_type) on non-realm requires the owner awakener to be a damage dealer.
  * Base-stat transfer synthetics always apply.
  * Non-null trigger_condition also requires Cause→When count > 0.
  */
@@ -123,6 +159,18 @@ export function evaluateManifestationApply(
 ): ManifestationApplyResult {
   if (m.isBaseStatTransfer) {
     return { applied: true, reason: null, triggerTimes: null };
+  }
+
+  if (m.sourceKind === "realm") {
+    const realmPass = realmTagManifestationPass(m, ctx);
+    if (!realmPass.applied) return realmPass;
+
+    const triggerTimes = getTriggerCount(m, ctx.triggerCounts);
+    if (triggerTimes != null && triggerTimes <= 0) {
+      return { applied: false, reason: "trigger_condition", triggerTimes: 0 };
+    }
+
+    return { applied: true, reason: null, triggerTimes };
   }
 
   const base = realmAndRequiredAwakenerPass(m, ctx);

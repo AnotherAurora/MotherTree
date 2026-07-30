@@ -22,11 +22,14 @@ export type RealmLookupRow = {
 };
 export type SourceType = Database["public"]["Enums"]["source_type"];
 export type TargetType = Database["public"]["Enums"]["target_type"];
+export type RealmMatchMode = Database["public"]["Enums"]["realm_match_mode"];
+export type PureBonusTarget = Database["public"]["Enums"]["pure_bonus_target"];
 export type ManifestationSourceKind =
   | "awakener"
   | "wheel"
   | "covenant"
-  | "posse";
+  | "posse"
+  | "realm";
 
 export type TeamDataSlotInput = {
   awakenerId: number | null;
@@ -121,7 +124,32 @@ export type Manifestation = {
    * Acts as a modifier in interactions but is immune as an interaction subject/target.
    */
   isBaseStatTransfer: boolean;
+  /** Owning realm for `sourceKind === "realm"`; null otherwise. */
+  realmId: number | null;
+  /** RTM match mode; null for non-realm rows. */
+  requiredRealmMode: RealmMatchMode | null;
+  /** Realm-only rate companion for HP/RM conversion. */
+  dependencyRate: number | null;
+  dependencyRateStat: AllStats | null;
+  /** Realm-only pure-team double target. */
+  pureBonusTarget: PureBonusTarget | null;
 };
+
+/** Default RTM-only fields for non-realm manifestation constructors. */
+export const NON_REALM_MANIFESTATION_FIELDS = {
+  realmId: null,
+  requiredRealmMode: null,
+  dependencyRate: null,
+  dependencyRateStat: null,
+  pureBonusTarget: null,
+} as const satisfies Pick<
+  Manifestation,
+  | "realmId"
+  | "requiredRealmMode"
+  | "dependencyRate"
+  | "dependencyRateStat"
+  | "pureBonusTarget"
+>;
 
 /** Equipped wheel/covenant flat stat bonus for total base-stat calculation. */
 export type GearStatContribution = {
@@ -165,6 +193,7 @@ export type TeamDataSummary = {
   wheelManifestationCount: number;
   covenantManifestationCount: number;
   awakenerManifestationCount: number;
+  realmManifestationCount: number;
 };
 
 export type TeamData = {
@@ -197,6 +226,7 @@ export function createEmptyTeamData(): TeamData {
       wheelManifestationCount: 0,
       covenantManifestationCount: 0,
       awakenerManifestationCount: 0,
+      realmManifestationCount: 0,
     },
   };
 }

@@ -2,9 +2,13 @@ import {
   buildAwakenersById,
   effectiveManifestationScalar,
   effectiveOverrideFactor,
+  isInteractionImmuneSubject,
+  sumTeamRealmMastery,
+  type EffectiveScalarOptions,
 } from "@/lib/path-carver/effective-value-scalar";
 import { combineSameTagScalar } from "@/lib/path-carver/combine-same-tag-scalar";
 import { matchesDemandTag } from "@/lib/simulator/tag-matching";
+import type { TeamRealmResolution } from "@/lib/team-data/resolve-team-realms";
 import type {
   Awakener,
   DefaultInteraction,
@@ -49,6 +53,7 @@ export function requiresTargetBasePresence(
 }
 
 const TEAM_POOL_OWNER = "*team*";
+const REALM_OWNER = "realm";
 
 const SPECIAL_CORROSION_CONVERSION = "Special.Corrosion Conversion";
 const SPECIAL_EMBERS_CONVERSION = "Special.Ancient Embers Conversion";
@@ -120,6 +125,10 @@ export type ApplyInteractionsInput = {
   leafContext?: SourceType | null;
   /** Final team Max HP for dependency_stat=team_max_hp resolution. */
   teamMaxHp?: number | null;
+  /** Team sum of total-base realmMastery for realm rows. */
+  realmMasteryTotal?: number;
+  /** Team realm resolution for realm pure / combo scaling. */
+  teamRealms?: TeamRealmResolution;
 };
 
 export type ApplyInteractionsResult = {
@@ -137,6 +146,7 @@ type MathOpResult = {
 
 function ownerKeyFor(m: Manifestation): OwnerKey {
   if (m.sourceKind === "posse") return "posse";
+  if (m.sourceKind === "realm") return REALM_OWNER;
   if (m.awakenerId != null) return `awakener:${m.awakenerId}`;
   return `orphan:${m.sourceKind}:${m.id}`;
 }
@@ -147,6 +157,9 @@ function sourceLabelFor(
 ): string {
   if (m.sourceKind === "posse") {
     return m.sourceName ?? "posse";
+  }
+  if (m.sourceKind === "realm") {
+    return m.sourceName != null ? `realm:${m.sourceName}` : "realm";
   }
 
   const awakenerName =
@@ -1299,12 +1312,27 @@ type RunInteractionsOptions = {
   /** When false, skip Special conversions (caller runs once after merge). */
   runSpecial: boolean;
   teamMaxHp?: number | null;
+  realmMasteryTotal?: number;
+  teamRealms?: TeamRealmResolution;
 };
 
 type RunInteractionsResult = {
   ownerValues: OwnerTotals;
   steps: ScalarMathStep[];
 };
+
+function scalarOptionsFrom(
+  partial: Pick<
+    EffectiveScalarOptions,
+    "teamMaxHp" | "realmMasteryTotal" | "teamRealms"
+  >,
+): EffectiveScalarOptions {
+  return {
+    teamMaxHp: partial.teamMaxHp,
+    realmMasteryTotal: partial.realmMasteryTotal,
+    teamRealms: partial.teamRealms,
+  };
+}
 
 /**
  * Cohort for subject M: all applied manifests except same-tagId siblings, plus M.
@@ -1314,7 +1342,9 @@ function cohortForSubject(
   subject: Manifestation,
 ): Manifestation[] {
   return applied.filter(
-    (m) => m.id === subject.id || m.tagId !== subject.tagId,
+    (m) =>
+      (m.sourceKind === subject.sourceKind && m.id === subject.id) ||
+      m.tagId !== subject.tagId,
   );
 }
 
@@ -1334,7 +1364,7 @@ function runInteractionsForLeafContext(
       m,
       options.awakenersById,
       options.tagsById,
-      options.teamMaxHp,
+      scalarOptionsFrom(options),
     );
     if (scalar === 0 && raw === 0) continue;
     if (scalar === 0) continue;
@@ -1462,7 +1492,7 @@ function sumOwnerTotalsToTagMap(
  * Attacker/Defender always require base. Restricted ops skip when leafContext mismatches.
  * once_per_base=false: team-once pass writes target once into *team*, then merged;
  * those rows are excluded from per-subject runs.
- * Phase 2b.1: isBaseStatTransfer subjects contribute absolute scalar only (no inbound ops)
+ * Phase 2b.1: isBaseStatTransfer / realm subjects contribute absolute scalar only (no inbound ops)
  * but remain in other subjects' cohorts as modifiers.
  * is_additive: Layer A same-tag seed + in-pass modifier collapse, and post-pass
  * subject merge (sum vs multiply; percent multiplicative uses (1+v) fold-back).
@@ -1473,6 +1503,7 @@ export function applyInteractions(
   const awakenersById = input.awakenersById;
   const applied = input.appliedManifestations;
   const steps: ScalarMathStep[] = [];
+  const scalarOpts = scalarOptionsFrom(input);
 
   // Record every applied manifestation's base once (raw vs effective).
   for (const m of applied) {
@@ -1481,7 +1512,7 @@ export function applyInteractions(
       m,
       awakenersById,
       input.tagsById,
-      input.teamMaxHp,
+      scalarOpts,
     );
     if (scalar === 0) continue;
     steps.push({
@@ -1507,7 +1538,7 @@ export function applyInteractions(
       m,
       awakenersById,
       input.tagsById,
-      input.teamMaxHp,
+      scalarOpts,
     );
     return scalar !== 0;
   });
@@ -1519,13 +1550,13 @@ export function applyInteractions(
     // Nothing to evaluate for subjects.
   } else {
     for (const subject of subjects) {
-      // Base-stat transfers: contribute absolute scalar; never receive interactions.
-      if (subject.isBaseStatTransfer) {
+      // Base-stat transfers / realm: contribute absolute scalar; never receive interactions.
+      if (isInteractionImmuneSubject(subject)) {
         const scalar = effectiveManifestationScalar(
           subject,
           awakenersById,
           input.tagsById,
-          input.teamMaxHp,
+          scalarOpts,
         );
         if (scalar !== 0) {
           mergeOwnerValue(
@@ -1550,6 +1581,8 @@ export function applyInteractions(
         recordBaseSteps: false,
         runSpecial: false,
         teamMaxHp: input.teamMaxHp,
+        realmMasteryTotal: input.realmMasteryTotal,
+        teamRealms: input.teamRealms,
       });
 
       const owner = ownerKeyFor(subject);
@@ -1589,6 +1622,8 @@ export function applyInteractions(
       recordBaseSteps: false,
       runSpecial: false,
       teamMaxHp: input.teamMaxHp,
+      realmMasteryTotal: input.realmMasteryTotal,
+      teamRealms: input.teamRealms,
     });
 
     const teamOnceTargetIds = new Set<number>();
@@ -1676,6 +1711,7 @@ export function applyInteractionsForTeamData(
   teamData: TeamData,
   appliedManifestations: Manifestation[],
   teamMaxHp?: number | null,
+  teamRealms?: TeamRealmResolution,
 ): ApplyInteractionsResult {
   const awakenerNamesById = new Map<number, string>();
   for (const awakener of teamData.awakeners) {
@@ -1692,5 +1728,7 @@ export function applyInteractionsForTeamData(
     awakenersById: buildAwakenersById(teamData.awakeners),
     awakenerNamesById,
     teamMaxHp,
+    realmMasteryTotal: sumTeamRealmMastery(teamData.awakeners),
+    teamRealms,
   });
 }
