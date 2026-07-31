@@ -1,6 +1,7 @@
 import {
   getRealmFamilyIdsFromSlots,
 } from "@/components/simulator/awakener-selection";
+import { mutexViolationMessages } from "@/lib/simulator/awakener-mutex";
 import {
   isSsrWithoutEnlightenment15,
 } from "@/lib/simulator/gear-selection";
@@ -99,6 +100,8 @@ export function validateAwakenerConstraints(
     }
     seen.add(slot.awakenerId);
   }
+
+  errors.push(...mutexViolationMessages(seen));
 
   const families = getRealmFamilyIdsFromSlots(slots, optionMap);
   if (families.size > 2) {

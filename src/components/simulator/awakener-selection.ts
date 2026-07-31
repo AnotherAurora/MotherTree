@@ -1,6 +1,7 @@
 import type { SlotState } from "@/components/simulator/mock-data";
 import type { ForeignKeyOption } from "@/lib/actions/crud";
 import type { SimulatorAwakenerOption } from "@/lib/actions/simulator";
+import { conflictsWithSelected } from "@/lib/simulator/awakener-mutex";
 
 export function buildAwakenerOptionMap(
   options: SimulatorAwakenerOption[],
@@ -74,6 +75,7 @@ export function filterAwakenerOptionsForSlot(
   return options.filter((option) => {
     if (option.value === currentId) return true;
     if (selectedElsewhere.has(option.value)) return false;
+    if (conflictsWithSelected(option.value, selectedElsewhere)) return false;
     if (wouldExceedRealmFamilyLimit(option.realmFamilyId, otherFamilies)) {
       return false;
     }

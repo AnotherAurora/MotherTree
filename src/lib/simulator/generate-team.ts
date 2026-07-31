@@ -1,3 +1,7 @@
+import {
+  conflictsWithSelected,
+  mutexViolationMessages,
+} from "@/lib/simulator/awakener-mutex";
 import { buildBanSet, isEntityBanned } from "@/lib/simulator/ban-filter";
 import {
   loadSimulatorCatalog,
@@ -77,6 +81,11 @@ function validateAnchorConstraints(
   }
 
   const allIds = [startAwakenerId, ...otherAnchors];
+  const mutexErrors = mutexViolationMessages(allIds);
+  if (mutexErrors.length > 0) {
+    return mutexErrors[0] ?? null;
+  }
+
   const familyIds = allIds
     .map((id) => catalog.awakeners.find((a) => a.id === id)?.realmFamilyId)
     .filter((id): id is number => id != null);
@@ -124,6 +133,7 @@ function pickBestAwakenerForSlot(
   for (const awakener of catalog.awakeners) {
     if (isEntityBanned(banSet, "awakener", awakener.id)) continue;
     if (selectedElsewhere.has(awakener.id)) continue;
+    if (conflictsWithSelected(awakener.id, selectedElsewhere)) continue;
     if (wouldExceedRealmFamilyLimit(awakener.id, slots, catalog, slotIndex)) continue;
 
     const trialSlots = slots.map((s, i) =>
