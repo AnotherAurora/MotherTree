@@ -134,9 +134,10 @@ export function ReviewTagsMathDebug({
           Debug — Scalar Sum math
         </p>
         <p className="font-mono text-xs text-zinc-600">
-          Layer A base (dependency-scaled) → interaction ops (final pass; leaf-
-          gated buff restriction) → special conversions → totals. Multiply ops
-          ceil after each write. Restricted ops only appear when leaf matches.
+          Layer A base (dependency-scaled) → Keyflare Harmony →
+          Keyflare→Create.Posse → interaction ops (final pass; leaf-gated buff
+          restriction) → special conversions → totals. Multiply ops ceil after
+          each write. Restricted ops only appear when leaf matches.
         </p>
       </div>
 

@@ -19,6 +19,16 @@ import {
   type EffectiveScalarOptions,
 } from "@/lib/path-carver/effective-value-scalar";
 import {
+  SPECIAL_INCREASE_POSSE_KEYFLARE_COST_TAG_ID,
+  SUPPORT_KEYFLARE_TAG_ID,
+  buildKeyflareToPosseManifestation,
+  computeKeyflareToPosse,
+} from "@/lib/path-carver/keyflare-to-posse";
+import {
+  buildKeyflareHarmonyManifestation,
+  computeKeyflareHarmonyScalar,
+} from "@/lib/path-carver/keyflare-harmony";
+import {
   createManifestationApplyContext,
   isManifestationApplied,
   type ManifestationApplyContext,
@@ -132,9 +142,9 @@ export function aggregateTagScalarsById(
 
 /**
  * Review Tags totals:
- * Layer A null-trigger → total base stats → transfers + Death Resist Cause +
- * Max HP Up from DR → Cause→When counts → Layer A triggered (×N) →
- * team Max HP → Layer B interactions (with team_max_hp resolved).
+ * Layer A null-trigger → total base stats → Keyflare Harmony + transfers +
+ * Death Resist Cause + Max HP Up from DR → Keyflare→Create.Posse →
+ * Cause→When counts → Layer A triggered (×N) → team Max HP → Layer B.
  */
 export function computeReviewTagTotals(
   teamData: TeamData,
@@ -152,10 +162,20 @@ export function computeReviewTagTotals(
     teamData,
     appliedNullTrigger,
   );
-  const transfers = buildBaseStatTransferManifestations(
+  const baseTransfers = buildBaseStatTransferManifestations(
     totalAwakeners,
     teamData.tagsById,
   );
+
+  const harmonyBreakdown = computeKeyflareHarmonyScalar(totalAwakeners);
+  const harmonySynth = buildKeyflareHarmonyManifestation(
+    harmonyBreakdown.valueScalar,
+    teamData.tagsById,
+  );
+  const transfers = [
+    ...baseTransfers,
+    ...(harmonySynth ? [harmonySynth] : []),
+  ];
 
   const awakenersById = buildAwakenersById(totalAwakeners);
   const earlyScalarOpts: EffectiveScalarOptions = {
@@ -184,7 +204,69 @@ export function computeReviewTagTotals(
     directInMissionTotal,
     teamData.tagsById,
   );
-  const allTransfers = [...transfers, ...derived];
+
+  // Keyflare → Create.Posse (non-consuming; before Cause→When).
+  // Includes Keyflare Harmony synthetic in transfers.
+  let keyflareTotal = 0;
+  let posseCostIncrease = 0;
+  for (const m of [...appliedNullTrigger, ...transfers, ...derived]) {
+    const scalar = effectiveManifestationScalar(
+      m,
+      awakenersById,
+      teamData.tagsById,
+      earlyScalarOpts,
+    );
+    if (scalar === 0) continue;
+    if (m.tagId === SUPPORT_KEYFLARE_TAG_ID) keyflareTotal += scalar;
+    else if (m.tagId === SPECIAL_INCREASE_POSSE_KEYFLARE_COST_TAG_ID) {
+      posseCostIncrease += scalar;
+    }
+  }
+  const keyflareToPosse = computeKeyflareToPosse({
+    keyflareTotal,
+    costIncrease: posseCostIncrease,
+  });
+  const keyflarePosseSynth = buildKeyflareToPosseManifestation(
+    keyflareToPosse.posseCreated,
+    teamData.tagsById,
+  );
+  const allTransfers = [
+    ...transfers,
+    ...derived,
+    ...(keyflarePosseSynth ? [keyflarePosseSynth] : []),
+  ];
+
+  const harmonySteps: ScalarMathStep[] =
+    harmonyBreakdown.valueScalar !== 0
+      ? [
+          {
+            kind: "special",
+            label: "Keyflare Harmony",
+            detail:
+              `sum=${harmonyBreakdown.sumKeyflare}` +
+              ` avg=${harmonyBreakdown.teamAverage}` +
+              ` scalar=${harmonyBreakdown.valueScalar}`,
+          },
+        ]
+      : [];
+
+  const keyflareSteps: ScalarMathStep[] =
+    keyflareTotal > 0 ||
+    posseCostIncrease > 0 ||
+    keyflareToPosse.posseCreated > 0
+      ? [
+          {
+            kind: "special",
+            label: "Keyflare → Create.Posse",
+            detail:
+              `keyflare=${keyflareToPosse.keyflareTotal}` +
+              ` costIncrease=${keyflareToPosse.costIncrease}` +
+              ` costPerPosse=${keyflareToPosse.costPerPosse}` +
+              ` created=${keyflareToPosse.posseCreated}` +
+              ` (Keyflare unchanged)`,
+          },
+        ]
+      : [];
 
   const causeTotals = sumCauseTotals(
     [...appliedNullTrigger, ...allTransfers],
@@ -248,7 +330,7 @@ export function computeReviewTagTotals(
   );
   return {
     totalsByTagId: result.totalsByTagId,
-    steps: result.steps,
+    steps: [...harmonySteps, ...keyflareSteps, ...result.steps],
     reviewTeamData,
     triggerCounts,
     teamMaxHp,

@@ -1,0 +1,262 @@
+/**
+ * Phase 2b.5 smoke — Keyflare Harmony (team-avg keyflare × 8 → Support.Keyflare).
+ * Run: npx tsx scripts/smoke-keyflare-harmony.ts
+ */
+import { computeReviewTagTotals } from "../src/lib/path-carver/aggregate-tag-scalars";
+import { applyKeyflareDiminishingReturn } from "../src/lib/path-carver/awakener-base-stats";
+import { SPECIAL_INCREASE_BASE_KEYFLARE_TAG_ID } from "../src/lib/path-carver/awakener-base-stats";
+import {
+  KEYFLARE_HARMONY_MULTIPLIER,
+  TEAM_SLOT_COUNT,
+  computeKeyflareHarmonyScalar,
+  keyflareHarmonyManifestationId,
+} from "../src/lib/path-carver/keyflare-harmony";
+import { SUPPORT_KEYFLARE_TAG_ID } from "../src/lib/path-carver/keyflare-to-posse";
+import { createManifestationApplyContext } from "../src/lib/path-carver/manifestation-apply";
+import { SUPPORT_CREATE_POSSE_TAG_ID } from "../src/lib/path-carver/trigger-condition";
+import type {
+  Awakener,
+  Manifestation,
+  Tag,
+  TeamData,
+} from "../src/lib/team-data/types";
+import { createEmptyTeamData } from "../src/lib/team-data/types";
+
+function assert(cond: boolean, msg: string): void {
+  if (!cond) throw new Error(`FAIL: ${msg}`);
+  console.log(`  ok — ${msg}`);
+}
+
+function makeAwakener(partial: Partial<Awakener> & { id: number }): Awakener {
+  return {
+    name: partial.name ?? `A${partial.id}`,
+    realm: partial.realm ?? "chaos",
+    realmId: partial.realmId ?? 1,
+    con: partial.con ?? null,
+    atk: partial.atk ?? null,
+    def: partial.def ?? null,
+    keyflareRegen: partial.keyflareRegen ?? null,
+    damageAmp: partial.damageAmp ?? null,
+    critRate: partial.critRate ?? null,
+    critDmg: partial.critDmg ?? null,
+    realmMastery: partial.realmMastery ?? null,
+    baseAliemus: partial.baseAliemus ?? null,
+    aliemusRegen: partial.aliemusRegen ?? null,
+    sigilYield: partial.sigilYield ?? null,
+    deathResist: partial.deathResist ?? null,
+    enlightenment: partial.enlightenment ?? 3,
+    ...partial,
+  };
+}
+
+function makeTag(
+  id: number,
+  tagName: string,
+  isPercent = false,
+  isAdditive = true,
+): Tag {
+  return { id, tagName, layer: null, isPercent, isAdditive };
+}
+
+function makeManifestation(
+  partial: Partial<Manifestation> & {
+    id: number;
+    tagId: number;
+    tagName: string;
+  },
+): Manifestation {
+  return {
+    sourceKind: partial.sourceKind ?? "awakener",
+    awakenerId: partial.awakenerId ?? 1,
+    slotIndex: partial.slotIndex ?? 0,
+    sourceName: partial.sourceName ?? null,
+    valueScalar: partial.valueScalar ?? 0,
+    baseHits: null,
+    dependencyStat: partial.dependencyStat ?? null,
+    sourceType: partial.sourceType ?? null,
+    targetType: partial.targetType ?? null,
+    buffTargetTypeRestriction: null,
+    metadata: null,
+    isAccumulating: false,
+    requiredEnlightenment: null,
+    requiredAwakenerId: null,
+    requiredAwakenerName: null,
+    requiredRealm: null,
+    requiredRealm2: null,
+    requiredRealmId: null,
+    requiredRealmId2: null,
+    replacesManifestationId: null,
+    interactionOverrides: partial.interactionOverrides ?? [],
+    isBaseStatTransfer: partial.isBaseStatTransfer ?? false,
+    isCreatedBase: partial.isCreatedBase ?? false,
+    triggerCondition: partial.triggerCondition ?? null,
+    realmId: null,
+    requiredRealmMode: null,
+    dependencyRate: null,
+    dependencyRateStat: null,
+    pureBonusTarget: null,
+    ...partial,
+  };
+}
+
+const keyflareTag = makeTag(SUPPORT_KEYFLARE_TAG_ID, "Support.Keyflare");
+const createPosseTag = makeTag(
+  SUPPORT_CREATE_POSSE_TAG_ID,
+  "Support.Create.Posse",
+);
+const increaseBaseKfTag = makeTag(
+  SPECIAL_INCREASE_BASE_KEYFLARE_TAG_ID,
+  "Special.Increase Base Keyflare",
+  true,
+);
+
+console.log("computeKeyflareHarmonyScalar unit");
+{
+  assert(TEAM_SLOT_COUNT === 4, "4 slots");
+  assert(KEYFLARE_HARMONY_MULTIPLIER === 8, "×8");
+
+  const four = computeKeyflareHarmonyScalar([
+    { keyflareRegen: 20 },
+    { keyflareRegen: 20 },
+    { keyflareRegen: 20 },
+    { keyflareRegen: 20 },
+  ]);
+  assert(four.teamAverage === 20 && four.valueScalar === 160, "4×20 → avg 20 → 160");
+
+  const one = computeKeyflareHarmonyScalar([{ keyflareRegen: 20 }]);
+  assert(one.teamAverage === 5 && one.valueScalar === 40, "1×20 → avg 5 → 40");
+
+  const empty = computeKeyflareHarmonyScalar([]);
+  assert(empty.valueScalar === 0, "empty → 0");
+}
+
+console.log("\nReview Tags: four awakeners keyflare 15 (DR floor) → Harmony 120");
+{
+  // keyflareRegen 15 stays 15 after DR.
+  const tagsById: Record<number, Tag> = {
+    [keyflareTag.id]: keyflareTag,
+  };
+  const awakeners = [1, 2, 3, 4].map((id) =>
+    makeAwakener({ id, keyflareRegen: 15 }),
+  );
+  const teamData: TeamData = {
+    ...createEmptyTeamData(),
+    awakeners,
+    manifestations: [],
+    tagsById,
+  };
+  const { totalsByTagId, steps, reviewTeamData } = computeReviewTagTotals(
+    teamData,
+    createManifestationApplyContext(awakeners, []),
+  );
+  assert(
+    (totalsByTagId.get(keyflareTag.id) ?? 0) === 120,
+    `Keyflare Harmony 120 (got ${totalsByTagId.get(keyflareTag.id)})`,
+  );
+  const synth = reviewTeamData.manifestations.find(
+    (m) => m.id === keyflareHarmonyManifestationId(),
+  );
+  assert(synth != null, "Harmony synthetic present");
+  assert(synth!.targetType === "aoe", "target_type aoe");
+  assert(synth!.isAccumulating === true, "is_accumulating true");
+  assert(
+    steps.some((s) => s.kind === "special" && s.label === "Keyflare Harmony"),
+    "math debug Harmony step",
+  );
+}
+
+console.log("\nReview Tags: one awakener keyflare 15 → Harmony 30");
+{
+  const tagsById: Record<number, Tag> = {
+    [keyflareTag.id]: keyflareTag,
+  };
+  const awakener = makeAwakener({ id: 1, keyflareRegen: 15 });
+  const teamData: TeamData = {
+    ...createEmptyTeamData(),
+    awakeners: [awakener],
+    manifestations: [],
+    tagsById,
+  };
+  const { totalsByTagId } = computeReviewTagTotals(
+    teamData,
+    createManifestationApplyContext([awakener], []),
+  );
+  assert(
+    (totalsByTagId.get(keyflareTag.id) ?? 0) === 30,
+    `15/4*8 = 30 (got ${totalsByTagId.get(keyflareTag.id)})`,
+  );
+}
+
+console.log("\nTag 131 Increase Base Keyflare feeds Harmony");
+{
+  const tagsById: Record<number, Tag> = {
+    [keyflareTag.id]: keyflareTag,
+    [increaseBaseKfTag.id]: increaseBaseKfTag,
+  };
+  // 15 after DR; +100% → ceil(15*2)=30; avg 30/4=7.5; ×8=60
+  const awakener = makeAwakener({ id: 1, keyflareRegen: 15 });
+  const teamData: TeamData = {
+    ...createEmptyTeamData(),
+    awakeners: [awakener],
+    manifestations: [
+      makeManifestation({
+        id: 1,
+        tagId: increaseBaseKfTag.id,
+        tagName: increaseBaseKfTag.tagName,
+        valueScalar: 1,
+        sourceKind: "wheel",
+        awakenerId: 1,
+      }),
+    ],
+    tagsById,
+  };
+  const { totalsByTagId, reviewTeamData } = computeReviewTagTotals(
+    teamData,
+    createManifestationApplyContext([awakener], []),
+  );
+  const boosted = reviewTeamData.awakeners[0]?.keyflareRegen;
+  assert(boosted === 30, `post-Increase keyflare 30 (got ${boosted})`);
+  assert(
+    (totalsByTagId.get(keyflareTag.id) ?? 0) === 60,
+    `Harmony 60 from boosted 30 (got ${totalsByTagId.get(keyflareTag.id)})`,
+  );
+}
+
+console.log("\nHarmony Keyflare feeds Keyflare→Posse");
+{
+  const tagsById: Record<number, Tag> = {
+    [keyflareTag.id]: keyflareTag,
+    [createPosseTag.id]: createPosseTag,
+  };
+  // Need post-DR sum ≥ 500 so Harmony ≥ 1000 → 1 Posse.
+  // Find raw x with DR ≈ 125; use four awakeners at that value.
+  let raw = 15;
+  while (applyKeyflareDiminishingReturn(raw) < 125) raw += 1;
+  const afterDr = applyKeyflareDiminishingReturn(raw);
+  const awakeners = [1, 2, 3, 4].map((id) =>
+    makeAwakener({ id, keyflareRegen: raw }),
+  );
+  const expectedHarmony = (afterDr * 4) / 4 * 8;
+  assert(expectedHarmony >= 1000, `Harmony ${expectedHarmony} ≥ 1000`);
+
+  const teamData: TeamData = {
+    ...createEmptyTeamData(),
+    awakeners,
+    manifestations: [],
+    tagsById,
+  };
+  const { totalsByTagId } = computeReviewTagTotals(
+    teamData,
+    createManifestationApplyContext(awakeners, []),
+  );
+  assert(
+    (totalsByTagId.get(keyflareTag.id) ?? 0) === expectedHarmony,
+    `Harmony Keyflare ${expectedHarmony}`,
+  );
+  assert(
+    (totalsByTagId.get(createPosseTag.id) ?? 0) === 1,
+    `Harmony alone → 1 Create.Posse (got ${totalsByTagId.get(createPosseTag.id)})`,
+  );
+}
+
+console.log("\nAll Keyflare Harmony smoke checks passed.");

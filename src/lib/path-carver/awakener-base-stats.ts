@@ -7,6 +7,7 @@ import {
   IN_MISSION_DEATH_RESIST_TAG_ID,
   SPECIAL_CAUSE_DEATH_RESIST_TRIGGER_TAG_ID,
 } from "@/lib/path-carver/death-resist-trigger";
+import { REQUIRED_KEYFLARE_TO_POSSE_TAG_IDS } from "@/lib/path-carver/keyflare-to-posse";
 import {
   NON_REALM_MANIFESTATION_FIELDS,
   type AllStats,
@@ -78,6 +79,7 @@ export const REQUIRED_BASE_STAT_TAG_IDS: readonly number[] = [
   IN_MISSION_DEATH_RESIST_TAG_ID,
   SPECIAL_CAUSE_DEATH_RESIST_TRIGGER_TAG_ID,
   DEFENDER_MAX_HP_UP_TAG_ID,
+  ...REQUIRED_KEYFLARE_TO_POSSE_TAG_IDS,
 ];
 
 /**

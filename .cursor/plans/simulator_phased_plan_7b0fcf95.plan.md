@@ -1,6 +1,6 @@
 ---
 name: Simulator Phased Plan
-overview: Path Carver–first roadmap. Phase 1–2b done. Next is Phase 2c (damage layers x/y/z/f). Phase 3 ports math to desire_demand/radar/simulator and wires Calculation List layer breakdown. Phase 4 smart recommend.
+overview: Path Carver–first roadmap. Phase 1–2b.5 done. Next is Phase 2c (damage layers x/y/z/f). Phase 3 ports math to desire_demand/radar/simulator and wires Calculation List layer breakdown. Phase 4 smart recommend.
 todos:
   - id: seed-data
     content: Create scripts/seed-simulator-data.ts with 2-3 desires, demand rows, anchored awakeners; add npm script
@@ -25,6 +25,12 @@ todos:
     status: completed
   - id: buff-target-type-restriction
     content: Phase 2b — dependency_stat → value_scalar (ATM/override/covenant/wheel; ignore posse + team/enemy max HP); then buff_target_type_restriction gated by leaf manifestation source_type (one calculation path; Scalar Sum math shows extra line only when restriction met)
+    status: completed
+  - id: keyflare-to-posse
+    content: Phase 2b.4 — Support.Keyflare → Support.Create.Posse (cost 1000 + Special.Increase Posse Keyflare Cost; max 2; non-consuming; before Cause→When)
+    status: completed
+  - id: keyflare-harmony
+    content: Phase 2b.5 — Keyflare Harmony always-on Support.Keyflare (team-avg post–Increase keyflare_regen × 8; aoe; accumulating)
     status: completed
   - id: damage-layers-formula
     content: Phase 2c — Map manifestations → layer terms (x,y,z,f); 4-layer damage formula; replace temp add-then-multiply order
@@ -634,6 +640,69 @@ Load `realm_tag_manifestation` into Path Carver Review Tags as **team-once** Lay
 
 ---
 
+## Phase 2b.4 — Keyflare → Create.Posse
+
+**Depends on:** Phase 2b.1 + 2b.3.
+
+### Goal
+
+Derive **Support.Create.Posse** from **Support.Keyflare** in Path Carver Review Tags without reducing Keyflare totals. Base cost **1000** Keyflare per Posse; **Special.Increase Posse Keyflare Cost** (155) raises cost. Cap **2** Posse from Keyflare conversion only.
+
+### Tag map
+
+| Id | Name | Role |
+| --- | --- | --- |
+| 37 | `Support.Keyflare` | Conversion input (unchanged in totals) |
+| 155 | `Special.Increase Posse Keyflare Cost` | Absolute add to cost |
+| 52 | `Support.Create.Posse` | Conversion output; Cause for When.Posse |
+| 129 | `Special.When.Posse` | Existing Cause→When |
+| 131 | `Special.Increase Base Keyflare` | `keyflare_regen` only — not posse cost |
+| 146 | `Support.Keyflare Cap Up` | Deferred; unused |
+
+### Formula
+
+```text
+costPerPosse = max(1, 1000 + Σ Special.Increase Posse Keyflare Cost)
+posseCreated = min(2, floor(Σ Support.Keyflare / costPerPosse))
+# Support.Keyflare not reduced
+```
+
+Runs after Death Resist derived synthetics and **before** Cause→When so When.Posse sees created count.
+
+### Primary files
+
+- [`src/lib/path-carver/keyflare-to-posse.ts`](src/lib/path-carver/keyflare-to-posse.ts)
+- [`src/lib/path-carver/aggregate-tag-scalars.ts`](src/lib/path-carver/aggregate-tag-scalars.ts)
+- Smoke: `npx tsx scripts/smoke-keyflare-to-posse.ts`
+
+---
+
+## Phase 2b.5 — Keyflare Harmony
+
+**Depends on:** Phase 2b.1 + 2b.4.
+
+### Goal
+
+Always-on synthetic **Support.Keyflare** from team-average post–Special.Increase `keyflare_regen` × **8**. Applied to every team (no presence gate). Feeds Keyflare→Posse.
+
+### Formula
+
+```text
+sumKeyflare = Σ (awakener.keyflareRegen ?? 0)  // after DR + tag 131
+teamAverage = sumKeyflare / 4                  // empty slots = 0
+valueScalar = teamAverage * 8
+```
+
+Synthetic: `target_type=aoe`, `is_accumulating=true`, `isBaseStatTransfer=true`, `sourceName="Keyflare Harmony"`.
+
+### Primary files
+
+- [`src/lib/path-carver/keyflare-harmony.ts`](src/lib/path-carver/keyflare-harmony.ts)
+- [`src/lib/path-carver/aggregate-tag-scalars.ts`](src/lib/path-carver/aggregate-tag-scalars.ts)
+- Smoke: `npx tsx scripts/smoke-keyflare-harmony.ts`
+
+---
+
 ## Phase 2c — Damage layers
 
 **Depends on:** Phase 2a + 2b (stable Review Tags interaction math with leaf-gated buff restriction).
@@ -712,7 +781,6 @@ Path Carver upserts a single `desire_template` per `desire_id`.
 
 ## Suggested implementation order (from now)
 
-1. **Phase 2b.3** — realm_tag_manifestation in Path Carver Review Tags (replace / mode / dependency / base immunity)
-2. **Phase 2c** — layer terms x/y/z/f + 4-layer formula (replace temp op order)
-3. **Phase 3** — desire_demand / radar / simulator port + Calculation List layer breakdown
-4. **Phase 4** — Smart recommend / search
+1. **Phase 2c** — layer terms x/y/z/f + 4-layer formula (replace temp op order)
+2. **Phase 3** — desire_demand / radar / simulator port + Calculation List layer breakdown
+3. **Phase 4** — Smart recommend / search
