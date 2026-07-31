@@ -82,6 +82,7 @@ export function ReviewTagsStep({
       slots: slots.map((s) => ({
         awakenerId: s.awakenerId,
         covenantId: s.covenantId,
+        covenantStatSetId: s.covenantStatSetId,
         wheel1Id: s.wheel1Id,
         wheel2Id: s.wheel2Id,
       })),

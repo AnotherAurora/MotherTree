@@ -19,6 +19,7 @@ type AwakenerSlotRowProps = {
   slot: SlotState;
   awakenerOptions: ForeignKeyOption[];
   covenantOptions: ForeignKeyOption[];
+  covenantStatSetOptions: ForeignKeyOption[];
   wheel1Options: ForeignKeyOption[];
   wheel2Options: ForeignKeyOption[];
   getCachedTags: (awakenerId: number) => AwakenerRelatedTags | undefined;
@@ -80,6 +81,7 @@ export function AwakenerSlotRow({
   slot,
   awakenerOptions,
   covenantOptions,
+  covenantStatSetOptions,
   wheel1Options,
   wheel2Options,
   getCachedTags,
@@ -179,6 +181,18 @@ export function AwakenerSlotRow({
               options={covenantOptions}
               placeholder="Select covenant..."
               assetKind="covenant"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs text-zinc-500">Covenant Stat Set</Label>
+            <ForeignKeyCombobox
+              value={slot.covenantStatSetId}
+              onChange={(covenantStatSetId) =>
+                onChange({ ...slot, covenantStatSetId })
+              }
+              options={covenantStatSetOptions}
+              placeholder="Select covenant stat set..."
+              assetKind="stat"
             />
           </div>
           <div className="space-y-1.5">

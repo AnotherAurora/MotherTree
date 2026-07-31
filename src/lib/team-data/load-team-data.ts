@@ -362,6 +362,31 @@ async function fetchCovenantGearById(
   return map;
 }
 
+async function fetchCovenantStatSetById(
+  supabase: SupabaseClient<Database>,
+  ids: number[],
+): Promise<Map<number, GearEntityRow>> {
+  const map = new Map<number, GearEntityRow>();
+  if (ids.length === 0) return map;
+
+  const { data, error } = await supabase
+    .from("covenant_stat_set")
+    .select("id, stat, stat_amount")
+    .in("id", ids)
+    .is("deleted_at", null);
+
+  if (error) throw new Error(error.message);
+  for (const row of data ?? []) {
+    map.set(row.id, {
+      id: row.id,
+      name: `${row.stat ?? "?"} ${row.stat_amount ?? 0}`,
+      stat: row.stat,
+      statAmount: row.stat_amount,
+    });
+  }
+  return map;
+}
+
 async function fetchEntityNamesById(
   supabase: SupabaseClient<Database>,
   table: "posse",
@@ -411,7 +436,7 @@ async function fetchRequiredBaseStatTags(
 function pushGearContribution(
   contributions: GearStatContribution[],
   awakenerId: number | null,
-  sourceKind: "wheel" | "covenant",
+  sourceKind: "wheel" | "covenant" | "covenant_stat_set",
   entity: GearEntityRow | undefined,
   entityId: number,
 ): void {
@@ -630,19 +655,25 @@ export async function fetchTeamData(
 
   const wheelIds = new Set<number>();
   const covenantIds = new Set<number>();
+  const covenantStatSetIds = new Set<number>();
   for (const slot of input.slots) {
     if (slot.wheel1Id != null) wheelIds.add(slot.wheel1Id);
     if (slot.wheel2Id != null) wheelIds.add(slot.wheel2Id);
     if (slot.covenantId != null) covenantIds.add(slot.covenantId);
+    if (slot.covenantStatSetId != null) {
+      covenantStatSetIds.add(slot.covenantStatSetId);
+    }
   }
   const posseIds =
     input.posseId != null ? [input.posseId] : ([] as number[]);
 
-  const [wheelsById, covenantsById, posseNamesById] = await Promise.all([
-    fetchWheelGearById(supabase, [...wheelIds]),
-    fetchCovenantGearById(supabase, [...covenantIds]),
-    fetchEntityNamesById(supabase, "posse", posseIds),
-  ]);
+  const [wheelsById, covenantsById, covenantStatSetsById, posseNamesById] =
+    await Promise.all([
+      fetchWheelGearById(supabase, [...wheelIds]),
+      fetchCovenantGearById(supabase, [...covenantIds]),
+      fetchCovenantStatSetById(supabase, [...covenantStatSetIds]),
+      fetchEntityNamesById(supabase, "posse", posseIds),
+    ]);
 
   const gearManifestationPromises: Promise<void>[] = [];
 
@@ -767,6 +798,17 @@ export async function fetchTeamData(
             );
           }
         }),
+      );
+    }
+
+    if (slot.covenantStatSetId != null) {
+      const covenantStatSetId = slot.covenantStatSetId;
+      pushGearContribution(
+        gearStatContributions,
+        slot.awakenerId,
+        "covenant_stat_set",
+        covenantStatSetsById.get(covenantStatSetId),
+        covenantStatSetId,
       );
     }
   }

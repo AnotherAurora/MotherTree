@@ -27,33 +27,36 @@ export function AssetIcon({
     return null;
   }
 
-  const image = (
-    // eslint-disable-next-line @next/next/no-img-element -- remote hotlink; hide on error
-    <img
-      src={src}
-      alt={alt}
-      width={size}
-      height={size}
-      className={cn(
-        "shrink-0 rounded-sm object-cover",
-        !darkChip && className,
-      )}
-      onError={() => setFailedSrc(src)}
-    />
-  );
-
   if (!darkChip) {
-    return image;
+    return (
+      // eslint-disable-next-line @next/next/no-img-element -- remote hotlink; hide on error
+      <img
+        src={src}
+        alt={alt}
+        width={size}
+        height={size}
+        className={cn("shrink-0 rounded-sm object-cover", className)}
+        onError={() => setFailedSrc(src)}
+      />
+    );
   }
 
+  // Fixed square chip + object-contain so white/transparent icons share one visual size.
   return (
     <span
       className={cn(
-        "inline-flex shrink-0 items-center justify-center rounded-sm bg-zinc-900 p-0.5",
+        "inline-flex shrink-0 items-center justify-center overflow-hidden rounded-sm bg-zinc-900 p-0.5",
         className,
       )}
+      style={{ width: size, height: size }}
     >
-      {image}
+      {/* eslint-disable-next-line @next/next/no-img-element -- remote hotlink; hide on error */}
+      <img
+        src={src}
+        alt={alt}
+        className="size-full object-contain"
+        onError={() => setFailedSrc(src)}
+      />
     </span>
   );
 }

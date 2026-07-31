@@ -11,24 +11,28 @@ const SLOT_KEYS = [
     wheel1: "slot1_wheel1_id",
     wheel2: "slot1_wheel2_id",
     covenant: "slot1_covenant_id",
+    covenantStatSet: "slot1_covenant_stat_set_id",
   },
   {
     awakener: "slot2_awakener_id",
     wheel1: "slot2_wheel1_id",
     wheel2: "slot2_wheel2_id",
     covenant: "slot2_covenant_id",
+    covenantStatSet: "slot2_covenant_stat_set_id",
   },
   {
     awakener: "slot3_awakener_id",
     wheel1: "slot3_wheel1_id",
     wheel2: "slot3_wheel2_id",
     covenant: "slot3_covenant_id",
+    covenantStatSet: "slot3_covenant_stat_set_id",
   },
   {
     awakener: "slot4_awakener_id",
     wheel1: "slot4_wheel1_id",
     wheel2: "slot4_wheel2_id",
     covenant: "slot4_covenant_id",
+    covenantStatSet: "slot4_covenant_stat_set_id",
   },
 ] as const;
 
@@ -44,6 +48,7 @@ export function templateRowToSlots(row: DesireTemplateRow): {
       wheel1Id: row[keys.wheel1],
       wheel2Id: row[keys.wheel2],
       covenantId: row[keys.covenant],
+      covenantStatSetId: row[keys.covenantStatSet],
     };
   }
   return { slots, posseId: row.posse_id };
@@ -66,6 +71,7 @@ export function slotsToTemplateRecord(
     record[keys.wheel1] = slot.wheel1Id;
     record[keys.wheel2] = slot.wheel2Id;
     record[keys.covenant] = slot.covenantId;
+    record[keys.covenantStatSet] = slot.covenantStatSetId;
   }
 
   return record;

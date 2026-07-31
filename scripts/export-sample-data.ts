@@ -24,6 +24,7 @@ const TABLES: TableName[] = [
   "wheel",
   "wheel_tag_manifestation",
   "covenant",
+  "covenant_stat_set",
   "covenant_tag_manifestation",
 ];
 

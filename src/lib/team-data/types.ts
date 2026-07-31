@@ -34,6 +34,7 @@ export type ManifestationSourceKind =
 export type TeamDataSlotInput = {
   awakenerId: number | null;
   covenantId: number | null;
+  covenantStatSetId: number | null;
   wheel1Id: number | null;
   wheel2Id: number | null;
 };
@@ -159,7 +160,7 @@ export const NON_REALM_MANIFESTATION_FIELDS = {
 /** Equipped wheel/covenant flat stat bonus for total base-stat calculation. */
 export type GearStatContribution = {
   awakenerId: number;
-  sourceKind: "wheel" | "covenant";
+  sourceKind: "wheel" | "covenant" | "covenant_stat_set";
   entityId: number;
   stat: AllStats | null;
   statAmount: number | null;

@@ -650,14 +650,14 @@ Derive **Support.Create.Posse** from **Support.Keyflare** in Path Carver Review 
 
 ### Tag map
 
-| Id | Name | Role |
-| --- | --- | --- |
-| 37 | `Support.Keyflare` | Conversion input (unchanged in totals) |
-| 155 | `Special.Increase Posse Keyflare Cost` | Absolute add to cost |
-| 52 | `Support.Create.Posse` | Conversion output; Cause for When.Posse |
-| 129 | `Special.When.Posse` | Existing Cause→When |
-| 131 | `Special.Increase Base Keyflare` | `keyflare_regen` only — not posse cost |
-| 146 | `Support.Keyflare Cap Up` | Deferred; unused |
+| Id  | Name                                   | Role                                    |
+| --- | -------------------------------------- | --------------------------------------- |
+| 37  | `Support.Keyflare`                     | Conversion input (unchanged in totals)  |
+| 155 | `Special.Increase Posse Keyflare Cost` | Absolute add to cost                    |
+| 52  | `Support.Create.Posse`                 | Conversion output; Cause for When.Posse |
+| 129 | `Special.When.Posse`                   | Existing Cause→When                     |
+| 131 | `Special.Increase Base Keyflare`       | `keyflare_regen` only — not posse cost  |
+| 146 | `Support.Keyflare Cap Up`              | Deferred; unused                        |
 
 ### Formula
 

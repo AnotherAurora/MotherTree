@@ -15,6 +15,10 @@ export type ForeignKeyOption = {
   value: number;
   label: string;
   filterValue?: number;
+  /** When set with assetKind, resolve icon from this instead of label. */
+  assetName?: string;
+  /** When set, shown next to the icon instead of label (label still used for search). */
+  shortLabel?: string;
 };
 
 export type InteractionOverrideInput = {

@@ -8,7 +8,12 @@ export const metadata: Metadata = {
   title: "Path Carver",
 };
 
-const EMPTY_GEAR_OPTIONS = { posse: [], wheel: [], covenant: [] };
+const EMPTY_GEAR_OPTIONS = {
+  posse: [],
+  wheel: [],
+  covenant: [],
+  covenantStatSet: [],
+};
 
 export default async function PathCarverPage() {
   const [awakenerOptionsResult, gearOptionsResult] = await Promise.all([

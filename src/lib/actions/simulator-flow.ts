@@ -128,24 +128,37 @@ export async function getSimulatorGearOptions(): Promise<
   try {
     const supabase = createAdminClient();
 
-    const [posseResult, wheelResult, covenantResult] = await Promise.all([
-      supabase.from("posse").select("id, name").is("deleted_at", null).order("name"),
-      supabase
-        .from("wheel")
-        .select("id, name, rarity, enlightenment")
-        .is("deleted_at", null)
-        .order("name"),
-      supabase
-        .from("covenant")
-        .select("id, name, team_unique")
-        .is("deleted_at", null)
-        .order("name"),
-    ]);
+    const [posseResult, wheelResult, covenantResult, covenantStatSetResult] =
+      await Promise.all([
+        supabase
+          .from("posse")
+          .select("id, name")
+          .is("deleted_at", null)
+          .order("name"),
+        supabase
+          .from("wheel")
+          .select("id, name, rarity, enlightenment")
+          .is("deleted_at", null)
+          .order("name"),
+        supabase
+          .from("covenant")
+          .select("id, name, team_unique")
+          .is("deleted_at", null)
+          .order("name"),
+        supabase
+          .from("covenant_stat_set")
+          .select("id, stat, stat_amount")
+          .is("deleted_at", null)
+          .order("id"),
+      ]);
 
     if (posseResult.error) return { success: false, error: posseResult.error.message };
     if (wheelResult.error) return { success: false, error: wheelResult.error.message };
     if (covenantResult.error) {
       return { success: false, error: covenantResult.error.message };
+    }
+    if (covenantStatSetResult.error) {
+      return { success: false, error: covenantStatSetResult.error.message };
     }
 
     return {
@@ -165,6 +178,12 @@ export async function getSimulatorGearOptions(): Promise<
           value: c.id,
           label: c.name ?? `#${c.id}`,
           teamUnique: c.team_unique,
+        })),
+        covenantStatSet: (covenantStatSetResult.data ?? []).map((row) => ({
+          value: row.id,
+          label: `${row.stat ?? "?"} ${row.stat_amount ?? 0}`,
+          assetName: row.stat ?? undefined,
+          shortLabel: String(row.stat_amount ?? 0),
         })),
       },
     };

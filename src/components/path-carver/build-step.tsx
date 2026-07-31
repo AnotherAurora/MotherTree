@@ -187,6 +187,7 @@ export function BuildStep({
             slot={slot}
             awakenerOptions={filteredOptionsBySlot[index] ?? []}
             covenantOptions={filteredCovenantBySlot[index] ?? []}
+            covenantStatSetOptions={gearOptions.covenantStatSet}
             wheel1Options={filteredWheel1BySlot[index] ?? []}
             wheel2Options={filteredWheel2BySlot[index] ?? []}
             getCachedTags={(id) => tagCacheRef.current.get(id)}

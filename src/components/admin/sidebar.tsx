@@ -42,6 +42,7 @@ const ICONS: Partial<Record<TableName, ComponentType<{ className?: string }>>> =
   wheel: CircleDot,
   wheel_tag_manifestation: Layers,
   covenant: ScrollText,
+  covenant_stat_set: Layers,
   covenant_tag_manifestation: Layers,
 };
 

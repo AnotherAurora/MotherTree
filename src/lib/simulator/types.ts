@@ -9,6 +9,7 @@ export type BanEntry = {
 export type SlotState = {
   awakenerId: number | null;
   covenantId: number | null;
+  covenantStatSetId: number | null;
   wheel1Id: number | null;
   wheel2Id: number | null;
 };
@@ -17,6 +18,7 @@ export function createEmptySlots(count = 4): SlotState[] {
   return Array.from({ length: count }, () => ({
     awakenerId: null,
     covenantId: null,
+    covenantStatSetId: null,
     wheel1Id: null,
     wheel2Id: null,
   }));
@@ -50,6 +52,8 @@ export type DesireDetail = {
 export type GearOption = {
   value: number;
   label: string;
+  assetName?: string;
+  shortLabel?: string;
 };
 
 export type CovenantGearOption = GearOption & { teamUnique: boolean };
@@ -63,6 +67,7 @@ export type SimulatorGearOptions = {
   posse: GearOption[];
   wheel: WheelGearOption[];
   covenant: CovenantGearOption[];
+  covenantStatSet: GearOption[];
 };
 
 export type TeamComposition = {

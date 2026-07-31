@@ -254,6 +254,33 @@ export type Database = {
         }
         Relationships: []
       }
+      covenant_stat_set: {
+        Row: {
+          created_at: string | null
+          deleted_at: string | null
+          id: number
+          stat: Database["public"]["Enums"]["all_stats"] | null
+          stat_amount: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          deleted_at?: string | null
+          id?: number
+          stat?: Database["public"]["Enums"]["all_stats"] | null
+          stat_amount?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          deleted_at?: string | null
+          id?: number
+          stat?: Database["public"]["Enums"]["all_stats"] | null
+          stat_amount?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       covenant_tag_manifestation: {
         Row: {
           buff_target_type_restriction:
@@ -501,18 +528,22 @@ export type Database = {
           posse_id: number | null
           slot1_awakener_id: number | null
           slot1_covenant_id: number | null
+          slot1_covenant_stat_set_id: number | null
           slot1_wheel1_id: number | null
           slot1_wheel2_id: number | null
           slot2_awakener_id: number | null
           slot2_covenant_id: number | null
+          slot2_covenant_stat_set_id: number | null
           slot2_wheel1_id: number | null
           slot2_wheel2_id: number | null
           slot3_awakener_id: number | null
           slot3_covenant_id: number | null
+          slot3_covenant_stat_set_id: number | null
           slot3_wheel1_id: number | null
           slot3_wheel2_id: number | null
           slot4_awakener_id: number | null
           slot4_covenant_id: number | null
+          slot4_covenant_stat_set_id: number | null
           slot4_wheel1_id: number | null
           slot4_wheel2_id: number | null
           updated_at: string | null
@@ -525,18 +556,22 @@ export type Database = {
           posse_id?: number | null
           slot1_awakener_id?: number | null
           slot1_covenant_id?: number | null
+          slot1_covenant_stat_set_id?: number | null
           slot1_wheel1_id?: number | null
           slot1_wheel2_id?: number | null
           slot2_awakener_id?: number | null
           slot2_covenant_id?: number | null
+          slot2_covenant_stat_set_id?: number | null
           slot2_wheel1_id?: number | null
           slot2_wheel2_id?: number | null
           slot3_awakener_id?: number | null
           slot3_covenant_id?: number | null
+          slot3_covenant_stat_set_id?: number | null
           slot3_wheel1_id?: number | null
           slot3_wheel2_id?: number | null
           slot4_awakener_id?: number | null
           slot4_covenant_id?: number | null
+          slot4_covenant_stat_set_id?: number | null
           slot4_wheel1_id?: number | null
           slot4_wheel2_id?: number | null
           updated_at?: string | null
@@ -549,18 +584,22 @@ export type Database = {
           posse_id?: number | null
           slot1_awakener_id?: number | null
           slot1_covenant_id?: number | null
+          slot1_covenant_stat_set_id?: number | null
           slot1_wheel1_id?: number | null
           slot1_wheel2_id?: number | null
           slot2_awakener_id?: number | null
           slot2_covenant_id?: number | null
+          slot2_covenant_stat_set_id?: number | null
           slot2_wheel1_id?: number | null
           slot2_wheel2_id?: number | null
           slot3_awakener_id?: number | null
           slot3_covenant_id?: number | null
+          slot3_covenant_stat_set_id?: number | null
           slot3_wheel1_id?: number | null
           slot3_wheel2_id?: number | null
           slot4_awakener_id?: number | null
           slot4_covenant_id?: number | null
+          slot4_covenant_stat_set_id?: number | null
           slot4_wheel1_id?: number | null
           slot4_wheel2_id?: number | null
           updated_at?: string | null
@@ -595,6 +634,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "desire_template_slot1_covenant_stat_set_id_fkey"
+            columns: ["slot1_covenant_stat_set_id"]
+            isOneToOne: false
+            referencedRelation: "covenant_stat_set"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "desire_template_slot1_wheel1_id_fkey"
             columns: ["slot1_wheel1_id"]
             isOneToOne: false
@@ -620,6 +666,13 @@ export type Database = {
             columns: ["slot2_covenant_id"]
             isOneToOne: false
             referencedRelation: "covenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "desire_template_slot2_covenant_stat_set_id_fkey"
+            columns: ["slot2_covenant_stat_set_id"]
+            isOneToOne: false
+            referencedRelation: "covenant_stat_set"
             referencedColumns: ["id"]
           },
           {
@@ -651,6 +704,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "desire_template_slot3_covenant_stat_set_id_fkey"
+            columns: ["slot3_covenant_stat_set_id"]
+            isOneToOne: false
+            referencedRelation: "covenant_stat_set"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "desire_template_slot3_wheel1_id_fkey"
             columns: ["slot3_wheel1_id"]
             isOneToOne: false
@@ -676,6 +736,13 @@ export type Database = {
             columns: ["slot4_covenant_id"]
             isOneToOne: false
             referencedRelation: "covenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "desire_template_slot4_covenant_stat_set_id_fkey"
+            columns: ["slot4_covenant_stat_set_id"]
+            isOneToOne: false
+            referencedRelation: "covenant_stat_set"
             referencedColumns: ["id"]
           },
           {
@@ -1049,50 +1116,50 @@ export type Database = {
       }
       tag_default_interaction: {
         Row: {
+          amplifies_subject: boolean
           buff_target_type_restriction:
             | Database["public"]["Enums"]["source_type"]
             | null
           created_at: string | null
+          creates_base: boolean
           default_factor: number | null
           deleted_at: string | null
           exclusion_suffix: number | null
           id: number
           math_operation: Database["public"]["Enums"]["operation_type"]
           modifier_tag_id: number | null
-          amplifies_subject: boolean
-          creates_base: boolean
           target_tag_id: number | null
           updated_at: string | null
         }
         Insert: {
+          amplifies_subject?: boolean
           buff_target_type_restriction?:
             | Database["public"]["Enums"]["source_type"]
             | null
           created_at?: string | null
+          creates_base?: boolean
           default_factor?: number | null
           deleted_at?: string | null
           exclusion_suffix?: number | null
           id?: number
           math_operation?: Database["public"]["Enums"]["operation_type"]
           modifier_tag_id?: number | null
-          amplifies_subject?: boolean
-          creates_base?: boolean
           target_tag_id?: number | null
           updated_at?: string | null
         }
         Update: {
+          amplifies_subject?: boolean
           buff_target_type_restriction?:
             | Database["public"]["Enums"]["source_type"]
             | null
           created_at?: string | null
+          creates_base?: boolean
           default_factor?: number | null
           deleted_at?: string | null
           exclusion_suffix?: number | null
           id?: number
           math_operation?: Database["public"]["Enums"]["operation_type"]
           modifier_tag_id?: number | null
-          amplifies_subject?: boolean
-          creates_base?: boolean
           target_tag_id?: number | null
           updated_at?: string | null
         }

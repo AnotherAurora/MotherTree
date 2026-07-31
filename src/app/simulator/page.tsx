@@ -10,7 +10,12 @@ export const metadata: Metadata = {
   title: "Recommendation Simulator Debugger",
 };
 
-const EMPTY_GEAR_OPTIONS = { posse: [], wheel: [], covenant: [] };
+const EMPTY_GEAR_OPTIONS = {
+  posse: [],
+  wheel: [],
+  covenant: [],
+  covenantStatSet: [],
+};
 
 export default async function SimulatorPage() {
   const [awakenerOptionsResult, gearOptionsResult] = await Promise.all([

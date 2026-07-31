@@ -171,6 +171,7 @@ export function RecommendationSimulator({
         slots: slotsInput.map((slot) => ({
           awakenerId: slot.awakenerId,
           covenantId: slot.covenantId,
+          covenantStatSetId: slot.covenantStatSetId,
           wheel1Id: slot.wheel1Id,
           wheel2Id: slot.wheel2Id,
         })),
@@ -356,6 +357,7 @@ export function RecommendationSimulator({
               slot={slot}
               awakenerOptions={filteredOptionsBySlot[index]}
               covenantOptions={filteredCovenantBySlot[index] ?? []}
+              covenantStatSetOptions={gearOptions.covenantStatSet}
               wheel1Options={filteredWheel1BySlot[index] ?? []}
               wheel2Options={filteredWheel2BySlot[index] ?? []}
               getCachedTags={getCachedTags}

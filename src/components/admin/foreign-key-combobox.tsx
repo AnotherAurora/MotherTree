@@ -25,6 +25,26 @@ type ForeignKeyComboboxProps = {
   assetKind?: AssetKind;
 };
 
+function optionDisplayText(option: ForeignKeyOption): string {
+  return option.shortLabel ?? option.label;
+}
+
+function optionAssetSrc(
+  assetKind: AssetKind | undefined,
+  option: ForeignKeyOption,
+): string | undefined {
+  if (!assetKind) return undefined;
+  return resolveSkeydbAssetUrl(assetKind, option.assetName ?? option.label);
+}
+
+function assetIconSize(assetKind: AssetKind): number {
+  return assetKind === "covenant" ? 28 : 20;
+}
+
+function assetUsesDarkChip(assetKind: AssetKind): boolean {
+  return assetKind === "posse" || assetKind === "stat";
+}
+
 export function ForeignKeyCombobox({
   value,
   onChange,
@@ -40,10 +60,9 @@ export function ForeignKeyCombobox({
   const filtered = options.filter((option) =>
     option.label.toLowerCase().includes(search.toLowerCase()),
   );
-  const selectedSrc =
-    assetKind && selected
-      ? resolveSkeydbAssetUrl(assetKind, selected.label)
-      : undefined;
+  const selectedSrc = selected
+    ? optionAssetSrc(assetKind, selected)
+    : undefined;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -61,12 +80,12 @@ export function ForeignKeyCombobox({
             {assetKind ? (
               <AssetIcon
                 src={selectedSrc}
-                size={assetKind === "covenant" ? 28 : 20}
-                darkChip={assetKind === "posse"}
+                size={assetIconSize(assetKind)}
+                darkChip={assetUsesDarkChip(assetKind)}
               />
             ) : null}
             <span className="min-w-0 truncate">
-              {selected ? selected.label : placeholder}
+              {selected ? optionDisplayText(selected) : placeholder}
             </span>
           </span>
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -99,9 +118,7 @@ export function ForeignKeyCombobox({
             </p>
           ) : (
             filtered.map((option) => {
-              const optionSrc = assetKind
-                ? resolveSkeydbAssetUrl(assetKind, option.label)
-                : undefined;
+              const optionSrc = optionAssetSrc(assetKind, option);
               return (
                 <button
                   key={option.value}
@@ -125,13 +142,13 @@ export function ForeignKeyCombobox({
                   {assetKind ? (
                     <AssetIcon
                       src={optionSrc}
-                      size={assetKind === "covenant" ? 28 : 20}
+                      size={assetIconSize(assetKind)}
                       className="mr-2"
-                      darkChip={assetKind === "posse"}
+                      darkChip={assetUsesDarkChip(assetKind)}
                     />
                   ) : null}
                   <span className="min-w-0 flex-1 truncate" title={option.label}>
-                    {option.label}
+                    {optionDisplayText(option)}
                   </span>
                 </button>
               );
