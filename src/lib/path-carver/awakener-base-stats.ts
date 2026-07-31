@@ -2,6 +2,7 @@ import {
   buildAwakenersById,
   effectiveManifestationScalar,
 } from "@/lib/path-carver/effective-value-scalar";
+import { REQUIRED_BASE_TENTACLE_TAG_IDS } from "@/lib/path-carver/base-tentacle-damage";
 import {
   DEFENDER_MAX_HP_UP_TAG_ID,
   IN_MISSION_DEATH_RESIST_TAG_ID,
@@ -80,6 +81,7 @@ export const REQUIRED_BASE_STAT_TAG_IDS: readonly number[] = [
   SPECIAL_CAUSE_DEATH_RESIST_TRIGGER_TAG_ID,
   DEFENDER_MAX_HP_UP_TAG_ID,
   ...REQUIRED_KEYFLARE_TO_POSSE_TAG_IDS,
+  ...REQUIRED_BASE_TENTACLE_TAG_IDS,
 ];
 
 /**

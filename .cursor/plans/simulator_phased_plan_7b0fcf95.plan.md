@@ -1,6 +1,6 @@
 ---
 name: Simulator Phased Plan
-overview: Path Carver–first roadmap. Phase 1–2b.5 done. Next is Phase 2c (damage layers x/y/z/f). Phase 3 ports math to desire_demand/radar/simulator and wires Calculation List layer breakdown. Phase 4 smart recommend.
+overview: Path Carver–first roadmap. Phase 1–2b.6 done. Next is Phase 2c (damage layers x/y/z/f). Phase 3 ports math to desire_demand/radar/simulator and wires Calculation List layer breakdown. Phase 4 smart recommend.
 todos:
   - id: seed-data
     content: Create scripts/seed-simulator-data.ts with 2-3 desires, demand rows, anchored awakeners; add npm script
@@ -31,6 +31,9 @@ todos:
     status: completed
   - id: keyflare-harmony
     content: Phase 2b.5 — Keyflare Harmony always-on Support.Keyflare (team-avg post–Increase keyflare_regen × 8; aoe; accumulating)
+    status: completed
+  - id: base-tentacle-damage
+    content: Phase 2b.6 — Base Tentacle Damage synthetic (aequor ATK×Ocean + HP×chaos; benthos 5% HP + chaos; AMP last; suppress RTM 5/30)
     status: completed
   - id: damage-layers-formula
     content: Phase 2c — Map manifestations → layer terms (x,y,z,f); 4-layer damage formula; replace temp add-then-multiply order
@@ -700,6 +703,56 @@ Synthetic: `target_type=aoe`, `is_accumulating=true`, `isBaseStatTransfer=true`,
 - [`src/lib/path-carver/keyflare-harmony.ts`](src/lib/path-carver/keyflare-harmony.ts)
 - [`src/lib/path-carver/aggregate-tag-scalars.ts`](src/lib/path-carver/aggregate-tag-scalars.ts)
 - Smoke: `npx tsx scripts/smoke-keyflare-harmony.ts`
+
+---
+
+## Phase 2b.6 — Base Tentacle Damage (Aequor + Benthos)
+
+**Depends on:** Phase 2b.2 + 2b.3.
+
+### Goal
+
+Emit synthetic **Support.Tentacle Damage Up** (tag 29) for normal Aequor and Benthos after team Max HP. Damage AMP (tag 16) applies `multiply_one_plus` / factor 1 on the **final** pre-AMP base. Suppress RTM ids **5** and **30** while the synthetic is active.
+
+### Formulas
+
+```text
+amp   = Σ Support.Damage AMP   # Layer A pre-interaction (incl. RTM pure double)
+value = ceil(baseAmount × (1 + amp))
+```
+
+**Normal Aequor** (effective has aequor id 4):
+
+```text
+avgAtk     = (Σ ceil(atk × (1 + atk_per/100))) / 4
+rawAtk     = ceil(avgAtk × OceanDamageMultiplier[accountLevel] × 0.2)
+hpTerm     = ceil(teamMaxHp × 0.01) × chaosComboStacks
+baseAmount = rawAtk + hpTerm
+```
+
+Verified (Lv80, HP 1724, chaos 3, amp 0): **116**.
+
+**Benthos Aequor** (effective has benthos id 5; ATK/Ocean unused):
+
+```text
+baseAmount = ceil(teamMaxHp × (0.05 + 0.01 × chaosComboStacks))
+```
+
+Verified (HP 1560, chaos 3, amp 1.0 from RTM 31 pure): **250**.
+
+### Locked defaults
+
+- `atk_per = 0`; `accountLevel = DEFAULT_ACCOUNT_LEVEL` (60)
+- Ocean step table: 1–25→1.00 … 60–69→1.80 … 70+→1.90
+- Hardcoded AMP (no TDI); realm synthetic is interaction-immune as subject
+
+### Primary files
+
+- [`src/lib/path-carver/base-tentacle-damage.ts`](src/lib/path-carver/base-tentacle-damage.ts)
+- [`src/lib/path-carver/ocean-damage-multipliers.ts`](src/lib/path-carver/ocean-damage-multipliers.ts)
+- [`src/lib/team-data/realm.ts`](src/lib/team-data/realm.ts) — `AEQUOR_REALM_ID`, `BENTHOS_AEQUOR_REALM_ID`
+- [`src/lib/path-carver/aggregate-tag-scalars.ts`](src/lib/path-carver/aggregate-tag-scalars.ts)
+- Smoke: `npx tsx scripts/smoke-base-tentacle-damage.ts`
 
 ---
 

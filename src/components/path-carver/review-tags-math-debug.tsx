@@ -135,9 +135,10 @@ export function ReviewTagsMathDebug({
         </p>
         <p className="font-mono text-xs text-zinc-600">
           Layer A base (dependency-scaled) → Keyflare Harmony →
-          Keyflare→Create.Posse → interaction ops (final pass; leaf-gated buff
-          restriction) → special conversions → totals. Multiply ops ceil after
-          each write. Restricted ops only appear when leaf matches.
+          Keyflare→Create.Posse → team Max HP → Base Tentacle Damage →
+          interaction ops (final pass; leaf-gated buff restriction) → special
+          conversions → totals. Multiply ops ceil after each write. Restricted
+          ops only appear when leaf matches.
         </p>
       </div>
 

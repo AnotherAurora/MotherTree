@@ -25,6 +25,13 @@ import {
   computeKeyflareToPosse,
 } from "@/lib/path-carver/keyflare-to-posse";
 import {
+  SUPPORT_DAMAGE_AMP_TAG_ID,
+  buildBaseTentacleDamageManifestation,
+  computeBaseTentacleDamage,
+  isSupersededBaseTentacleRtm,
+  resolveBaseTentacleMode,
+} from "@/lib/path-carver/base-tentacle-damage";
+import {
   buildKeyflareHarmonyManifestation,
   computeKeyflareHarmonyScalar,
 } from "@/lib/path-carver/keyflare-harmony";
@@ -34,6 +41,7 @@ import {
   type ManifestationApplyContext,
 } from "@/lib/path-carver/manifestation-apply";
 import {
+  DEFAULT_ACCOUNT_LEVEL,
   computeTeamMaxHp,
   type TeamMaxHpResult,
 } from "@/lib/path-carver/team-max-hp";
@@ -144,7 +152,8 @@ export function aggregateTagScalarsById(
  * Review Tags totals:
  * Layer A null-trigger → total base stats → Keyflare Harmony + transfers +
  * Death Resist Cause + Max HP Up from DR → Keyflare→Create.Posse →
- * Cause→When counts → Layer A triggered (×N) → team Max HP → Layer B.
+ * Cause→When counts → Layer A triggered (×N) → team Max HP →
+ * Base Tentacle Damage (aequor/benthos) → Layer B.
  */
 export function computeReviewTagTotals(
   teamData: TeamData,
@@ -290,7 +299,7 @@ export function computeReviewTagTotals(
     appliedTriggered.push(scaleManifestationByTrigger(m, mult));
   }
 
-  const applied = [
+  const appliedBeforeTentacle = [
     ...appliedNullTrigger,
     ...allTransfers,
     ...appliedTriggered,
@@ -298,7 +307,7 @@ export function computeReviewTagTotals(
 
   // Pre-interaction Max HP Up (includes DR-reduction synthetic + record rows).
   const maxHpUpTotal = sumMaxHpUpTotal(
-    applied,
+    appliedBeforeTentacle,
     awakenersById,
     teamData.tagsById,
     earlyScalarOpts,
@@ -308,12 +317,75 @@ export function computeReviewTagTotals(
     maxHpUpTotal,
   });
 
+  // Base Tentacle Damage (aequor / benthos) after team Max HP.
+  const tentacleMode = resolveBaseTentacleMode(
+    applyContext.teamRealms.effectiveRealmIds,
+  );
+  let tentacleSynth: Manifestation | null = null;
+  let tentacleSteps: ScalarMathStep[] = [];
+  if (tentacleMode != null) {
+    let damageAmpTotal = 0;
+    for (const m of [...appliedNullTrigger, ...baseTransfers]) {
+      if (m.tagId !== SUPPORT_DAMAGE_AMP_TAG_ID) continue;
+      damageAmpTotal += effectiveManifestationScalar(
+        m,
+        awakenersById,
+        teamData.tagsById,
+        earlyScalarOpts,
+      );
+    }
+    const tentacleBreakdown = computeBaseTentacleDamage({
+      mode: tentacleMode,
+      awakeners: totalAwakeners,
+      accountLevel: DEFAULT_ACCOUNT_LEVEL,
+      teamMaxHp: teamMaxHp.finalMaxHp,
+      chaosComboStacks: applyContext.teamRealms.chaosComboStacks,
+      damageAmpTotal,
+    });
+    tentacleSynth = buildBaseTentacleDamageManifestation(
+      tentacleBreakdown,
+      teamData.tagsById,
+    );
+    if (tentacleSynth != null) {
+      tentacleSteps = [
+        {
+          kind: "special",
+          label: "Base Tentacle Damage",
+          detail:
+            `mode=${tentacleBreakdown.mode}` +
+            ` rawAtk=${tentacleBreakdown.rawAtk}` +
+            ` hpShare=${tentacleBreakdown.hpShare}` +
+            ` chaosShare=${tentacleBreakdown.chaosShare}` +
+            ` hpTerm=${tentacleBreakdown.hpTerm}` +
+            ` base=${tentacleBreakdown.baseAmount}` +
+            ` amp=${tentacleBreakdown.damageAmpTotal}` +
+            ` scalar=${tentacleBreakdown.valueScalar}`,
+        },
+      ];
+    }
+  }
+
+  const applied = [
+    ...(tentacleSynth != null
+      ? appliedBeforeTentacle.filter((m) => !isSupersededBaseTentacleRtm(m))
+      : appliedBeforeTentacle),
+    ...(tentacleSynth ? [tentacleSynth] : []),
+  ];
+
+  const reviewTransfers = [
+    ...allTransfers,
+    ...(tentacleSynth ? [tentacleSynth] : []),
+  ];
   const reviewTeamData: TeamData = {
     ...teamData,
     awakeners: totalAwakeners,
     manifestations: [
-      ...teamData.manifestations.filter((m) => !m.isBaseStatTransfer),
-      ...allTransfers,
+      ...teamData.manifestations.filter(
+        (m) =>
+          !m.isBaseStatTransfer &&
+          !(tentacleSynth != null && isSupersededBaseTentacleRtm(m)),
+      ),
+      ...reviewTransfers,
     ],
   };
   reviewTeamData.summary = {
@@ -330,7 +402,12 @@ export function computeReviewTagTotals(
   );
   return {
     totalsByTagId: result.totalsByTagId,
-    steps: [...harmonySteps, ...keyflareSteps, ...result.steps],
+    steps: [
+      ...harmonySteps,
+      ...keyflareSteps,
+      ...tentacleSteps,
+      ...result.steps,
+    ],
     reviewTeamData,
     triggerCounts,
     teamMaxHp,
