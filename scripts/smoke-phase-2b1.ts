@@ -11,6 +11,8 @@ import {
   buildBaseStatTransferManifestations,
   computeAwakenerTotalBaseStats,
   REQUIRED_BASE_STAT_TAG_IDS,
+  SPECIAL_INCREASE_BASE_ATK_TAG_ID,
+  SPECIAL_INCREASE_BASE_DEF_TAG_ID,
   SPECIAL_INCREASE_BASE_KEYFLARE_TAG_ID,
 } from "../src/lib/path-carver/awakener-base-stats";
 import {
@@ -262,6 +264,164 @@ console.log("\ndependency_stat uses post–Special.Increase keyflare");
   assert(
     scaleValueScalar(2, "keyflare_regen", total, "awakener") === 34,
     `keyflare dep after boost: 2 * 17 → 34 (got ${scaleValueScalar(2, "keyflare_regen", total, "awakener")})`,
+  );
+}
+
+console.log("\nSpecial.Increase Base ATK stacking (additive on original)");
+{
+  const awakener = makeAwakener({ id: 1, atk: 100 });
+  const specialTag = makeTag(
+    SPECIAL_INCREASE_BASE_ATK_TAG_ID,
+    "Special.Increase Base ATK",
+  );
+  const applied = [
+    makeManifestation({
+      id: 1,
+      tagId: specialTag.id,
+      tagName: specialTag.tagName,
+      valueScalar: 0.1,
+    }),
+    makeManifestation({
+      id: 2,
+      tagId: specialTag.id,
+      tagName: specialTag.tagName,
+      valueScalar: 0.2,
+    }),
+  ];
+  const [total] = computeAwakenerTotalBaseStats(
+    {
+      awakeners: [awakener],
+      gearStatContributions: [],
+      tagsById: { [specialTag.id]: specialTag },
+    },
+    applied,
+  );
+  assert(total.atk === 130, `ceil(100 * 1.3) = 130 (got ${total.atk})`);
+}
+
+console.log("\nSpecial.Increase Base DEF stacking (additive on original)");
+{
+  const awakener = makeAwakener({ id: 1, def: 100 });
+  const specialTag = makeTag(
+    SPECIAL_INCREASE_BASE_DEF_TAG_ID,
+    "Special.Increase Base DEF",
+  );
+  const applied = [
+    makeManifestation({
+      id: 1,
+      tagId: specialTag.id,
+      tagName: specialTag.tagName,
+      valueScalar: 0.1,
+    }),
+    makeManifestation({
+      id: 2,
+      tagId: specialTag.id,
+      tagName: specialTag.tagName,
+      valueScalar: 0.2,
+    }),
+  ];
+  const [total] = computeAwakenerTotalBaseStats(
+    {
+      awakeners: [awakener],
+      gearStatContributions: [],
+      tagsById: { [specialTag.id]: specialTag },
+    },
+    applied,
+  );
+  assert(total.def === 130, `ceil(100 * 1.3) = 130 (got ${total.def})`);
+}
+
+console.log("\nSpecial.Increase Base ATK realm fans out to all awakeners");
+{
+  const a1 = makeAwakener({ id: 1, atk: 100 });
+  const a2 = makeAwakener({ id: 2, atk: 200 });
+  const specialTag = makeTag(
+    SPECIAL_INCREASE_BASE_ATK_TAG_ID,
+    "Special.Increase Base ATK",
+  );
+  const applied = [
+    makeManifestation({
+      id: 1,
+      tagId: specialTag.id,
+      tagName: specialTag.tagName,
+      valueScalar: 0.1,
+      sourceKind: "realm",
+      awakenerId: null,
+      realmId: 8,
+      requiredRealmMode: "present",
+      pureBonusTarget: "none",
+    }),
+  ];
+  const totals = computeAwakenerTotalBaseStats(
+    {
+      awakeners: [a1, a2],
+      gearStatContributions: [],
+      tagsById: { [specialTag.id]: specialTag },
+    },
+    applied,
+  );
+  const byId = Object.fromEntries(totals.map((a) => [a.id, a]));
+  assert(byId[1].atk === 110, `realm ATK A1: ceil(100 * 1.1) = 110 (got ${byId[1].atk})`);
+  assert(byId[2].atk === 220, `realm ATK A2: ceil(200 * 1.1) = 220 (got ${byId[2].atk})`);
+}
+
+console.log("\nSpecial.Increase Base ATK owned row only boosts owner");
+{
+  const a1 = makeAwakener({ id: 1, atk: 100 });
+  const a2 = makeAwakener({ id: 2, atk: 200 });
+  const specialTag = makeTag(
+    SPECIAL_INCREASE_BASE_ATK_TAG_ID,
+    "Special.Increase Base ATK",
+  );
+  const applied = [
+    makeManifestation({
+      id: 1,
+      tagId: specialTag.id,
+      tagName: specialTag.tagName,
+      valueScalar: 0.1,
+      awakenerId: 1,
+    }),
+  ];
+  const totals = computeAwakenerTotalBaseStats(
+    {
+      awakeners: [a1, a2],
+      gearStatContributions: [],
+      tagsById: { [specialTag.id]: specialTag },
+    },
+    applied,
+  );
+  const byId = Object.fromEntries(totals.map((a) => [a.id, a]));
+  assert(byId[1].atk === 110, `owned ATK A1: ceil(100 * 1.1) = 110 (got ${byId[1].atk})`);
+  assert(byId[2].atk === 200, `owned ATK A2 unchanged 200 (got ${byId[2].atk})`);
+}
+
+console.log("\ndependency_stat uses post–Special.Increase atk");
+{
+  const awakener = makeAwakener({ id: 1, atk: 100 });
+  const specialTag = makeTag(
+    SPECIAL_INCREASE_BASE_ATK_TAG_ID,
+    "Special.Increase Base ATK",
+  );
+  const applied = [
+    makeManifestation({
+      id: 1,
+      tagId: specialTag.id,
+      tagName: specialTag.tagName,
+      valueScalar: 0.1,
+    }),
+  ];
+  const [total] = computeAwakenerTotalBaseStats(
+    {
+      awakeners: [awakener],
+      gearStatContributions: [],
+      tagsById: { [specialTag.id]: specialTag },
+    },
+    applied,
+  );
+  // ceil(100 * 1.1) = 110; raw 2 * 110 → 220
+  assert(
+    scaleValueScalar(2, "atk", total, "awakener") === 220,
+    `atk dep after boost: 2 * 110 → 220 (got ${scaleValueScalar(2, "atk", total, "awakener")})`,
   );
 }
 

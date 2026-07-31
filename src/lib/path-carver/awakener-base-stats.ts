@@ -20,6 +20,10 @@ import {
 
 /** Special.Increase Base Keyflare — boosts keyflare_regen after DR. */
 export const SPECIAL_INCREASE_BASE_KEYFLARE_TAG_ID = 131;
+/** Special.Increase Base ATK — boosts atk after gear (+ DR for other stats). */
+export const SPECIAL_INCREASE_BASE_ATK_TAG_ID = 153;
+/** Special.Increase Base DEF — boosts def after gear (+ DR for other stats). */
+export const SPECIAL_INCREASE_BASE_DEF_TAG_ID = 154;
 
 /**
  * Base stats that become synthetic Support/Defender tags.
@@ -69,6 +73,8 @@ export const BASE_STAT_TRANSFER_SPECS = [
 export const REQUIRED_BASE_STAT_TAG_IDS: readonly number[] = [
   ...BASE_STAT_TRANSFER_SPECS.map((s) => s.tagId),
   SPECIAL_INCREASE_BASE_KEYFLARE_TAG_ID,
+  SPECIAL_INCREASE_BASE_ATK_TAG_ID,
+  SPECIAL_INCREASE_BASE_DEF_TAG_ID,
   IN_MISSION_DEATH_RESIST_TAG_ID,
   SPECIAL_CAUSE_DEATH_RESIST_TRIGGER_TAG_ID,
   DEFENDER_MAX_HP_UP_TAG_ID,
@@ -178,41 +184,63 @@ function applyDiminishingReturns(byId: Map<number, Awakener>): void {
 }
 
 /**
- * After DR: finalKeyflare = ceil(originalDr * (1 + Σ effective Special.Increase scalars)).
- * Each source uses the same original (additive scalars, not chained).
- * Special.Increase rows scale with pre-boost totals if they have dependency_stat.
+ * Recipients for a Special.Increase Base * row.
+ * Realm (team-once) → every team awakener; owned non-realm → owner only.
  */
-function applySpecialIncreaseBaseKeyflare(
+function specialIncreaseRecipients(
+  m: Manifestation,
+  byId: Map<number, Awakener>,
+): number[] {
+  if (m.sourceKind === "realm") return [...byId.keys()];
+  if (m.awakenerId != null) return [m.awakenerId];
+  return [];
+}
+
+/**
+ * finalStat = ceil(preBoost * (1 + Σ effective Special.Increase scalars)).
+ * Multiple sources stack additively on the same pre-boost base (not chained).
+ * Rows with dependency_stat scale against preBoostById.
+ */
+function applySpecialIncreaseBaseStat(
   byId: Map<number, Awakener>,
   appliedManifestations: readonly Manifestation[],
   tagsById: Readonly<Record<number, Tag>>,
+  preBoostById: ReadonlyMap<number, Awakener>,
+  tagId: number,
+  read: (a: Awakener) => number | null,
+  write: (a: Awakener, value: number) => void,
 ): void {
-  const preBoostById = buildAwakenersById([...byId.values()]);
   const boostSumByAwakener = new Map<number, number>();
 
   for (const m of appliedManifestations) {
-    if (m.tagId !== SPECIAL_INCREASE_BASE_KEYFLARE_TAG_ID) continue;
+    if (m.tagId !== tagId) continue;
     if (m.isBaseStatTransfer) continue;
-    if (m.awakenerId == null) continue;
+
+    const recipients = specialIncreaseRecipients(m, byId);
+    if (recipients.length === 0) continue;
 
     const scalar = effectiveManifestationScalar(m, preBoostById, tagsById);
-    boostSumByAwakener.set(
-      m.awakenerId,
-      (boostSumByAwakener.get(m.awakenerId) ?? 0) + scalar,
-    );
+    for (const awakenerId of recipients) {
+      boostSumByAwakener.set(
+        awakenerId,
+        (boostSumByAwakener.get(awakenerId) ?? 0) + scalar,
+      );
+    }
   }
 
   for (const [awakenerId, sum] of boostSumByAwakener) {
     const totals = byId.get(awakenerId);
-    if (!totals || totals.keyflareRegen == null) continue;
-    // Post-boost keyflare is what dependency_stat=keyflare_regen uses.
-    totals.keyflareRegen = Math.ceil(totals.keyflareRegen * (1 + sum));
+    if (!totals) continue;
+    const current = read(totals);
+    if (current == null) continue;
+    // Epsilon before ceil so e.g. 100 * 1.1 is not 110.00000000000001 → 111.
+    write(totals, Math.ceil(current * (1 + sum) - 1e-10));
   }
 }
 
 /**
  * Per-awakener total base stats: table stats + equipped gear, then DR, then
- * Special.Increase Base Keyflare. Result feeds dependency_stat scaling.
+ * Special.Increase Base Keyflare / ATK / DEF. Result feeds dependency_stat scaling.
  */
 export function computeAwakenerTotalBaseStats(
   teamData: Pick<TeamData, "awakeners" | "gearStatContributions" | "tagsById">,
@@ -223,11 +251,45 @@ export function computeAwakenerTotalBaseStats(
     teamData.gearStatContributions,
   );
   applyDiminishingReturns(byId);
-  applySpecialIncreaseBaseKeyflare(
+
+  // One pre-boost snapshot so Keyflare / ATK / DEF do not feed each other.
+  const preBoostById = buildAwakenersById([...byId.values()]);
+  const tagsById = teamData.tagsById;
+
+  applySpecialIncreaseBaseStat(
     byId,
     appliedManifestations,
-    teamData.tagsById,
+    tagsById,
+    preBoostById,
+    SPECIAL_INCREASE_BASE_KEYFLARE_TAG_ID,
+    (a) => a.keyflareRegen,
+    (a, v) => {
+      a.keyflareRegen = v;
+    },
   );
+  applySpecialIncreaseBaseStat(
+    byId,
+    appliedManifestations,
+    tagsById,
+    preBoostById,
+    SPECIAL_INCREASE_BASE_ATK_TAG_ID,
+    (a) => a.atk,
+    (a, v) => {
+      a.atk = v;
+    },
+  );
+  applySpecialIncreaseBaseStat(
+    byId,
+    appliedManifestations,
+    tagsById,
+    preBoostById,
+    SPECIAL_INCREASE_BASE_DEF_TAG_ID,
+    (a) => a.def,
+    (a, v) => {
+      a.def = v;
+    },
+  );
+
   return [...byId.values()];
 }
 

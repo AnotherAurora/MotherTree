@@ -1,6 +1,6 @@
 ---
 name: Simulator Phased Plan
-overview: Path Carver–first roadmap. Phase 1–2b done. Next is Phase 2c (damage layers x/y/z/f + Calculation List). Phase 3 ports math to desire_demand/radar/simulator. Phase 4 smart recommend.
+overview: Path Carver–first roadmap. Phase 1–2b done. Next is Phase 2c (damage layers x/y/z/f). Phase 3 ports math to desire_demand/radar/simulator and wires Calculation List layer breakdown. Phase 4 smart recommend.
 todos:
   - id: seed-data
     content: Create scripts/seed-simulator-data.ts with 2-3 desires, demand rows, anchored awakeners; add npm script
@@ -30,7 +30,7 @@ todos:
     content: Phase 2c — Map manifestations → layer terms (x,y,z,f); 4-layer damage formula; replace temp add-then-multiply order
     status: pending
   - id: layer-breakdown-ui
-    content: Phase 2c — Summary / Calculation List layer-by-layer breakdown
+    content: Phase 3 — Wire Summary / Calculation List to show layer-by-layer breakdown
     status: pending
   - id: desire-demand-radar-port
     content: Phase 3 — Wire Path Carver math into desire_demand fulfillment / simulator radar / Summary
@@ -59,7 +59,7 @@ Path Carver’s **Review Tags** page is the primary surface for testing recommen
 | Attacker.\* requires `is_damage_dealer` (any target_type); `target_type=self` for non-Attacker | Full `desire_demand` scoring / curves |
 | Self-scoped interaction application; filtered rows stay in debug as Applied=no                 | Port math into Simulator page         |
 | `dependency_stat` scalar scaling + leaf-gated `buff_target_type_restriction` (2b)              | Smart search / recommend optimization |
-| Damage layers x/y/z/f + Calculation List breakdown (2c)                                        |                                       |
+| Damage layers x/y/z/f (2c)                                                                     | Calculation List layer breakdown      |
 
 ---
 
@@ -78,14 +78,15 @@ Path Carver’s **Review Tags** page is the primary surface for testing recommen
 
 ### Not done (next work)
 
-| Area                                       | Status                                                                                     |
-| ------------------------------------------ | ------------------------------------------------------------------------------------------ |
-| `target_type` apply rules                  | Loaded and shown in debug; **not applied** in aggregation                                  |
-| Interaction application                    | `tag_default_interaction` + overrides loaded in `TeamData` but **not applied**             |
-| `dependency_stat` → `value_scalar`         | **Phase 2b done** — ATM/covenant/wheel/override scaled; posse + team/enemy max HP ignored  |
+| Area                                       | Status                                                                                                                      |
+| ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------- |
+| `target_type` apply rules                  | Loaded and shown in debug; **not applied** in aggregation                                                                   |
+| Interaction application                    | `tag_default_interaction` + overrides loaded in `TeamData` but **not applied**                                              |
+| `dependency_stat` → `value_scalar`         | **Phase 2b done** — ATM/covenant/wheel/override scaled; posse + team/enemy max HP ignored                                   |
 | `buff_target_type_restriction` leaf-gating | **Phase 2b done** — materialize-then-amplify + `creates_base` / `amplifies_subject`; Option B subject `source_type` context |
-| Damage layers / Calculation List           | Deferred to Phase 2c                                                                       |
-| Simulator using Path Carver math           | Port in Phase 3                                                                            |
+| Damage layers                              | Deferred to Phase 2c                                                                                                        |
+| Calculation List layer breakdown           | Deferred to Phase 3                                                                                                         |
+| Simulator using Path Carver math           | Port in Phase 3                                                                                                             |
 
 ---
 
@@ -108,10 +109,10 @@ Interactions **can chain** across **multiple passes** (e.g. Increase Gain → Su
 
 ### Existence gate + `creates_base` / `amplifies_subject`
 
-| Flag / target | Rule |
-| --- | --- |
+| Flag / target                                                | Rule                                                                                                                                                                                                                                                            |
+| ------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **`creates_base = true`** (with `amplifies_subject = false`) | Modifier **materializes** target as a synthetic base (Phase 1). May invent Support **and** Attacker/Defender sinks. Writes into a synthetic channel (`*team*`), never into existing subject owner buckets. Example: Fiamma → Final Damage; Generate → Tentacle. |
-| **`amplifies_subject = true`** (with `creates_base = false`) | Apply once per matching **existing** subject (Phase 2). Target must be Layer A or created-base present. Example: STR Up → each Active Damage; Increase Gain must not invent STR Up. |
+| **`amplifies_subject = true`** (with `creates_base = false`) | Apply once per matching **existing** subject (Phase 2). Target must be Layer A or created-base present. Example: STR Up → each Active Damage; Increase Gain must not invent STR Up.                                                                             |
 
 Intended pairs only (XOR). Same polarity is soft-warned in admin. Defaults: `creates_base=false`, `amplifies_subject=true`.
 
@@ -304,7 +305,7 @@ Each row shows:
 - Applied yes/no
 - Reason when no: e.g. `realm`, `attacker.not_damage_dealer`
 
-Optional: show which interactions applied to which target tags (lightweight; full Calculation List in 2c).
+Optional: show which interactions applied to which target tags (lightweight; full Calculation List in Phase 3).
 
 ### Files to touch (Phase 2a)
 
@@ -502,7 +503,7 @@ Same chain for a tentacle leaf → Enhance SKIPPED; no dual totals stored
 
 - Review Tags tag list: **one** scalar per tag (no per-`source_type` columns, no dual-branch aggregates).
 - **Debug — Scalar Sum math** ([`review-tags-math-debug.tsx`](src/components/path-carver/review-tags-math-debug.tsx)): when a restricted interaction **applies** (restriction met for this leaf), emit **one extra** calculation line; when skipped due to restriction, **no** extra line. Existing debug layout otherwise unchanged.
-- Full Calculation List remains Phase 2c.
+- Full Calculation List remains Phase 3.
 
 #### Implementation notes
 
@@ -612,15 +613,15 @@ Load `realm_tag_manifestation` into Path Carver Review Tags as **team-once** Lay
 
 ### Locked decisions
 
-| Topic | Lock |
-| --- | --- |
-| Apply count | One contribution per matching RTM row |
-| Combo | × `chaosComboStacks` on effective scalar |
-| Replaced realms | Apply only if `realm_id ∈ effectiveRealmIds` |
-| Chaos replaced | Chaos RTM off; `chaosComboStacks === 0` ⇒ all `combo` off |
+| Topic           | Lock                                                             |
+| --------------- | ---------------------------------------------------------------- |
+| Apply count     | One contribution per matching RTM row                            |
+| Combo           | × `chaosComboStacks` on effective scalar                         |
+| Replaced realms | Apply only if `realm_id ∈ effectiveRealmIds`                     |
+| Chaos replaced  | Chaos RTM off; `chaosComboStacks === 0` ⇒ all `combo` off        |
 | Attacker.\* RTM | Always apply when realm mode gates pass (no damage-dealer check) |
-| `realm_mastery` | Σ total-base `awakener.realmMastery` |
-| Immunity | `sourceKind === "realm"` skips inbound interaction ops |
+| `realm_mastery` | Σ total-base `awakener.realmMastery`                             |
+| Immunity        | `sourceKind === "realm"` skips inbound interaction ops           |
 
 ### Primary files
 
@@ -633,26 +634,24 @@ Load `realm_tag_manifestation` into Path Carver Review Tags as **team-once** Lay
 
 ---
 
-## Phase 2c — Damage layers + Calculation List
+## Phase 2c — Damage layers
 
 **Depends on:** Phase 2a + 2b (stable Review Tags interaction math with leaf-gated buff restriction).
 
 ### Goal
 
-Replace the temporary add-then-multiply order with the real **4-layer damage formula**, map manifestations → layer terms, and wire **Summary / Calculation List** to a layer-by-layer breakdown (on Path Carver Review Tags debug / related panels as appropriate).
+Replace the temporary add-then-multiply order with the real **4-layer damage formula**, and map manifestations → layer terms (on Path Carver Review Tags debug / related panels as appropriate).
 
 ### Scope
 
 - Map manifestations → layer terms (**x, y, z, f**) using tag `layer` (and related fields)
 - Implement 4-layer damage formula (multiply/add rules per layer — use locked `math_operation` / `is_percent` semantics within layers)
 - **Replace** temporary “`add_scaled` first, then multipliers” order from 2a/2b
-- Wire **Summary / Calculation List** to show **layer-by-layer** breakdown
 - Keep Path Carver as the primary validation surface
 
 ### Acceptance criteria (outline)
 
 - [ ] Temporary op order removed; layer formula drives adjusted totals
-- [ ] Calculation List shows per-layer contributions for a built team
 - [ ] Review Tags totals consistent with layer engine output
 
 ---
@@ -663,15 +662,20 @@ Replace the temporary add-then-multiply order with the real **4-layer damage for
 
 ### Goal
 
-Port Path Carver–validated totals into simulator / desire scoring surfaces.
+Port Path Carver–validated totals into simulator / desire scoring surfaces, and wire **Summary / Calculation List** to a layer-by-layer breakdown.
 
 ### Scope
 
 - Wire Path Carver–validated totals into `desire_demand` fulfillment / curves
 - Simulator radar fulfillment % (copy math from Path Carver; not raw unfiltered sums)
 - Radar fulfillment % uses **simulated output** for demand tags (not raw scalar sums) once layer engine exists
+- Wire **Summary / Calculation List** to show **layer-by-layer** breakdown
 - Simulator Summary panel against real fulfillment
 - Generate / Recommend continue to use shared engine once ported
+
+### Acceptance criteria (outline)
+
+- [ ] Calculation List shows per-layer contributions for a built team
 
 ---
 
@@ -709,6 +713,6 @@ Path Carver upserts a single `desire_template` per `desire_id`.
 ## Suggested implementation order (from now)
 
 1. **Phase 2b.3** — realm_tag_manifestation in Path Carver Review Tags (replace / mode / dependency / base immunity)
-2. **Phase 2c** — layer terms x/y/z/f + 4-layer formula + Calculation List breakdown (replace temp op order)
-3. **Phase 3** — desire_demand / radar / simulator port
+2. **Phase 2c** — layer terms x/y/z/f + 4-layer formula (replace temp op order)
+3. **Phase 3** — desire_demand / radar / simulator port + Calculation List layer breakdown
 4. **Phase 4** — Smart recommend / search
