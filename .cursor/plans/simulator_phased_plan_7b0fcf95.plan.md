@@ -1,6 +1,6 @@
 ---
 name: Simulator Phased Plan
-overview: Path Carver–first roadmap. Phase 1–2b.6 done. Next is Phase 2c (damage layers x/y/z/f). Phase 3 ports math to desire_demand/radar/simulator and wires Calculation List layer breakdown. Phase 4 smart recommend.
+overview: Path Carver–first roadmap. Phase 1–2b.6 done. Next is Phase 2c (damage layers x/y/z/f). Phase 3 ports math to desire_demand/radar/simulator, wires Calculation List layer breakdown, fixes Corrosion/Embers Non-Active capacity to parent + descendants, and rewires Special conversion from tag names to tag ids. Phase 4 smart recommend.
 todos:
   - id: seed-data
     content: Create scripts/seed-simulator-data.ts with 2-3 desires, demand rows, anchored awakeners; add npm script
@@ -53,6 +53,9 @@ todos:
   - id: debug-panels-fulfillment
     content: Phase 3 — Wire simulator Summary to desire_demand fulfillment
     status: pending
+  - id: fix-corrosion-embers-nonactive
+    content: Phase 3 — Special Corrosion/Embers Non-Active capacity = parent + descendants; rewire conversion/debuff/capacity/sinks from tag names to tag ids
+    status: pending
 isProject: false
 ---
 
@@ -69,6 +72,7 @@ Path Carver’s **Review Tags** page is the primary surface for testing recommen
 | Self-scoped interaction application; filtered rows stay in debug as Applied=no                 | Port math into Simulator page         |
 | `dependency_stat` scalar scaling + leaf-gated `buff_target_type_restriction` (2b)              | Smart search / recommend optimization |
 | Damage layers x/y/z/f (2c)                                                                     | Calculation List layer breakdown      |
+| Special Corrosion/Embers (exact Non-Active; keyed by name)                                     | Non-Active parent+descendants + wire by tag id |
 
 ---
 
@@ -96,6 +100,7 @@ Path Carver’s **Review Tags** page is the primary surface for testing recommen
 | Damage layers                              | Deferred to Phase 2c                                                                                                        |
 | Calculation List layer breakdown           | Deferred to Phase 3                                                                                                         |
 | Simulator using Path Carver math           | Port in Phase 3                                                                                                             |
+| Corrosion/Embers Non-Active + wiring       | Deferred to Phase 3 — parent+descendants capacity; rewire name→id                                             |
 
 ---
 
@@ -192,7 +197,7 @@ else:
 
 ### Special conversions (locked; not `tag_default_interaction`)
 
-Corrosion / Ancient Embers consume+transfer is **not** driven by interaction rows (those rows are soft-deleted). Engine recognizes Special tags by name and applies hardcoded conversion:
+Corrosion / Ancient Embers consume+transfer is **not** driven by interaction rows (those rows are soft-deleted). Engine applies hardcoded conversion rates (table uses names as labels; **Phase 2a** keys tags by **name** via `findTagIdByName` / `m.tagName ===`):
 
 | Special tag                         | Debuff                          | Consume sources                                                  | Transfer                                   |
 | ----------------------------------- | ------------------------------- | ---------------------------------------------------------------- | ------------------------------------------ |
@@ -205,7 +210,7 @@ debuff -= lost
 damage_tag += lost * 3
 ```
 
-Phase 2a implements these Special conversions alongside interaction ops (interaction rows for this behavior are gone).
+Phase 2a implements these Special conversions alongside interaction ops (interaction rows for this behavior are gone). Non-Active capacity currently uses the **exact** parent tag only — provisional. **Phase 3** (1) rewires conversion gate, debuff, Active, Tentacle, Non-Active **parent**, and Corrosion/Embers damage sinks to **numeric tag id** constants (same pattern as Death Resist / Keyflare — ids are the contract); (2) widens Non-Active capacity to **parent id + descendants** (look up parent `tag_name` from `tagsById`, then prefix-sum children — do not hardcode Poison Damage ids). Do **not** roll child sinks into the parent via `tag_default_interaction` (keeps Poison Trigger scoped to its own sink). Active Damage and Tentacle capacity stay exact (by id). Prefix gates (`Attacker.*` / `Defender.*`) and interaction target prefix matching stay name-based.
 
 ### Overrides
 
@@ -784,7 +789,7 @@ Replace the temporary add-then-multiply order with the real **4-layer damage for
 
 ### Goal
 
-Port Path Carver–validated totals into simulator / desire scoring surfaces, and wire **Summary / Calculation List** to a layer-by-layer breakdown.
+Port Path Carver–validated totals into simulator / desire scoring surfaces, wire **Summary / Calculation List** to a layer-by-layer breakdown, and fix Special Corrosion / Ancient Embers (Non-Active descendant capacity + name→id wiring).
 
 ### Scope
 
@@ -794,10 +799,24 @@ Port Path Carver–validated totals into simulator / desire scoring surfaces, an
 - Wire **Summary / Calculation List** to show **layer-by-layer** breakdown
 - Simulator Summary panel against real fulfillment
 - Generate / Recommend continue to use shared engine once ported
+- Fix Corrosion / Ancient Embers (see below)
+
+### Fix Corrosion / Ancient Embers
+
+**Problem (capacity):** Special conversion Non-Active capacity uses the exact parent tag only (`sumTeamTag` on that id in [`apply-interactions.ts`](src/lib/path-carver/apply-interactions.ts)). Child sinks such as `Attacker.Non-Active Damage.Poison Damage` (and later Bleed Damage, etc.) do not feed `×0.5` capacity.
+
+**Problem (wiring):** Phase 2a keys conversion gate, debuff, capacity sources, and damage sinks by **tag name** (`findTagIdByName` / `m.tagName ===`). Elsewhere (Death Resist, Keyflare, Tentacle base) the contract is **numeric tag id**.
+
+**Fix (capacity):** Resolve Non-Active **parent by id**; Non-Active capacity term = that id’s total **plus** all descendants (look up parent `tag_name` from `tagsById`, prefix-sum children). Do **not** hardcode Poison Damage ids/names. Do **not** add `tag_default_interaction` rollups from child sinks into the parent (keeps Poison Trigger scoped). Active Damage and Tentacle capacity stay exact (by id).
+
+**Fix (wiring):** Replace name-string constants with numeric tag id constants for conversion gate, debuff, Active, Tentacle, Non-Active parent, and Corrosion/Embers damage sinks (same style as [`death-resist-trigger.ts`](src/lib/path-carver/death-resist-trigger.ts) / [`trigger-condition.ts`](src/lib/path-carver/trigger-condition.ts)). **Ids are the contract** — renaming a tag does not break conversion if the id is unchanged; changing an id without updating constants no-ops until constants are updated. Out of scope: `Attacker.*` / `Defender.*` prefix gates and DB-driven interaction target prefix matching.
 
 ### Acceptance criteria (outline)
 
 - [ ] Calculation List shows per-layer contributions for a built team
+- [ ] Team with only `…Poison Damage` (no parent Non-Active scalar) still contributes Non-Active `×0.5` capacity to Corrosion / Embers
+- [ ] Poison Trigger still only amplifies Poison Damage, not other Non-Active children
+- [ ] Special conversion keys tags by id (not name); rename with same id still converts; id change without constant update does not
 
 ---
 
@@ -835,5 +854,5 @@ Path Carver upserts a single `desire_template` per `desire_id`.
 ## Suggested implementation order (from now)
 
 1. **Phase 2c** — layer terms x/y/z/f + 4-layer formula (replace temp op order)
-2. **Phase 3** — desire_demand / radar / simulator port + Calculation List layer breakdown
+2. **Phase 3** — desire_demand / radar / simulator port + Calculation List layer breakdown + Corrosion/Embers Non-Active parent+descendants capacity + name→id wiring
 3. **Phase 4** — Smart recommend / search
