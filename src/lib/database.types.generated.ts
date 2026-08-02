@@ -113,6 +113,63 @@ export type Database = {
           },
         ]
       }
+      awakener_local_manifestation_interaction: {
+        Row: {
+          created_at: string | null
+          deleted_at: string | null
+          dependency_stat: Database["public"]["Enums"]["all_stats"] | null
+          id: number
+          is_disabled: boolean | null
+          manifestation_id: number | null
+          math_operation: Database["public"]["Enums"]["operation_type"] | null
+          modifier_tag_id: number | null
+          target_type: Database["public"]["Enums"]["target_type"] | null
+          updated_at: string | null
+          value_scalar: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          deleted_at?: string | null
+          dependency_stat?: Database["public"]["Enums"]["all_stats"] | null
+          id?: number
+          is_disabled?: boolean | null
+          manifestation_id?: number | null
+          math_operation?: Database["public"]["Enums"]["operation_type"] | null
+          modifier_tag_id?: number | null
+          target_type?: Database["public"]["Enums"]["target_type"] | null
+          updated_at?: string | null
+          value_scalar?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          deleted_at?: string | null
+          dependency_stat?: Database["public"]["Enums"]["all_stats"] | null
+          id?: number
+          is_disabled?: boolean | null
+          manifestation_id?: number | null
+          math_operation?: Database["public"]["Enums"]["operation_type"] | null
+          modifier_tag_id?: number | null
+          target_type?: Database["public"]["Enums"]["target_type"] | null
+          updated_at?: string | null
+          value_scalar?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "manifestation_interaction_override_manifestation_id_fkey"
+            columns: ["manifestation_id"]
+            isOneToOne: false
+            referencedRelation: "awakener_tag_manifestation"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "manifestation_interaction_override_modifier_tag_id_fkey"
+            columns: ["modifier_tag_id"]
+            isOneToOne: false
+            referencedRelation: "tag"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       awakener_tag_manifestation: {
         Row: {
           awakener_id: number
@@ -761,63 +818,6 @@ export type Database = {
           },
         ]
       }
-      manifestation_interaction_override: {
-        Row: {
-          created_at: string | null
-          deleted_at: string | null
-          dependency_stat: Database["public"]["Enums"]["all_stats"] | null
-          id: number
-          is_disabled: boolean | null
-          manifestation_id: number | null
-          math_operation: Database["public"]["Enums"]["operation_type"] | null
-          modifier_tag_id: number | null
-          target_type: Database["public"]["Enums"]["target_type"] | null
-          updated_at: string | null
-          value_scalar: number | null
-        }
-        Insert: {
-          created_at?: string | null
-          deleted_at?: string | null
-          dependency_stat?: Database["public"]["Enums"]["all_stats"] | null
-          id?: number
-          is_disabled?: boolean | null
-          manifestation_id?: number | null
-          math_operation?: Database["public"]["Enums"]["operation_type"] | null
-          modifier_tag_id?: number | null
-          target_type?: Database["public"]["Enums"]["target_type"] | null
-          updated_at?: string | null
-          value_scalar?: number | null
-        }
-        Update: {
-          created_at?: string | null
-          deleted_at?: string | null
-          dependency_stat?: Database["public"]["Enums"]["all_stats"] | null
-          id?: number
-          is_disabled?: boolean | null
-          manifestation_id?: number | null
-          math_operation?: Database["public"]["Enums"]["operation_type"] | null
-          modifier_tag_id?: number | null
-          target_type?: Database["public"]["Enums"]["target_type"] | null
-          updated_at?: string | null
-          value_scalar?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "manifestation_interaction_override_manifestation_id_fkey"
-            columns: ["manifestation_id"]
-            isOneToOne: false
-            referencedRelation: "awakener_tag_manifestation"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "manifestation_interaction_override_modifier_tag_id_fkey"
-            columns: ["modifier_tag_id"]
-            isOneToOne: false
-            referencedRelation: "tag"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       path: {
         Row: {
           awakener_id: number
@@ -1337,7 +1337,7 @@ export type Database = {
         | "base_aliemus"
       curve_type: "linear" | "exponential" | "logarithmic"
       desire_type: "general" | "specific"
-      layer: "x" | "y" | "z" | "f"
+      layer: "pre_add" | "add" | "post_add"
       operation_type:
         | "presence_multiply"
         | "add_scaled"
@@ -1504,7 +1504,7 @@ export const Constants = {
       ],
       curve_type: ["linear", "exponential", "logarithmic"],
       desire_type: ["general", "specific"],
-      layer: ["x", "y", "z", "f"],
+      layer: ["pre_add", "add", "post_add"],
       operation_type: [
         "presence_multiply",
         "add_scaled",

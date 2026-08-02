@@ -125,7 +125,7 @@ export async function getAwakenerRelatedTags(
 
     if (manifestationIds.length > 0) {
       const { data: overrides, error: overrideError } = await supabase
-        .from("manifestation_interaction_override")
+        .from("awakener_local_manifestation_interaction")
         .select(
           "id, manifestation_id, modifier_tag:tag!modifier_tag_id(tag_name), is_disabled",
         )

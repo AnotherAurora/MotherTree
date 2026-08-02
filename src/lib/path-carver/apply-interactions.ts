@@ -12,8 +12,9 @@ import type { TeamRealmResolution } from "@/lib/team-data/resolve-team-realms";
 import {
   NON_REALM_MANIFESTATION_FIELDS,
   type Awakener,
+  type AwakenerLocalManifestationInteraction,
   type DefaultInteraction,
-  type InteractionOverride,
+  type Layer,
   type Manifestation,
   type OperationType,
   type SourceType,
@@ -22,7 +23,7 @@ import {
   type TeamData,
 } from "@/lib/team-data/types";
 
-/** Multi-pass chain limit until values stabilize. Documented for Phase 2a/2b. */
+/** Multi-pass chain limit until values stabilize. Documented for Phase 2a/2b/2c. */
 export const INTERACTION_MAX_PASSES = 8;
 
 /** @deprecated Prefer subject-centric evaluation; kept for Attacker.* checks. */
@@ -103,6 +104,8 @@ export type ScalarMathStep =
       buffRestrictionMet?: SourceType;
       /** Leaf source_type context for the run that produced this op. */
       leafContext?: SourceType | null;
+      /** Modifier tag layer that drove pass order (Phase 2c). */
+      layer: Layer | null;
     }
   | { kind: "special"; label: string; detail: string }
   | { kind: "total"; tagId: number; tagName: string; total: number };
@@ -197,10 +200,43 @@ function effectSourcesFromManifests(
   return labels;
 }
 
-function opPriority(op: OperationType): number {
-  // Temporary 2a/2b order: add_scaled first, then multipliers. Replaced in 2c.
-  if (op === "add_scaled") return 0;
+/** Pass ranks: pre_add=0, add|null=1, post_add=2. */
+function layerRank(layer: Layer | null | undefined): number {
+  if (layer === "pre_add") return 0;
+  if (layer === "post_add") return 2;
+  // "add" and null share the additive band.
   return 1;
+}
+
+function opTiebreak(op: OperationType): number {
+  return op === "add_scaled" ? 0 : 1;
+}
+
+/**
+ * Sort by modifier tag layer, then add_scaled before other ops, then id.
+ * Override math_operation does not affect this order (uses default row op).
+ */
+function orderInteractionsByModifierLayer(
+  interactions: DefaultInteraction[],
+  tagsById: Record<number, Tag>,
+): DefaultInteraction[] {
+  return [...interactions]
+    .filter((interaction) => interaction.modifierTagId != null)
+    .sort((a, b) => {
+      const layerA =
+        a.modifierTagId != null
+          ? (tagsById[a.modifierTagId]?.layer ?? null)
+          : null;
+      const layerB =
+        b.modifierTagId != null
+          ? (tagsById[b.modifierTagId]?.layer ?? null)
+          : null;
+      return (
+        layerRank(layerA) - layerRank(layerB) ||
+        opTiebreak(a.mathOperation) - opTiebreak(b.mathOperation) ||
+        a.id - b.id
+      );
+    });
 }
 
 function findTagIdByName(
@@ -423,6 +459,7 @@ function applyOpAndRecord(
   modifierTagId: number | null,
   presenceApplied: Set<string>,
   effectSources: string[],
+  modifierLayer: Layer | null,
   buffRestrictionMet?: SourceType,
   leafContext?: SourceType | null,
 ): void {
@@ -458,6 +495,7 @@ function applyOpAndRecord(
     rounded: result.rounded,
     pass,
     effectSources,
+    layer: modifierLayer,
     ...(buffRestrictionMet != null ? { buffRestrictionMet } : {}),
     ...(leafContext !== undefined ? { leafContext } : {}),
   });
@@ -494,8 +532,8 @@ function findTargetOverride(
   owner: OwnerKey,
   targetTagId: number,
   modifierTagId: number,
-): InteractionOverride | null {
-  let found: InteractionOverride | null = null;
+): AwakenerLocalManifestationInteraction | null {
+  let found: AwakenerLocalManifestationInteraction | null = null;
   for (const m of appliedManifestations) {
     if (ownerKeyFor(m) !== owner) continue;
     if (m.tagId !== targetTagId) continue;
@@ -516,7 +554,7 @@ function awakenerIdFromOwnerKey(owner: OwnerKey): number | null {
 
 function resolveOpAndFactor(
   interaction: DefaultInteraction,
-  override: InteractionOverride | null,
+  override: AwakenerLocalManifestationInteraction | null,
   ownerAwakener: Awakener | null,
   tagIsPercent = false,
   teamMaxHp?: number | null,
@@ -600,6 +638,7 @@ function applyPresenceMultiplyOnce(
   presenceApplied: Set<string>,
   effectSources: string[],
   awakenersById: ReadonlyMap<number, Awakener>,
+  modifierLayer: Layer | null,
   buffRestrictionMet: SourceType | undefined,
   leafContext: SourceType | null | undefined,
   teamMaxHp?: number | null,
@@ -724,6 +763,7 @@ function applyPresenceMultiplyOnce(
       rounded,
       pass,
       effectSources,
+      layer: modifierLayer,
       ...(buffRestrictionMet != null ? { buffRestrictionMet } : {}),
       ...(leafContext !== undefined ? { leafContext } : {}),
     });
@@ -797,6 +837,7 @@ function applyInteractionOnto(
     interaction.modifierTagName ??
     `#${modifierTagId}`;
   const modifierTagIsPercent = tagsById[modifierTagId]?.isPercent === true;
+  const modifierLayer = tagsById[modifierTagId]?.layer ?? null;
 
   const modifierManifests = collectModifierManifestations(
     appliedManifestations,
@@ -837,6 +878,7 @@ function applyInteractionOnto(
       presenceApplied,
       effectSources,
       awakenersById,
+      modifierLayer,
       buffRestrictionMet,
       leafContext,
       teamMaxHp,
@@ -915,6 +957,7 @@ function applyInteractionOnto(
         modifierTagId,
         presenceApplied,
         effectSources,
+        modifierLayer,
         buffRestrictionMet,
         leafContext,
       );
@@ -1008,6 +1051,7 @@ function applyInteractionOnto(
           modifierTagId,
           presenceApplied,
           effectSources,
+          modifierLayer,
           buffRestrictionMet,
           leafContext,
         );
@@ -1046,6 +1090,7 @@ function applyInteractionOnto(
           modifierTagId,
           presenceApplied,
           effectSources,
+          modifierLayer,
           buffRestrictionMet,
           leafContext,
         );
@@ -1067,6 +1112,7 @@ function applyInteractionOnto(
           modifierTagId,
           presenceApplied,
           effectSources,
+          modifierLayer,
           buffRestrictionMet,
           leafContext,
         );
@@ -1089,6 +1135,7 @@ function applyInteractionOnto(
           modifierTagId,
           presenceApplied,
           effectSources,
+          modifierLayer,
           buffRestrictionMet,
           leafContext,
         );
@@ -1126,6 +1173,7 @@ function applyInteractionOnto(
             modifierTagId,
             presenceApplied,
             effectSources,
+            modifierLayer,
             buffRestrictionMet,
             leafContext,
           );
@@ -1145,6 +1193,7 @@ function applyInteractionOnto(
           modifierTagId,
           presenceApplied,
           effectSources,
+          modifierLayer,
           buffRestrictionMet,
           leafContext,
         );
@@ -1167,6 +1216,7 @@ function applyInteractionOnto(
         modifierTagId,
         presenceApplied,
         effectSources,
+        modifierLayer,
         buffRestrictionMet,
         leafContext,
       );
@@ -1204,6 +1254,7 @@ function applyInteractionOnto(
           modifierTagId,
           presenceApplied,
           effectSources,
+          modifierLayer,
           buffRestrictionMet,
           leafContext,
         );
@@ -1225,6 +1276,7 @@ function applyInteractionOnto(
           modifierTagId,
           presenceApplied,
           effectSources,
+          modifierLayer,
           buffRestrictionMet,
           leafContext,
         );
@@ -1243,6 +1295,7 @@ function applyInteractionOnto(
         modifierTagId,
         presenceApplied,
         effectSources,
+        modifierLayer,
         buffRestrictionMet,
         leafContext,
       );
@@ -1389,10 +1442,9 @@ function runInteractionsForLeafContext(
     }
   }
 
-  const orderedInteractions = [...options.defaultInteractions].sort(
-    (a, b) =>
-      opPriority(a.mathOperation) - opPriority(b.mathOperation) ||
-      a.id - b.id,
+  const orderedInteractions = orderInteractionsByModifierLayer(
+    options.defaultInteractions,
+    options.tagsById,
   );
 
   let current = cloneOwnerTotals(base);
@@ -1550,7 +1602,8 @@ function collectInteractionTargetIds(
  *
  * Matching: exact modifier, prefix target, exclusion = tag + descendants.
  * Self-scope: modifier target_type=self only updates same-owner tags.
- * Temp op order: add_scaled then presence_multiply / multiply_one_plus / multiply.
+ * Pass order (Phase 2c): modifier tag.layer — pre_add → add/null → post_add;
+ * within rank add_scaled then other ops then id.
  *
  * Pipeline:
  * 1. Phase 1 — unrestricted creates_base: materialize into *team*, emit synthetics.
@@ -1558,7 +1611,7 @@ function collectInteractionTargetIds(
  *    created bases become Phase 2 subjects.
  * 2. Phase 2 — per subject: restricted creates_base as scoped seed, then
  *    amplifies_subject only. leafContext = subject.sourceType.
- * 3. Special conversions once on merged totals.
+ * 3. Special conversions once on merged totals (after all layer passes).
  *
  * Phase 2b.1: isBaseStatTransfer / realm / Support isCreatedBase subjects contribute
  * absolute scalar only (no inbound ops) but remain in other subjects' cohorts as modifiers.

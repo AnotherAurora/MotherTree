@@ -1,7 +1,7 @@
 import type {
   AllStats,
   Awakener,
-  InteractionOverride,
+  AwakenerLocalManifestationInteraction,
   Manifestation,
   ManifestationSourceKind,
   PureBonusTarget,
@@ -317,7 +317,7 @@ export function effectiveManifestationScalar(
  * has no value_scalar. Ceil precision follows the modifier tag's is_percent.
  */
 export function effectiveOverrideFactor(
-  override: InteractionOverride | null,
+  override: AwakenerLocalManifestationInteraction | null,
   defaultFactor: number | null,
   ownerAwakener: Awakener | null,
   tagIsPercent = false,

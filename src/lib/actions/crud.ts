@@ -21,7 +21,7 @@ export type ForeignKeyOption = {
   shortLabel?: string;
 };
 
-export type InteractionOverrideInput = {
+export type AwakenerLocalManifestationInteractionInput = {
   id?: number;
   modifier_tag_id: number | null;
   math_operation: string | null;
@@ -30,6 +30,9 @@ export type InteractionOverrideInput = {
   dependency_stat: string | null;
   is_disabled: boolean;
 };
+
+/** @deprecated Use AwakenerLocalManifestationInteractionInput */
+export type InteractionOverrideInput = AwakenerLocalManifestationInteractionInput;
 
 export type AnchoredAwakenerInput = {
   id?: number;
@@ -150,7 +153,7 @@ async function attachManifestationOverrideCounts(
   }
 
   const { data, error } = await supabase
-    .from("manifestation_interaction_override")
+    .from("awakener_local_manifestation_interaction")
     .select("manifestation_id")
     .in("manifestation_id", ids)
     .is("deleted_at", null);
@@ -413,13 +416,13 @@ export async function updateRecord(
   }
 }
 
-export async function listInteractionOverrides(
+export async function listAwakenerLocalManifestationInteractions(
   manifestationId: number,
 ): Promise<ActionResult<Record<string, unknown>[]>> {
   try {
     const supabase = createAdminClient();
     const { data, error } = await supabase
-      .from("manifestation_interaction_override")
+      .from("awakener_local_manifestation_interaction")
       .select("*")
       .eq("manifestation_id", manifestationId)
       .is("deleted_at", null)
@@ -434,14 +437,18 @@ export async function listInteractionOverrides(
       error:
         error instanceof Error
           ? error.message
-          : "Failed to load interaction overrides",
+          : "Failed to load local manifestation interactions",
     };
   }
 }
 
+/** @deprecated Use listAwakenerLocalManifestationInteractions */
+export const listInteractionOverrides =
+  listAwakenerLocalManifestationInteractions;
+
 function buildOverrideRecord(
   manifestationId: number,
-  override: InteractionOverrideInput,
+  override: AwakenerLocalManifestationInteractionInput,
 ): Record<string, unknown> {
   return {
     manifestation_id: manifestationId,
@@ -456,7 +463,7 @@ function buildOverrideRecord(
 
 export async function saveManifestationWithOverrides(
   payload: Record<string, unknown>,
-  overrides: InteractionOverrideInput[],
+  overrides: AwakenerLocalManifestationInteractionInput[],
   manifestationId?: number,
 ): Promise<ActionResult<Record<string, unknown>>> {
   const config = getConfig("awakener_tag_manifestation");
@@ -522,13 +529,13 @@ export async function saveManifestationWithOverrides(
       savedManifestationId = Number(data.id);
     }
 
-    const overrideConfig = getConfig("manifestation_interaction_override");
+    const overrideConfig = getConfig("awakener_local_manifestation_interaction");
     if (!overrideConfig) {
-      return { success: false, error: "Unknown override table" };
+      return { success: false, error: "Unknown local interaction table" };
     }
 
     const { data: existingRows, error: existingError } = await supabase
-      .from("manifestation_interaction_override")
+      .from("awakener_local_manifestation_interaction")
       .select("id")
       .eq("manifestation_id", savedManifestationId)
       .is("deleted_at", null);
@@ -550,7 +557,7 @@ export async function saveManifestationWithOverrides(
       if (submittedIds.has(existingId)) continue;
 
       const { error } = await supabase
-        .from("manifestation_interaction_override")
+        .from("awakener_local_manifestation_interaction")
         .update({
           deleted_at: nowIso(),
           updated_at: nowIso(),
@@ -569,7 +576,7 @@ export async function saveManifestationWithOverrides(
       if (override.id != null) {
         overrideRecord.updated_at = nowIso();
         const { error } = await supabase
-          .from("manifestation_interaction_override")
+          .from("awakener_local_manifestation_interaction")
           .update(overrideRecord as never)
           .eq("id", override.id);
 
@@ -581,14 +588,14 @@ export async function saveManifestationWithOverrides(
       overrideRecord.updated_at = nowIso();
 
       const { error } = await supabase
-        .from("manifestation_interaction_override")
+        .from("awakener_local_manifestation_interaction")
         .insert(overrideRecord as never);
 
       if (error) return { success: false, error: error.message };
     }
 
     revalidateTable("awakener_tag_manifestation");
-    revalidateTable("manifestation_interaction_override");
+    revalidateTable("awakener_local_manifestation_interaction");
 
     const { data: manifestation, error: loadError } = await supabase
       .from("awakener_tag_manifestation")

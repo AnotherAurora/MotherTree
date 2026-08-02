@@ -72,10 +72,12 @@ function formatOpLine(
       ? ` | leaf=${step.leafContext ?? "null"}`
       : "";
 
+  const layerNote = ` | layer=${step.layer ?? "null"}`;
+
   return (
     `pass ${step.pass} | ${step.op} | ${step.tagName} ← ${step.modifierTagName}` +
     ` × ${formatNum(step.factor)} (mod ${formatNum(step.modifierValue)})` +
-    ` | ${ownerLabel} | ${valueChange}${restrictionNote}${leafNote}`
+    ` | ${ownerLabel} | ${valueChange}${layerNote}${restrictionNote}${leafNote}`
   );
 }
 
@@ -136,9 +138,10 @@ export function ReviewTagsMathDebug({
         <p className="font-mono text-xs text-zinc-600">
           Layer A base (dependency-scaled) → Keyflare Harmony →
           Keyflare→Create.Posse → team Max HP → Base Tentacle Damage →
-          interaction ops (final pass; leaf-gated buff restriction) → special
-          conversions → totals. Multiply ops ceil after each write. Restricted
-          ops only appear when leaf matches.
+          interaction ops by modifier layer (pre_add → add → post_add;
+          leaf-gated buff restriction) → special conversions → totals.
+          Multiply ops ceil after each write. Restricted ops only appear when
+          leaf matches.
         </p>
       </div>
 

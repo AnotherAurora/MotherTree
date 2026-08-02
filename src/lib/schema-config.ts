@@ -522,8 +522,8 @@ export const TABLE_CONFIGS: TableConfig[] = [
     ],
     childTables: [
       {
-        table: "manifestation_interaction_override",
-        label: "Interaction Overrides",
+        table: "awakener_local_manifestation_interaction",
+        label: "Local Interactions",
         parentKeyColumn: "id",
         foreignKeyColumn: "manifestation_id",
         fields: [
@@ -646,9 +646,10 @@ export const TABLE_CONFIGS: TableConfig[] = [
     ],
   },
   {
-    name: "manifestation_interaction_override",
-    label: "Interaction Overrides",
-    description: "Per-manifestation overrides for tag synergy math.",
+    name: "awakener_local_manifestation_interaction",
+    label: "Local Interactions",
+    description:
+      "Per-manifestation local interaction rows (patch matching tag_default_interaction).",
     displayColumn: "id",
     softDelete: true,
     order: 6,
@@ -1177,7 +1178,7 @@ export type SidebarNavGroup = {
 export const SIDEBAR_NAV_GROUPS: SidebarNavGroup[] = [
   { label: "Tags", tables: ["tag", "tag_default_interaction"] },
   { label: "Realms", tables: ["realm", "realm_tag_manifestation"] },
-  { label: "Awakeners", tables: ["awakener", "awakener_tag_manifestation", "manifestation_interaction_override"] },
+  { label: "Awakeners", tables: ["awakener", "awakener_tag_manifestation", "awakener_local_manifestation_interaction"] },
   { label: "Wheels", tables: ["wheel", "wheel_tag_manifestation"] },
   { label: "Covenants", tables: ["covenant", "covenant_stat_set", "covenant_tag_manifestation"] },
   { label: "Posse", tables: ["posse", "posse_tag_manifestation"] },

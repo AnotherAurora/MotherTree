@@ -79,7 +79,8 @@ export type Awakener = {
   enlightenment: number | null;
 };
 
-export type InteractionOverride = {
+/** Per-ATM local interaction row (table `awakener_local_manifestation_interaction`). */
+export type AwakenerLocalManifestationInteraction = {
   id: number;
   modifierTagId: number | null;
   modifierTagName: string;
@@ -89,6 +90,9 @@ export type InteractionOverride = {
   dependencyStat: AllStats | null;
   isDisabled: boolean;
 };
+
+/** @deprecated Use AwakenerLocalManifestationInteraction */
+export type InteractionOverride = AwakenerLocalManifestationInteraction;
 
 export type Manifestation = {
   id: number;
@@ -119,7 +123,7 @@ export type Manifestation = {
   requiredRealmId: number | null;
   requiredRealmId2: number | null;
   replacesManifestationId: number | null;
-  interactionOverrides: InteractionOverride[];
+  interactionOverrides: AwakenerLocalManifestationInteraction[];
   /**
    * Synthetic row from awakener total base stats (gear + DR + Special.Increase).
    * Acts as a modifier in interactions but is immune as an interaction subject/target.

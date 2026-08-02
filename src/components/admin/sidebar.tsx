@@ -33,7 +33,7 @@ const ICONS: Partial<Record<TableName, ComponentType<{ className?: string }>>> =
   desire_template: LayoutTemplate,
   awakener_tag_manifestation: Layers,
   tag_default_interaction: Zap,
-  manifestation_interaction_override: GitBranch,
+  awakener_local_manifestation_interaction: GitBranch,
   desire_demand: Database,
   path: GitBranch,
   desire_anchored_awakener: Anchor,

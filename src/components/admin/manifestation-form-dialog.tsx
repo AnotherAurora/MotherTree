@@ -19,10 +19,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
   getForeignKeyOptions,
-  listInteractionOverrides,
+  listAwakenerLocalManifestationInteractions,
   saveManifestationWithOverrides,
+  type AwakenerLocalManifestationInteractionInput,
   type ForeignKeyOption,
-  type InteractionOverrideInput,
 } from "@/lib/actions/crud";
 import { ENUM_VALUES } from "@/lib/database.types";
 import type { FieldConfig, TableConfig } from "@/lib/schema-config";
@@ -36,7 +36,7 @@ type ManifestationFormDialogProps = {
   onSuccess: () => void;
 };
 
-type OverrideDraft = InteractionOverrideInput & {
+type OverrideDraft = AwakenerLocalManifestationInteractionInput & {
   clientKey: string;
 };
 
@@ -125,7 +125,7 @@ export function ManifestationFormDialog({
     setLoadingOptions(true);
 
     const loadOverrides = isEditing
-      ? listInteractionOverrides(Number(record!.id)).then((result) => {
+      ? listAwakenerLocalManifestationInteractions(Number(record!.id)).then((result) => {
           if (result.success) {
             setOverrides(result.data.map(toOverrideDraft));
           } else {
@@ -215,7 +215,7 @@ export function ManifestationFormDialog({
 
   function updateOverride(
     clientKey: string,
-    field: keyof InteractionOverrideInput,
+    field: keyof AwakenerLocalManifestationInteractionInput,
     value: unknown,
   ) {
     setOverrides((current) =>
@@ -274,7 +274,7 @@ export function ManifestationFormDialog({
       payload[field.name] = value;
     }
 
-    const overridePayload: InteractionOverrideInput[] = overrides.map(
+    const overridePayload: AwakenerLocalManifestationInteractionInput[] = overrides.map(
       ({ clientKey: _clientKey, ...override }) => ({
         ...override,
         value_scalar:
@@ -385,7 +385,7 @@ export function ManifestationFormDialog({
     override: OverrideDraft,
     field: FieldConfig,
   ) {
-    const value = override[field.name as keyof InteractionOverrideInput];
+    const value = override[field.name as keyof AwakenerLocalManifestationInteractionInput];
 
     if (field.type === "foreignKey" && field.foreignKey) {
       return (
@@ -394,7 +394,7 @@ export function ManifestationFormDialog({
           onChange={(next) =>
             updateOverride(
               override.clientKey,
-              field.name as keyof InteractionOverrideInput,
+              field.name as keyof AwakenerLocalManifestationInteractionInput,
               next,
             )
           }
@@ -412,7 +412,7 @@ export function ManifestationFormDialog({
           onChange={(next) =>
             updateOverride(
               override.clientKey,
-              field.name as keyof InteractionOverrideInput,
+              field.name as keyof AwakenerLocalManifestationInteractionInput,
               next,
             )
           }
@@ -430,7 +430,7 @@ export function ManifestationFormDialog({
             onChange={(event) =>
               updateOverride(
                 override.clientKey,
-                field.name as keyof InteractionOverrideInput,
+                field.name as keyof AwakenerLocalManifestationInteractionInput,
                 event.target.checked,
               )
             }
@@ -450,7 +450,7 @@ export function ManifestationFormDialog({
           onChange={(event) =>
             updateOverride(
               override.clientKey,
-              field.name as keyof InteractionOverrideInput,
+              field.name as keyof AwakenerLocalManifestationInteractionInput,
               event.target.value === ""
                 ? null
                 : Number(event.target.value),

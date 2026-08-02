@@ -11,7 +11,7 @@ import {
   type Awakener,
   type DefaultInteraction,
   type GearStatContribution,
-  type InteractionOverride,
+  type AwakenerLocalManifestationInteraction,
   type Manifestation,
   type Layer,
   type PureBonusTarget,
@@ -454,12 +454,15 @@ async function loadOverridesForManifestations(
   supabase: SupabaseClient<Database>,
   manifestationIds: number[],
   tagsById: Record<number, Tag>,
-): Promise<Map<number, InteractionOverride[]>> {
-  const overridesByManifestationId = new Map<number, InteractionOverride[]>();
+): Promise<Map<number, AwakenerLocalManifestationInteraction[]>> {
+  const overridesByManifestationId = new Map<
+    number,
+    AwakenerLocalManifestationInteraction[]
+  >();
   if (manifestationIds.length === 0) return overridesByManifestationId;
 
   const overrideResult = await supabase
-    .from("manifestation_interaction_override")
+    .from("awakener_local_manifestation_interaction")
     .select(
       `
       id,
@@ -487,7 +490,7 @@ async function loadOverridesForManifestations(
     const modifierTag = parseTagRef(row.modifier_tag as TagRef);
     if (modifierTag) collectTags(tagsById, modifierTag);
 
-    const override: InteractionOverride = {
+    const override: AwakenerLocalManifestationInteraction = {
       id: row.id,
       modifierTagId: row.modifier_tag_id,
       modifierTagName: modifierTag?.tagName ?? "Unknown",
