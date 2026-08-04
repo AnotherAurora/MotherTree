@@ -35,7 +35,7 @@ export function isAttackerTagName(tagName: string): boolean {
   return tagName.startsWith("Attacker.");
 }
 
-/** Existence-gated sinks: interactions must not invent these without Layer A base. */
+/** Existence-gated targets: interactions must not invent these without Layer A base. */
 export function isAttackerOrDefenderTag(tagName: string): boolean {
   return (
     tagName.startsWith("Attacker.") || tagName.startsWith("Defender.")
@@ -44,7 +44,7 @@ export function isAttackerOrDefenderTag(tagName: string): boolean {
 
 /**
  * Amplify rows require Layer A / created-base presence.
- * Create rows (createsBase) may invent Support and Attacker/Defender sinks.
+ * Create rows (createsBase) may invent Support and Attacker/Defender targets.
  */
 export function requiresTargetBasePresence(
   interaction: DefaultInteraction,

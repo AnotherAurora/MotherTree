@@ -1,6 +1,6 @@
 ---
 name: Simulator Phased Plan
-overview: Path Carver–first roadmap. Phase 1–2c.1 done. Next is Phase 3 (manifestation-local override/unique_scaling/aftereffect + subject scheduling). Phase 4 ports math to desire_demand/radar/simulator, Calculation List layer breakdown, Corrosion/Embers Non-Active parent+descendants + name→id. Phase 5 smart recommend.
+overview: Path Carver–first roadmap. Phase 1–2c.1 done. Next is Phase 3a→3b→3c (schema/admin → unique_scaling → aftereffect + Layer B closure look-ahead). Phase 4 ports math to desire_demand/radar/simulator, Calculation List layer breakdown, Corrosion/Embers Non-Active parent+descendants + name→id. Phase 5 smart recommend.
 todos:
   - id: seed-data
     content: Create scripts/seed-simulator-data.ts with 2-3 desires, demand rows, anchored awakeners; add npm script
@@ -41,8 +41,14 @@ todos:
   - id: remove-layer-final-enum
     content: Phase 2c.1 — Remove leftover layer enum value final (datapatch any final→post_add; recreate enum type with pre_add/add/post_add only; swap columns; regenerate types) without losing tag.layer data
     status: completed
-  - id: manifestation-local-interactions
-    content: Phase 3 — Manifestation-local modes override/unique_scaling/aftereffect (creates_base, target_tag_id, layer); attached-manifestation scope; local wins; aftereffect after post_add by mode (no final layer); deferred global amplify; deterministic subject order
+  - id: phase-3a-local-interaction-schema-admin
+    content: Phase 3a — Schema/admin for awakener_local_manifestation_interaction (mode, layer, target_tag_id, target_type NOT NULL default aoe, label-swap UI, backfill); loaders/types; no engine behavior change beyond loading new fields
+    status: pending
+  - id: phase-3b-unique-scaling
+    content: Phase 3b — unique_scaling patch/invent in subject path; local layer wins; modifier aggregation; defaults value_scalar=1 op=multiply_one_plus; smokes invent/patch/disable
+    status: pending
+  - id: phase-3c-aftereffect-layer-b
+    content: Phase 3c — aftereffect emit/merge math; restructure Layer B; creates_base closure look-ahead deferred create/amplify Option A; Bleed kit smoke; Special still last
     status: pending
   - id: layer-breakdown-ui
     content: Phase 4 — Wire Summary / Calculation List to show layer-by-layer breakdown
@@ -60,7 +66,7 @@ todos:
     content: Phase 4 — Wire simulator Summary to desire_demand fulfillment
     status: pending
   - id: fix-corrosion-embers-nonactive
-    content: Phase 4 — Special Corrosion/Embers Non-Active capacity = parent + descendants; rewire conversion/debuff/capacity/sinks from tag names to tag ids
+    content: Phase 4 — Special Corrosion/Embers Non-Active capacity = parent + descendants; rewire conversion/debuff/capacity/targets from tag names to tag ids
     status: pending
 isProject: false
 ---
@@ -71,14 +77,14 @@ isProject: false
 
 Path Carver’s **Review Tags** page is the primary surface for testing recommendation math. Simulator Start / Recommend / radar / `desire_demand` fulfillment come **after** Path Carver math stabilizes (Phase 4); the simulator will copy Path Carver logic.
 
-| Focus now (2c.1 → 3)                                                                               | Later (Phase 4+)                                   |
-| -------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
-| Path Carver Review Tags apply + aggregation + interactions                                         | Simulator radar / fulfillment UI                   |
-| Pass-order layers + `awakener_local_manifestation_interaction` rename (2c)                                        | Full `desire_demand` scoring / curves              |
-| Manifestation-local unique_scaling / aftereffect + subject scheduling (3)                          | Port math into Simulator page                      |
-| `dependency_stat` scalar scaling + leaf-gated `buff_target_type_restriction` (2b, done)           | Smart search / recommend optimization              |
-| Layer pass order (2c) + drop leftover `final` enum via recreate (2c.1)                             | Calculation List layer breakdown                   |
-| Special Corrosion/Embers (exact Non-Active; keyed by name)                                         | Non-Active parent+descendants + wire by tag id     |
+| Focus now (2c.1 → 3a→3b→3c)                                                         | Later (Phase 4+)                               |
+| --------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| Path Carver Review Tags apply + aggregation + interactions                              | Simulator radar / fulfillment UI               |
+| Pass-order layers + `awakener_local_manifestation_interaction` rename (2c)              | Full `desire_demand` scoring / curves          |
+| Manifestation-local unique_scaling / aftereffect + subject scheduling (3a→3c)           | Port math into Simulator page                  |
+| `dependency_stat` scalar scaling + leaf-gated `buff_target_type_restriction` (2b, done) | Smart search / recommend optimization          |
+| Layer pass order (2c) + drop leftover `final` enum via recreate (2c.1)                  | Calculation List layer breakdown               |
+| Special Corrosion/Embers (exact Non-Active; keyed by name)                              | Non-Active parent+descendants + wire by tag id |
 
 ---
 
@@ -97,18 +103,18 @@ Path Carver’s **Review Tags** page is the primary surface for testing recommen
 
 ### Not done (next work)
 
-| Area                                       | Status                                                                                                                      |
-| ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------- |
-| `target_type` apply rules                  | Loaded and shown in debug; **not applied** in aggregation                                                                   |
-| Interaction application                    | `tag_default_interaction` + overrides loaded in `TeamData` but **not applied**                                              |
-| `dependency_stat` → `value_scalar`         | **Phase 2b done** — ATM/covenant/wheel/override scaled; posse + team/enemy max HP ignored                                   |
-| `buff_target_type_restriction` leaf-gating | **Phase 2b done** — materialize-then-amplify + `creates_base` / `amplifies_subject`; Option B subject `source_type` context |
-| Pass-order damage layers                   | **Phase 2c done**                                                                                                           |
-| Remove leftover `layer.final` enum value       | **Phase 2c.1 done**                                                                                                     |
-| Manifestation-local unique_scaling / aftereffect | Deferred to Phase 3                                                                                                   |
-| Calculation List layer breakdown           | Deferred to Phase 4                                                                                                         |
-| Simulator using Path Carver math           | Port in Phase 4                                                                                                             |
-| Corrosion/Embers Non-Active + wiring       | Deferred to Phase 4 — parent+descendants capacity; rewire name→id                                             |
+| Area                                             | Status                                                                                                                      |
+| ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------- |
+| `target_type` apply rules                        | Loaded and shown in debug; **not applied** in aggregation                                                                   |
+| Interaction application                          | `tag_default_interaction` + overrides loaded in `TeamData` but **not applied**                                              |
+| `dependency_stat` → `value_scalar`               | **Phase 2b done** — ATM/covenant/wheel/override scaled; posse + team/enemy max HP ignored                                   |
+| `buff_target_type_restriction` leaf-gating       | **Phase 2b done** — materialize-then-amplify + `creates_base` / `amplifies_subject`; Option B subject `source_type` context |
+| Pass-order damage layers                         | **Phase 2c done**                                                                                                           |
+| Remove leftover `layer.final` enum value         | **Phase 2c.1 done**                                                                                                         |
+| Manifestation-local unique_scaling / aftereffect | Deferred to Phase 3a→3c                                                                                               |
+| Calculation List layer breakdown                 | Deferred to Phase 4                                                                                                         |
+| Simulator using Path Carver math                 | Port in Phase 4                                                                                                             |
+| Corrosion/Embers Non-Active + wiring             | Deferred to Phase 4 — parent+descendants capacity; rewire name→id                                                           |
 
 ---
 
@@ -131,10 +137,10 @@ Interactions **can chain** across **multiple passes** (e.g. Increase Gain → Su
 
 ### Existence gate + `creates_base` / `amplifies_subject`
 
-| Flag / target                                                | Rule                                                                                                                                                                                                                                                            |
-| ------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **`creates_base = true`** (with `amplifies_subject = false`) | Modifier **materializes** target as a synthetic base (Phase 1). May invent Support **and** Attacker/Defender sinks. Writes into a synthetic channel (`*team*`), never into existing subject owner buckets. Example: Fiamma → Final Damage; Generate → Tentacle. |
-| **`amplifies_subject = true`** (with `creates_base = false`) | Apply once per matching **existing** subject (Phase 2). Target must be Layer A or created-base present. Example: STR Up → each Active Damage; Increase Gain must not invent STR Up.                                                                             |
+| Flag / target                                                | Rule                                                                                                                                                                                                                                                              |
+| ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **`creates_base = true`** (with `amplifies_subject = false`) | Modifier **materializes** target as a synthetic base (Phase 1). May invent Support **and** Attacker/Defender targets. Writes into a synthetic channel (`*team*`), never into existing subject owner buckets. Example: Fiamma → Final Damage; Generate → Tentacle. |
+| **`amplifies_subject = true`** (with `creates_base = false`) | Apply once per matching **existing** subject (Phase 2). Target must be Layer A or created-base present. Example: STR Up → each Active Damage; Increase Gain must not invent STR Up.                                                                               |
 
 Intended pairs only (XOR). Same polarity is soft-warned in admin. Defaults: `creates_base=false`, `amplifies_subject=true`.
 
@@ -218,7 +224,7 @@ debuff -= lost
 damage_tag += lost * 3
 ```
 
-Phase 2a implements these Special conversions alongside interaction ops (interaction rows for this behavior are gone). Non-Active capacity currently uses the **exact** parent tag only — provisional. **Phase 4** (1) rewires conversion gate, debuff, Active, Tentacle, Non-Active **parent**, and Corrosion/Embers damage sinks to **numeric tag id** constants (same pattern as Death Resist / Keyflare — ids are the contract); (2) widens Non-Active capacity to **parent id + descendants** (look up parent `tag_name` from `tagsById`, then prefix-sum children — do not hardcode Poison Damage ids). Do **not** roll child sinks into the parent via `tag_default_interaction` (keeps Poison Trigger scoped to its own sink). Active Damage and Tentacle capacity stay exact (by id). Prefix gates (`Attacker.*` / `Defender.*`) and interaction target prefix matching stay name-based.
+Phase 2a implements these Special conversions alongside interaction ops (interaction rows for this behavior are gone). Non-Active capacity currently uses the **exact** parent tag only — provisional. **Phase 4** (1) rewires conversion gate, debuff, Active, Tentacle, Non-Active **parent**, and Corrosion/Embers damage targets to **numeric tag id** constants (same pattern as Death Resist / Keyflare — ids are the contract); (2) widens Non-Active capacity to **parent id + descendants** (look up parent `tag_name` from `tagsById`, then prefix-sum children — do not hardcode Poison Damage ids). Do **not** roll child targets into the parent via `tag_default_interaction` (keeps Poison Trigger scoped to its own target). Active Damage and Tentacle capacity stay exact (by id). Prefix gates (`Attacker.*` / `Defender.*`) and interaction target prefix matching stay name-based.
 
 ### Manifestation-local interactions (current vs planned)
 
@@ -226,7 +232,7 @@ Phase 2a implements these Special conversions alongside interaction ops (interac
 
 **Phase 2c:** rename table → `awakener_local_manifestation_interaction` (behavior unchanged aside from pass-order layers).
 
-**Phase 3:** expand into manifestation-local `unique_scaling` / `aftereffect` (see Phase 3).
+**Phase 3:** expand into manifestation-local `unique_scaling` / `aftereffect` (no stored `override` mode — see Phase 3).
 
 ---
 
@@ -382,11 +388,11 @@ When `dependency_stat` is non-null, the row’s `value_scalar` is **stat-depende
 
 **Scope:** `dependency_rate` / `dependency_rate_stat` / `pure_bonus_target` and the rate-scaled / two-row Fiesta rules apply to **`realm_tag_manifestation` only**. Other tables use `dependency_stat` multiply only (posse ignores it).
 
-| Table                                                                                   | Scalar column  | Notes                                                 |
-| --------------------------------------------------------------------------------------- | -------------- | ----------------------------------------------------- |
-| `awakener_tag_manifestation` / `covenant_tag_manifestation` / `wheel_tag_manifestation` | `value_scalar` | scale when `dependency_stat` set                      |
-| `awakener_local_manifestation_interaction` (was `manifestation_interaction_override` until 2c)          | `value_scalar` | same formula (renamed from `override_default_factor`) |
-| `posse_tag_manifestation`                                                               | `value_scalar` | **ignore** `dependency_stat`                          |
+| Table                                                                                          | Scalar column  | Notes                                                 |
+| ---------------------------------------------------------------------------------------------- | -------------- | ----------------------------------------------------- |
+| `awakener_tag_manifestation` / `covenant_tag_manifestation` / `wheel_tag_manifestation`        | `value_scalar` | scale when `dependency_stat` set                      |
+| `awakener_local_manifestation_interaction` (was `manifestation_interaction_override` until 2c) | `value_scalar` | same formula (renamed from `override_default_factor`) |
+| `posse_tag_manifestation`                                                                      | `value_scalar` | **ignore** `dependency_stat`                          |
 
 ```text
 rate_mult   = 2 when pure_bonus_target = dependency_rate and team is pure, else 1
@@ -787,17 +793,17 @@ No `unique_scaling` / `aftereffect` / subject-scheduling behavior in this phase 
 
 ### Renames (locked)
 
-| Current | New | Notes |
-| --- | --- | --- |
-| Table `manifestation_interaction_override` | `awakener_local_manifestation_interaction` | Drop “override”; rows will mean more than patches in Phase 3. Update schema-config, types, CRUD, loaders, admin sidebar label. FK already targets `awakener_tag_manifestation` only. |
-| Type / helpers `InteractionOverride` | `AwakenerLocalManifestationInteraction` (or keep alias briefly) | Align TS names with table. |
-| DB enum `layer` values `x` / `y` / `z` (/ `f`) | `pre_add` / `add` / `post_add` | Three pass bands only. See migration order below. |
+| Current                                        | New                                                             | Notes                                                                                                                                                                                |
+| ---------------------------------------------- | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Table `manifestation_interaction_override`     | `awakener_local_manifestation_interaction`                      | Drop “override”; rows will mean more than patches in Phase 3. Update schema-config, types, CRUD, loaders, admin sidebar label. FK already targets `awakener_tag_manifestation` only. |
+| Type / helpers `InteractionOverride`           | `AwakenerLocalManifestationInteraction` (or keep alias briefly) | Align TS names with table.                                                                                                                                                           |
+| DB enum `layer` values `x` / `y` / `z` (/ `f`) | `pre_add` / `add` / `post_add`                                  | Three pass bands only. See migration order below.                                                                                                                                    |
 
-| Enum value | Old | Pass meaning |
-| --- | --- | --- |
-| `pre_add` | `x` | Multiplies / presence **before** the additive band |
-| `add` | `y` | `add_scaled` band |
-| `post_add` | `z` | Multiplies **after** flats |
+| Enum value | Old | Pass meaning                                       |
+| ---------- | --- | -------------------------------------------------- |
+| `pre_add`  | `x` | Multiplies / presence **before** the additive band |
+| `add`      | `y` | `add_scaled` band                                  |
+| `post_add` | `z` | Multiplies **after** flats                         |
 
 ### Migration order (locked)
 
@@ -810,16 +816,16 @@ Do **not** rename `tag_default_interaction` in this phase.
 
 ### Locked engine decisions
 
-| # | Decision |
-| --- | --- |
-| 1 | **Pass sort key = modifier tag `layer` only.** Target tag layer does not affect when a rule fires. |
-| 2 | **Null / layer ranks:** `pre_add=0`, `add=1`, `null=1` (same band as `add`), `post_add=2`. Within the same rank: `add_scaled` before other ops, then interaction `id`. |
-| 3 | **No `final` layer.** Aftereffects are Phase 3 mode timing after `post_add`. |
-| 4 | **Keep materialize-then-amplify outer pipeline.** Layer order replaces `opPriority` **inside** each interaction list (unrestricted creates; per-subject restricted creates + amplify). Do **not** flatten creates and amplifies into one layer-sorted bag. |
-| 5 | **Multi-pass until stable unchanged:** each pass still reapplies the full ordered list from base (`INTERACTION_MAX_PASSES` model). Layers only change sort order within that list. |
-| 6 | **Override changing `math_operation` does not move the pass.** Timing still follows the matched default interaction’s **modifier tag layer**. |
-| 7 | **Special conversions (Corrosion / Ancient Embers) run once after all layer interaction passes** (same as today — after the interaction loop, not interleaved by layer). |
-| 8 | **Review Tags math debug** shows the resolved **layer** on interaction steps in 2c (not deferred to Phase 4 Calculation List). |
+| #   | Decision                                                                                                                                                                                                                                                   |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | **Pass sort key = modifier tag `layer` only.** Target tag layer does not affect when a rule fires.                                                                                                                                                         |
+| 2   | **Null / layer ranks:** `pre_add=0`, `add=1`, `null=1` (same band as `add`), `post_add=2`. Within the same rank: `add_scaled` before other ops, then interaction `id`.                                                                                     |
+| 3   | **No `final` layer.** Aftereffects are Phase 3 mode timing after `post_add`.                                                                                                                                                                               |
+| 4   | **Keep materialize-then-amplify outer pipeline.** Layer order replaces `opPriority` **inside** each interaction list (unrestricted creates; per-subject restricted creates + amplify). Do **not** flatten creates and amplifies into one layer-sorted bag. |
+| 5   | **Multi-pass until stable unchanged:** each pass still reapplies the full ordered list from base (`INTERACTION_MAX_PASSES` model). Layers only change sort order within that list.                                                                         |
+| 6   | **Override changing `math_operation` does not move the pass.** Timing still follows the matched default interaction’s **modifier tag layer**.                                                                                                              |
+| 7   | **Special conversions (Corrosion / Ancient Embers) run once after all layer interaction passes** (same as today — after the interaction loop, not interleaved by layer).                                                                                   |
+| 8   | **Review Tags math debug** shows the resolved **layer** on interaction steps in 2c (not deferred to Phase 4 Calculation List).                                                                                                                             |
 
 ### Scope
 
@@ -830,7 +836,7 @@ Do **not** rename `tag_default_interaction` in this phase.
 - Review Tags Scalar Sum math debug: show layer on steps
 - Smoke: `scripts/smoke-phase-2c.ts` (or extend 2b smokes) with a **concrete fixture** — fixed inputs and expected step order and/or totals proving `pre_add` before `add` before `post_add` (include a former-`f` tag now on `post_add`, e.g. Crit Damage)
 - Path Carver Review Tags remains the validation surface
-- Out of scope: `unique_scaling` / `aftereffect` modes, `creates_base` on local rows, `target_tag_id`, inter-subject scheduling, full Calculation List UI
+- Out of scope: `unique_scaling` / `aftereffect` modes, inter-subject scheduling, full Calculation List UI
 
 ### Primary files / blast radius
 
@@ -909,89 +915,404 @@ Run the migration in **one transaction**. Do **not** truncate or recreate `tag` 
 
 ### Goal
 
-Expand `awakener_local_manifestation_interaction` so it is not only a patch on the global rulebook: it can define **`unique_scaling`** (local modifier→target without a default row) and **`aftereffect`** (emit a new base tag from a finished subject value), with clear attachment scope, precedence, and scheduling.
+Expand `awakener_local_manifestation_interaction` beyond patch-only behavior: **`unique_scaling`** covers both inventing a local modifier→target link and patching an existing `tag_default_interaction` (engine infers which), and **`aftereffect`** emits `op(finished(S), factor)` into another tag and merges via `tag.is_additive` — with clear attachment scope, precedence, and scheduling.
 
 ### Why this is a separate phase
 
-Pass letters alone do not solve invent-without-default, create-from-final-value, or “all bleed applies before bleed trigger.” Those need modes, extra columns, and a subject pipeline with deferred global amplify. `aftereffect` is **mode-timed** (after subject `post_add`), not a fourth layer — a `final` layer would be redundant with the mode.
+Pass letters alone do not solve invent-without-default, create-from-final-value, or “all bleed applies before bleed trigger.” Those need modes, a subject pipeline, and **creates_base closure look-ahead** deferred create/amplify.
+
+### Implementation split (locked)
+
+| Subphase | Depends on | Deliverable |
+| --- | --- | --- |
+| **3a** | 2c.1 | Schema + admin + backfill + loaders/types — **no engine math change** beyond loading new fields |
+| **3b** | 3a | `unique_scaling` patch/invent in existing subject path (local layer, modifier aggregation, defaults) |
+| **3c** | 3b | Aftereffect emit/merge + **restructure Layer B** + closure look-ahead deferred create/amplify (Option A) |
+
+Shared design locks below apply to all three; each subphase has its own scope and acceptance.
+
+---
 
 ### Schema expansions (locked direction)
 
-Add (names may refine in migration):
+Add / use (names may refine in migration):
 
-| Column / concept | Purpose |
-| --- | --- |
-| `mode` (or equivalent) | `override` \| `unique_scaling` \| `aftereffect` |
-| `creates_base` / `amplifies_subject` | Mirror rulebook XOR intent for local modes (or encode via `mode`) |
-| `target_tag_id` | Required for `unique_scaling` / `aftereffect` (what to scale or materialize) |
-| `layer` | Pass timing for `override` / `unique_scaling` only (`pre_add`/`add`/`post_add`). **Null / unused for `aftereffect`** (timing comes from mode). |
-| Existing factor / op / `is_disabled` / `modifier_tag_id` | Keep; semantics depend on mode |
+| Column / concept                                                                               | Purpose                                                                                                                                      |
+| ---------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `mode`                                                                                         | `unique_scaling` \| `aftereffect` only — **no `override` mode**                                                                              |
+| `layer`                                                                                        | Used by **both** modes (`pre_add` / `add` / `post_add`)                                                                                      |
+| `modifier_tag_id`                                                                              | **unique_scaling only** — the modifier tag. Null for `aftereffect`.                                                                          |
+| `target_tag_id`                                                                                | **aftereffect only** — the apply-into / target tag (e.g. `Attacker.Bleed` stack — not Bleed Damage directly). Null for `unique_scaling` (apply target is the parent manifestation’s tag). |
+| Existing `math_operation` / `value_scalar` / `is_disabled` / `dependency_stat` / `target_type` | Keep; semantics depend on mode. **`target_type` NOT NULL; default `aoe`**. Mode-specific defaults for `value_scalar` / op — see below. |
+
+**Do not add** `creates_base` / `amplifies_subject` on local rows — **`mode` is enough**.
+
+**Column usage by mode (locked):**
+
+| Mode             | `modifier_tag_id`   | `target_tag_id`       | Apply target               |
+| ---------------- | ------------------- | --------------------- | -------------------------- |
+| `unique_scaling` | required (modifier) | **null**              | parent manifestation’s tag |
+| `aftereffect`    | **null**            | required (target tag) | `target_tag_id`            |
+
+**Backfill:** existing local rows → `mode = 'unique_scaling'`; keep `modifier_tag_id`; `target_tag_id` null; set `layer` from the modifier tag’s layer when null, if needed; set `target_type = 'aoe'` where null.
 
 **Modes:**
 
-1. **`override`** — current behavior: patch matching `tag_default_interaction` when modifier hits this manifestation as target.
-2. **`unique_scaling`** — define modifier→target op **without** requiring a default row (e.g. Shield → Active Damage `add_scaled`). Scoped to the attached manifestation only. Uses `layer` for pass order among `pre_add`/`add`/`post_add`.
-3. **`aftereffect`** — after the attached subject finishes through `post_add`, materialize `target_tag_id` from **this subject’s** finished value. Scheduled by **mode**, not by layer. Example: Active Damage → Non-Active Damage.Bleed.
+1. **`unique_scaling`** — row attached to the **target** manifestation (`manifestation_id`). Apply target = parent manifestation’s tag. `modifier_tag_id` required; `target_tag_id` null. Fires in the row’s `layer` band while resolving that target subject.
+2. **`aftereffect`** — row attached to the **source** subject manifestation. Finished subject value (after that subject completes through `post_add`) is the **source finished value** for emit math. `target_tag_id` = apply target tag (required); `modifier_tag_id` null. Emit + merge math is **not** the same as `tag_default_interaction`’s `applyMathOp(before, …)` — see **Aftereffect math** below. Write scope follows row **`target_type`** (required; default **`aoe`** — not null). Typical Bleed kits write to **`Attacker.Bleed`** (stack); `creates_base` Bleed → Bleed Damage and Bleed Trigger are scheduled via **closure look-ahead** (below) so Trigger amplifies Bleed Damage, not the Bleed stack. Contributions merge via `tag.is_additive` with **`isCreatedBase` synthetics** for tags in the closure. Among a subject’s aftereffect rows, order by `layer` (`pre_add` → `add` → `post_add`).
+
+### Aftereffect math (locked)
+
+Aftereffect does **not** use `applyMathOp(before, modifierValue, factor, op)`. `before` (the target tag’s current total) never enters the op. Merge with any existing total uses **`tag.is_additive` only** — aftereffect does not change `is_additive` and does not branch on “was there already a base for this tag?”
+
+**Two steps:**
+
+```text
+factor = effectiveOverrideFactor(local row)
+  // value_scalar required in admin; default 1
+  // dependency_stat scales against the source ATM’s awakener
+
+contribution = op(finished(S), factor)   // op does not see before
+
+newTotal = combineSameTagScalar(
+  before, contribution, tag.is_additive, tag.is_percent
+)
+```
+
+**Ops (finished ↔ factor only):**
+
+| `math_operation` | contribution | Aftereffect dropdown |
+| --- | --- | --- |
+| `multiply` (**default**) | `finished(S) * factor` | yes |
+| `add_scaled` | `finished(S) + factor` | yes |
+| `multiply_one_plus` | — | **removed** |
+| `presence_multiply` | — | **removed** |
+
+**Admin:** `value_scalar` required for aftereffect; default **1**. Op dropdown for aftereffect mode only lists `multiply` and `add_scaled`.
+
+**Not aftereffect math:** multi-writer / multi-base combine policy stays on **`tag.is_additive`**. Do not invent an aftereffect-specific “absent base vs skip” path.
+
+### Admin UI: single tag dropdown + label-swap (locked)
+
+- Show **one** tag dropdown at a time — never both `modifier_tag_id` and `target_tag_id` fields together.
+- Label switches by mode: **“Modifier Tag”** when `unique_scaling`, **“Target Tag”** when `aftereffect`.
+- Writes go to the **matching column**; the other column stays **null**.
+- On **mode switch:** move the selected tag id into the newly active column and **null** the unused column (preserve the user’s pick when possible).
+- Soft-warn / validate: exactly one of the two columns set, matching mode.
+
+### unique_scaling: patch vs invent (inferred — locked)
+
+One stored mode; one resolver. Do **not** store `override` as a mode.
+
+```text
+Local unique_scaling row on manifestation M (tag T), modifier_tag_id = Mod, layer = L
+(target_tag_id is null)
+
+If a tag_default_interaction exists for Mod → T
+  (same matching rules as today: exact modifier, prefix target, exclusion):
+  → PATCH that link for this manifestation only (local wins: op / factor / disable / target_type / layer / etc.)
+Else:
+  → INVENT Mod → T for this manifestation only from the local row’s op / factor / layer
+```
+
+Admin UI may **display** “override” vs “invent” from “default found?”, but must not require the user to pick a separate override mode.
+
+Disable-only: matching default + `is_disabled` → cut the link for this manifestation; no default + disabled → no-op.
+
+**unique_scaling admin defaults (locked):**
+
+| Field | Default | Notes |
+| --- | --- | --- |
+| `value_scalar` | **1** | Required in admin; scaled by parent ATM awakener `dependency_stat` via `effectiveOverrideFactor` when set |
+| `math_operation` | **`multiply_one_plus`** | Full op dropdown for unique_scaling (includes `multiply_one_plus`, `add_scaled`, `multiply`, `presence_multiply`) — unlike aftereffect |
+
+### unique_scaling: modifier aggregation (locked)
+
+Local attachment narrows **which target row** receives the op — **not** which modifier values feed it.
+
+For invent or patch (e.g. Shield → that Active Damage manifestation):
+
+| Side | Rule |
+| --- | --- |
+| **Target** | Only the attached manifestation (its owner + tag). Narrower than `target_type = self` on a global rule. |
+| **Modifier** | Reuse global interaction rules: `collectModifierManifestations(Mod)` + self / non-self split via each modifier manifestation’s effective `target_type` + `combineTagAcrossOwners` / **`tag.is_additive`**. |
+
+Do **not** invent a “only this awakener’s Shield” rule unless a Shield manifestation is itself `target_type = self`. Local row `target_type` (required; default `aoe`) constrains **write scope on the target**, not which modifier totals contribute.
+
+### unique_scaling: layer timing (locked)
+
+**When** unique_scaling fires on the **target** subject path is controlled by the local row’s `layer`:
+
+| Local `layer` | Pass band on target path |
+| --- | --- |
+| set (`pre_add` / `add` / `post_add`) | **that** band — **local wins** over modifier tag `tag.layer` |
+| null | fall back to **modifier tag** `tag.layer` (null modifier layer → same band as `add`, as in 2c) |
+
+This **supersedes** Phase 2c “override does not move the pass” for unique_scaling local rows.
+
+**unique_scaling does not grow the modifier.** It has no separate pass that increases Shield (or any Mod). Mod is resolved by its own subjects / interactions first; unique_scaling only **reads** the current Mod total when the target’s chosen band runs, then applies Mod → that target row.
+
+**Example:**
+
+```text
+Shield base 10
+Shield increase (+100%) → Shield = 20     // Shield’s own math — not unique_scaling
+
+Damage ATM unique_scaling: modifier = Shield, local layer = add
+  in Damage’s add band: read Shield = 20 → Damage += 20 (per op/factor)
+```
+
+Even if `Defender.Shield`’s tag layer is `pre_add`, local `add` wins for **when** the link applies on Damage. Shield’s value is already 20 by then; unique_scaling does not re-run Shield increase.
 
 ### Locked decisions
 
-| # | Decision |
-| --- | --- |
-| 1 | **Local always wins** over global `tag_default_interaction` for the same link (op, factor, disable, unique_scaling vs default). No merge; local replaces. |
-| 2 | **`unique_scaling` scope = attached manifestation only** — smaller than `target_type = self`. Self affects all same-owner tags matching the target; unique_scaling applies only to the **single attached manifestation row** (as modifier and/or as the sole target subject, per mode). |
-| 3 | **`aftereffect`** merges into the **team pool** for the emitted tag (e.g. team Bleed total), not a private path-only sink that never joins the pool. |
-| 4 | **Deferred global trigger:** after all subjects’ `aftereffect` rows for the relevant family have run, run global amplifies that target the emitted tag (e.g. Bleed Trigger). Do not run that global amplify inside a single subject’s local path in a way that “saves” trigger until foreign aftereffects finish. |
-| 5 | **Local binding:** an `aftereffect` on manifestation A uses **A’s** finished value at emit time. It must not defer A’s value to wait for other subjects’ aftereffects. |
-| 6 | **Subject order:** deterministic (e.g. stable by tag id / manifestation id). Out of scope for this phase: combinatorial “order that maximizes total” across interdependent damage subjects. |
-| 7 | Special Corrosion / Embers stay hardcoded post-pass (Phase 4 cleanup); do not fold them into `awakener_local_manifestation_interaction` here. |
-| 8 | `buff_target_type_restriction` on local rows remains optional/later; gate `unique_scaling` / `aftereffect` with existing fields first unless a concrete row needs it. |
-| 9 | **No `final` layer** — pass bands are only `pre_add`/`add`/`post_add`; `aftereffect` runs after subject `post_add` by mode. |
+| #   | Decision                                                                                                                                                                                                                                |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | **Modes are only `unique_scaling` and `aftereffect`.** Patch vs invent for scaling is inferred from whether `tag_default_interaction` exists.                                                                                           |
+| 2   | **`target_tag_id` exists for aftereffect only.** unique_scaling apply-target is always the parent manifestation’s tag (`target_tag_id` null).                                                                                           |
+| 3   | **No `creates_base` / `amplifies_subject` on local rows** — mode is enough.                                                                                                                                                             |
+| 4   | **Both modes use `layer`.** unique_scaling: local `layer` sets the target-path band (null → modifier tag `layer`); aftereffects run after source `post_add`, ordered by their `layer`. |
+| 5   | **`unique_scaling` attachment = target manifestation.** Sole target row scaled (narrower than `target_type = self`). `modifier_tag_id` = modifier tag.                                                                                  |
+| 6   | **`aftereffect`:** `target_tag_id` = apply target (Bleed kits: prefer **Bleed** stack, not Bleed Damage); finished parent = source finished value; `modifier_tag_id` null; required `target_type` (default `aoe`); merge via `is_additive` + `isCreatedBase` synthetics; Trigger via closure look-ahead. |
+| 7   | **UI label-swap** as above — one dropdown, mode-dependent label, writes to different columns.                                                                                                                                           |
+| 8   | **Local always wins** when a matching default exists. When no default exists, invent from the local row.                                                                                                                                |
+| 9   | **Deferred scheduling (Option A — implement):** look-ahead closure from aftereffect targets through `creates_base` edges; hold amplifies (and deferred creates along those edges) until aftereffects have written; then create hop(s) then amplifies once on combined bases. Before Special. Approximation — see below. |
+| 10  | **Local binding:** aftereffect on A uses **A’s** finished value at emit time.                                                                                                                                                           |
+| 11  | **Subject order:** deterministic — `slotIndex` → `awakenerId` → `tagId` → `manifestation.id`. Out of scope: combinatorial max-damage order. |
+| 12  | Special Corrosion / Embers stay hardcoded post-pass (Phase 4).                                                                                                                                                                          |
+| 13  | `buff_target_type_restriction` on local rows remains optional/later.                                                                                                                                                                    |
+| 14  | **No `final` layer** — only `pre_add` / `add` / `post_add`.                                                                                                                                                                             |
+| 15  | **Aftereffect emit:** `contribution = op(finished(S), factor)`; `before` is not in the op. Default op `multiply` → `finished * factor`; `add_scaled` → `finished + factor`. |
+| 16  | **Aftereffect factor:** `value_scalar` required (admin default **1**); scaled by source ATM awakener `dependency_stat` via `effectiveOverrideFactor`. |
+| 17  | **Aftereffect merge:** always `combineSameTagScalar` / **`tag.is_additive`** (unchanged). No aftereffect-specific combine; no invent-0-vs-skip branch. |
+| 18  | **Aftereffect op dropdown:** only `multiply` and `add_scaled`. Remove `multiply_one_plus` and `presence_multiply` for this mode. |
+| 19  | **unique_scaling modifier aggregation:** target scope = attached manifestation only; modifier totals reuse global Shield/self/`combineTagAcrossOwners` rules. Local `target_type` does not shrink the modifier pool. |
+| 20  | **Look-ahead closure (not bare target_tag_id):** `S0` = this team’s aftereffect `target_tag_id`s; expand via `creates_base` defaults whose **modifier exact-matches** a tag in S; deferred amplifies = `amplifies_subject` whose target matches any tag in S. |
+| 21  | **Restructure Layer B:** shared aftereffect/deferred state + sequential subjects (see below). No new stage after Layer B — Special stays end of Layer B; aggregate pipeline still ends at `applyInteractions`. |
+| 22  | **Local `target_type`:** NOT NULL; admin required; DB/admin default **`aoe`**. Backfill existing nulls → `aoe`. No null write-scope branch. |
+| 23  | **unique_scaling layer:** local `layer` wins for target-path timing; null → modifier tag `layer`. Does **not** grow Mod — reads current Mod total when the band runs (e.g. Shield 10→20 via increase, then add-band unique_scaling adds 20 to Damage). Supersedes 2c override pass timing for local rows. |
+| 24  | **Synthetics + create hop:** aftereffects merge into direct targets via `is_additive` + `isCreatedBase`; then deferred **`creates_base`** along closure edges (Bleed → Bleed Damage) on combined stacks; then deferred amplifies run against those synthetics like normal subjects. Bleed Trigger does not multiply the Bleed stack. |
+| 25  | **unique_scaling defaults:** `value_scalar` default **1**; `math_operation` default **`multiply_one_plus`**. (Aftereffect keeps default op **`multiply`** and excludes `multiply_one_plus` / `presence_multiply` from its dropdown.) |
+| 26  | **Combined before Trigger:** all aftereffect contributions that feed a closure sink are merged (`is_additive`) before deferred create/amplify — Bleed Damage totals sum before Bleed Trigger hits once (Option A). |
 
-### Evaluation sketch (Bleed family)
+### Layer B pipeline reshape (locked — implement in **3c**)
+
+Today Layer B (`applyInteractions`) is: unrestricted creates → **isolated per-subject** cohort runs (merge finished subject values only) → Special. Aftereffects need **shared write state**, so Phase 3 explicitly restructures Layer B (not a new outer layer).
+
+**Nothing after Layer B** in Path Carver aggregation today (`aggregate-tag-scalars` ends at `applyInteractionsForTeamData`). Phase 3 keeps that: reshape **inside** Layer B only.
+
+**Restructured Layer B:**
 
 ```text
+0. Look-ahead: build closure set S from this team’s aftereffect target_tag_ids
+   + creates_base edges (exact modifier match) — see below
+   Pull amplifies_subject targeting any tag in S out of the per-subject loop
+   Pull creates_base edges used in the closure out of the early unrestricted/subject create path
+   when they are needed for aftereffect sinks (Bleed → Bleed Damage)
+
+1. Other unrestricted creates_base (unchanged) → synthetics / *team* merge as today
+
+2. Shared owner totals (aftereffect sinks + deferred create/amplify live here)
+
+3. For each subject S in deterministic order
+   (slotIndex → awakenerId → tagId → manifestation.id):
+     run S’s path: pre_add → add → post_add
+       defaults + unique_scaling on S (local layer wins; null → modifier tag layer; read current Mod — do not grow Mod)
+       do NOT run amplifies whose target is in S
+     subject isolation still applies to S’s own finished value (cohort as needed)
+     after S finished post_add:
+       run S’s aftereffect rows (by layer) → write into shared totals via is_additive
+       keep/update isCreatedBase synthetic for the direct aftereffect target
+
+4. Deferred Option A (closure):
+   a. deferred creates_base along closure edges on combined stacks
+      (e.g. Bleed → Bleed Damage synthetic)
+   b. deferred amplifies_subject targeting tags in S once
+      against those synthetics (modifier tag.layer order)
+      e.g. Bleed Trigger → Bleed Damage — not onto Bleed stack
+
+5. Special Corrosion / Ancient Embers (still last inside Layer B)
+```
+
+Subject path stays per-subject for finishing S; aftereffect + deferred create/amplify use **shared** totals across subjects. Max-damage subject-order search remains out of scope (Phase 5).
+
+### Deferred amplify — closure look-ahead (locked — Option A; implement in **3c**)
+
+**Not** “family = bare aftereffect `target_tag_id` only.” Bleed kits aftereffect into the **Bleed stack**; Trigger targets **Bleed Damage** via a `creates_base` hop so Trigger does not inflate total Bleed.
+
+**Look-ahead scan (before / at start of Layer B subject loop):**
+
+```text
+S0 = { target_tag_id of every aftereffect on applied manifestations this team }
+
+S = S0
+repeat until fixpoint:
+  for each creates_base tag_default_interaction
+    whose modifier_tag_id exact-matches some tag in S:
+      add that interaction’s target tag id(s) to S
+      // e.g. Attacker.Bleed → Attacker.Non-Active Damage.Bleed Damage
+
+Deferred amplifies = amplifies_subject whose target match set
+  intersects S (exact modifier / prefix target / exclusion as today)
+
+Deferred creates = the creates_base edges used to expand S0 → S
+```
+
+**Example (Bleed):**
+
+```text
+Aftereffect target_tag_id = Attacker.Bleed
+S0 = { Bleed }
+creates_base: Bleed → Bleed Damage  →  S = { Bleed, Bleed Damage }
+Deferred amplifies include Bleed Trigger → Bleed Damage
+(Bleed Trigger is NOT deferred merely because it “sounds related” —
+ it is deferred because Bleed Damage ∈ S)
+```
+
+**Synthetics:** Aftereffect contributions merge into the **direct** target (Bleed) via `tag.is_additive` + `isCreatedBase`. Deferred `creates_base` then builds/updates the **Bleed Damage** synthetic from the **combined** Bleed stack. Deferred amplifies run against those synthetics **like normal subjects** — not a one-off raw-totals write.
+
+**Implement (Option A — approximation):**
+
+```text
+Look-ahead → S, deferred amplifies, deferred creates
+
+For each subject S (deterministic order):
+  finish S through post_add (+ unique_scaling; no amplifies targeting tags in S)
+  run S’s aftereffect rows (by layer)
+    → merge into aftereffect target via is_additive + synthetic
+  do NOT run Bleed Trigger (or other deferred amplifies) here
+
+After all aftereffects into S0 tags are done:
+  run deferred creates_base along closure edges on combined stacks
+    (Bleed → Bleed Damage once from summed Bleed)
+  run deferred amplifies targeting tags in S once
+    (modifier tag.layer order; e.g. Trigger on combined Bleed Damage)
+Then Special Corrosion / Embers
+```
+
+**Combined before Trigger:** all aftereffect Bleed contributions merge first; one Bleed → Bleed Damage create from that stack; Bleed Trigger hits **once** on that Bleed Damage total. Trigger never multiplies the Bleed stack itself.
+
+Accepted tradeoff: can **overstate** vs true sequential per-subject trigger. Good enough for Phase 3 / recommend ranking for now.
+
+**Correct behavior (record only — do not implement in Phase 3):**
+
+Effects attached to a tag fire **immediately in sequence** after that tag finishes. Example: 3 ATMs each with aftereffects (bleed, then trigger-bleed) should process ATM1 bleed→trigger, then ATM2 bleed→trigger, then ATM3 — so trigger strength / application grows per subject. Applying all bleeds first then one trigger yields a **higher, incorrect** value. Revisit sequential scheduling later if recommend discrimination on Bleed/Trigger kits is poor.
+
+### Evaluation sketch (Bleed closure — Option A)
+
+```text
+Look-ahead: aftereffect → Bleed; creates_base Bleed → Bleed Damage;
+  defer amplifies of {Bleed, Bleed Damage} (incl. Bleed Trigger → Bleed Damage)
+
 For each damage subject S (deterministic order):
   run S through pre_add → add → post_add
-    using cohort available now + local unique_scaling rows scoped to S / attached modifiers
-  run S’s aftereffect rows immediately (mode-timed, not a layer)
-    → emit into team pool (e.g. Bleed)
-  do not run global Bleed-trigger amplify here
+    applying unique_scaling rows whose target manifestation is S (by each row’s layer)
+  after S finished post_add:
+    run S’s aftereffect rows ordered by layer
+      contribution = op(finished(S), factor) → merge into Bleed via tag.is_additive
+      honor target_type; keep/update Bleed isCreatedBase synthetic
+  do not run Bleed Trigger here
 
-After all subjects’ aftereffects for this family:
-  run global amplifies targeting the emitted tag (Bleed Trigger, etc.)
+After all subjects’ aftereffects into Bleed:
+  creates_base Bleed → Bleed Damage from combined Bleed
+  Bleed Trigger amplifies Bleed Damage synthetic once
+Then Special
 ```
 
 ### Worked examples (acceptance narrative)
 
-1. **`unique_scaling` (Shield):** `awakener_local_manifestation_interaction` on a specific Defender.Shield manifestation defines Shield → Active Damage `add_scaled`. Only that Shield row participates as modifier; not every Shield tag on the owner (`self` would be wider). Local unique_scaling wins if a global Shield→Damage row also exists.
-2. **`aftereffect` Bleed:** Active Damage manifestation has aftereffect → Non-Active Damage.Bleed, factor from finished damage after `post_add`. Value merges into **team Bleed** total.
-3. **Two damage subjects + trigger:** Each emits Bleed into the team pool via aftereffect; Bleed Trigger (global amplify) runs **once after both** aftereffects. Neither subject’s local row parks a trigger until the other finishes.
+1. **`unique_scaling` invent (Shield → Damage):** row on a specific **Active Damage** manifestation; `modifier_tag_id` = Defender.Shield; `target_tag_id` null; no matching default → invent onto **that** damage row only. Modifier value = team Shield combined via existing self/non-self + `is_additive` rules (not “owner’s Shield only” unless Shield rows are `self`). Local `layer = add` fires in Damage’s add band using already-increased Shield (e.g. 10→20), not a unique_scaling pass that grows Shield.
+2. **`unique_scaling` patch:** same shape; matching default exists → local fields replace the default for that manifestation only.
+3. **`aftereffect` Bleed:** row on Active Damage; `mode = aftereffect`; `target_tag_id` = `Attacker.Bleed` (not Bleed Damage); `modifier_tag_id` null; default `multiply`; after Damage finishes `post_add`, `contribution = finished(S) * factor`, merge into Bleed via `tag.is_additive`; look-ahead pulls Bleed → Bleed Damage create and Bleed Trigger into the deferred bucket.
+4. **Two damage subjects + trigger (Option A):** each aftereffect merges into Bleed via `is_additive`; then one Bleed → Bleed Damage from the **combined** Bleed stack; Bleed Trigger amplifies that Bleed Damage **once** (approximation — not per-subject sequential trigger). Trigger does not multiply the Bleed stack.
 
-### Scope
+### Phase 3a — Schema + admin + backfill
 
-- Schema + admin for modes / `target_tag_id` / `layer` (for override/unique_scaling) / `creates_base` (as needed)
-- Engine: `unique_scaling` + mode-timed `aftereffect`; resolve without requiring a default row when mode is `unique_scaling` or `aftereffect`
-- Subject pipeline + team-pool aftereffect + deferred global amplify
-- Precedence: local always wins
-- Scope: attached manifestation only for `unique_scaling`
-- Debug: which local rows fired, at which pass/mode step, from which manifestation
-- Out of scope: desire_demand / radar port, Calculation List UI polish, Corrosion/Embers capacity/id rewire, true max-damage search over subject permutations
+**Depends on:** 2c.1.
 
-### Acceptance criteria (outline)
+**Goal:** Land columns, constraints, admin UI, backfill, and typed loaders so 3b/3c can consume local rows. **Do not** change interaction engine math beyond reading the new fields (existing override/patch-only behavior may keep working via `mode = unique_scaling` backfill).
 
-- [ ] `unique_scaling` works with no matching `tag_default_interaction`
-- [ ] `unique_scaling` affects only the attached manifestation (not full `self` owner set)
-- [ ] When local and global disagree, local result is used
-- [ ] `aftereffect` runs after subject `post_add` (by mode), uses finished value, merges into team pool
-- [ ] Global amplify of emitted tag runs after all relevant aftereffects (Bleed apply then Bleed trigger)
-- [ ] Subject order is deterministic and documented
-- [ ] Review Tags debug shows local `unique_scaling` / `aftereffect` steps
+**Scope:**
+
+- Migration: `mode` enum (`unique_scaling` \| `aftereffect`); `layer` on local rows; `target_tag_id`; `target_type` NOT NULL default `aoe`; nullability by mode (`modifier_tag_id` / `target_tag_id`)
+- Backfill: existing rows → `unique_scaling`; `target_tag_id` null; `layer` from modifier tag when null; `target_type = aoe` where null
+- Admin: mode field; single tag dropdown + label-swap; mode switch migrates selection; aftereffect op dropdown limited; unique_scaling full ops; defaults per mode
+- schema-config, types, CRUD, `loadTeamData` / local interaction loader
+- Soft-warn / validate mode vs columns
+- Out of scope: unique_scaling invent engine, aftereffect emit, Layer B reshape, deferred amplify
+
+**Acceptance:**
+
+- [ ] No stored `override` mode; only `unique_scaling` and `aftereffect`
+- [ ] `target_tag_id` present; unique_scaling keeps it null; aftereffect requires it and nulls `modifier_tag_id`
+- [ ] Admin shows one tag dropdown; label Modifier vs Target by mode; writes to the correct column
+- [ ] Mode switch migrates selection into the active column and nulls the other
+- [ ] No local `creates_base` / `amplifies_subject`
+- [ ] Both modes can store `layer`; local `target_type` NOT NULL; default `aoe`; backfill null → `aoe`
+- [ ] unique_scaling admin defaults: `value_scalar` = 1, `math_operation` = `multiply_one_plus`
+- [ ] aftereffect admin defaults: `value_scalar` = 1, `math_operation` = `multiply`; no `multiply_one_plus` / `presence_multiply` in aftereffect dropdown
+- [ ] Types/loaders expose new fields; app compiles; existing Review Tags path still runs
+
+---
+
+### Phase 3b — unique_scaling engine
+
+**Depends on:** 3a.
+
+**Goal:** Apply `unique_scaling` patch vs invent on the **existing** per-subject Layer B path (no aftereffect scheduling, no Layer B reshape yet).
+
+**Scope:**
+
+- Infer patch vs invent from matching `tag_default_interaction`; local wins; disable-only rules
+- Target scope = attached manifestation only; modifier aggregation = global Shield/self/`combineTagAcrossOwners`
+- Local `layer` wins for target-path timing; null → modifier tag `layer`; do not grow Mod
+- Review Tags debug: inferred patch vs invent, layer
+- Smokes: invent Shield→Damage; patch; disable + matching default / no default
+- Out of scope: aftereffect emit, shared aftereffect state, closure look-ahead, deferred create/amplify
+
+**Acceptance:**
+
+- [ ] `unique_scaling` invents when no matching default exists; patches (local wins) when one does — including `is_disabled`
+- [ ] `unique_scaling` affects only the attached target manifestation; modifier aggregation reuses global self/non-self + `combineTagAcrossOwners`
+- [ ] unique_scaling local `layer` wins for target-path timing; null → modifier tag `layer`; does not grow Mod (reads current Mod when band runs)
+- [ ] Review Tags debug shows unique_scaling steps (inferred patch vs invent)
+- [ ] Smoke fixtures for invent / patch / disable
+
+---
+
+### Phase 3c — aftereffect + Layer B reshape + deferred amplify
+
+**Depends on:** 3b.
+
+**Goal:** Aftereffect emit/merge math; restructure Layer B for shared aftereffect state + sequential subjects; **creates_base closure look-ahead** deferred create then amplify (Option A). Special stays last inside Layer B.
+
+**Scope:**
+
+- Aftereffect: `op(finished, factor)` then `tag.is_additive`; factor via source ATM `effectiveOverrideFactor`; required `target_type`
+- `isCreatedBase` synthetics for aftereffect targets; deferred creates along closure edges; deferred amplifies against synthetics
+- Look-ahead: S0 = aftereffect targets → expand via `creates_base` (exact modifier match) → defer amplifies intersecting S + those create edges
+- Bleed kit: aftereffect → Bleed → combined → Bleed Damage create → Trigger once on Bleed Damage
+- Subject order: `slotIndex` → `awakenerId` → `tagId` → `manifestation.id`
+- Debug: aftereffect contributions, look-ahead closure set
+- Smokes: one-subject aftereffect; two-subject Bleed + Trigger (Option A)
+- Out of scope: desire_demand / radar / Calculation List; Corrosion/Embers rewire; max-damage subject search; **per-subject sequential trigger (record only above)**
+
+**Acceptance:**
+
+- [ ] `aftereffect` emit: `op(finished(S), factor)` with default `multiply`; merge via `tag.is_additive`; factor from required `value_scalar` (default 1) + source ATM dep_stat
+- [ ] `aftereffect` runs after source `post_add`, ordered by `layer`; required `target_type` honored; `isCreatedBase` synthetics for aftereffect targets
+- [ ] Look-ahead closure: S0 = aftereffect targets; expand via creates_base (exact modifier match); defer amplifies whose target intersects S; defer those creates_base edges
+- [ ] Bleed kit path: aftereffect → Bleed → combined → creates_base Bleed Damage → Bleed Trigger once on Bleed Damage (Trigger does not multiply Bleed stack)
+- [ ] Layer B restructured: shared aftereffect totals; subjects sequential by documented order; Special still last inside Layer B
+- [ ] Subject order deterministic and documented (`slotIndex` → `awakenerId` → `tagId` → `manifestation.id`)
+- [ ] Review Tags debug shows aftereffect steps + look-ahead closure
+- [ ] Smoke: two-subject Bleed + Trigger (Option A combined-before-trigger)
 
 ---
 
 ## Phase 4 — desire_demand, radar, simulator port
 
-**Depends on:** Stable Path Carver math (through Phase 3 preferably; through 2c minimum).
+**Depends on:** Stable Path Carver math (through Phase **3c** preferably; through 2c minimum).
 
 ### Goal
 
@@ -1002,20 +1323,20 @@ Port Path Carver–validated totals into simulator / desire scoring surfaces, wi
 - Wire Path Carver–validated totals into `desire_demand` fulfillment / curves
 - Simulator radar fulfillment % (copy math from Path Carver; not raw unfiltered sums)
 - Radar fulfillment % uses **simulated output** for demand tags (not raw scalar sums) once layer engine exists
-- Wire **Summary / Calculation List** to show **layer-by-layer** breakdown (`pre_add` / `add` / `post_add`; aftereffects shown as a post-`post_add` mode step, not a layer)
+- Wire **Summary / Calculation List** to show **layer-by-layer** breakdown (`pre_add` / `add` / `post_add`; aftereffects shown after subject `post_add`, ordered by their `layer`)
 - Simulator Summary panel against real fulfillment
 - Generate / Recommend continue to use shared engine once ported
 - Fix Corrosion / Ancient Embers (see below)
 
 ### Fix Corrosion / Ancient Embers
 
-**Problem (capacity):** Special conversion Non-Active capacity uses the exact parent tag only (`sumTeamTag` on that id in [`apply-interactions.ts`](src/lib/path-carver/apply-interactions.ts)). Child sinks such as `Attacker.Non-Active Damage.Poison Damage` (and later Bleed Damage, etc.) do not feed `×0.5` capacity.
+**Problem (capacity):** Special conversion Non-Active capacity uses the exact parent tag only (`sumTeamTag` on that id in [`apply-interactions.ts`](src/lib/path-carver/apply-interactions.ts)). Child targets such as `Attacker.Non-Active Damage.Poison Damage` (and later Bleed Damage, etc.) do not feed `×0.5` capacity.
 
-**Problem (wiring):** Phase 2a keys conversion gate, debuff, capacity sources, and damage sinks by **tag name** (`findTagIdByName` / `m.tagName ===`). Elsewhere (Death Resist, Keyflare, Tentacle base) the contract is **numeric tag id**.
+**Problem (wiring):** Phase 2a keys conversion gate, debuff, capacity sources, and damage targets by **tag name** (`findTagIdByName` / `m.tagName ===`). Elsewhere (Death Resist, Keyflare, Tentacle base) the contract is **numeric tag id**.
 
-**Fix (capacity):** Resolve Non-Active **parent by id**; Non-Active capacity term = that id’s total **plus** all descendants (look up parent `tag_name` from `tagsById`, prefix-sum children). Do **not** hardcode Poison Damage ids/names. Do **not** add `tag_default_interaction` rollups from child sinks into the parent (keeps Poison Trigger scoped). Active Damage and Tentacle capacity stay exact (by id).
+**Fix (capacity):** Resolve Non-Active **parent by id**; Non-Active capacity term = that id’s total **plus** all descendants (look up parent `tag_name` from `tagsById`, prefix-sum children). Do **not** hardcode Poison Damage ids/names. Do **not** add `tag_default_interaction` rollups from child targets into the parent (keeps Poison Trigger scoped). Active Damage and Tentacle capacity stay exact (by id).
 
-**Fix (wiring):** Replace name-string constants with numeric tag id constants for conversion gate, debuff, Active, Tentacle, Non-Active parent, and Corrosion/Embers damage sinks (same style as [`death-resist-trigger.ts`](src/lib/path-carver/death-resist-trigger.ts) / [`trigger-condition.ts`](src/lib/path-carver/trigger-condition.ts)). **Ids are the contract** — renaming a tag does not break conversion if the id is unchanged; changing an id without updating constants no-ops until constants are updated. Out of scope: `Attacker.*` / `Defender.*` prefix gates and DB-driven interaction target prefix matching.
+**Fix (wiring):** Replace name-string constants with numeric tag id constants for conversion gate, debuff, Active, Tentacle, Non-Active parent, and Corrosion/Embers damage targets (same style as [`death-resist-trigger.ts`](src/lib/path-carver/death-resist-trigger.ts) / [`trigger-condition.ts`](src/lib/path-carver/trigger-condition.ts)). **Ids are the contract** — renaming a tag does not break conversion if the id is unchanged; changing an id without updating constants no-ops until constants are updated. Out of scope: `Attacker.*` / `Defender.*` prefix gates and DB-driven interaction target prefix matching.
 
 ### Acceptance criteria (outline)
 
@@ -1062,6 +1383,8 @@ Path Carver upserts a single `desire_template` per `desire_id`.
 
 1. **Phase 2c** — modifier-layer pass order + rename to `awakener_local_manifestation_interaction` (DONE)
 2. **Phase 2c.1** — remove leftover `layer.final` via recreate-type migration (DONE)
-3. **Phase 3** — manifestation-local `unique_scaling` / mode-timed `aftereffect` + deferred global amplify
-4. **Phase 4** — desire_demand / radar / simulator port + Calculation List layer breakdown + Corrosion/Embers Non-Active parent+descendants capacity + name→id wiring
-5. **Phase 5** — Smart recommend / search
+3. **Phase 3a** — local interaction schema + admin + backfill (no engine math change)
+4. **Phase 3b** — `unique_scaling` patch/invent engine
+5. **Phase 3c** — aftereffect + Layer B reshape + creates_base closure look-ahead deferred create/amplify
+6. **Phase 4** — desire_demand / radar / simulator port + Calculation List layer breakdown + Corrosion/Embers Non-Active parent+descendants capacity + name→id wiring
+7. **Phase 5** — Smart recommend / search

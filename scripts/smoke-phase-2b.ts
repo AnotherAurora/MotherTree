@@ -446,7 +446,7 @@ console.log("presence_multiply leaves owner buckets for later self multipliers")
   );
 }
 
-console.log("Existence gate — Attacker/Defender sinks; Support synthesizable");
+console.log("Existence gate — Attacker/Defender targets; Support synthesizable");
 {
   const awakener = makeAwakener({ id: 1, atk: 100 });
   const awakenersById = buildAwakenersById([awakener]);
