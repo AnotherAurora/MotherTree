@@ -71,6 +71,12 @@ const EMBERS_DAMAGE = "Attacker.Ancient Embers Damage";
 type OwnerKey = string;
 type OwnerTotals = Map<OwnerKey, Map<number, number>>;
 
+/** Placeholder until Phase 1/2 stamps the owning subject path. */
+const UNSET_SUBJECT_KEY = "unset";
+const UNSET_SUBJECT_LABEL = "unset";
+const PHASE1_CREATE_SUBJECT_KEY = "phase1-create";
+const PHASE1_CREATE_SUBJECT_LABEL = "Phase 1 create (team)";
+
 export type ScalarMathStep =
   | {
       kind: "base";
@@ -82,6 +88,10 @@ export type ScalarMathStep =
       /** Raw value_scalar before dependency_stat scaling. */
       rawScalar: number;
       sourceLabel: string;
+      /** Subject path key (sourceKind:id) for debug regrouping. */
+      subjectKey: string;
+      /** Subject path display label for debug regrouping. */
+      subjectLabel: string;
     }
   | {
       kind: "op";
@@ -108,6 +118,10 @@ export type ScalarMathStep =
       leafContext?: SourceType | null;
       /** Modifier tag layer that drove pass order (Phase 2c). */
       layer: Layer | null;
+      /** Subject path key (sourceKind:id or phase1-create) for debug regrouping. */
+      subjectKey: string;
+      /** Subject path display label for debug regrouping. */
+      subjectLabel: string;
     }
   | {
       kind: "hitCount";
@@ -122,6 +136,10 @@ export type ScalarMathStep =
       after: number;
       /** Compact instances × copies note. */
       detail: string;
+      /** Subject path key (sourceKind:id) for debug regrouping. */
+      subjectKey: string;
+      /** Subject path display label for debug regrouping. */
+      subjectLabel: string;
     }
   | { kind: "special"; label: string; detail: string }
   | { kind: "total"; tagId: number; tagName: string; total: number };
@@ -534,6 +552,8 @@ function applyOpAndRecord(
     pass,
     effectSources,
     layer: modifierLayer,
+    subjectKey: UNSET_SUBJECT_KEY,
+    subjectLabel: UNSET_SUBJECT_LABEL,
     ...(buffRestrictionMet != null ? { buffRestrictionMet } : {}),
     ...(leafContext !== undefined ? { leafContext } : {}),
   });
@@ -802,6 +822,8 @@ function applyPresenceMultiplyOnce(
       pass,
       effectSources,
       layer: modifierLayer,
+      subjectKey: UNSET_SUBJECT_KEY,
+      subjectLabel: UNSET_SUBJECT_LABEL,
       ...(buffRestrictionMet != null ? { buffRestrictionMet } : {}),
       ...(leafContext !== undefined ? { leafContext } : {}),
     });
@@ -1468,6 +1490,7 @@ function runInteractionsForLeafContext(
       scalar,
     );
     if (options.recordBaseSteps) {
+      const sourceLabel = sourceLabelFor(m, options.awakenerNamesById);
       steps.push({
         kind: "base",
         tagId: m.tagId,
@@ -1475,7 +1498,9 @@ function runInteractionsForLeafContext(
         owner: ownerKeyFor(m),
         scalar,
         rawScalar: raw,
-        sourceLabel: sourceLabelFor(m, options.awakenerNamesById),
+        sourceLabel,
+        subjectKey: manifestationHitCountKey(m),
+        subjectLabel: sourceLabel,
       });
     }
   }
@@ -1674,6 +1699,7 @@ export function applyInteractions(
       scalarOpts,
     );
     if (scalar === 0) continue;
+    const sourceLabel = sourceLabelFor(m, input.awakenerNamesById);
     steps.push({
       kind: "base",
       tagId: m.tagId,
@@ -1681,7 +1707,9 @@ export function applyInteractions(
       owner: ownerKeyFor(m),
       scalar,
       rawScalar: raw,
-      sourceLabel: sourceLabelFor(m, input.awakenerNamesById),
+      sourceLabel,
+      subjectKey: manifestationHitCountKey(m),
+      subjectLabel: sourceLabel,
     });
   }
 
@@ -1771,7 +1799,11 @@ export function applyInteractions(
     for (const step of createResult.steps) {
       if (step.kind !== "op") continue;
       if (createTargetIds.has(step.tagId)) {
-        opSteps.push(step);
+        opSteps.push({
+          ...step,
+          subjectKey: PHASE1_CREATE_SUBJECT_KEY,
+          subjectLabel: PHASE1_CREATE_SUBJECT_LABEL,
+        });
       }
     }
   }
@@ -1798,6 +1830,8 @@ export function applyInteractions(
       const tag = input.tagsById[subject.tagId];
       const sourceLabel = sourceLabelFor(subject, input.awakenerNamesById);
 
+      const subjectKey = manifestationHitCountKey(subject);
+
       const pushHitCountStep = (finishedOnce: number) => {
         if (hitCount === 1 || finishedOnce === 0) return;
         hitCountSteps.push({
@@ -1810,6 +1844,8 @@ export function applyInteractions(
           hitCount,
           after: finishedOnce * hitCount,
           detail: formatHitCountDetail(subject, hitCount),
+          subjectKey,
+          subjectLabel: sourceLabel,
         });
       };
 
@@ -1869,7 +1905,11 @@ export function applyInteractions(
           step.tagId === subject.tagId ||
           step.buffRestrictionMet != null
         ) {
-          opSteps.push(step);
+          opSteps.push({
+            ...step,
+            subjectKey,
+            subjectLabel: sourceLabel,
+          });
         }
       }
     }

@@ -24,7 +24,7 @@ todos:
     content: Phase 2a — Attacker.* damage-dealer gate + target_type=self + interactions (exact modifier, target prefix, exclusion, multi-pass chain); filtered rows Applied=no in debug; no buff-restriction branching
     status: completed
   - id: buff-target-type-restriction
-    content: Phase 2b — dependency_stat → value_scalar (ATM/override/covenant/wheel; ignore posse + team/enemy max HP); then buff_target_type_restriction gated by leaf manifestation source_type (one calculation path; Scalar Sum math shows extra line only when restriction met)
+    content: Phase 2b — dependency_stat → value_scalar (ATM/override/covenant/wheel; ignore posse + team/enemy max HP); then buff_target_type_restriction gated by leaf manifestation source_type (one calculation path; Tag total math shows extra line only when restriction met)
     status: completed
   - id: keyflare-to-posse
     content: Phase 2b.4 — Support.Keyflare → Support.Create.Posse (cost 1000 + Special.Increase Posse Keyflare Cost; max 2; non-consuming; before Cause→When)
@@ -195,7 +195,7 @@ Renamed from the old `source_type` column on `tag_default_interaction` (oversigh
 - Restriction does **not** live on `awakener_local_manifestation_interaction` (renamed from `manifestation_interaction_override` in Phase 2c) for now (may be added later). Gate using `tag_default_interaction.buff_target_type_restriction` only.
 - Example: subject is an `Attacker.Active Damage` contribution with `source_type == command card`. Restricted `Support.Enhance → Support.Final Damage` **applies** as a scoped Final seed on this path; same seed with a tentacle subject **skips**. Downstream `Support.Final Damage → Attacker.Active Damage` (`amplifies_subject`) still applies when its other rules pass.
 - Review Tags tag list: still one scalar per tag for the current team calculation (no per-branch columns).
-- **Debug — Scalar Sum math:** if a restricted interaction **applied** (restriction met for this subject), show **one extra** calculation line; if skipped due to restriction, **no** extra line for that interaction.
+- **Debug — Tag total math:** if a restricted interaction **applied** (restriction met for this subject), show **one extra** calculation line; if skipped due to restriction, **no** extra line for that interaction.
 
 **Phase ownership:** `dependency_stat` → effective `value_scalar`, materialize-then-amplify, `creates_base` / `amplifies_subject`, and leaf-gated buff restriction are **Phase 2b** (redesigned). Phase 2a applied interactions without dependency scaling and without buff-restriction gating (2a ignored non-null restrictions — already implemented).
 
@@ -554,7 +554,7 @@ Same chain for a tentacle leaf → Enhance SKIPPED; no dual totals stored
 #### UI / debug
 
 - Review Tags tag list: **one** scalar per tag (no per-`source_type` columns, no dual-branch aggregates).
-- **Debug — Scalar Sum math** ([`review-tags-math-debug.tsx`](src/components/path-carver/review-tags-math-debug.tsx)): when a restricted interaction **applies** (restriction met for this leaf), emit **one extra** calculation line; when skipped due to restriction, **no** extra line. Existing debug layout otherwise unchanged.
+- **Debug — Tag total math** ([`review-tags-math-debug.tsx`](src/components/path-carver/review-tags-math-debug.tsx)): when a restricted interaction **applies** (restriction met for this leaf), emit **one extra** calculation line; when skipped due to restriction, **no** extra line. Existing debug layout otherwise unchanged.
 - Full Calculation List remains Phase 4.
 
 #### Implementation notes
@@ -582,7 +582,7 @@ Same chain for a tentacle leaf → Enhance SKIPPED; no dual totals stored
 - [x] Unrestricted interactions still apply under other 2a rules
 - [x] Leaf context is used for the whole chain (Enhance can affect Active Damage via Final Damage when leaf is command card)
 - [x] No dual-branch / parallel unmet totals computed or shown in the tag list
-- [x] Scalar Sum math: extra line only when restricted interaction applied; silent skip when unmet
+- [x] Tag total math: extra line only when restricted interaction applied; silent skip when unmet
 - [x] Overrides do not supply buff restriction in 2b
 
 ---
@@ -853,7 +853,7 @@ Do **not** rename `tag_default_interaction` in this phase.
 - Within a layer rank, keep locked `math_operation` / `is_percent` semantics
 - Datapatch former `f` → `z`/`post_add`, enum rename to three values, table rename
 - Regenerate types; update app / export / sample-data references
-- Review Tags Scalar Sum math debug: show layer on steps
+- Review Tags Tag total math debug: show layer on steps
 - Smoke: `scripts/smoke-phase-2c.ts` (or extend 2b smokes) with a **concrete fixture** — fixed inputs and expected step order and/or totals proving `pre_add` before `add` before `post_add` (include a former-`f` tag now on `post_add`, e.g. Crit Damage)
 - Path Carver Review Tags remains the validation surface
 - Out of scope: `unique_scaling` / `aftereffect` modes, inter-subject scheduling, full Calculation List UI
@@ -1376,7 +1376,7 @@ poolContrib     = effectiveScalar × instance_count   # provider pool only
 **Scope:**
 
 - Migration + types; schema-config; Copy Provider Groups nested members admin; loaders resolve members
-- Review Tags: Layer B on single-hit base, × hitCount at merge; Layer A–only paths × hitCount; debug + Scalar Sum special lines
+- Review Tags: Layer B on single-hit base, × hitCount at merge; Layer A–only paths × hitCount; debug + Tag total math special lines
 - Docs: admin manual + this plan
 - Out of scope: multi-group FKs; auto-match Create.\* by `source_type`; aftereffect emit loops (3c); unique_scaling invent (3b)
 
