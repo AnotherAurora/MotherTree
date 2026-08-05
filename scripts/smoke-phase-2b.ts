@@ -861,11 +861,15 @@ console.log("Subject-centric + creates_base / amplifies_subject regressions");
         interactionOverrides: [
           {
             id: 1,
+            mode: "unique_scaling",
             modifierTagId: strUp.id,
             modifierTagName: strUp.tagName,
+            targetTagId: null,
+            targetTagName: null,
+            layer: null,
             mathOperation: null,
             valueScalar: 10,
-            targetType: null,
+            targetType: "aoe",
             dependencyStat: null,
             isDisabled: false,
           },

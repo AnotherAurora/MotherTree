@@ -467,13 +467,17 @@ async function loadOverridesForManifestations(
       `
       id,
       manifestation_id,
+      mode,
       modifier_tag_id,
+      target_tag_id,
+      layer,
       math_operation,
       value_scalar,
       target_type,
       dependency_stat,
       is_disabled,
-      modifier_tag:tag!modifier_tag_id(id, tag_name, layer, is_percent, is_additive)
+      modifier_tag:tag!modifier_tag_id(id, tag_name, layer, is_percent, is_additive),
+      target_tag:tag!target_tag_id(id, tag_name, layer, is_percent, is_additive)
     `,
     )
     .in("manifestation_id", manifestationIds)
@@ -488,12 +492,18 @@ async function loadOverridesForManifestations(
     if (manifestationId == null) continue;
 
     const modifierTag = parseTagRef(row.modifier_tag as TagRef);
+    const targetTag = parseTagRef(row.target_tag as TagRef);
     if (modifierTag) collectTags(tagsById, modifierTag);
+    if (targetTag) collectTags(tagsById, targetTag);
 
     const override: AwakenerLocalManifestationInteraction = {
       id: row.id,
+      mode: row.mode,
       modifierTagId: row.modifier_tag_id,
       modifierTagName: modifierTag?.tagName ?? "Unknown",
+      targetTagId: row.target_tag_id,
+      targetTagName: targetTag?.tagName ?? null,
+      layer: row.layer,
       mathOperation: row.math_operation,
       valueScalar: row.value_scalar,
       targetType: row.target_type,

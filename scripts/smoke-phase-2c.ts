@@ -382,12 +382,16 @@ console.log("Part C — override op change does not move pass layer");
       interactionOverrides: [
         {
           id: 1,
+          mode: "unique_scaling",
           modifierTagId: postMod.id,
           modifierTagName: postMod.tagName,
+          targetTagId: null,
+          targetTagName: null,
+          layer: null,
           // Op override only — pass timing still follows modifier layer post_add.
           mathOperation: "add_scaled",
           valueScalar: null,
-          targetType: null,
+          targetType: "aoe",
           dependencyStat: null,
           isDisabled: false,
         },

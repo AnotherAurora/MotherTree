@@ -23,6 +23,22 @@ import {
   updateRecord,
   type ForeignKeyOption,
 } from "@/lib/actions/crud";
+import {
+  LOCAL_INTERACTION_COLUMN_MISMATCH_HINT,
+  UNIQUE_SCALING_TAG_AND_DEP_HINT,
+  activeTagLabel,
+  applyLocalInteractionModeSwitch,
+  getActiveTagId,
+  hasLocalInteractionColumnMismatch,
+  hasUniqueScalingTagAndDepHint,
+  isBaseStatUniqueScaling,
+  isLocalInteractionMode,
+  mathOperationsForMode,
+  normalizeLocalInteractionMode,
+  percentDisplayToValueScalar,
+  setActiveTagId,
+  valueScalarToPercentDisplay,
+} from "@/lib/admin-local-interaction";
 import { ENUM_VALUES } from "@/lib/database.types";
 import type { FieldConfig, TableConfig } from "@/lib/schema-config";
 import { getFormFields } from "@/lib/schema-config";
@@ -135,8 +151,30 @@ export function RecordFormDialog({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- avoid reset on parent re-render after create
   }, [formSessionKey]);
 
+  const isLocalInteraction =
+    config.name === "awakener_local_manifestation_interaction";
+  const localMode = isLocalInteraction
+    ? normalizeLocalInteractionMode(values.mode)
+    : null;
+
   function updateValue(name: string, value: unknown) {
-    setValues((current) => ({ ...current, [name]: value }));
+    setValues((current) => {
+      if (!isLocalInteraction) {
+        return { ...current, [name]: value };
+      }
+
+      if (name === "mode" && isLocalInteractionMode(value)) {
+        return applyLocalInteractionModeSwitch(current, value);
+      }
+
+      if (name === "modifier_tag_id" || name === "target_tag_id") {
+        const tagId =
+          value == null || value === "" ? null : Number(value);
+        return setActiveTagId(current, tagId);
+      }
+
+      return { ...current, [name]: value };
+    });
   }
 
   async function handleSubmit(event: React.FormEvent) {
@@ -177,6 +215,16 @@ export function RecordFormDialog({
       payload[field.name] = value;
     }
 
+    if (isLocalInteraction) {
+      if (hasLocalInteractionColumnMismatch(payload)) {
+        toast.error(LOCAL_INTERACTION_COLUMN_MISMATCH_HINT);
+        setLoading(false);
+        return;
+      }
+      payload.mode = normalizeLocalInteractionMode(payload.mode);
+      payload.target_type = payload.target_type || "aoe";
+    }
+
     const result = isEditing
       ? await updateRecord(config.name, Number(record!.id), payload)
       : await createRecord(config.name, payload);
@@ -196,8 +244,41 @@ export function RecordFormDialog({
     }
   }
 
+  function shouldRenderField(field: FieldConfig) {
+    if (isLocalInteraction && field.name === "target_tag_id") return false;
+    // Disable-only: engine ignores these; keep values in form state but hide controls.
+    if (
+      isLocalInteraction &&
+      Boolean(values.is_disabled) &&
+      (field.name === "layer" ||
+        field.name === "math_operation" ||
+        field.name === "value_scalar" ||
+        field.name === "target_type")
+    ) {
+      return false;
+    }
+    return true;
+  }
+
   function renderField(field: FieldConfig) {
     const value = values[field.name];
+
+    if (
+      isLocalInteraction &&
+      (field.name === "modifier_tag_id" || field.name === "target_tag_id")
+    ) {
+      const tagOptions =
+        fkOptions.modifier_tag_id ?? fkOptions.target_tag_id ?? [];
+      return (
+        <ForeignKeyCombobox
+          value={getActiveTagId(values)}
+          onChange={(next) => updateValue("modifier_tag_id", next)}
+          options={tagOptions}
+          disabled={loadingOptions}
+          placeholder={`Select ${activeTagLabel(localMode!).toLowerCase()}...`}
+        />
+      );
+    }
 
     if (field.type === "foreignKey" && field.foreignKey) {
       return (
@@ -212,11 +293,15 @@ export function RecordFormDialog({
     }
 
     if (field.type === "enum" && field.enumName) {
+      const options =
+        isLocalInteraction && field.name === "math_operation" && localMode
+          ? mathOperationsForMode(localMode)
+          : ENUM_VALUES[field.enumName];
       return (
         <EnumSelect
           value={value == null ? null : String(value)}
           onChange={(next) => updateValue(field.name, next)}
-          options={ENUM_VALUES[field.enumName]}
+          options={options}
         />
       );
     }
@@ -245,6 +330,27 @@ export function RecordFormDialog({
     }
 
     if (field.type === "number") {
+      if (
+        isLocalInteraction &&
+        field.name === "value_scalar" &&
+        isBaseStatUniqueScaling(values)
+      ) {
+        return (
+          <Input
+            type="number"
+            step="any"
+            value={valueScalarToPercentDisplay(
+              value == null || value === "" ? null : Number(value),
+            )}
+            onChange={(event) =>
+              updateValue(
+                field.name,
+                percentDisplayToValueScalar(event.target.value),
+              )
+            }
+          />
+        );
+      }
       return (
         <Input
           type="number"
@@ -273,16 +379,38 @@ export function RecordFormDialog({
   }
 
   function renderFieldLabel(field: FieldConfig) {
+    let label = field.label;
+    if (
+      isLocalInteraction &&
+      (field.name === "modifier_tag_id" || field.name === "target_tag_id") &&
+      localMode
+    ) {
+      label = activeTagLabel(localMode);
+    } else if (
+      isLocalInteraction &&
+      field.name === "value_scalar" &&
+      isBaseStatUniqueScaling(values)
+    ) {
+      label = "Value Scalar (%)";
+    }
+
+    const requireAsterisk =
+      field.required ||
+      (isLocalInteraction &&
+        localMode === "aftereffect" &&
+        (field.name === "modifier_tag_id" || field.name === "target_tag_id"));
+
     return (
       <Label htmlFor={field.name}>
-        {field.label}
-        {field.required ? " *" : ""}
+        {label}
+        {requireAsterisk ? " *" : ""}
       </Label>
     );
   }
 
   function renderFieldGroup(group: FormFieldGroup) {
     if (group.kind === "full") {
+      if (!shouldRenderField(group.field)) return null;
       return (
         <div key={group.field.name} className="space-y-2">
           {renderFieldLabel(group.field)}
@@ -291,12 +419,15 @@ export function RecordFormDialog({
       );
     }
 
+    const visible = group.fields.filter(shouldRenderField);
+    if (visible.length === 0) return null;
+
     return (
       <div
-        key={group.fields.map((field) => field.name).join("-")}
+        key={visible.map((field) => field.name).join("-")}
         className="grid gap-3 sm:grid-cols-2"
       >
-        {group.fields.map((field) => (
+        {visible.map((field) => (
           <div key={field.name} className="space-y-2">
             {renderFieldLabel(field)}
             {renderField(field)}
@@ -317,6 +448,20 @@ export function RecordFormDialog({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {isLocalInteraction &&
+            hasLocalInteractionColumnMismatch(values) && (
+              <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                {LOCAL_INTERACTION_COLUMN_MISMATCH_HINT}
+              </p>
+            )}
+          {isLocalInteraction &&
+            !hasLocalInteractionColumnMismatch(values) &&
+            hasUniqueScalingTagAndDepHint(values) && (
+              <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                {UNIQUE_SCALING_TAG_AND_DEP_HINT}
+              </p>
+            )}
+
           {groupFormFields(getFormFields(config)).map(renderFieldGroup)}
 
           <div className="flex items-center gap-2 pt-2">

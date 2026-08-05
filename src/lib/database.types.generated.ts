@@ -120,10 +120,13 @@ export type Database = {
           dependency_stat: Database["public"]["Enums"]["all_stats"] | null
           id: number
           is_disabled: boolean | null
+          layer: Database["public"]["Enums"]["layer"] | null
           manifestation_id: number | null
           math_operation: Database["public"]["Enums"]["operation_type"] | null
+          mode: Database["public"]["Enums"]["awakener_local_interaction_mode"]
           modifier_tag_id: number | null
-          target_type: Database["public"]["Enums"]["target_type"] | null
+          target_tag_id: number | null
+          target_type: Database["public"]["Enums"]["target_type"]
           updated_at: string | null
           value_scalar: number | null
         }
@@ -133,10 +136,13 @@ export type Database = {
           dependency_stat?: Database["public"]["Enums"]["all_stats"] | null
           id?: number
           is_disabled?: boolean | null
+          layer?: Database["public"]["Enums"]["layer"] | null
           manifestation_id?: number | null
           math_operation?: Database["public"]["Enums"]["operation_type"] | null
+          mode?: Database["public"]["Enums"]["awakener_local_interaction_mode"]
           modifier_tag_id?: number | null
-          target_type?: Database["public"]["Enums"]["target_type"] | null
+          target_tag_id?: number | null
+          target_type?: Database["public"]["Enums"]["target_type"]
           updated_at?: string | null
           value_scalar?: number | null
         }
@@ -146,14 +152,24 @@ export type Database = {
           dependency_stat?: Database["public"]["Enums"]["all_stats"] | null
           id?: number
           is_disabled?: boolean | null
+          layer?: Database["public"]["Enums"]["layer"] | null
           manifestation_id?: number | null
           math_operation?: Database["public"]["Enums"]["operation_type"] | null
+          mode?: Database["public"]["Enums"]["awakener_local_interaction_mode"]
           modifier_tag_id?: number | null
-          target_type?: Database["public"]["Enums"]["target_type"] | null
+          target_tag_id?: number | null
+          target_type?: Database["public"]["Enums"]["target_type"]
           updated_at?: string | null
           value_scalar?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "awakener_local_manifestation_interaction_target_tag_id_fkey"
+            columns: ["target_tag_id"]
+            isOneToOne: false
+            referencedRelation: "tag"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "manifestation_interaction_override_manifestation_id_fkey"
             columns: ["manifestation_id"]
@@ -1335,6 +1351,7 @@ export type Database = {
         | "team_max_hp"
         | "enemy_max_hp"
         | "base_aliemus"
+      awakener_local_interaction_mode: "unique_scaling" | "aftereffect"
       curve_type: "linear" | "exponential" | "logarithmic"
       desire_type: "general" | "specific"
       layer: "pre_add" | "add" | "post_add"
@@ -1502,6 +1519,7 @@ export const Constants = {
         "enemy_max_hp",
         "base_aliemus",
       ],
+      awakener_local_interaction_mode: ["unique_scaling", "aftereffect"],
       curve_type: ["linear", "exponential", "logarithmic"],
       desire_type: ["general", "specific"],
       layer: ["pre_add", "add", "post_add"],

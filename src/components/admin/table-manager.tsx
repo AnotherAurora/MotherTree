@@ -41,7 +41,9 @@ import type { FieldConfig, TableConfig } from "@/lib/schema-config";
 import { getListFields } from "@/lib/schema-config";
 import {
   CREATES_AMPLIFY_CONFLICT_HINT,
+  LOCAL_INTERACTION_COLUMN_MISMATCH_HINT,
   hasCreatesAmplifyConflict,
+  hasLocalInteractionColumnMismatch,
 } from "@/lib/admin-form-warnings";
 import { cn } from "@/lib/utils";
 
@@ -564,17 +566,25 @@ export function TableManager({
                       config.name === "tag_default_interaction" &&
                       !isDeleted &&
                       hasCreatesAmplifyConflict(record);
+                    const localColumnMismatch =
+                      config.name ===
+                        "awakener_local_manifestation_interaction" &&
+                      !isDeleted &&
+                      hasLocalInteractionColumnMismatch(record);
+                    const rowWarn = flagConflict || localColumnMismatch;
                     return (
                       <tr
                         key={String(record.id)}
                         className={cn(
                           isDeleted && "bg-zinc-50 text-zinc-400",
-                          flagConflict && "bg-amber-50",
+                          rowWarn && "bg-amber-50",
                         )}
                         title={
                           flagConflict
                             ? CREATES_AMPLIFY_CONFLICT_HINT
-                            : undefined
+                            : localColumnMismatch
+                              ? LOCAL_INTERACTION_COLUMN_MISMATCH_HINT
+                              : undefined
                         }
                         onDoubleClick={() => {
                           if (!showDeletedOnly && !isDeleted) {

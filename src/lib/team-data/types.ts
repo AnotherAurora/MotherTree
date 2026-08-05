@@ -79,14 +79,21 @@ export type Awakener = {
   enlightenment: number | null;
 };
 
+export type AwakenerLocalInteractionMode =
+  Database["public"]["Enums"]["awakener_local_interaction_mode"];
+
 /** Per-ATM local interaction row (table `awakener_local_manifestation_interaction`). */
 export type AwakenerLocalManifestationInteraction = {
   id: number;
+  mode: AwakenerLocalInteractionMode;
   modifierTagId: number | null;
   modifierTagName: string;
+  targetTagId: number | null;
+  targetTagName: string | null;
+  layer: Layer | null;
   mathOperation: OperationType | null;
   valueScalar: number | null;
-  targetType: TargetType | null;
+  targetType: TargetType;
   dependencyStat: AllStats | null;
   isDisabled: boolean;
 };

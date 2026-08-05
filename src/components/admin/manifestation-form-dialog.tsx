@@ -24,6 +24,23 @@ import {
   type AwakenerLocalManifestationInteractionInput,
   type ForeignKeyOption,
 } from "@/lib/actions/crud";
+import {
+  LOCAL_INTERACTION_COLUMN_MISMATCH_HINT,
+  UNIQUE_SCALING_TAG_AND_DEP_HINT,
+  activeTagLabel,
+  applyLocalInteractionModeSwitch,
+  createEmptyLocalInteractionValues,
+  getActiveTagId,
+  hasLocalInteractionColumnMismatch,
+  hasUniqueScalingTagAndDepHint,
+  isBaseStatUniqueScaling,
+  isLocalInteractionMode,
+  mathOperationsForMode,
+  normalizeLocalInteractionMode,
+  percentDisplayToValueScalar,
+  setActiveTagId,
+  valueScalarToPercentDisplay,
+} from "@/lib/admin-local-interaction";
 import { ENUM_VALUES } from "@/lib/database.types";
 import type { FieldConfig, TableConfig } from "@/lib/schema-config";
 import { getFormFields } from "@/lib/schema-config";
@@ -52,12 +69,16 @@ function getInitialValues(
 }
 
 function createEmptyOverride(): OverrideDraft {
+  const defaults = createEmptyLocalInteractionValues();
   return {
     clientKey: crypto.randomUUID(),
+    mode: defaults.mode!,
     modifier_tag_id: null,
-    math_operation: null,
-    value_scalar: null,
-    target_type: null,
+    target_tag_id: null,
+    layer: null,
+    math_operation: defaults.math_operation!,
+    value_scalar: defaults.value_scalar!,
+    target_type: defaults.target_type!,
     dependency_stat: null,
     is_disabled: false,
   };
@@ -67,13 +88,20 @@ function toOverrideDraft(row: Record<string, unknown>): OverrideDraft {
   return {
     clientKey: `existing-${String(row.id)}`,
     id: Number(row.id),
+    mode: normalizeLocalInteractionMode(row.mode),
     modifier_tag_id:
       row.modifier_tag_id == null ? null : Number(row.modifier_tag_id),
+    target_tag_id:
+      row.target_tag_id == null ? null : Number(row.target_tag_id),
+    layer: row.layer == null ? null : String(row.layer),
     math_operation:
       row.math_operation == null ? null : String(row.math_operation),
     value_scalar:
       row.value_scalar == null ? null : Number(row.value_scalar),
-    target_type: row.target_type == null ? null : String(row.target_type),
+    target_type:
+      row.target_type == null
+        ? "aoe"
+        : String(row.target_type),
     dependency_stat:
       row.dependency_stat == null ? null : String(row.dependency_stat),
     is_disabled: Boolean(row.is_disabled),
@@ -219,11 +247,24 @@ export function ManifestationFormDialog({
     value: unknown,
   ) {
     setOverrides((current) =>
-      current.map((override) =>
-        override.clientKey === clientKey
-          ? { ...override, [field]: value }
-          : override,
-      ),
+      current.map((override) => {
+        if (override.clientKey !== clientKey) return override;
+
+        if (field === "mode" && isLocalInteractionMode(value)) {
+          const { clientKey: _ck, id, ...rest } = override;
+          const next = applyLocalInteractionModeSwitch(rest, value);
+          return { ...override, ...next };
+        }
+
+        if (field === "modifier_tag_id" || field === "target_tag_id") {
+          const tagId =
+            value == null || value === "" ? null : Number(value);
+          const { clientKey: _ck, id, ...rest } = override;
+          return { ...override, ...setActiveTagId(rest, tagId) };
+        }
+
+        return { ...override, [field]: value };
+      }),
     );
   }
 
@@ -274,15 +315,37 @@ export function ManifestationFormDialog({
       payload[field.name] = value;
     }
 
-    const overridePayload: AwakenerLocalManifestationInteractionInput[] = overrides.map(
-      ({ clientKey: _clientKey, ...override }) => ({
+    const overridePayload: AwakenerLocalManifestationInteractionInput[] =
+      overrides.map(({ clientKey: _clientKey, ...override }) => ({
         ...override,
+        mode: normalizeLocalInteractionMode(override.mode),
         value_scalar:
-          override.value_scalar === null || Number.isNaN(override.value_scalar)
+          override.value_scalar === null ||
+          Number.isNaN(override.value_scalar)
             ? null
             : override.value_scalar,
-      }),
-    );
+        target_type: override.target_type || "aoe",
+      }));
+
+    for (const [index, override] of overridePayload.entries()) {
+      if (hasLocalInteractionColumnMismatch(override)) {
+        toast.error(
+          `Local interaction ${index + 1}: ${LOCAL_INTERACTION_COLUMN_MISMATCH_HINT}`,
+        );
+        setLoading(false);
+        return;
+      }
+      if (override.value_scalar == null) {
+        toast.error(`Local interaction ${index + 1}: Value Scalar is required`);
+        setLoading(false);
+        return;
+      }
+      if (!override.target_type) {
+        toast.error(`Local interaction ${index + 1}: Target Type is required`);
+        setLoading(false);
+        return;
+      }
+    }
 
     const result = await saveManifestationWithOverrides(
       payload,
@@ -385,7 +448,24 @@ export function ManifestationFormDialog({
     override: OverrideDraft,
     field: FieldConfig,
   ) {
+    const mode = normalizeLocalInteractionMode(override.mode);
     const value = override[field.name as keyof AwakenerLocalManifestationInteractionInput];
+
+    if (field.name === "modifier_tag_id" || field.name === "target_tag_id") {
+      const tagOptions =
+        fkOptions.modifier_tag_id ?? fkOptions.target_tag_id ?? [];
+      return (
+        <ForeignKeyCombobox
+          value={getActiveTagId(override)}
+          onChange={(next) =>
+            updateOverride(override.clientKey, "modifier_tag_id", next)
+          }
+          options={tagOptions}
+          disabled={loadingOptions}
+          placeholder={`Select ${activeTagLabel(mode).toLowerCase()}...`}
+        />
+      );
+    }
 
     if (field.type === "foreignKey" && field.foreignKey) {
       return (
@@ -406,6 +486,12 @@ export function ManifestationFormDialog({
     }
 
     if (field.type === "enum" && field.enumName) {
+      const options =
+        field.name === "math_operation"
+          ? mathOperationsForMode(mode)
+          : field.enumName === "awakener_local_interaction_mode"
+            ? ENUM_VALUES.awakener_local_interaction_mode
+            : ENUM_VALUES[field.enumName];
       return (
         <EnumSelect
           value={value == null ? null : String(value)}
@@ -416,7 +502,7 @@ export function ManifestationFormDialog({
               next,
             )
           }
-          options={ENUM_VALUES[field.enumName]}
+          options={options}
         />
       );
     }
@@ -442,6 +528,27 @@ export function ManifestationFormDialog({
     }
 
     if (field.type === "number") {
+      if (
+        field.name === "value_scalar" &&
+        isBaseStatUniqueScaling(override)
+      ) {
+        return (
+          <Input
+            type="number"
+            step="any"
+            value={valueScalarToPercentDisplay(
+              value == null ? null : Number(value),
+            )}
+            onChange={(event) =>
+              updateOverride(
+                override.clientKey,
+                "value_scalar",
+                percentDisplayToValueScalar(event.target.value),
+              )
+            }
+          />
+        );
+      }
       return (
         <Input
           type="number"
@@ -461,6 +568,38 @@ export function ManifestationFormDialog({
     }
 
     return null;
+  }
+
+  function overrideFieldLabel(override: OverrideDraft, field: FieldConfig) {
+    if (field.name === "modifier_tag_id" || field.name === "target_tag_id") {
+      return activeTagLabel(normalizeLocalInteractionMode(override.mode));
+    }
+    if (
+      field.name === "value_scalar" &&
+      isBaseStatUniqueScaling(override)
+    ) {
+      return "Value Scalar (%)";
+    }
+    return field.label;
+  }
+
+  function shouldRenderOverrideField(
+    override: OverrideDraft,
+    field: FieldConfig,
+  ) {
+    // One tag dropdown: skip target_tag_id; modifier_tag_id slot is label-swapped.
+    if (field.name === "target_tag_id") return false;
+    // Disable-only: engine ignores these; keep values in draft but hide controls.
+    if (
+      override.is_disabled &&
+      (field.name === "layer" ||
+        field.name === "math_operation" ||
+        field.name === "value_scalar" ||
+        field.name === "target_type")
+    ) {
+      return false;
+    }
+    return true;
   }
 
   return (
@@ -505,14 +644,14 @@ export function ManifestationFormDialog({
                   disabled={loadingOptions}
                 >
                   <Plus className="h-3.5 w-3.5" />
-                  Add override
+                  Add local interaction
                 </Button>
               </div>
 
               {overrides.length === 0 ? (
                 <p className="rounded-lg border border-dashed border-border px-4 py-6 text-center text-sm text-zinc-500">
-                  No interaction overrides. Add one if this manifestation needs
-                  custom synergy rules.
+                  No local interactions. Add unique_scaling or aftereffect rows
+                  for this manifestation.
                 </p>
               ) : (
                 <div className="space-y-3">
@@ -523,7 +662,7 @@ export function ManifestationFormDialog({
                     >
                       <div className="flex items-center justify-between gap-2">
                         <p className="text-sm font-medium text-zinc-700">
-                          Override {index + 1}
+                          Local interaction {index + 1}
                         </p>
                         <Button
                           type="button"
@@ -537,8 +676,24 @@ export function ManifestationFormDialog({
                         </Button>
                       </div>
 
+                      {hasLocalInteractionColumnMismatch(override) && (
+                        <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                          {LOCAL_INTERACTION_COLUMN_MISMATCH_HINT}
+                        </p>
+                      )}
+                      {!hasLocalInteractionColumnMismatch(override) &&
+                        hasUniqueScalingTagAndDepHint(override) && (
+                          <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                            {UNIQUE_SCALING_TAG_AND_DEP_HINT}
+                          </p>
+                        )}
+
                       <div className="grid gap-3 sm:grid-cols-2">
-                        {overrideFields.map((field) => (
+                        {overrideFields
+                          .filter((field) =>
+                            shouldRenderOverrideField(override, field),
+                          )
+                          .map((field) => (
                           <div
                             key={field.name}
                             className={
@@ -546,7 +701,8 @@ export function ManifestationFormDialog({
                             }
                           >
                             <Label className="mb-1.5 block text-xs text-zinc-600">
-                              {field.label}
+                              {overrideFieldLabel(override, field)}
+                              {field.required ? " *" : ""}
                             </Label>
                             {renderOverrideField(override, field)}
                           </div>

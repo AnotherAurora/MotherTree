@@ -1,5 +1,5 @@
 /**
- * Soft data-quality helpers for admin Tag Interactions flags.
+ * Soft data-quality helpers for admin forms.
  * Kept client-side so TableConfig stays serializable across RSC → client.
  */
 
@@ -14,3 +14,11 @@ export function hasCreatesAmplifyConflict(
     Boolean(values.creates_base) === Boolean(values.amplifies_subject)
   );
 }
+
+export {
+  LOCAL_INTERACTION_COLUMN_MISMATCH_HINT,
+  UNIQUE_SCALING_TAG_AND_DEP_HINT,
+  hasLocalInteractionColumnMismatch,
+  hasUniqueScalingTagAndDepHint,
+  isBaseStatUniqueScaling,
+} from "@/lib/admin-local-interaction";

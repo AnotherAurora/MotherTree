@@ -23,10 +23,13 @@ export type ForeignKeyOption = {
 
 export type AwakenerLocalManifestationInteractionInput = {
   id?: number;
+  mode: string;
   modifier_tag_id: number | null;
+  target_tag_id: number | null;
+  layer: string | null;
   math_operation: string | null;
   value_scalar: number | null;
-  target_type: string | null;
+  target_type: string;
   dependency_stat: string | null;
   is_disabled: boolean;
 };
@@ -452,7 +455,10 @@ function buildOverrideRecord(
 ): Record<string, unknown> {
   return {
     manifestation_id: manifestationId,
+    mode: override.mode,
     modifier_tag_id: override.modifier_tag_id,
+    target_tag_id: override.target_tag_id,
+    layer: override.layer,
     math_operation: override.math_operation,
     value_scalar: override.value_scalar,
     target_type: override.target_type,
