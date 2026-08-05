@@ -36,6 +36,11 @@ import {
   computeKeyflareHarmonyScalar,
 } from "@/lib/path-carver/keyflare-harmony";
 import {
+  buildHitCountByManifestationKey,
+  buildLayerAProviderPool,
+  layerAContribution,
+} from "@/lib/path-carver/copy-instances";
+import {
   createManifestationApplyContext,
   isManifestationApplied,
   type ManifestationApplyContext,
@@ -86,12 +91,19 @@ function sumCauseTotals(
   tagsById: Readonly<Record<number, Tag>>,
   scalarOpts?: EffectiveScalarOptions,
 ): Map<number, number> {
+  const pool = buildLayerAProviderPool(
+    manifestations,
+    awakenersById,
+    tagsById,
+    scalarOpts,
+  );
   const totals = new Map<number, number>();
   for (const m of manifestations) {
-    const scalar = effectiveManifestationScalar(
+    const scalar = layerAContribution(
       m,
       awakenersById,
       tagsById,
+      pool,
       scalarOpts,
     );
     if (scalar === 0) continue;
@@ -134,14 +146,28 @@ export function aggregateTagScalarsById(
     realmMasteryTotal: sumTeamRealmMastery(awakeners),
     teamRealms: applyContext.teamRealms,
   };
-  const totals = new Map<number, number>();
+  const applied: Manifestation[] = [];
   for (const m of manifestations) {
     if (!isManifestationApplied(m, applyContext)) continue;
     const mult = triggerApplyMultiplier(m, applyContext.triggerCounts);
     if (mult === 0) continue;
-    const scalar =
-      effectiveManifestationScalar(m, awakenersById, tagsById, scalarOpts) *
-      mult;
+    applied.push(scaleManifestationByTrigger(m, mult));
+  }
+  const pool = buildLayerAProviderPool(
+    applied,
+    awakenersById,
+    tagsById,
+    scalarOpts,
+  );
+  const totals = new Map<number, number>();
+  for (const m of applied) {
+    const scalar = layerAContribution(
+      m,
+      awakenersById,
+      tagsById,
+      pool,
+      scalarOpts,
+    );
     if (scalar === 0) continue;
     totals.set(m.tagId, (totals.get(m.tagId) ?? 0) + scalar);
   }
@@ -372,6 +398,24 @@ export function computeReviewTagTotals(
     ...(tentacleSynth ? [tentacleSynth] : []),
   ];
 
+  const fullScalarOpts: EffectiveScalarOptions = {
+    teamMaxHp: teamMaxHp.finalMaxHp,
+    realmMasteryTotal: sumTeamRealmMastery(totalAwakeners),
+    teamRealms: applyContext.teamRealms,
+  };
+  const providerPool = buildLayerAProviderPool(
+    applied,
+    awakenersById,
+    teamData.tagsById,
+    fullScalarOpts,
+  );
+  // Layer B runs on single-hit bases; hitCount multiplies at subject merge
+  // (emits hitCount Scalar Sum steps when ≠ 1).
+  const hitCountByManifestationKey = buildHitCountByManifestationKey(
+    applied,
+    providerPool,
+  );
+
   const reviewTransfers = [
     ...allTransfers,
     ...(tentacleSynth ? [tentacleSynth] : []),
@@ -399,6 +443,7 @@ export function computeReviewTagTotals(
     applied,
     teamMaxHp.finalMaxHp,
     applyContext.teamRealms,
+    hitCountByManifestationKey,
   );
   return {
     totalsByTagId: result.totalsByTagId,

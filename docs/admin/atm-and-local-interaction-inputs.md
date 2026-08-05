@@ -2,16 +2,17 @@
 
 Quick lookup: how fields on **`awakener_tag_manifestation`** (ATM) and **`awakener_local_manifestation_interaction`** feed Path Carver Review Tags math.
 
-**Scope:** these two tables only (not `tag_default_interaction`, realm rows, covenant/wheel/posse, or desire demands).
+**Scope:** ATM, local interactions, and **`copy_provider_group`** / members (not `tag_default_interaction`, realm rows, covenant/wheel/posse, or desire demands).
 
-**Engine status (as of Phase 3a.1):**
+**Engine status (as of Phase 3a.3):**
 
 | Feature | Status |
 | --- | --- |
 | ATM base scalar + apply gates | Live |
+| ATM **`hitCount`** (`instance_count` × effective copies); Layer B on single-hit then × hitCount | Live (**3a.3**) |
 | Local row as **patch** of a matching `tag_default_interaction` | Live (`unique_scaling` / legacy override) |
 | Local **`unique_scaling` invent** (tag-mod or base-stat null-mod) | Phase **3b** (admin/contract live in **3a.1**) |
-| Local **`aftereffect`** emit / merge | Phase **3c** |
+| Local **`aftereffect`** emit / merge (× `hitCount` = instances × effective copies) | Phase **3c** |
 
 Formulas below for invent / aftereffect are the **locked design** so you can enter data correctly ahead of engine work.
 
@@ -38,6 +39,31 @@ These set the row’s **effective base** before interactions.
 Owner for scaling = this ATM’s **awakener**.
 
 **Mental model:** blank dependency → flat number; set dependency → “rate × that awakener’s stat.”
+
+#### `instance_count` + `base_copies` + `copy_provider_group_id`
+
+```text
+hitCount        = instance_count × effectiveCopies
+effectiveCopies = base_copies + Σ max(0, floor(pool[tagId])) for tagId in providerTagIds
+providerTagIds  = members of copy_provider_group_id  (empty if FK null)
+
+# Layer A–only paths (identity f): contribution = effectiveScalar × hitCount
+# Layer B (Review Tags): finishedOnce = LayerB(single-hit base); contribution = finishedOnce × hitCount
+```
+
+Provider pool uses **effectiveScalar × instance_count** only (no copy multiply) so bonuses do not recurse. Layer B runs on the **single-hit** base so ops like `add_scaled` apply per hit (`N·(base+k)`), not once on a pre-scaled base (`N·base+k`). **Do not** invent N synthetic `(created base)` rows for copies — one ATM row stays one debug row.
+
+| Field | Default | Role |
+| --- | --- | --- |
+| `instance_count` | **NOT NULL DEFAULT 1** | How many times **one copy** of this effect fires. |
+| `base_copies` | **NOT NULL DEFAULT 1** | Starting copies before provider bonuses. |
+| `copy_provider_group_id` | **NULL** | FK → `copy_provider_group`. Null = no provider bonus (effective copies = `base_copies`). |
+
+Admin soft-warns (amber) when `instance_count ≤ 0` or `base_copies ≤ 0`; save still allowed.
+
+**Copy provider groups** (`copy_provider_group` + `copy_provider_group_member`): curated tag sets (e.g. Command Card Creates). One group per ATM. Manage under Awakeners → Copy Provider Groups (nested members).
+
+**Forward (Phase 3c):** aftereffect emit count = `hitCount = instance_count × effectiveCopies` (not once on a folded finished scalar).
 
 #### `tag_id`
 
@@ -69,7 +95,6 @@ Posse rows skip some of these gates; **ATM does not**.
 | `awakener_id` | Owner. |
 | `metadata` | Display / notes. |
 | `replaces_manifestation_id` | This row replaces another ATM on the same awakener when resolving the loadout. |
-| `base_hits` | Loaded; **not** used in current Path Carver scalar formula. |
 | `is_accumulating` | Loaded / debug; not a scalar multiplier in the interaction engine. |
 | `is_permanent` | Data flag; not a Path Carver scalar formula input. |
 | `buff_target_type_restriction` (on ATM) | **Not** the interaction gate — that lives on **`tag_default_interaction`**. ATM column is unused for Layer B gating today. |

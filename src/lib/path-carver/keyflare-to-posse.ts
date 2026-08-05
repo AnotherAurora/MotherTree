@@ -1,5 +1,6 @@
 import { SUPPORT_CREATE_POSSE_TAG_ID } from "@/lib/path-carver/trigger-condition";
 import {
+  DEFAULT_COPY_INSTANCE_FIELDS,
   NON_REALM_MANIFESTATION_FIELDS,
   type Manifestation,
   type Tag,
@@ -87,7 +88,7 @@ export function buildKeyflareToPosseManifestation(
     tagName: tag?.tagName ?? "Support.Create.Posse",
     triggerCondition: null,
     valueScalar: posseCreated,
-    baseHits: null,
+    ...DEFAULT_COPY_INSTANCE_FIELDS,
     dependencyStat: null,
     sourceType: null,
     targetType: "aoe",

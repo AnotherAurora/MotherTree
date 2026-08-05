@@ -16,6 +16,8 @@ const TABLES: TableName[] = [
   "awakener_tag_manifestation",
   "tag_default_interaction",
   "awakener_local_manifestation_interaction",
+  "copy_provider_group",
+  "copy_provider_group_member",
   "desire_demand",
   "path",
   "desire_anchored_awakener",

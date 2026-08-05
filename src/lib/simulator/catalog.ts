@@ -16,7 +16,10 @@ import type {
   TeamComposition,
   WheelGearOption,
 } from "@/lib/simulator/types";
-import type { Manifestation } from "@/lib/team-data/types";
+import {
+  DEFAULT_COPY_INSTANCE_FIELDS,
+  type Manifestation,
+} from "@/lib/team-data/types";
 import { computeFulfillment } from "@/lib/simulator/fulfillment";
 
 type RealmRef = { name: string; replace?: number | null } | null;
@@ -430,7 +433,7 @@ export function buildManifestationsForComposition(
       tagName: raw.tagName,
       triggerCondition: null,
       valueScalar: raw.valueScalar,
-      baseHits: null,
+      ...DEFAULT_COPY_INSTANCE_FIELDS,
       dependencyStat: raw.dependencyStat,
       sourceType: null,
       targetType: null,

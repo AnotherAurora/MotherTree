@@ -1,6 +1,6 @@
 ---
 name: Simulator Phased Plan
-overview: Path Carver–first roadmap. Phase 1–2c.1 + 3a + 3a.1 + 3a.2 done. Next is Phase 3b→3c (unique_scaling engine → aftereffect + Layer B closure look-ahead). Phase 4 ports math to desire_demand/radar/simulator, Calculation List layer breakdown, Corrosion/Embers Non-Active parent+descendants + name→id. Phase 5 smart recommend.
+overview: Path Carver–first roadmap. Phase 1–2c.1 + 3a + 3a.1 + 3a.2 + 3a.3 done. Next is Phase 3b→3c (unique_scaling engine → aftereffect + Layer B closure look-ahead). Phase 4 ports math to desire_demand/radar/simulator, Calculation List layer breakdown, Corrosion/Embers Non-Active parent+descendants + name→id. Phase 5 smart recommend.
 todos:
   - id: seed-data
     content: Create scripts/seed-simulator-data.ts with 2-3 desires, demand rows, anchored awakeners; add npm script
@@ -50,11 +50,14 @@ todos:
   - id: phase-3a2-disable-ui-hide
     content: Phase 3a.2 — Hide layer/op/value_scalar/target_type in local-interaction admin when is_disabled; docs; no schema/engine change
     status: completed
+  - id: phase-3a3-atm-instances-copies
+    content: Phase 3a.3 — instance_count/base_copies NOT NULL DEFAULT 1; copy_provider_group FK + members; Layer A multipliers; soft-warn ≤0; 3c aftereffect×hitCount forward contract
+    status: completed
   - id: phase-3b-unique-scaling
     content: Phase 3b — unique_scaling patch/invent in subject path (tag-mod + base-stat null-mod); local layer wins; modifier aggregation; defaults value_scalar=1 op=multiply_one_plus; smokes invent/patch/disable/ATM27
     status: pending
   - id: phase-3c-aftereffect-layer-b
-    content: Phase 3c — aftereffect emit/merge math; restructure Layer B; creates_base closure look-ahead deferred create/amplify Option A; Bleed kit smoke; Special still last
+    content: Phase 3c — aftereffect emit/merge math (× hitCount = instances × effective copies); restructure Layer B; creates_base closure look-ahead deferred create/amplify Option A; Bleed kit smoke; Special still last
     status: pending
   - id: layer-breakdown-ui
     content: Phase 4 — Wire Summary / Calculation List to show layer-by-layer breakdown
@@ -1347,6 +1350,49 @@ Then Special
 
 ---
 
+### Phase 3a.3 — ATM instances, copies, and Copy Provider Group
+
+**Depends on:** 3a.2 (independent of 3b; Layer A ATM factors).
+
+**Goal:** Rename `base_hits` → `instance_count`, add `base_copies`, add `copy_provider_group` / `copy_provider_group_member` with ATM FK `copy_provider_group_id`, and multiply contributions by `hitCount = instances × effective copies` without inventing per-copy `creates_base` synthetics. Layer B runs on a **single-hit** base, then multiplies the finished subject by hitCount (so `add_scaled` is per-hit).
+
+**Locked:**
+
+```text
+hitCount        = instance_count × effectiveCopies
+effectiveCopies = base_copies + Σ max(0, floor(pool[providerTag]))
+poolContrib     = effectiveScalar × instance_count   # provider pool only
+
+# Layer A–only (identity f): contribution = effectiveScalar × hitCount
+# Layer B: finishedOnce = LayerB(single-hit base); contribution = finishedOnce × hitCount
+```
+
+- `instance_count` / `base_copies`: **NOT NULL DEFAULT 1**; amber soft-warn when ≤0
+- One `copy_provider_group` per ATM (null FK = no provider bonus)
+- Provider pool uses poolContrib only (no copy multiply — no recursion)
+- Do **not** bake hitCount into `value_scalar` before Layer B
+- **Forward → Phase 3c:** aftereffect emit count = `hitCount` (not once on folded finished value)
+
+**Scope:**
+
+- Migration + types; schema-config; Copy Provider Groups nested members admin; loaders resolve members
+- Review Tags: Layer B on single-hit base, × hitCount at merge; Layer A–only paths × hitCount; debug + Scalar Sum special lines
+- Docs: admin manual + this plan
+- Out of scope: multi-group FKs; auto-match Create.\* by `source_type`; aftereffect emit loops (3c); unique_scaling invent (3b)
+
+**Acceptance:**
+
+- [x] `instance_count` / `base_copies` NOT NULL DEFAULT 1; `copy_provider_group_id` FK; group + member tables; types regenerated
+- [x] Admin: defaults 1; amber soft-warn ≤0; Copy Provider Group FK; Copy Provider Groups CRUD with nested members
+- [x] Loaders resolve group → `copyProviderTagIds`
+- [x] Layer A–only totals use instance × effective copies from group members’ floor(pool)
+- [x] Layer B subjects use single-hit base; merge uses finishedOnce × hitCount (add_scaled per hit)
+- [x] Debug shows multipliers / group on one ATM row; no creates_base flood for copies
+- [x] Admin manual + this plan Phase 3a.3 recorded (incl. 3c aftereffect × hitCount forward contract)
+- [x] Smoke: Layer A identity 10×3×(2+1)=90; add_scaled +5 × hitCount 3 → 45
+
+---
+
 ### Phase 3b — unique_scaling engine
 
 **Depends on:** 3a.1.
@@ -1378,29 +1424,31 @@ Then Special
 
 **Depends on:** 3b.
 
-**Goal:** Aftereffect emit/merge math; restructure Layer B for shared aftereffect state + sequential subjects; **creates_base closure look-ahead** deferred create then amplify (Option A). Special stays last inside Layer B.
+**Goal:** Aftereffect emit/merge math; restructure Layer B for shared aftereffect state + sequential subjects; **creates_base closure look-ahead** deferred create then amplify (Option A). Special stays last inside Layer B. Aftereffect emit count per source ATM = **`hitCount = instance_count × effectiveCopies`** (Phase 3a.3 forward contract) — not once on an already-multiplied finished scalar.
 
 **Scope:**
 
 - Aftereffect: `op(finished, factor)` then `tag.is_additive`; factor via source ATM `effectiveOverrideFactor`; required `target_type`
+- Emit / apply aftereffect rows **`hitCount` times** per source ATM (`hitCount = instance_count × effectiveCopies` from 3a.3)
 - `isCreatedBase` synthetics for aftereffect targets; deferred creates along closure edges; deferred amplifies against synthetics
 - Look-ahead: S0 = aftereffect targets → expand via `creates_base` (exact modifier match) → defer amplifies intersecting S + those create edges
 - Bleed kit: aftereffect → Bleed → combined → Bleed Damage create → Trigger once on Bleed Damage
 - Subject order: `slotIndex` → `awakenerId` → `tagId` → `manifestation.id`
 - Debug: aftereffect contributions, look-ahead closure set
-- Smokes: one-subject aftereffect; two-subject Bleed + Trigger (Option A)
+- Smokes: one-subject aftereffect; two-subject Bleed + Trigger (Option A); aftereffect × hitCount
 - Out of scope: desire_demand / radar / Calculation List; Corrosion/Embers rewire; max-damage subject search; **per-subject sequential trigger (record only above)**
 
 **Acceptance:**
 
 - [ ] `aftereffect` emit: `op(finished(S), factor)` with default `multiply`; merge via `tag.is_additive`; factor from required `value_scalar` (default 1) + source ATM dep_stat
 - [ ] `aftereffect` runs after source `post_add`, ordered by `layer`; required `target_type` honored; `isCreatedBase` synthetics for aftereffect targets
-- [ ] Look-ahead closure: S0 = aftereffect targets; expand via creates_base (exact modifier match); defer amplifies whose target intersects S; defer those creates_base edges
+- [ ] Aftereffect emit/apply count = `hitCount = instance_count × effectiveCopies` (3a.3); not one emit on folded finished value
+- [ ] Look-ahead closure: S0 = aftereffect targets; expand via creates_base (exact modifier match); defer amplifies whose target intersects S; defer those create edges
 - [ ] Bleed kit path: aftereffect → Bleed → combined → creates_base Bleed Damage → Bleed Trigger once on Bleed Damage (Trigger does not multiply Bleed stack)
 - [ ] Layer B restructured: shared aftereffect totals; subjects sequential by documented order; Special still last inside Layer B
 - [ ] Subject order deterministic and documented (`slotIndex` → `awakenerId` → `tagId` → `manifestation.id`)
 - [ ] Review Tags debug shows aftereffect steps + look-ahead closure
-- [ ] Smoke: two-subject Bleed + Trigger (Option A combined-before-trigger)
+- [ ] Smoke: two-subject Bleed + Trigger (Option A combined-before-trigger); aftereffect × hitCount
 
 ---
 

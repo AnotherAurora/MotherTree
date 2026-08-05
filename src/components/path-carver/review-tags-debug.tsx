@@ -11,6 +11,10 @@ import {
   sumTeamRealmMastery,
   type EffectiveScalarOptions,
 } from "@/lib/path-carver/effective-value-scalar";
+import {
+  buildLayerAProviderPool,
+  effectiveCopiesForManifestation,
+} from "@/lib/path-carver/copy-instances";
 import type { Awakener, Manifestation, Tag, TeamData } from "@/lib/team-data/types";
 import type { SlotState } from "@/lib/simulator/types";
 
@@ -133,12 +137,14 @@ function ManifestationTable({
   awakenersById,
   tagsById,
   scalarOpts,
+  providerPool,
 }: {
   tags: Manifestation[];
   applyContext: ManifestationApplyContext;
   awakenersById: ReadonlyMap<number, Awakener>;
   tagsById: Readonly<Record<number, Tag>>;
   scalarOpts: EffectiveScalarOptions;
+  providerPool: ReadonlyMap<number, number>;
 }) {
   if (tags.length === 0) {
     return <p className="text-zinc-400">None</p>;
@@ -160,6 +166,10 @@ function ManifestationTable({
             <th className="px-2 py-1.5 font-medium">
               Scalar (raw → effective)
             </th>
+            <th className="px-2 py-1.5 font-medium">Instances</th>
+            <th className="px-2 py-1.5 font-medium">Base Copies</th>
+            <th className="px-2 py-1.5 font-medium">Copy Provider Group</th>
+            <th className="px-2 py-1.5 font-medium">Effective Copies</th>
             <th className="px-2 py-1.5 font-medium">Applied</th>
             <th className="px-2 py-1.5 font-medium">Reason</th>
             <th className="px-2 py-1.5 font-medium">Metadata</th>
@@ -175,6 +185,15 @@ function ManifestationTable({
         </thead>
         <tbody>
           {rows.map(({ m, applied, reason }) => {
+            const effectiveCopies = effectiveCopiesForManifestation(
+              m,
+              providerPool,
+            );
+            const showEffective =
+              m.copyProviderGroupId != null ||
+              m.instanceCount !== 1 ||
+              m.baseCopies !== 1 ||
+              effectiveCopies !== m.baseCopies;
             return (
               <tr
                 key={`${m.sourceKind}-${m.id}`}
@@ -183,6 +202,14 @@ function ManifestationTable({
                 <td className="px-2 py-1.5 text-zinc-700">{m.tagName}</td>
                 <td className="px-2 py-1.5 tabular-nums">
                   {formatScalarCell(m, awakenersById, tagsById, scalarOpts)}
+                </td>
+                <td className="px-2 py-1.5 tabular-nums">{m.instanceCount}</td>
+                <td className="px-2 py-1.5 tabular-nums">{m.baseCopies}</td>
+                <td className="px-2 py-1.5">
+                  {formatCell(m.copyProviderGroupName)}
+                </td>
+                <td className="px-2 py-1.5 tabular-nums">
+                  {showEffective ? String(effectiveCopies) : "—"}
                 </td>
                 <td
                   className={
@@ -226,6 +253,7 @@ function SourceSubsection({
   awakenersById,
   tagsById,
   scalarOpts,
+  providerPool,
 }: {
   title: string;
   tags: Manifestation[];
@@ -233,6 +261,7 @@ function SourceSubsection({
   awakenersById: ReadonlyMap<number, Awakener>;
   tagsById: Readonly<Record<number, Tag>>;
   scalarOpts: EffectiveScalarOptions;
+  providerPool: ReadonlyMap<number, number>;
 }) {
   return (
     <div className="space-y-1">
@@ -245,6 +274,7 @@ function SourceSubsection({
         awakenersById={awakenersById}
         tagsById={tagsById}
         scalarOpts={scalarOpts}
+        providerPool={providerPool}
       />
     </div>
   );
@@ -273,6 +303,18 @@ export function ReviewTagsDebug({
     () => scalarOptsForDebug(applyContext, teamData.awakeners, teamMaxHp),
     [applyContext, teamData.awakeners, teamMaxHp],
   );
+
+  const providerPool = useMemo(() => {
+    const applied = teamData.manifestations.filter(
+      (m) => evaluateManifestationApply(m, applyContext).applied,
+    );
+    return buildLayerAProviderPool(
+      applied,
+      awakenersById,
+      teamData.tagsById,
+      scalarOpts,
+    );
+  }, [teamData.manifestations, teamData.tagsById, applyContext, awakenersById, scalarOpts]);
 
   const groups = useMemo((): AwakenerGroup[] => {
     const result: AwakenerGroup[] = [];
@@ -381,6 +423,7 @@ export function ReviewTagsDebug({
                   awakenersById={awakenersById}
                   tagsById={teamData.tagsById}
                   scalarOpts={scalarOpts}
+                  providerPool={providerPool}
                 />
                 <SourceSubsection
                   title="Covenant tags"
@@ -389,6 +432,7 @@ export function ReviewTagsDebug({
                   awakenersById={awakenersById}
                   tagsById={teamData.tagsById}
                   scalarOpts={scalarOpts}
+                  providerPool={providerPool}
                 />
                 <SourceSubsection
                   title="Wheel tags"
@@ -397,6 +441,7 @@ export function ReviewTagsDebug({
                   awakenersById={awakenersById}
                   tagsById={teamData.tagsById}
                   scalarOpts={scalarOpts}
+                  providerPool={providerPool}
                 />
               </div>
             </div>
@@ -412,6 +457,7 @@ export function ReviewTagsDebug({
               awakenersById={awakenersById}
               tagsById={teamData.tagsById}
               scalarOpts={scalarOpts}
+              providerPool={providerPool}
             />
           </div>
         </div>
@@ -425,6 +471,7 @@ export function ReviewTagsDebug({
               awakenersById={awakenersById}
               tagsById={teamData.tagsById}
               scalarOpts={scalarOpts}
+              providerPool={providerPool}
             />
           </div>
         </div>

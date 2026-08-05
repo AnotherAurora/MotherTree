@@ -15,6 +15,26 @@ export function hasCreatesAmplifyConflict(
   );
 }
 
+export const NON_POSITIVE_INSTANCE_OR_COPIES_HINT =
+  "Instances and Base Copies ≤0 zero (or shrink) this row’s Layer A contribution. Prefer ≥1.";
+
+function asNumber(value: unknown): number | null {
+  if (value == null || value === "") return null;
+  const n = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+/** True when instance_count or base_copies is present and ≤ 0. */
+export function hasNonPositiveInstanceOrCopies(
+  values: Record<string, unknown>,
+): boolean {
+  const instances = asNumber(values.instance_count);
+  const copies = asNumber(values.base_copies);
+  return (
+    (instances != null && instances <= 0) || (copies != null && copies <= 0)
+  );
+}
+
 export {
   LOCAL_INTERACTION_COLUMN_MISMATCH_HINT,
   UNIQUE_SCALING_TAG_AND_DEP_HINT,

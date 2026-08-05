@@ -113,7 +113,15 @@ export type Manifestation = {
   /** FK to tag.id — When.* condition; null = no trigger gate. */
   triggerCondition: number | null;
   valueScalar: number | null;
-  baseHits: number | null;
+  /** How many times one copy of this effect fires. ATM: NOT NULL DEFAULT 1. */
+  instanceCount: number;
+  /** Starting copies before copy-provider bonuses. ATM: NOT NULL DEFAULT 1. */
+  baseCopies: number;
+  /** FK to copy_provider_group; null = no provider bonus. */
+  copyProviderGroupId: number | null;
+  copyProviderGroupName: string | null;
+  /** Resolved member tag ids for copyProviderGroupId (empty if null). */
+  copyProviderTagIds: number[];
   dependencyStat: AllStats | null;
   sourceType: SourceType | null;
   targetType: TargetType | null;
@@ -166,6 +174,22 @@ export const NON_REALM_MANIFESTATION_FIELDS = {
   | "dependencyRate"
   | "dependencyRateStat"
   | "pureBonusTarget"
+>;
+
+/** Default instance/copy fields for non-ATM / synthetic manifestations. */
+export const DEFAULT_COPY_INSTANCE_FIELDS = {
+  instanceCount: 1,
+  baseCopies: 1,
+  copyProviderGroupId: null,
+  copyProviderGroupName: null,
+  copyProviderTagIds: [] as number[],
+} as const satisfies Pick<
+  Manifestation,
+  | "instanceCount"
+  | "baseCopies"
+  | "copyProviderGroupId"
+  | "copyProviderGroupName"
+  | "copyProviderTagIds"
 >;
 
 /** Equipped wheel/covenant flat stat bonus for total base-stat calculation. */

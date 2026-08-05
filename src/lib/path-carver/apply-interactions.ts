@@ -6,10 +6,12 @@ import {
   sumTeamRealmMastery,
   type EffectiveScalarOptions,
 } from "@/lib/path-carver/effective-value-scalar";
+import { manifestationHitCountKey } from "@/lib/path-carver/copy-instances";
 import { combineSameTagScalar } from "@/lib/path-carver/combine-same-tag-scalar";
 import { matchesDemandTag } from "@/lib/simulator/tag-matching";
 import type { TeamRealmResolution } from "@/lib/team-data/resolve-team-realms";
 import {
+  DEFAULT_COPY_INSTANCE_FIELDS,
   NON_REALM_MANIFESTATION_FIELDS,
   type Awakener,
   type AwakenerLocalManifestationInteraction,
@@ -107,6 +109,20 @@ export type ScalarMathStep =
       /** Modifier tag layer that drove pass order (Phase 2c). */
       layer: Layer | null;
     }
+  | {
+      kind: "hitCount";
+      tagId: number;
+      tagName: string;
+      owner: string;
+      sourceLabel: string;
+      /** Subject value after Layer B (single-hit). */
+      finishedOnce: number;
+      hitCount: number;
+      /** finishedOnce × hitCount. */
+      after: number;
+      /** Compact instances × copies note. */
+      detail: string;
+    }
   | { kind: "special"; label: string; detail: string }
   | { kind: "total"; tagId: number; tagName: string; total: number };
 
@@ -132,6 +148,12 @@ export type ApplyInteractionsInput = {
   realmMasteryTotal?: number;
   /** Team realm resolution for realm pure / combo scaling. */
   teamRealms?: TeamRealmResolution;
+  /**
+   * sourceKind:id → instance_count × effectiveCopies.
+   * Applied after each Layer B subject path at merge (finishedOnce × hitCount).
+   * Missing keys (synthetics / transfers) default to 1.
+   */
+  hitCountByManifestationKey?: ReadonlyMap<string, number>;
 };
 
 export type ApplyInteractionsResult = {
@@ -146,6 +168,22 @@ type MathOpResult = {
   after: number;
   rounded: boolean;
 };
+
+function hitCountForSubject(
+  m: Manifestation,
+  hitCountByManifestationKey: ReadonlyMap<string, number> | undefined,
+): number {
+  return hitCountByManifestationKey?.get(manifestationHitCountKey(m)) ?? 1;
+}
+
+function formatHitCountDetail(m: Manifestation, hitCount: number): string {
+  const copies =
+    m.instanceCount !== 0 ? hitCount / m.instanceCount : hitCount;
+  const copiesLabel = Number.isInteger(copies)
+    ? String(copies)
+    : String(copies);
+  return `instances ${m.instanceCount} × copies ${copiesLabel}`;
+}
 
 function ownerKeyFor(m: Manifestation): OwnerKey {
   if (m.sourceKind === "posse") return "posse";
@@ -1553,7 +1591,7 @@ function buildCreatedBaseManifestation(
     tagName: tag.tagName,
     triggerCondition: null,
     valueScalar: value,
-    baseHits: null,
+    ...DEFAULT_COPY_INSTANCE_FIELDS,
     dependencyStat: null,
     sourceType: null,
     targetType: "aoe",
@@ -1750,8 +1788,31 @@ export function applyInteractions(
     return scalar !== 0;
   });
 
+  const hitCountByKey = input.hitCountByManifestationKey;
+  const hitCountSteps: ScalarMathStep[] = [];
+
   if (subjects.length > 0) {
     for (const subject of subjects) {
+      const hitCount = hitCountForSubject(subject, hitCountByKey);
+      const owner = ownerKeyFor(subject);
+      const tag = input.tagsById[subject.tagId];
+      const sourceLabel = sourceLabelFor(subject, input.awakenerNamesById);
+
+      const pushHitCountStep = (finishedOnce: number) => {
+        if (hitCount === 1 || finishedOnce === 0) return;
+        hitCountSteps.push({
+          kind: "hitCount",
+          tagId: subject.tagId,
+          tagName: subject.tagName,
+          owner,
+          sourceLabel,
+          finishedOnce,
+          hitCount,
+          after: finishedOnce * hitCount,
+          detail: formatHitCountDetail(subject, hitCount),
+        });
+      };
+
       // Immune: absolute scalar only (Support created bases already merged in Phase 1).
       if (isInteractionImmuneSubject(subject)) {
         if (subject.isCreatedBase) continue;
@@ -1764,11 +1825,12 @@ export function applyInteractions(
         if (scalar !== 0) {
           mergeOwnerValue(
             mergedOwnerValues,
-            ownerKeyFor(subject),
-            input.tagsById[subject.tagId],
+            owner,
+            tag,
             subject.tagId,
-            scalar,
+            scalar * hitCount,
           );
+          pushHitCountStep(scalar);
         }
         continue;
       }
@@ -1789,16 +1851,16 @@ export function applyInteractions(
         teamRealms: input.teamRealms,
       });
 
-      const owner = ownerKeyFor(subject);
       const value = getOwnerValue(result.ownerValues, owner, subject.tagId);
       if (value !== 0) {
         mergeOwnerValue(
           mergedOwnerValues,
           owner,
-          input.tagsById[subject.tagId],
+          tag,
           subject.tagId,
-          value,
+          value * hitCount,
         );
+        pushHitCountStep(value);
       }
 
       for (const step of result.steps) {
@@ -1813,7 +1875,7 @@ export function applyInteractions(
     }
   }
 
-  steps.push(...opSteps);
+  steps.push(...opSteps, ...hitCountSteps);
 
   // Special conversions once on merged totals (all applied + created for presence).
   applySpecialConversion(
@@ -1858,6 +1920,7 @@ export function applyInteractionsForTeamData(
   appliedManifestations: Manifestation[],
   teamMaxHp?: number | null,
   teamRealms?: TeamRealmResolution,
+  hitCountByManifestationKey?: ReadonlyMap<string, number>,
 ): ApplyInteractionsResult {
   const awakenerNamesById = new Map<number, string>();
   for (const awakener of teamData.awakeners) {
@@ -1876,5 +1939,6 @@ export function applyInteractionsForTeamData(
     teamMaxHp,
     realmMasteryTotal: sumTeamRealmMastery(teamData.awakeners),
     teamRealms,
+    hitCountByManifestationKey,
   });
 }

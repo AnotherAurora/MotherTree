@@ -23,6 +23,7 @@ import {
   type TeamDataInput,
   type TeamDataSlotInput,
   NON_REALM_MANIFESTATION_FIELDS,
+  DEFAULT_COPY_INSTANCE_FIELDS,
 } from "@/lib/team-data/types";
 
 type TagRef = {
@@ -110,7 +111,9 @@ const AWAKENER_MANIFESTATION_SELECT = `
   tag_id,
   trigger_condition,
   value_scalar,
-  base_hits,
+  instance_count,
+  base_copies,
+  copy_provider_group_id,
   dependency_stat,
   source_type,
   target_type,
@@ -121,7 +124,8 @@ const AWAKENER_MANIFESTATION_SELECT = `
   required_realm,
   required_realm_ref:realm!required_realm(name),
   replaces_manifestation_id,
-  tag!tag_id(id, tag_name, layer, is_percent, is_additive)
+  tag!tag_id(id, tag_name, layer, is_percent, is_additive),
+  copy_provider_group:copy_provider_group_id(id, name)
 `;
 
 async function fetchAwakenerManifestations(
@@ -256,7 +260,8 @@ function mapGearManifestation(
     required_awakener?: number | null;
     required_awakener_ref?: { id: number; name: string | null } | null;
     tag: TagRef;
-    base_hits?: number | null;
+    instance_count?: number | null;
+    base_copies?: number | null;
     dependency_stat?: Manifestation["dependencyStat"];
     source_type?: Manifestation["sourceType"];
     buff_target_type_restriction?: Manifestation["buffTargetTypeRestriction"];
@@ -283,7 +288,7 @@ function mapGearManifestation(
     // Posse rows have no trigger_condition column → always null.
     triggerCondition: row.trigger_condition ?? null,
     valueScalar: row.value_scalar,
-    baseHits: row.base_hits ?? null,
+    ...DEFAULT_COPY_INSTANCE_FIELDS,
     dependencyStat: row.dependency_stat ?? null,
     sourceType: row.source_type ?? null,
     targetType: row.target_type,
@@ -520,6 +525,35 @@ async function loadOverridesForManifestations(
   }
 
   return overridesByManifestationId;
+}
+
+async function loadCopyProviderMembersByGroupId(
+  supabase: SupabaseClient<Database>,
+  groupIds: number[],
+): Promise<Map<number, number[]>> {
+  const membersByGroupId = new Map<number, number[]>();
+  if (groupIds.length === 0) return membersByGroupId;
+
+  const { data, error } = await supabase
+    .from("copy_provider_group_member")
+    .select("group_id, tag_id")
+    .in("group_id", groupIds)
+    .is("deleted_at", null);
+
+  if (error) throw new Error(error.message);
+
+  for (const row of data ?? []) {
+    const groupId = row.group_id;
+    const tagId = row.tag_id;
+    if (groupId == null || tagId == null) continue;
+    const existing = membersByGroupId.get(groupId);
+    if (existing) {
+      existing.push(tagId);
+    } else {
+      membersByGroupId.set(groupId, [tagId]);
+    }
+  }
+  return membersByGroupId;
 }
 
 export async function fetchTeamData(
@@ -868,6 +902,18 @@ export async function fetchTeamData(
     tagsById,
   );
 
+  const copyProviderGroupIds = [
+    ...new Set(
+      awakenerManifestationRows
+        .map((r) => r.copy_provider_group_id)
+        .filter((id): id is number => id != null),
+    ),
+  ];
+  const copyProviderMembersByGroupId = await loadCopyProviderMembersByGroupId(
+    supabase,
+    copyProviderGroupIds,
+  );
+
   for (const row of awakenerManifestationRows) {
     const tag = parseTagRef(row.tag as TagRef);
     if (tag) collectTags(tagsById, tag);
@@ -876,6 +922,19 @@ export async function fetchTeamData(
     const sourceName =
       awakenerRow?.name ??
       (row.awakener_id != null ? `#${row.awakener_id}` : null);
+
+    const groupRef = row.copy_provider_group as
+      | { id: number; name: string | null }
+      | null
+      | undefined;
+    const copyProviderGroupId = row.copy_provider_group_id ?? null;
+    const copyProviderGroupName =
+      groupRef?.name ??
+      (copyProviderGroupId != null ? `#${copyProviderGroupId}` : null);
+    const copyProviderTagIds =
+      copyProviderGroupId != null
+        ? (copyProviderMembersByGroupId.get(copyProviderGroupId) ?? [])
+        : [];
 
     manifestations.push({
       id: row.id,
@@ -887,7 +946,11 @@ export async function fetchTeamData(
       tagName: tag?.tagName ?? "Unknown",
       triggerCondition: row.trigger_condition ?? null,
       valueScalar: row.value_scalar,
-      baseHits: row.base_hits,
+      instanceCount: row.instance_count ?? 1,
+      baseCopies: row.base_copies ?? 1,
+      copyProviderGroupId,
+      copyProviderGroupName,
+      copyProviderTagIds,
       dependencyStat: row.dependency_stat,
       sourceType: row.source_type,
       targetType: row.target_type,
@@ -904,7 +967,7 @@ export async function fetchTeamData(
       replacesManifestationId: row.replaces_manifestation_id,
       interactionOverrides: overridesByManifestationId.get(row.id) ?? [],
       isBaseStatTransfer: false,
-    isCreatedBase: false,
+      isCreatedBase: false,
       ...NON_REALM_MANIFESTATION_FIELDS,
     });
   }
@@ -923,7 +986,7 @@ export async function fetchTeamData(
       tagName: tag?.tagName ?? "Unknown",
       triggerCondition: row.trigger_condition ?? null,
       valueScalar: row.value_scalar,
-      baseHits: null,
+      ...DEFAULT_COPY_INSTANCE_FIELDS,
       dependencyStat: row.dependency_stat,
       sourceType: null,
       targetType: null,

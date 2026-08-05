@@ -14,6 +14,7 @@ type TagMathGroup = {
   tagName: string;
   bases: Extract<ScalarMathStep, { kind: "base" }>[];
   ops: Extract<ScalarMathStep, { kind: "op" }>[];
+  hitCounts: Extract<ScalarMathStep, { kind: "hitCount" }>[];
   total: number | null;
 };
 
@@ -105,6 +106,7 @@ export function ReviewTagsMathDebug({
           tagName,
           bases: [],
           ops: [],
+          hitCounts: [],
           total: null,
         };
         byTag.set(tagId, group);
@@ -120,6 +122,7 @@ export function ReviewTagsMathDebug({
       const group = ensure(step.tagId, step.tagName);
       if (step.kind === "base") group.bases.push(step);
       else if (step.kind === "op") group.ops.push(step);
+      else if (step.kind === "hitCount") group.hitCounts.push(step);
       else if (step.kind === "total") group.total = step.total;
     }
 
@@ -139,9 +142,10 @@ export function ReviewTagsMathDebug({
           Layer A base (dependency-scaled) → Keyflare Harmony →
           Keyflare→Create.Posse → team Max HP → Base Tentacle Damage →
           interaction ops by modifier layer (pre_add → add → post_add;
-          leaf-gated buff restriction) → special conversions → totals.
+          leaf-gated buff restriction) → × hitCount (instances × copies) →
+          special conversions → totals.
           Multiply ops ceil after each write. Restricted ops only appear when
-          leaf matches.
+          leaf matches. Base/op lines are single-hit; hitCount multiplies after.
         </p>
       </div>
 
@@ -185,7 +189,16 @@ export function ReviewTagsMathDebug({
                       {formatOpLine(op, nameById)}
                     </li>
                   ))}
-                  {group.bases.length === 0 && group.ops.length === 0 && (
+                  {group.hitCounts.map((h, i) => (
+                    <li key={`hitCount-${group.tagId}-${i}`}>
+                      × hitCount {formatNum(h.hitCount)} ({h.detail}) |{" "}
+                      {formatSourceLabel(h.sourceLabel, nameById)} |{" "}
+                      {formatNum(h.finishedOnce)} → {formatNum(h.after)}
+                    </li>
+                  ))}
+                  {group.bases.length === 0 &&
+                    group.ops.length === 0 &&
+                    group.hitCounts.length === 0 && (
                     <li className="text-zinc-400">
                       (no base/op steps; total from special or pool only)
                     </li>

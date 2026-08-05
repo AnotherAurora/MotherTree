@@ -10,6 +10,7 @@ import {
 } from "@/lib/path-carver/death-resist-trigger";
 import { REQUIRED_KEYFLARE_TO_POSSE_TAG_IDS } from "@/lib/path-carver/keyflare-to-posse";
 import {
+  DEFAULT_COPY_INSTANCE_FIELDS,
   NON_REALM_MANIFESTATION_FIELDS,
   type AllStats,
   type Awakener,
@@ -331,7 +332,7 @@ export function buildBaseStatTransferManifestations(
         tagName: tag?.tagName ?? `#${spec.tagId}`,
         triggerCondition: null,
         valueScalar: value,
-        baseHits: null,
+        ...DEFAULT_COPY_INSTANCE_FIELDS,
         dependencyStat: null,
         sourceType: null,
         targetType: spec.targetType,

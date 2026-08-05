@@ -5,10 +5,11 @@ import {
   AEQUOR_REALM_ID,
   BENTHOS_AEQUOR_REALM_ID,
 } from "@/lib/team-data/realm";
-import type {
-  Awakener,
-  Manifestation,
-  Tag,
+import {
+  DEFAULT_COPY_INSTANCE_FIELDS,
+  type Awakener,
+  type Manifestation,
+  type Tag,
 } from "@/lib/team-data/types";
 
 /** Support.Tentacle Damage Up */
@@ -183,7 +184,7 @@ export function buildBaseTentacleDamageManifestation(
     tagName: tag?.tagName ?? "Support.Tentacle Damage Up",
     triggerCondition: null,
     valueScalar: breakdown.valueScalar,
-    baseHits: null,
+    ...DEFAULT_COPY_INSTANCE_FIELDS,
     dependencyStat: null,
     sourceType: null,
     targetType: null,

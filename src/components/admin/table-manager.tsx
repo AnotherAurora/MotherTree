@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { DesireFormDialog } from "@/components/admin/desire-form-dialog";
+import { CopyProviderGroupFormDialog } from "@/components/admin/copy-provider-group-form-dialog";
 import { ManifestationFormDialog } from "@/components/admin/manifestation-form-dialog";
 import {
   EditableCell,
@@ -42,8 +43,10 @@ import { getListFields } from "@/lib/schema-config";
 import {
   CREATES_AMPLIFY_CONFLICT_HINT,
   LOCAL_INTERACTION_COLUMN_MISMATCH_HINT,
+  NON_POSITIVE_INSTANCE_OR_COPIES_HINT,
   hasCreatesAmplifyConflict,
   hasLocalInteractionColumnMismatch,
+  hasNonPositiveInstanceOrCopies,
 } from "@/lib/admin-form-warnings";
 import { cn } from "@/lib/utils";
 
@@ -571,7 +574,12 @@ export function TableManager({
                         "awakener_local_manifestation_interaction" &&
                       !isDeleted &&
                       hasLocalInteractionColumnMismatch(record);
-                    const rowWarn = flagConflict || localColumnMismatch;
+                    const nonPositiveCopies =
+                      config.name === "awakener_tag_manifestation" &&
+                      !isDeleted &&
+                      hasNonPositiveInstanceOrCopies(record);
+                    const rowWarn =
+                      flagConflict || localColumnMismatch || nonPositiveCopies;
                     return (
                       <tr
                         key={String(record.id)}
@@ -584,7 +592,9 @@ export function TableManager({
                             ? CREATES_AMPLIFY_CONFLICT_HINT
                             : localColumnMismatch
                               ? LOCAL_INTERACTION_COLUMN_MISMATCH_HINT
-                              : undefined
+                              : nonPositiveCopies
+                                ? NON_POSITIVE_INSTANCE_OR_COPIES_HINT
+                                : undefined
                         }
                         onDoubleClick={() => {
                           if (!showDeletedOnly && !isDeleted) {
@@ -698,6 +708,14 @@ export function TableManager({
 
       {config.name === "awakener_tag_manifestation" ? (
         <ManifestationFormDialog
+          config={config}
+          open={dialogOpen}
+          onOpenChange={setDialogOpen}
+          record={editingRecord}
+          onSuccess={refresh}
+        />
+      ) : config.name === "copy_provider_group" ? (
+        <CopyProviderGroupFormDialog
           config={config}
           open={dialogOpen}
           onOpenChange={setDialogOpen}

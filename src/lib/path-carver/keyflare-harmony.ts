@@ -1,5 +1,6 @@
 import { SUPPORT_KEYFLARE_TAG_ID } from "@/lib/path-carver/keyflare-to-posse";
 import {
+  DEFAULT_COPY_INSTANCE_FIELDS,
   NON_REALM_MANIFESTATION_FIELDS,
   type Awakener,
   type Manifestation,
@@ -66,7 +67,7 @@ export function buildKeyflareHarmonyManifestation(
     tagName: tag?.tagName ?? "Support.Keyflare",
     triggerCondition: null,
     valueScalar,
-    baseHits: null,
+    ...DEFAULT_COPY_INSTANCE_FIELDS,
     dependencyStat: null,
     sourceType: null,
     targetType: "aoe",

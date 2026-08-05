@@ -189,14 +189,16 @@ export type Database = {
       awakener_tag_manifestation: {
         Row: {
           awakener_id: number
-          base_hits: number | null
+          base_copies: number
           buff_target_type_restriction:
             | Database["public"]["Enums"]["source_type"]
             | null
+          copy_provider_group_id: number | null
           created_at: string | null
           deleted_at: string | null
           dependency_stat: Database["public"]["Enums"]["all_stats"] | null
           id: number
+          instance_count: number
           is_accumulating: boolean
           is_permanent: boolean | null
           metadata: string | null
@@ -212,14 +214,16 @@ export type Database = {
         }
         Insert: {
           awakener_id: number
-          base_hits?: number | null
+          base_copies?: number
           buff_target_type_restriction?:
             | Database["public"]["Enums"]["source_type"]
             | null
+          copy_provider_group_id?: number | null
           created_at?: string | null
           deleted_at?: string | null
           dependency_stat?: Database["public"]["Enums"]["all_stats"] | null
           id?: number
+          instance_count?: number
           is_accumulating?: boolean
           is_permanent?: boolean | null
           metadata?: string | null
@@ -235,14 +239,16 @@ export type Database = {
         }
         Update: {
           awakener_id?: number
-          base_hits?: number | null
+          base_copies?: number
           buff_target_type_restriction?:
             | Database["public"]["Enums"]["source_type"]
             | null
+          copy_provider_group_id?: number | null
           created_at?: string | null
           deleted_at?: string | null
           dependency_stat?: Database["public"]["Enums"]["all_stats"] | null
           id?: number
+          instance_count?: number
           is_accumulating?: boolean
           is_permanent?: boolean | null
           metadata?: string | null
@@ -262,6 +268,13 @@ export type Database = {
             columns: ["awakener_id"]
             isOneToOne: false
             referencedRelation: "awakener"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "awakener_tag_manifestation_copy_provider_group_id_fkey"
+            columns: ["copy_provider_group_id"]
+            isOneToOne: false
+            referencedRelation: "copy_provider_group"
             referencedColumns: ["id"]
           },
           {
@@ -288,6 +301,72 @@ export type Database = {
           {
             foreignKeyName: "awakener_tag_manifestation_trigger_condition_fkey"
             columns: ["trigger_condition"]
+            isOneToOne: false
+            referencedRelation: "tag"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      copy_provider_group: {
+        Row: {
+          created_at: string | null
+          deleted_at: string | null
+          id: number
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          deleted_at?: string | null
+          id?: number
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          deleted_at?: string | null
+          id?: number
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      copy_provider_group_member: {
+        Row: {
+          created_at: string | null
+          deleted_at: string | null
+          group_id: number
+          id: number
+          tag_id: number
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          deleted_at?: string | null
+          group_id: number
+          id?: number
+          tag_id: number
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          deleted_at?: string | null
+          group_id?: number
+          id?: number
+          tag_id?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "copy_provider_group_member_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "copy_provider_group"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "copy_provider_group_member_tag_id_fkey"
+            columns: ["tag_id"]
             isOneToOne: false
             referencedRelation: "tag"
             referencedColumns: ["id"]

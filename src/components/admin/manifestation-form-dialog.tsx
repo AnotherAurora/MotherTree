@@ -41,6 +41,10 @@ import {
   setActiveTagId,
   valueScalarToPercentDisplay,
 } from "@/lib/admin-local-interaction";
+import {
+  NON_POSITIVE_INSTANCE_OR_COPIES_HINT,
+  hasNonPositiveInstanceOrCopies,
+} from "@/lib/admin-form-warnings";
 import { ENUM_VALUES } from "@/lib/database.types";
 import type { FieldConfig, TableConfig } from "@/lib/schema-config";
 import { getFormFields } from "@/lib/schema-config";
@@ -613,6 +617,11 @@ export function ManifestationFormDialog({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          {hasNonPositiveInstanceOrCopies(values) && (
+            <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+              {NON_POSITIVE_INSTANCE_OR_COPIES_HINT}
+            </p>
+          )}
           <div className="space-y-4">
             {getFormFields(config).map((field) => (
               <div key={field.name} className="space-y-2">

@@ -817,6 +817,223 @@ export async function saveDesireWithAnchoredAwakeners(
   }
 }
 
+export type CopyProviderGroupMemberInput = {
+  id?: number;
+  tag_id: number | null;
+};
+
+export async function listCopyProviderGroupMembers(
+  groupId: number,
+): Promise<ActionResult<Record<string, unknown>[]>> {
+  try {
+    const supabase = createAdminClient();
+    const { data, error } = await supabase
+      .from("copy_provider_group_member")
+      .select("*")
+      .eq("group_id", groupId)
+      .is("deleted_at", null)
+      .order("id");
+
+    if (error) return { success: false, error: error.message };
+
+    return { success: true, data: (data ?? []) as Record<string, unknown>[] };
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to load copy provider group members",
+    };
+  }
+}
+
+function buildCopyProviderMemberRecord(
+  groupId: number,
+  member: CopyProviderGroupMemberInput,
+): Record<string, unknown> {
+  return {
+    group_id: groupId,
+    tag_id: member.tag_id,
+  };
+}
+
+export async function saveCopyProviderGroupWithMembers(
+  payload: Record<string, unknown>,
+  members: CopyProviderGroupMemberInput[],
+  groupId?: number,
+): Promise<ActionResult<Record<string, unknown>>> {
+  const config = getConfig("copy_provider_group");
+  if (!config) return { success: false, error: "Unknown table" };
+
+  try {
+    const supabase = createAdminClient();
+
+    let savedGroupId = groupId;
+
+    if (savedGroupId != null) {
+      const record: Record<string, unknown> = { ...payload };
+      delete record.id;
+
+      if (config.fields.some((field) => field.name === "updated_at")) {
+        record.updated_at = nowIso();
+      }
+
+      const uniqueCheck = await assertUniqueConstraints(
+        supabase,
+        config,
+        record,
+        savedGroupId,
+      );
+      if (!uniqueCheck.success) return uniqueCheck;
+
+      const { data, error } = await supabase
+        .from("copy_provider_group")
+        .update(record as never)
+        .eq("id", savedGroupId)
+        .select("*")
+        .single();
+
+      if (error) return { success: false, error: mapDbError(config, error) };
+      if (!data) {
+        return { success: false, error: "Copy provider group not found" };
+      }
+    } else {
+      const record: Record<string, unknown> = { ...payload };
+      delete record.id;
+
+      if (config.fields.some((field) => field.name === "created_at")) {
+        record.created_at = nowIso();
+      }
+      if (config.fields.some((field) => field.name === "updated_at")) {
+        record.updated_at = nowIso();
+      }
+
+      const uniqueCheck = await assertUniqueConstraints(
+        supabase,
+        config,
+        record,
+      );
+      if (!uniqueCheck.success) return uniqueCheck;
+
+      const { data, error } = await supabase
+        .from("copy_provider_group")
+        .insert(record as never)
+        .select("*")
+        .single();
+
+      if (error) return { success: false, error: mapDbError(config, error) };
+      savedGroupId = Number(data.id);
+    }
+
+    const memberConfig = getConfig("copy_provider_group_member");
+    if (!memberConfig) {
+      return { success: false, error: "Unknown copy provider group member table" };
+    }
+
+    const { data: existingRows, error: existingError } = await supabase
+      .from("copy_provider_group_member")
+      .select("id")
+      .eq("group_id", savedGroupId)
+      .is("deleted_at", null);
+
+    if (existingError) {
+      return { success: false, error: existingError.message };
+    }
+
+    const existingIds = new Set(
+      (existingRows ?? []).map((row) => Number(row.id)),
+    );
+    const submittedIds = new Set(
+      members
+        .map((member) => member.id)
+        .filter((id): id is number => id != null),
+    );
+
+    for (const existingId of existingIds) {
+      if (submittedIds.has(existingId)) continue;
+
+      const { error } = await supabase
+        .from("copy_provider_group_member")
+        .update({
+          deleted_at: nowIso(),
+          updated_at: nowIso(),
+        } as never)
+        .eq("id", existingId);
+
+      if (error) return { success: false, error: error.message };
+    }
+
+    for (const member of members) {
+      if (member.tag_id == null) {
+        return { success: false, error: "Each member needs a tag" };
+      }
+      const memberRecord = buildCopyProviderMemberRecord(savedGroupId, member);
+
+      if (member.id != null) {
+        memberRecord.updated_at = nowIso();
+        const uniqueCheck = await assertUniqueConstraints(
+          supabase,
+          memberConfig,
+          memberRecord,
+          member.id,
+        );
+        if (!uniqueCheck.success) return uniqueCheck;
+
+        const { error } = await supabase
+          .from("copy_provider_group_member")
+          .update(memberRecord as never)
+          .eq("id", member.id);
+
+        if (error) {
+          return { success: false, error: mapDbError(memberConfig, error) };
+        }
+      } else {
+        memberRecord.created_at = nowIso();
+        memberRecord.updated_at = nowIso();
+        const uniqueCheck = await assertUniqueConstraints(
+          supabase,
+          memberConfig,
+          memberRecord,
+        );
+        if (!uniqueCheck.success) return uniqueCheck;
+
+        const { error } = await supabase
+          .from("copy_provider_group_member")
+          .insert(memberRecord as never);
+
+        if (error) {
+          return { success: false, error: mapDbError(memberConfig, error) };
+        }
+      }
+    }
+
+    revalidateTable("copy_provider_group");
+    revalidateTable("copy_provider_group_member");
+
+    const { data: group, error: loadError } = await supabase
+      .from("copy_provider_group")
+      .select("*")
+      .eq("id", savedGroupId)
+      .single();
+
+    if (loadError) return { success: false, error: loadError.message };
+
+    return {
+      success: true,
+      data: group as Record<string, unknown>,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to save copy provider group",
+    };
+  }
+}
+
 export async function softDeleteRecord(
   tableName: string,
   id: number,
