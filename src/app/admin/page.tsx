@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/card";
 import { TABLE_CONFIGS } from "@/lib/schema-config";
 
-export default function DashboardPage() {
+export default function AdminDashboardPage() {
   const sorted = [...TABLE_CONFIGS].sort((a, b) => a.order - b.order);
 
   return (
