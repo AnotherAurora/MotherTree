@@ -227,7 +227,7 @@ function main(): void {
   const applyContext = createManifestationApplyContext(
     [awakener],
     [awakener.id],
-    [],
+    new Map(),
   );
   const totals = aggregateTagScalarsById(
     applied,

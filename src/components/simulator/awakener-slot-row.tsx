@@ -149,20 +149,26 @@ export function AwakenerSlotRow({
                 Awakener {index + 1}
               </Label>
               {showAnchorToggle && slot.awakenerId != null && (
-                <button
-                  type="button"
-                  disabled={anchorDisabled}
-                  // Prevent browser form restoration from flipping `disabled`
-                  // across refreshes (causes SSR/client hydration mismatches).
+                // Form wrapper: browser form restoration can flip `disabled` on
+                // controls across refresh (SSR/client hydration mismatches).
+                // `autoComplete` is invalid on <button>, so opt out via <form>.
+                <form
                   autoComplete="off"
-                  onClick={() =>
-                    onAnchorModeChange?.(nextAnchorMode(anchorMode))
-                  }
-                  className="rounded border border-zinc-300 px-1.5 py-0.5 text-xs text-zinc-600 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
-                  title="Cycle anchor mode: Off → Anchor → Damage Dealer"
+                  className="contents"
+                  onSubmit={(e) => e.preventDefault()}
                 >
-                  {ANCHOR_MODE_LABELS[anchorMode]}
-                </button>
+                  <button
+                    type="button"
+                    disabled={anchorDisabled}
+                    onClick={() =>
+                      onAnchorModeChange?.(nextAnchorMode(anchorMode))
+                    }
+                    className="rounded border border-zinc-300 px-1.5 py-0.5 text-xs text-zinc-600 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    title="Cycle anchor mode: Off → Anchor → Damage Dealer"
+                  >
+                    {ANCHOR_MODE_LABELS[anchorMode]}
+                  </button>
+                </form>
               )}
             </div>
             <ForeignKeyCombobox

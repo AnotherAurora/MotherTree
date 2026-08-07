@@ -51,11 +51,12 @@ export function baseDeathResistReductionToMaxHpUp(base: number): number {
 
 /**
  * Base Death Resist → In Mission: reduce by 75%, but reduction capped at 300%.
- * Scalars: 1.0 = 100%.
+ * Scalars: 1.0 = 100%. Result is ceiled to 2 decimal places.
  */
 export function baseDeathResistToInMission(base: number): number {
   if (base <= 0) return 0;
-  return base - baseDeathResistReduction(base);
+  const raw = base - baseDeathResistReduction(base);
+  return Math.ceil(raw * 100) / 100;
 }
 
 /**
@@ -121,9 +122,8 @@ export function buildDeathResistDerivedManifestations(
   directInMissionTotal: number,
   tagsById: Record<number, Tag>,
 ): Manifestation[] {
-  const reduction = baseDeathResistReduction(baseDeathResistTotal);
   const maxHpUp = baseDeathResistReductionToMaxHpUp(baseDeathResistTotal);
-  const fromBase = baseDeathResistTotal > 0 ? baseDeathResistTotal - reduction : 0;
+  const fromBase = baseDeathResistToInMission(baseDeathResistTotal);
   const cause = inMissionToCauseTrigger(fromBase + directInMissionTotal);
   const out: Manifestation[] = [];
 

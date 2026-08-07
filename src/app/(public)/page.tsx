@@ -24,8 +24,8 @@ const HUB_ITEMS: readonly HubItem[] = [
     },
   },
   {
-    href: "/calculator",
-    title: "Calculator",
+    href: "/calculators",
+    title: "Calculators",
     bullets: [
       "Dedicated calculators designed for specific Morimens mechanics.",
       "Calculate Base Tentacle Damage, Death Resistance, Keyflare, Aliemus, and more.",

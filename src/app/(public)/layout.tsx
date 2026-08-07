@@ -15,7 +15,7 @@ export const metadata: Metadata = {
     default: "Mother Tree",
     template: "%s · Mother Tree",
   },
-  description: "Mother Tree — root version. Search and Calculator for game data.",
+  description: "Mother Tree — root version. Search and Calculators for game data.",
 };
 
 export default function PublicLayout({

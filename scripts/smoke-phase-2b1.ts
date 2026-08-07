@@ -586,9 +586,10 @@ console.log("\nDeath Resist → In Mission → Cause Trigger (pure)");
   assert(inMissionToCauseTrigger(0.25) === 0, "25% In Mission → 0 Cause");
   assert(baseDeathResistToInMission(0) === 0, "0 base → 0 In Mission");
   // User bug: ATM + Base stat (4.024), not Base stat alone (3.024 → 0.756)
+  // Raw 1.024, ceiled to 2 dp → 1.03
   assert(
-    baseDeathResistToInMission(4.024) === 1.024,
-    "4.024 full tag 12 → 1.024 In Mission",
+    baseDeathResistToInMission(4.024) === 1.03,
+    "4.024 full tag 12 → 1.03 In Mission (ceil 2 dp)",
   );
 }
 
@@ -792,7 +793,7 @@ console.log("\nDeath Resist full tag 12 (ATM + Base stat) via computeReviewTagTo
     [maxHpUpTag.id]: maxHpUpTag,
   };
 
-  // Base stat 3.024 + ATM 1.0 = 4.024 → In Mission 1.024 → Cause 1; Max HP Up 3
+  // Base stat 3.024 + ATM 1.0 = 4.024 → In Mission ceil(1.024)=1.03 → Cause 1; Max HP Up 3
   const awakener = makeAwakener({ id: 1, deathResist: 3.024 });
   const atm = makeManifestation({
     id: 10,
@@ -818,8 +819,8 @@ console.log("\nDeath Resist full tag 12 (ATM + Base stat) via computeReviewTagTo
     `tag 12 total 4.024 (got ${totalsByTagId.get(baseTag.id)})`,
   );
   assert(
-    Math.abs((totalsByTagId.get(inMissionTag.id) ?? 0) - 1.024) < 1e-9,
-    `In Mission 1.024 not 0.756 (got ${totalsByTagId.get(inMissionTag.id)})`,
+    Math.abs((totalsByTagId.get(inMissionTag.id) ?? 0) - 1.03) < 1e-9,
+    `In Mission 1.03 not 0.756 (got ${totalsByTagId.get(inMissionTag.id)})`,
   );
   assert(
     (totalsByTagId.get(causeTag.id) ?? 0) === 1,
