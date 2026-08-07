@@ -82,7 +82,7 @@ body {
   letter-spacing: 0.02em;
   background: linear-gradient(
     105deg,
-    #fff5f0 0%,
+    #e85a45 0%,
     var(--mt-glow) 28%,
     var(--mt-ember) 55%,
     var(--mt-ember-deep) 100%
@@ -101,11 +101,82 @@ body {
   transition: color 0.2s ease;
 }
 
+.mt-hub-card {
+  position: relative;
+  padding: 1.5rem 1.75rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--mt-border);
+  background:
+    linear-gradient(
+      165deg,
+      #f6e6d4 0%,
+      #edd4b8 55%,
+      #e4c9a8 100%
+    );
+  box-shadow:
+    0 1px 0 rgb(255 245 235 / 0.35) inset,
+    0 10px 28px rgb(42 28 22 / 0.16),
+    0 2px 6px rgb(42 28 22 / 0.1);
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.mt-hub-card-body {
+  border-top: 1px solid rgb(42 28 22 / 0.22);
+  padding-top: 1rem;
+  transition: border-color 0.2s ease;
+}
+
+@media (min-width: 640px) {
+  .mt-hub-card-body {
+    border-top: none;
+    border-left: 1px solid rgb(42 28 22 / 0.22);
+    padding-top: 0;
+    padding-left: 1.5rem;
+    margin-left: 1.5rem;
+  }
+}
+
+.mt-hub-card:hover,
+.mt-hub-card:focus-within {
+  border-color: rgb(185 28 28 / 0.35);
+  box-shadow:
+    0 1px 0 rgb(255 245 235 / 0.4) inset,
+    0 16px 36px rgb(42 28 22 / 0.2),
+    0 4px 10px rgb(185 28 28 / 0.12);
+  transform: translateY(-2px);
+}
+
+.mt-hub-card:hover .mt-hub-card-body,
+.mt-hub-card:focus-within .mt-hub-card-body {
+  border-color: rgb(185 28 28 / 0.4);
+}
+
+.mt-hub-card:hover .mt-hub-title,
+.mt-hub-card:focus-within .mt-hub-title {
+  background: linear-gradient(
+    105deg,
+    #e85a45 0%,
+    var(--mt-glow) 28%,
+    var(--mt-ember) 55%,
+    var(--mt-ember-deep) 100%
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0 10px rgb(185 28 28 / 0.45))
+    drop-shadow(0 0 22px rgb(255 107 74 / 0.28));
+  animation: mt-ember-pulse 4.5s ease-in-out infinite;
+}
+
 .mt-hub-title:hover,
 .mt-hub-title:focus-visible {
   background: linear-gradient(
     105deg,
-    #fff5f0 0%,
+    #e85a45 0%,
     var(--mt-glow) 28%,
     var(--mt-ember) 55%,
     var(--mt-ember-deep) 100%
@@ -148,8 +219,19 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .public-theme::before,
   .mt-brand-mark,
+  .mt-hub-card:hover .mt-hub-title,
+  .mt-hub-card:focus-within .mt-hub-title,
   .mt-hub-title:hover,
   .mt-hub-title:focus-visible {
     animation: none;
+  }
+
+  .mt-hub-card {
+    transition: none;
+  }
+
+  .mt-hub-card:hover,
+  .mt-hub-card:focus-within {
+    transform: none;
   }
 }

@@ -54,37 +54,44 @@ export default function HomePage() {
   return (
     <div className="mx-auto max-w-5xl px-6 py-10">
       <h1 className="sr-only">Mother Tree</h1>
-      <div className="flex flex-col gap-10">
-        {HUB_ITEMS.map((item) => (
-          <div
-            key={item.href}
-            className="flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-10"
-          >
-            <h2 className="shrink-0 sm:w-44">
+      <div className="flex flex-col gap-5">
+        {HUB_ITEMS.map((item) => {
+          const titleId = `hub-${item.href.replace(/^\//, "")}-title`;
+
+          return (
+            <div
+              key={item.href}
+              className="mt-hub-card relative flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-0"
+            >
               <Link
                 href={item.href}
-                className="mt-hub-title font-[family-name:var(--font-mother-display)] text-2xl font-semibold"
+                className="absolute inset-0 z-[1] rounded-[inherit]"
+                aria-labelledby={titleId}
+              />
+              <h2
+                id={titleId}
+                className="mt-hub-title relative shrink-0 font-[family-name:var(--font-mother-display)] text-3xl font-semibold sm:w-44"
               >
                 {item.title}
-              </Link>
-            </h2>
-            <ul className="min-w-0 flex-1 list-disc space-y-2 pl-5 text-sm leading-relaxed text-[var(--mt-ink-muted)]">
-              {item.bullets.map((bullet) => (
-                <li key={bullet}>{bullet}</li>
-              ))}
-              {item.learnMore ? (
-                <li className="list-none -ml-5">
-                  <Link
-                    href={item.learnMore.href}
-                    className="font-medium text-[var(--mt-ember)] underline underline-offset-4 hover:text-[var(--mt-ember-deep)]"
-                  >
-                    [{item.learnMore.label}]
-                  </Link>
-                </li>
-              ) : null}
-            </ul>
-          </div>
-        ))}
+              </h2>
+              <ul className="mt-hub-card-body relative min-w-0 flex-1 list-disc space-y-2 pl-5 text-base font-medium leading-relaxed text-[var(--mt-ink)]">
+                {item.bullets.map((bullet) => (
+                  <li key={bullet}>{bullet}</li>
+                ))}
+                {item.learnMore ? (
+                  <li className="relative z-[2] list-none -ml-5 font-normal">
+                    <Link
+                      href={item.learnMore.href}
+                      className="font-medium text-[var(--mt-ember)] underline underline-offset-4 hover:text-[var(--mt-ember-deep)]"
+                    >
+                      [{item.learnMore.label}]
+                    </Link>
+                  </li>
+                ) : null}
+              </ul>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
