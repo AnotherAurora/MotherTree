@@ -1,19 +1,19 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Calculator",
+  title: "About Me",
 };
 
-export default function CalculatorPage() {
+export default function AboutPage() {
   return (
     <div className="mx-auto max-w-5xl space-y-4 px-6 py-10">
       <div>
         <h1 className="font-[family-name:var(--font-mother-display)] text-4xl font-semibold tracking-tight text-[var(--mt-ink)]">
-          Calculator
+          About Me
         </h1>
         <p className="mt-3 max-w-2xl text-[var(--mt-ink-muted)]">
-          Tools for keyflare, death resist, HP, tentacle damage, and realm
-          mastery. This hub is a placeholder until the catalog tools ship.
+          Background and vision for this project. This page is a placeholder
+          until About content ships.
         </p>
       </div>
     </div>

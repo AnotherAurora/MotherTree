@@ -1,12 +1,18 @@
 ---
 name: Public Site Phased Plan
-overview: "Public Mother Tree (root version): homepage hub + Search + Calculator are public; other routes stay private admin. Phase 0–1 decisions locked (catalog, allowlist, localStorage, chrome). Calculator before Search → Vercel release."
+overview: "Public Mother Tree (root version): homepage hub + Search + Calculator + Manual + About are public; other routes stay private admin. Phase 0–1.2 decisions locked (catalog, allowlist, localStorage, chrome, four-row hub). Calculator before Search → Vercel release."
 todos:
   - id: phase-0-scope
     content: Phase 0 — Scope locked (Search naming, calculator catalog, table allowlist, localStorage)
     status: completed
   - id: phase-1-shell
     content: Phase 1 — Public `/` + `/search` + `/calculator`; move admin home to `/admin`; Mother Tree / root version chrome
+    status: completed
+  - id: phase-1-1-theme
+    content: Phase 1.1 — Public desert dusk theme + simple hub (no Path Carver in public copy)
+    status: completed
+  - id: phase-1-2-hub
+    content: Phase 1.2 — Four-row homepage hub; `/manual` + `/about` placeholders; nav + ember hover
     status: completed
   - id: phase-2-readonly
     content: Phase 2 — SELECT-only RLS on Phase 0 allowlisted tables; caps; smoke tests
@@ -33,7 +39,7 @@ isProject: false
 | Decision             | Locked choice                                                                                      |
 | -------------------- | -------------------------------------------------------------------------------------------------- |
 | Repo                 | Same MotherTree Next.js app ([README.md](README.md)) — not a separate site                         |
-| Public vs private    | **Homepage tree is public** (`/`, `/search`, `/calculator`…); **everything else is private admin** |
+| Public vs private    | **Homepage tree is public** (`/`, `/search`, `/calculator`, `/manual`, `/about`…); **everything else is private admin** |
 | Admin home           | **`/admin`** — private dashboard (table hub); replaces today’s `/` admin welcome                   |
 | Public brand         | Top-left **Mother Tree** with subtitle **root version**                                            |
 | Public chrome        | No “Admin Dashboard” label; **no** admin side nav to private pages                                 |
@@ -55,12 +61,15 @@ Recommendation / Path Carver full flow / simulator remain **admin-only** and out
 flowchart TD
   P0[Phase0_Scope]
   P1[Phase1_Shell]
+  P1_1[Phase1_1_Theme]
+  P1_2[Phase1_2_Hub]
   P2[Phase2_ReadOnlyAccess]
   P3[Phase3_Calculator]
   P4[Phase4_Search]
   P5[Phase5_PublicRelease]
   P6[Phase6_Expand]
-  P0 --> P1 --> P2
+  P0 --> P1 --> P1_1 --> P1_2
+  P1 --> P2
   P2 --> P3
   P2 --> P4
   P3 --> P5
@@ -68,7 +77,7 @@ flowchart TD
   P5 --> P6
 ```
 
-Phase 3 and 4 both need Phase 2. Prefer finishing **calculator (3)** before deep search work; search can start after Phase 2 if you want parallel work later.
+Phase 3 and 4 both need Phase 2. Prefer finishing **calculator (3)** before deep search work; search can start after Phase 2 if you want parallel work later. Phase 1.1 / 1.2 (theme + hub) do not block Phase 2+.
 
 ---
 
@@ -78,9 +87,11 @@ _Product boundaries. Detail below is decided; UX specifics for Search remain for
 
 ### Public pages
 
-- **Homepage** (`/`) — public hub with links + short descriptions of Search and Calculator
+- **Homepage** (`/`) — public hub with four rows: Search, Calculator, Manual, About Me
 - **Search** (`/search`) — one page
 - **Calculator** (`/calculator`) — hub that may expand into **sub-pages** per calculator tool
+- **Manual** (`/manual`) — docs placeholder (Phase 1.2)
+- **About Me** (`/about`) — about placeholder (Phase 1.2)
 
 ### Non-goals (confirmed)
 
@@ -139,15 +150,17 @@ _Homepage tree = public. All other existing tool/table routes = private admin._
 
 ### Routing
 
-| Area        | Routes                                                               | Access                                                  |
-| ----------- | -------------------------------------------------------------------- | ------------------------------------------------------- |
-| Public hub  | `/`                                                                  | Public — links + descriptions for Search and Calculator |
-| Search      | `/search`                                                            | Public                                                  |
-| Calculator  | `/calculator` (hub) + `/calculator/...` sub-pages as tools are added | Public                                                  |
-| Admin home  | `/admin`                                                             | **Private** — admin dashboard (table hub / welcome)     |
-| Admin tools | `/tables/*`, `/path-carver`, `/simulator`                            | **Private admin only**                                  |
+| Area        | Routes                                                               | Access                                                              |
+| ----------- | -------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| Public hub  | `/`                                                                  | Public — four-row hub (Search, Calculator, Manual, About Me)        |
+| Search      | `/search`                                                            | Public                                                              |
+| Calculator  | `/calculator` (hub) + `/calculator/...` sub-pages as tools are added | Public                                                              |
+| Manual      | `/manual`                                                            | Public                                                              |
+| About Me    | `/about`                                                             | Public                                                              |
+| Admin home  | `/admin`                                                             | **Private** — admin dashboard (table hub / welcome)                 |
+| Admin tools | `/tables/*`, `/path-carver`, `/simulator`                            | **Private admin only**                                              |
 
-Public allowlist for access control (Phase 5): `/`, `/search`, `/calculator` and `/calculator/*` only. All other routes (including `/admin`) stay private.
+Public allowlist for access control (Phase 5): `/`, `/search`, `/calculator` and `/calculator/*`, `/manual`, `/about` only. All other routes (including `/admin`) stay private.
 
 ### Public chrome (not admin)
 
@@ -155,7 +168,7 @@ Public allowlist for access control (Phase 5): `/`, `/search`, `/calculator` and
 - Subtitle under the name: **root version**
 - Do **not** show “Admin Dashboard”
 - Do **not** include the admin [sidebar](src/components/admin/sidebar.tsx) or links to private pages
-- Public layout only: brand + navigation among public pages (hub / Search / Calculator)
+- Public layout only: brand + navigation among public pages (Home / Search / Calculator / Manual / About Me)
 
 ### Private admin home (`/admin`)
 
@@ -178,6 +191,41 @@ Public allowlist for access control (Phase 5): `/`, `/search`, `/calculator` and
 - **Relocate admin home** to `/admin` (current dashboard content); update sidebar home link to `/admin`
 
 **Exit:** Public placeholders at `/`, `/search`, `/calculator`; admin home at `/admin` with sidebar; no admin chrome on public pages.
+
+---
+
+## Phase 1.1 — Public desert dusk theme (done)
+
+_Visual polish on the public shell. Inspired by Ch7 Mother Tree desert mood; no game art assets shipped._
+
+### What was done
+
+- **Inspired theme only** — CSS gradients and grain overlay on `.public-theme`; no Ch7 reference PNGs and no tree silhouette asset in the repo
+- **Atmosphere:** Desert dusk / sand haze page ground (public layout only; admin unchanged); haze drift + brand ember pulse motions
+- **Brand mark:** Public product name locked as **Mother Tree** (two words, with space); crimson-ember gradient/glow on the header wordmark only. Admin/repo identifier remains **MotherTree**
+- **Display font:** Cormorant Garamond for brand / public headings; body stays Geist
+- **Homepage:** Simple hub — Search and Calculator as two linked titles with short descriptions; no oversized brand, no hero CTAs, no full-viewport stage. Visible brand stays in the header (visually hidden `h1` for a11y)
+- **Public copy:** Do not mention Path Carver on public pages; describe tools in plain product terms
+- **Surfaces touched:** [`src/app/(public)/layout.tsx`](<src/app/(public)/layout.tsx>), [`site-header.tsx`](src/components/public/site-header.tsx), [`site-footer.tsx`](src/components/public/site-footer.tsx), [`mother-tree-mark.tsx`](src/components/public/mother-tree-mark.tsx), [`/`](<src/app/(public)/page.tsx>), [`/search`](<src/app/(public)/search/page.tsx>), [`/calculator`](<src/app/(public)/calculator/page.tsx>), plus [`globals.css`](src/app/globals.css) `.public-theme` tokens
+
+**Exit:** Public pages share the desert dusk theme; homepage is a two-link hub; brand reads as Mother Tree with crimson glow in chrome only.
+
+---
+
+## Phase 1.2 — Four-row homepage hub + Manual / About (done)
+
+_Replace the two-link hub with locked product copy; add Manual and About placeholders._
+
+### What was done
+
+- **Homepage hub:** Four horizontal rows in order — Search, Calculator, Manual, About Me. Title on the left; bullet descriptions on the right (stack on small screens). Copy locked verbatim; no extra hub marketing text
+- **Search Learn more:** Trailing `[Learn more about search features, methodology, and recording assumptions]` links to `/manual`
+- **Ember hover:** Hub titles use `.mt-hub-title` — crimson-ember gradient/glow on hover / focus-visible (same tokens as `.mt-brand-mark`); bullets stay muted
+- **Routes:** Placeholder pages at [`/manual`](<src/app/(public)/manual/page.tsx>) and [`/about`](<src/app/(public)/about/page.tsx>)
+- **Nav:** Public header includes Home, Search, Calculator, Manual, About Me
+- **Surfaces touched:** [`src/app/(public)/page.tsx`](<src/app/(public)/page.tsx>), [`site-header.tsx`](src/components/public/site-header.tsx), [`globals.css`](src/app/globals.css), new manual/about pages
+
+**Exit:** Four-row hub live; `/manual` and `/about` placeholders; nav updated; ember hover on hub titles.
 
 ---
 
@@ -228,13 +276,13 @@ _Query UI on Phase 2 read layer (product name: Search)._
 ## Phase 5 — Public release gate
 
 - Protect admin/write routes (auth or deploy protection) so `/admin`, `/tables`, `/path-carver`, `/simulator`, etc. are not reachable by the public
-- Public `/`, `/search`, `/calculator/*` live with Mother Tree / root version chrome only
+- Public `/`, `/search`, `/calculator/*`, `/manual`, `/about` live with Mother Tree / root version chrome only
 - Env review: publishable/anon for public path; service role server-only
 - Deploy to Vercel; set env vars; confirm soft-delete/RLS behavior in production
 - Attribution footer (SKeyDB / CC BY-NC-SA) on public pages
 - Basic abuse/error visibility
 
-**Exit:** Public Calculator + Search via homepage hub; no public DB writes; admin tools (including `/admin`) gated.
+**Exit:** Public Calculator + Search (+ Manual / About) via homepage hub; no public DB writes; admin tools (including `/admin`) gated.
 
 ---
 
@@ -249,17 +297,22 @@ _Query UI on Phase 2 read layer (product name: Search)._
 
 ## Remaining detail slots (without reordering phases)
 
-| Slot                                              | Status            | Where it lands          |
-| ------------------------------------------------- | ----------------- | ----------------------- |
-| Calculator factor list                            | Locked in Phase 0 | Phase 3 implementation  |
-| Public table allowlist                            | Locked in Phase 0 | Phase 2 + 4             |
-| localStorage for calculator inputs                | Locked            | Phase 3                 |
-| Public routes + Mother Tree / root version chrome | Locked in Phase 1 | Phase 1 implementation  |
-| Private admin home `/admin`                       | Locked in Phase 1 | Phase 1 (move from `/`) |
-| Search UX specifics                               | Open              | Phase 4                 |
-| Column-level public trimming                      | Open if needed    | Phase 2                 |
-| Admin auth mechanism                              | Open              | Phase 5                 |
-| Homepage hub copy (link blurbs)                   | Open for polish   | Phase 1 / 5             |
+| Slot                                              | Status                                            | Where it lands          |
+| ------------------------------------------------- | ------------------------------------------------- | ----------------------- |
+| Calculator factor list                            | Locked in Phase 0                                 | Phase 3 implementation  |
+| Public table allowlist                            | Locked in Phase 0                                 | Phase 2 + 4             |
+| localStorage for calculator inputs                | Locked                                            | Phase 3                 |
+| Public routes + Mother Tree / root version chrome | Locked in Phase 1                                 | Phase 1 implementation  |
+| Private admin home `/admin`                       | Locked in Phase 1                                 | Phase 1 (move from `/`) |
+| Public desert dusk theme                          | Done in Phase 1.1                                 | Public layout + hub     |
+| Public brand spelling                             | Locked: Mother Tree (space)                       | Phase 1.1               |
+| Homepage hub                                      | Done in Phase 1.2 — four rows + locked copy       | Phase 1.2               |
+| Public `/manual` + `/about`                       | Placeholders done in Phase 1.2                    | Phase 1.2; body later   |
+| No Path Carver naming on public pages             | Locked in Phase 1.1                               | Public copy             |
+| Search UX specifics                               | Open                                              | Phase 4                 |
+| Column-level public trimming                      | Open if needed                                    | Phase 2                 |
+| Admin auth mechanism                              | Open                                              | Phase 5                 |
+| Manual / About body content                       | Open                                              | Later expand            |
 
 ---
 
