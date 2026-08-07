@@ -1,12 +1,13 @@
 /**
- * Phase 2b.5 smoke — Keyflare Harmony (team-avg keyflare × 8 → Support.Keyflare).
+ * Phase 2b.5 smoke — Keyflare Harmony
+ * (ceil(200% team-avg keyflare) × 4 non-exalted → Support.Keyflare).
  * Run: npx tsx scripts/smoke-keyflare-harmony.ts
  */
 import { computeReviewTagTotals } from "../src/lib/path-carver/aggregate-tag-scalars";
 import { applyKeyflareDiminishingReturn } from "../src/lib/path-carver/awakener-base-stats";
 import { SPECIAL_INCREASE_BASE_KEYFLARE_TAG_ID } from "../src/lib/path-carver/awakener-base-stats";
 import {
-  KEYFLARE_HARMONY_MULTIPLIER,
+  KEYFLARE_HARMONY_AVG_FACTOR,
   TEAM_SLOT_COUNT,
   computeKeyflareHarmonyScalar,
   keyflareHarmonyManifestationId,
@@ -117,7 +118,7 @@ const increaseBaseKfTag = makeTag(
 console.log("computeKeyflareHarmonyScalar unit");
 {
   assert(TEAM_SLOT_COUNT === 4, "4 slots");
-  assert(KEYFLARE_HARMONY_MULTIPLIER === 8, "×8");
+  assert(KEYFLARE_HARMONY_AVG_FACTOR === 2, "200% of avg");
 
   const four = computeKeyflareHarmonyScalar([
     { keyflareRegen: 20 },
@@ -125,13 +126,41 @@ console.log("computeKeyflareHarmonyScalar unit");
     { keyflareRegen: 20 },
     { keyflareRegen: 20 },
   ]);
-  assert(four.teamAverage === 20 && four.valueScalar === 160, "4×20 → avg 20 → 160");
+  assert(
+    four.teamAverage === 20 &&
+      four.perNonExalted === 40 &&
+      four.valueScalar === 160 &&
+      four.minusPerExalt === -40,
+    "4×20 → avg 20 → ceil(40)×4 = 160",
+  );
 
   const one = computeKeyflareHarmonyScalar([{ keyflareRegen: 20 }]);
-  assert(one.teamAverage === 5 && one.valueScalar === 40, "1×20 → avg 5 → 40");
+  assert(
+    one.teamAverage === 5 &&
+      one.perNonExalted === 10 &&
+      one.valueScalar === 40 &&
+      one.minusPerExalt === -10,
+    "1×20 → avg 5 → ceil(10)×4 = 40",
+  );
 
   const empty = computeKeyflareHarmonyScalar([]);
-  assert(empty.valueScalar === 0, "empty → 0");
+  assert(empty.valueScalar === 0, "empty scalar 0");
+  assert(empty.perNonExalted === 0, "empty perNonExalted 0");
+  assert(empty.minusPerExalt === 0, "empty minusPerExalt 0");
+
+  // Fractional avg: sum 105 → avg 26.25 → ceil(52.5)=53 → 212 (not 210).
+  const fractional = computeKeyflareHarmonyScalar([
+    { keyflareRegen: 15 },
+    { keyflareRegen: 15 },
+    { keyflareRegen: 60 },
+    { keyflareRegen: 15 },
+  ]);
+  assert(
+    fractional.perNonExalted === 53 &&
+      fractional.valueScalar === 212 &&
+      fractional.minusPerExalt === -53,
+    "sum 105 → ceil(52.5)×4 = 212, minus exalt −53",
+  );
 }
 
 console.log("\nReview Tags: four awakeners keyflare 15 (DR floor) → Harmony 120");
@@ -169,7 +198,7 @@ console.log("\nReview Tags: four awakeners keyflare 15 (DR floor) → Harmony 12
   );
 }
 
-console.log("\nReview Tags: one awakener keyflare 15 → Harmony 30");
+console.log("\nReview Tags: one awakener keyflare 15 → Harmony 32");
 {
   const tagsById: Record<number, Tag> = {
     [keyflareTag.id]: keyflareTag,
@@ -185,9 +214,10 @@ console.log("\nReview Tags: one awakener keyflare 15 → Harmony 30");
     teamData,
     createManifestationApplyContext([awakener], []),
   );
+  // avg 15/4 = 3.75; ceil(7.5)=8; ×4 = 32 (was 30 before ceil).
   assert(
-    (totalsByTagId.get(keyflareTag.id) ?? 0) === 30,
-    `15/4*8 = 30 (got ${totalsByTagId.get(keyflareTag.id)})`,
+    (totalsByTagId.get(keyflareTag.id) ?? 0) === 32,
+    `ceil(15/4×2)×4 = 32 (got ${totalsByTagId.get(keyflareTag.id)})`,
   );
 }
 
@@ -197,7 +227,7 @@ console.log("\nTag 131 Increase Base Keyflare feeds Harmony");
     [keyflareTag.id]: keyflareTag,
     [increaseBaseKfTag.id]: increaseBaseKfTag,
   };
-  // 15 after DR; +100% → ceil(15*2)=30; avg 30/4=7.5; ×8=60
+  // 15 after DR; +100% → ceil(15*2)=30; avg 30/4=7.5; ceil(15)=15; ×4=60
   const awakener = makeAwakener({ id: 1, keyflareRegen: 15 });
   const teamData: TeamData = {
     ...createEmptyTeamData(),
@@ -240,7 +270,9 @@ console.log("\nHarmony Keyflare feeds Keyflare→Posse");
   const awakeners = [1, 2, 3, 4].map((id) =>
     makeAwakener({ id, keyflareRegen: raw }),
   );
-  const expectedHarmony = (afterDr * 4) / 4 * 8;
+  const expectedHarmony =
+    Math.ceil((afterDr * TEAM_SLOT_COUNT) / TEAM_SLOT_COUNT * KEYFLARE_HARMONY_AVG_FACTOR) *
+    TEAM_SLOT_COUNT;
   assert(expectedHarmony >= 1000, `Harmony ${expectedHarmony} ≥ 1000`);
 
   const teamData: TeamData = {

@@ -280,6 +280,7 @@ export function computeReviewTagTotals(
             detail:
               `sum=${harmonyBreakdown.sumKeyflare}` +
               ` avg=${harmonyBreakdown.teamAverage}` +
+              ` perNonExalted=${harmonyBreakdown.perNonExalted}` +
               ` scalar=${harmonyBreakdown.valueScalar}`,
           },
         ]

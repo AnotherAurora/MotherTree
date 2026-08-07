@@ -116,7 +116,7 @@ export function KeyflareHarmonyCalculator() {
     perSlot.map((s) => ({ keyflareRegen: s.diminished })),
   );
   const regenPerTurn = harmony.valueScalar;
-  const minusPerExalt = (2 / 8) * regenPerTurn * -1;
+  const minusPerExalt = harmony.minusPerExalt;
 
   return (
     <div className="space-y-4" aria-live="polite">

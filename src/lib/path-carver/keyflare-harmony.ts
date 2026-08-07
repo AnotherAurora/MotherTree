@@ -12,8 +12,11 @@ export { SUPPORT_KEYFLARE_TAG_ID };
 /** Path Carver always averages across 4 team slots. */
 export const TEAM_SLOT_COUNT = 4;
 
-/** Keyflare Harmony: team-average keyflare_regen × this multiplier. */
-export const KEYFLARE_HARMONY_MULTIPLIER = 8;
+/**
+ * 200% of team-average keyflare per non-exalted awakener.
+ * Total with no exalt ≈ ceil(avg × 2) × 4 (not raw avg × 8 when avg is fractional).
+ */
+export const KEYFLARE_HARMONY_AVG_FACTOR = 2;
 
 /** Offset distinct from Death Resist (1e6) and Keyflare→Posse (2e6). */
 const DERIVED_ID_OFFSET = 3_000_000;
@@ -28,12 +31,17 @@ export function keyflareHarmonyManifestationId(): number {
 export type KeyflareHarmonyBreakdown = {
   sumKeyflare: number;
   teamAverage: number;
+  /** ceil(teamAverage × 2) — Keyflare from Harmony per non-exalted awakener. */
+  perNonExalted: number;
+  /** −perNonExalted (penalty if that awakener exalts). */
+  minusPerExalt: number;
+  /** perNonExalted × TEAM_SLOT_COUNT when nobody exalted. */
   valueScalar: number;
 };
 
 /**
- * Team-average post–Special.Increase keyflare_regen × 8.
- * Empty slots count as 0 (always ÷ 4).
+ * ceil(200% of team-average post–Special.Increase keyflare_regen) per non-exalted
+ * awakener. Empty slots count as 0 (always ÷ 4). Assumes no exalt → × 4.
  */
 export function computeKeyflareHarmonyScalar(
   totalAwakeners: readonly Pick<Awakener, "keyflareRegen">[],
@@ -43,8 +51,16 @@ export function computeKeyflareHarmonyScalar(
     sumKeyflare += a.keyflareRegen ?? 0;
   }
   const teamAverage = sumKeyflare / TEAM_SLOT_COUNT;
-  const valueScalar = teamAverage * KEYFLARE_HARMONY_MULTIPLIER;
-  return { sumKeyflare, teamAverage, valueScalar };
+  const perNonExalted = Math.ceil(teamAverage * KEYFLARE_HARMONY_AVG_FACTOR);
+  const valueScalar = perNonExalted * TEAM_SLOT_COUNT;
+  const minusPerExalt = -perNonExalted;
+  return {
+    sumKeyflare,
+    teamAverage,
+    perNonExalted,
+    minusPerExalt,
+    valueScalar,
+  };
 }
 
 /**
