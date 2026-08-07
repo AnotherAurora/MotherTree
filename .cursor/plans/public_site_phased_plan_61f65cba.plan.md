@@ -1,6 +1,6 @@
 ---
 name: Public Site Phased Plan
-overview: "Public Mother Tree (root version): homepage hub + Search + Calculator + Manual + About are public; other routes stay private admin. Phase 0–1.2 decisions locked (catalog, allowlist, localStorage, chrome, four-row hub). Calculator before Search → Vercel release."
+overview: "Public Mother Tree (root version): homepage hub + Search + Calculator + Manual + About are public; other routes stay private admin. Phase 0–2 done; Calculator before Search → Vercel release."
 todos:
   - id: phase-0-scope
     content: Phase 0 — Scope locked (Search naming, calculator catalog, table allowlist, localStorage)
@@ -15,8 +15,8 @@ todos:
     content: Phase 1.2 — Four-row homepage hub; `/manual` + `/about` placeholders; nav + ember hover
     status: completed
   - id: phase-2-readonly
-    content: Phase 2 — SELECT-only RLS on Phase 0 allowlisted tables; caps; smoke tests
-    status: pending
+    content: Phase 2 — SELECT-only RLS on final allowlist; hide timestamps; 500-row / 60-rpm caps; smoke tests
+    status: completed
   - id: phase-3-calculator
     content: Phase 3 — Calculator tools from catalog + localStorage persistence for inputs
     status: pending
@@ -132,7 +132,7 @@ Public SELECT (via Phase 2 RLS / allowlisted server reads) is limited to:
 - `wheel_tag_manifestation`
 - `tag`
 
-No other tables are public-readable unless this plan is amended. Soft-deleted rows (`deleted_at` where present) stay hidden from public reads by default. Column-level trimming (if any) can be specified in Phase 2 without expanding the table list.
+No other tables are public-readable unless this plan is amended. Soft-deleted rows (`deleted_at` where present) stay hidden from public reads by default. Column-level trimming is locked in Phase 2 (hide `created_at`, `updated_at`, `deleted_at`). Allowlist confirmed final in Phase 2.
 
 ### Success criteria (baseline)
 
@@ -229,16 +229,49 @@ _Replace the two-link hub with locked product copy; add Manual and About placeho
 
 ---
 
-## Phase 2 — Read-only data access
+## Phase 2 — Read-only data access (done)
 
-- Server-only read entrypoints (Server Actions or route handlers) for anything public pages need
-- Keep [`createAdminClient`](src/lib/supabase/admin.ts) / service role for admin CRUD only
-- Path for public: anon key + **SELECT-only** RLS on the **Phase 0 table allowlist** only
-- Caps: result limits, simple rate limiting, no arbitrary SQL from the client
-- Exclude soft-deleted rows; do not grant SELECT on non-allowlisted tables (including desires, paths, demands, etc.)
-- Smoke: allowlisted SELECTs succeed; writes and non-allowlisted reads fail for anon
+_Public read path via anon key + SELECT-only RLS. Decisions below are locked before implementation._
 
-**Exit:** Safe read path exists; admin writes unchanged.
+### Allowlist (final)
+
+Phase 0 table allowlist is **confirmed final** — no additions without amending this plan:
+
+- `realm`, `realm_tag_manifestation`
+- `covenant`, `covenant_tag_manifestation`
+- `awakener`, `awakener_tag_manifestation`, `awakener_local_manifestation_interaction`
+- `posse`, `posse_tag_manifestation`
+- `wheel`, `wheel_tag_manifestation`
+- `tag`
+
+Do not grant SELECT on non-allowlisted tables (including desires, paths, demands, etc.).
+
+### Column-level trimming (locked)
+
+Public responses must **omit** audit/soft-delete timestamps (even though soft-deleted rows are already filtered out):
+
+- Hide: `created_at`, `updated_at`, `deleted_at`
+- Apply in the server read layer (explicit column selects / projection), not by exposing full rows then stripping in the UI
+
+### Caps (locked)
+
+Sized to current data (~1.1k allowlisted rows; largest table ~336) and Free-tier reality (**unlimited API requests**; real pressure is egress / shared CPU, not a request meter):
+
+| Cap                 | Value                            | Notes                                                                                                          |
+| ------------------- | -------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| Per-query row limit | **500**                          | Covers a full read of the largest allowlisted table with headroom; do not set below ~400 or option lists break |
+| Rate limit          | **~60 requests / minute / IP**   | Simple in-memory for Phase 2; blocks scrapers better than a tighter row cap                                    |
+| SQL surface         | No arbitrary SQL from the client | Guided / allowlisted server entrypoints only                                                                   |
+
+### What was done
+
+- **RLS migration** ([`20260807120000_public_readonly_select_rls.sql`](supabase/migrations/20260807120000_public_readonly_select_rls.sql)): `GRANT SELECT` + `anon_select_alive` (`deleted_at IS NULL`) on the 12 allowlisted tables; applied to the linked remote project
+- **Anon client** ([`src/lib/supabase/anon.ts`](src/lib/supabase/anon.ts)); admin [`createAdminClient`](src/lib/supabase/admin.ts) / service role unchanged
+- **Server read layer**: allowlist + projections ([`src/lib/public-read/`](src/lib/public-read/)), `listPublicTable` Server Action ([`src/lib/actions/public-read.ts`](src/lib/actions/public-read.ts)) with 500-row cap and ~60 req/min/IP
+- **Env**: document `NEXT_PUBLIC_SUPABASE_ANON_KEY` in [`.env.example`](.env.example)
+- **Smoke**: [`scripts/smoke-public-read.ts`](scripts/smoke-public-read.ts) — allowlisted SELECTs succeed without timestamps; desire SELECT / writes fail for anon; caps verified
+
+**Exit:** Safe read path exists; admin writes unchanged; caps + trimming enforced.
 
 ---
 
@@ -297,22 +330,23 @@ _Query UI on Phase 2 read layer (product name: Search)._
 
 ## Remaining detail slots (without reordering phases)
 
-| Slot                                              | Status                                      | Where it lands          |
-| ------------------------------------------------- | ------------------------------------------- | ----------------------- |
-| Calculator factor list                            | Locked in Phase 0                           | Phase 3 implementation  |
-| Public table allowlist                            | Locked in Phase 0                           | Phase 2 + 4             |
-| localStorage for calculator inputs                | Locked                                      | Phase 3                 |
-| Public routes + Mother Tree / root version chrome | Locked in Phase 1                           | Phase 1 implementation  |
-| Private admin home `/admin`                       | Locked in Phase 1                           | Phase 1 (move from `/`) |
-| Public desert dusk theme                          | Done in Phase 1.1                           | Public layout + hub     |
-| Public brand spelling                             | Locked: Mother Tree (space)                 | Phase 1.1               |
-| Homepage hub                                      | Done in Phase 1.2 — four rows + locked copy | Phase 1.2               |
-| Public `/manual` + `/about`                       | Placeholders done in Phase 1.2              | Phase 1.2; body later   |
-| No Path Carver naming on public pages             | Locked in Phase 1.1                         | Public copy             |
-| Search UX specifics                               | Open                                        | Phase 4                 |
-| Column-level public trimming                      | Open if needed                              | Phase 2                 |
-| Admin auth mechanism                              | Open                                        | Phase 5                 |
-| Manual / About body content                       | Open                                        | Later expand            |
+| Slot                                              | Status                                              | Where it lands          |
+| ------------------------------------------------- | --------------------------------------------------- | ----------------------- |
+| Calculator factor list                            | Locked in Phase 0                                   | Phase 3 implementation  |
+| Public table allowlist                            | Locked in Phase 0; **confirmed final** in Phase 2   | Phase 2 + 4             |
+| localStorage for calculator inputs                | Locked                                              | Phase 3                 |
+| Public routes + Mother Tree / root version chrome | Locked in Phase 1                                   | Phase 1 implementation  |
+| Private admin home `/admin`                       | Locked in Phase 1                                   | Phase 1 (move from `/`) |
+| Public desert dusk theme                          | Done in Phase 1.1                                   | Public layout + hub     |
+| Public brand spelling                             | Locked: Mother Tree (space)                         | Phase 1.1               |
+| Homepage hub                                      | Done in Phase 1.2 — four rows + locked copy         | Phase 1.2               |
+| Public `/manual` + `/about`                       | Placeholders done in Phase 1.2                      | Phase 1.2; body later   |
+| No Path Carver naming on public pages             | Locked in Phase 1.1                                 | Public copy             |
+| Search UX specifics                               | Open                                                | Phase 4                 |
+| Column-level public trimming                      | Done: hide `created_at`, `updated_at`, `deleted_at` | Phase 2                 |
+| Public read caps                                  | Done: 500 rows/query; ~60 req/min/IP                | Phase 2                 |
+| Admin auth mechanism                              | Open                                                | Phase 5                 |
+| Manual / About body content                       | Open                                                | Later expand            |
 
 ---
 
