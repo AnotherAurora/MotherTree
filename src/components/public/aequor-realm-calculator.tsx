@@ -1,6 +1,11 @@
 "use client";
 
-import { useEffect, useId, useState } from "react";
+import {
+  useEffect,
+  useId,
+  useState,
+  type KeyboardEvent,
+} from "react";
 import {
   isValidNumericInputString,
   parseNumericInput,
@@ -10,6 +15,7 @@ import {
   SOULFORGE_MAX,
   SOULFORGE_MIN,
   computeAequorRealmCalculator,
+  type AequorRealmMode,
 } from "@/lib/path-carver/aequor-realm-calculator";
 import { TEAM_SLOT_COUNT } from "@/lib/path-carver/keyflare-harmony";
 import { cn } from "@/lib/utils";
@@ -22,6 +28,7 @@ type AtkSlotState = {
 };
 
 type StoredState = {
+  mode: AequorRealmMode;
   teamMaxHp: string;
   atkSlots: AtkSlotState[];
   damageAmp: string;
@@ -41,6 +48,7 @@ function emptyAtkSlots(): AtkSlotState[] {
 
 function defaultState(): StoredState {
   return {
+    mode: "aequor",
     teamMaxHp: "0",
     atkSlots: emptyAtkSlots(),
     damageAmp: "0",
@@ -63,6 +71,10 @@ function isSoulforge(n: unknown): n is number {
 
 function isChaosCount(n: unknown): n is number {
   return typeof n === "number" && Number.isInteger(n) && n >= 0 && n <= 3;
+}
+
+function isRealmMode(v: unknown): v is AequorRealmMode {
+  return v === "aequor" || v === "benthos";
 }
 
 function readStored(): StoredState | null {
@@ -115,7 +127,10 @@ function readStored(): StoredState | null {
       atkSlots.push({ atk: s.atk, soulforge: s.soulforge });
     }
 
+    const mode = isRealmMode(o.mode) ? o.mode : "aequor";
+
     return {
+      mode,
       teamMaxHp: o.teamMaxHp,
       atkSlots,
       damageAmp: o.damageAmp,
@@ -147,6 +162,9 @@ const selectClassName = cn(
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mt-ember)]",
 );
 
+const sectionHeadingClass =
+  "font-[family-name:var(--font-mother-display)] text-4xl font-semibold tracking-tight";
+
 function formatScalar(value: number): string {
   if (Number.isInteger(value)) return String(value);
   return String(value);
@@ -159,11 +177,18 @@ function formatAttackPercent(value: number): string {
   return `${fixed}%`;
 }
 
+const MODE_OPTIONS: { value: AequorRealmMode; label: string }[] = [
+  { value: "aequor", label: "Aequor Realm" },
+  { value: "benthos", label: "Benthos Aequor Realm" },
+];
+
 export function AequorRealmCalculator() {
   const [state, setState] = useState<StoredState>(defaultState);
   const [hydrated, setHydrated] = useState(false);
   const baseId = useId();
   const resultsId = useId();
+  const modeGroupId = useId();
+  const isBenthos = state.mode === "benthos";
 
   useEffect(() => {
     const stored = readStored();
@@ -209,7 +234,27 @@ export function AequorRealmCalculator() {
     }));
   }
 
+  function onModeChange(mode: AequorRealmMode) {
+    setState((prev) => ({ ...prev, mode }));
+  }
+
+  function onModeKeyDown(e: KeyboardEvent<HTMLDivElement>) {
+    const idx = MODE_OPTIONS.findIndex((o) => o.value === state.mode);
+    if (idx < 0) return;
+    if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+      e.preventDefault();
+      onModeChange(MODE_OPTIONS[(idx + 1) % MODE_OPTIONS.length].value);
+    } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+      e.preventDefault();
+      onModeChange(
+        MODE_OPTIONS[(idx - 1 + MODE_OPTIONS.length) % MODE_OPTIONS.length]
+          .value,
+      );
+    }
+  }
+
   const result = computeAequorRealmCalculator({
+    mode: state.mode,
     teamMaxHp: parseNumericInput(state.teamMaxHp),
     atkSlots: state.atkSlots.map((s) => ({
       atk: parseNumericInput(s.atk),
@@ -230,6 +275,44 @@ export function AequorRealmCalculator() {
 
   return (
     <div className="space-y-6" aria-live="polite">
+      <div className="space-y-2">
+        <p
+          id={`${modeGroupId}-label`}
+          className="text-sm font-medium text-[var(--mt-ink-muted)]"
+        >
+          Realm mode
+        </p>
+        <div
+          role="radiogroup"
+          aria-labelledby={`${modeGroupId}-label`}
+          className="inline-flex max-w-full flex-wrap rounded-lg border-2 border-[var(--mt-border)] bg-[rgb(255_245_235_/_0.35)] p-1"
+          onKeyDown={onModeKeyDown}
+        >
+          {MODE_OPTIONS.map((option) => {
+            const selected = state.mode === option.value;
+            return (
+              <button
+                key={option.value}
+                type="button"
+                role="radio"
+                aria-checked={selected}
+                tabIndex={selected ? 0 : -1}
+                onClick={() => onModeChange(option.value)}
+                className={cn(
+                  sectionHeadingClass,
+                  "rounded-md px-3 py-1.5 text-left transition-colors sm:px-4",
+                  selected
+                    ? "bg-[var(--mt-ember)] text-[var(--mt-cream,#fff8f0)] shadow-sm"
+                    : "text-[var(--mt-ink-muted)] hover:bg-[rgb(255_245_235_/_0.7)] hover:text-[var(--mt-ink)]",
+                )}
+              >
+                {option.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       <div className="space-y-3">
         <div className="flex flex-wrap items-center gap-2">
           <label
@@ -249,68 +332,70 @@ export function AequorRealmCalculator() {
           />
         </div>
 
-        <div className="flex flex-wrap items-start gap-2">
-          <span className="min-w-[11rem] pt-2 text-base text-[var(--mt-ink)]">
-            Team ATK:
-          </span>
-          <div className="flex flex-wrap items-end gap-1.5">
-            {state.atkSlots.map((slot, slotIndex) => {
-              const atkId = `${baseId}-atk-${slotIndex}`;
-              const sfId = `${baseId}-sf-${slotIndex}`;
-              return (
-                <div key={slotIndex} className="flex items-end gap-1.5">
-                  {slotIndex > 0 ? (
-                    <span
-                      className="pb-1.5 font-[family-name:var(--font-mother-display)] text-2xl font-semibold text-[var(--mt-ink-muted)]"
-                      aria-hidden
-                    >
-                      +
-                    </span>
-                  ) : null}
-                  <div className="space-y-1">
-                    <label
-                      htmlFor={atkId}
-                      className="block text-xs text-[var(--mt-ink-muted)]"
-                    >
-                      ATK {slotIndex + 1}
-                    </label>
-                    <Input
-                      id={atkId}
-                      inputMode="decimal"
-                      autoComplete="off"
-                      value={slot.atk}
-                      onChange={(e) => onAtkChange(slotIndex, e.target.value)}
-                      className={inputClassName}
-                      aria-describedby={resultsId}
-                    />
+        {!isBenthos ? (
+          <div className="flex flex-wrap items-start gap-2">
+            <span className="min-w-[11rem] pt-2 text-base text-[var(--mt-ink)]">
+              Team ATK:
+            </span>
+            <div className="flex flex-wrap items-end gap-1.5">
+              {state.atkSlots.map((slot, slotIndex) => {
+                const atkId = `${baseId}-atk-${slotIndex}`;
+                const sfId = `${baseId}-sf-${slotIndex}`;
+                return (
+                  <div key={slotIndex} className="flex items-end gap-1.5">
+                    {slotIndex > 0 ? (
+                      <span
+                        className="pb-1.5 font-[family-name:var(--font-mother-display)] text-2xl font-semibold text-[var(--mt-ink-muted)]"
+                        aria-hidden
+                      >
+                        +
+                      </span>
+                    ) : null}
+                    <div className="space-y-1">
+                      <label
+                        htmlFor={atkId}
+                        className="block text-xs text-[var(--mt-ink-muted)]"
+                      >
+                        ATK {slotIndex + 1}
+                      </label>
+                      <Input
+                        id={atkId}
+                        inputMode="decimal"
+                        autoComplete="off"
+                        value={slot.atk}
+                        onChange={(e) => onAtkChange(slotIndex, e.target.value)}
+                        className={inputClassName}
+                        aria-describedby={resultsId}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label
+                        htmlFor={sfId}
+                        className="block text-xs text-[var(--mt-ink-muted)]"
+                      >
+                        Soulforge
+                      </label>
+                      <select
+                        id={sfId}
+                        className={selectClassName}
+                        value={slot.soulforge}
+                        onChange={(e) =>
+                          onSoulforgeChange(slotIndex, e.target.value)
+                        }
+                      >
+                        {soulforgeOptions.map((n) => (
+                          <option key={n} value={n}>
+                            {n}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
-                  <div className="space-y-1">
-                    <label
-                      htmlFor={sfId}
-                      className="block text-xs text-[var(--mt-ink-muted)]"
-                    >
-                      Soulforge
-                    </label>
-                    <select
-                      id={sfId}
-                      className={selectClassName}
-                      value={slot.soulforge}
-                      onChange={(e) =>
-                        onSoulforgeChange(slotIndex, e.target.value)
-                      }
-                    >
-                      {soulforgeOptions.map((n) => (
-                        <option key={n} value={n}>
-                          {n}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
-        </div>
+        ) : null}
 
         <div className="flex flex-wrap items-center gap-2">
           <label
@@ -351,23 +436,25 @@ export function AequorRealmCalculator() {
           />
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <label
-            htmlFor={`${baseId}-level`}
-            className="min-w-[11rem] text-base text-[var(--mt-ink)]"
-          >
-            Account Level:
-          </label>
-          <Input
-            id={`${baseId}-level`}
-            inputMode="decimal"
-            autoComplete="off"
-            value={state.accountLevel}
-            onChange={(e) => onNumericField("accountLevel", e.target.value)}
-            className={wideInputClassName}
-            aria-describedby={resultsId}
-          />
-        </div>
+        {!isBenthos ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <label
+              htmlFor={`${baseId}-level`}
+              className="min-w-[11rem] text-base text-[var(--mt-ink)]"
+            >
+              Account Level:
+            </label>
+            <Input
+              id={`${baseId}-level`}
+              inputMode="decimal"
+              autoComplete="off"
+              value={state.accountLevel}
+              onChange={(e) => onNumericField("accountLevel", e.target.value)}
+              className={wideInputClassName}
+              aria-describedby={resultsId}
+            />
+          </div>
+        ) : null}
 
         <div className="flex flex-wrap items-center gap-2">
           <label
@@ -479,6 +566,22 @@ export function AequorRealmCalculator() {
               {formatScalar(result.baseRedTentacleDamage)}
             </span>
           </p>
+          {isBenthos ? (
+            <>
+              <p>
+                Red Tentacle Damage from RM:{" "}
+                <span className="font-semibold tabular-nums">
+                  {formatScalar(result.redTentacleDamageFromRm)}
+                </span>
+              </p>
+              <p>
+                Total Red Tentacle Damage:{" "}
+                <span className="font-semibold tabular-nums">
+                  {formatScalar(result.totalRedTentacleDamage)}
+                </span>
+              </p>
+            </>
+          ) : null}
         </div>
 
         <div className="space-y-1">
@@ -515,18 +618,22 @@ export function AequorRealmCalculator() {
               {formatAttackPercent(result.baseRedTentacleAttack)}
             </span>
           </p>
-          <p>
-            Red Tentacle Attack% from RM:{" "}
-            <span className="font-semibold tabular-nums">
-              {formatAttackPercent(result.redTentacleAttackFromRm)}
-            </span>
-          </p>
-          <p>
-            Total Tentacle Attack%:{" "}
-            <span className="font-semibold tabular-nums">
-              {formatAttackPercent(result.totalRedTentacleAttack)}
-            </span>
-          </p>
+          {!isBenthos ? (
+            <>
+              <p>
+                Red Tentacle Attack% from RM:{" "}
+                <span className="font-semibold tabular-nums">
+                  {formatAttackPercent(result.redTentacleAttackFromRm)}
+                </span>
+              </p>
+              <p>
+                Total Tentacle Attack%:{" "}
+                <span className="font-semibold tabular-nums">
+                  {formatAttackPercent(result.totalRedTentacleAttack)}
+                </span>
+              </p>
+            </>
+          ) : null}
         </div>
       </div>
     </div>

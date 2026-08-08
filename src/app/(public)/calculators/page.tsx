@@ -48,10 +48,7 @@ export default function CalculatorsPage() {
         <DeathResistCalculator />
       </section>
 
-      <section className="space-y-6" aria-labelledby="aequor-realm-heading">
-        <h2 id="aequor-realm-heading" className={sectionHeadingClass}>
-          Aequor Realm
-        </h2>
+      <section className="space-y-6" aria-label="Aequor Realm calculators">
         <AequorRealmCalculator />
       </section>
     </div>

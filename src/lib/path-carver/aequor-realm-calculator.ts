@@ -1,6 +1,7 @@
 import {
   computeBaseTentacleDamage,
   type BaseTentacleDamageBreakdown,
+  type BaseTentacleMode,
 } from "@/lib/path-carver/base-tentacle-damage";
 import { ceilRealmMastery } from "@/lib/path-carver/effective-value-scalar";
 import { TEAM_SLOT_COUNT } from "@/lib/path-carver/keyflare-harmony";
@@ -26,6 +27,25 @@ export const RTM_BASE_RED_TENTACLE_ATTACK_SCALAR = 0.5;
 export const RTM_RED_TENTACLE_ATTACK_FROM_RM_ID = 43;
 export const RTM_RED_TENTACLE_ATTACK_FROM_RM_RATE = 0.0002;
 
+/** RTM 34 — Benthos Support.Multiply Tentacle Damage (flat, same scalar as 28). */
+export const RTM_BENTHOS_BASE_RED_TENTACLE_DAMAGE_ID = 34;
+
+/** RTM 44 — Benthos Support.Multiply Tentacle Damage × Realm Mastery. */
+export const RTM_BENTHOS_RED_TENTACLE_DAMAGE_FROM_RM_ID = 44;
+export const RTM_BENTHOS_RED_TENTACLE_DAMAGE_FROM_RM_RATE = 0.00025;
+
+/** RTM 32 — Benthos Defender.Shield × team Max HP. */
+export const RTM_BENTHOS_BASE_WHITE_TENTACLE_SHIELD_ID = 32;
+export const RTM_BENTHOS_BASE_WHITE_TENTACLE_SHIELD_RATE = 0.25;
+
+/** RTM 45 — Benthos Defender.Shield from Realm Mastery. */
+export const RTM_BENTHOS_WHITE_TENTACLE_SHIELD_FROM_RM_ID = 45;
+export const RTM_BENTHOS_WHITE_TENTACLE_SHIELD_FROM_RM_RATE = 0.00025;
+
+/** RTM 36 — Benthos Special.Hit = Tentacle Attack (flat). */
+export const RTM_BENTHOS_BASE_RED_TENTACLE_ATTACK_ID = 36;
+export const RTM_BENTHOS_BASE_RED_TENTACLE_ATTACK_SCALAR = 1;
+
 /** Soulforge points per ATK slot (UI dropdown 0–10). */
 export const SOULFORGE_MIN = 0;
 export const SOULFORGE_MAX = 10;
@@ -33,12 +53,15 @@ export const SOULFORGE_MAX = 10;
 /** Each Soulforge point adds this fraction to paired ATK. */
 export const SOULFORGE_ATK_PER_POINT = 0.03;
 
+export type AequorRealmMode = BaseTentacleMode;
+
 export type AequorAtkSlot = {
   atk: number;
   soulforge: number;
 };
 
 export type ComputeAequorRealmCalculatorInput = {
+  mode?: AequorRealmMode;
   teamMaxHp: number;
   atkSlots: readonly AequorAtkSlot[];
   damageAmpTotal: number;
@@ -50,11 +73,14 @@ export type ComputeAequorRealmCalculatorInput = {
 };
 
 export type AequorRealmCalculatorResult = {
+  mode: AequorRealmMode;
   chaosComboStacks: number;
   isPure: boolean;
   effectiveAtks: number[];
   tentacle: BaseTentacleDamageBreakdown;
   baseRedTentacleDamage: number;
+  redTentacleDamageFromRm: number;
+  totalRedTentacleDamage: number;
   baseWhiteTentacleShield: number;
   whiteTentacleShieldFromRm: number;
   totalWhiteTentacleShield: number;
@@ -92,6 +118,15 @@ export function computeBaseWhiteTentacleShield(teamMaxHp: number): number {
   return Math.ceil(RTM_BASE_WHITE_TENTACLE_SHIELD_RATE * Math.max(0, teamMaxHp));
 }
 
+/** RTM 32 */
+export function computeBenthosBaseWhiteTentacleShield(
+  teamMaxHp: number,
+): number {
+  return Math.ceil(
+    RTM_BENTHOS_BASE_WHITE_TENTACLE_SHIELD_RATE * Math.max(0, teamMaxHp),
+  );
+}
+
 /** RTM 42 — RM input is ceiled first (e.g. 8.1 → 9). */
 export function computeWhiteTentacleShieldFromRm(
   teamMaxHp: number,
@@ -102,6 +137,20 @@ export function computeWhiteTentacleShieldFromRm(
   const hp = Math.max(0, teamMaxHp);
   const rm = Math.max(0, ceilRealmMastery(realmMastery));
   return Math.ceil(hp * (RTM_WHITE_TENTACLE_SHIELD_FROM_RM_RATE * rm * rateMult));
+}
+
+/** RTM 45 — RM input is ceiled first (e.g. 8.1 → 9). */
+export function computeBenthosWhiteTentacleShieldFromRm(
+  teamMaxHp: number,
+  realmMastery: number,
+  isPure: boolean,
+): number {
+  const rateMult = isPure ? 2 : 1;
+  const hp = Math.max(0, teamMaxHp);
+  const rm = Math.max(0, ceilRealmMastery(realmMastery));
+  return Math.ceil(
+    hp * (RTM_BENTHOS_WHITE_TENTACLE_SHIELD_FROM_RM_RATE * rm * rateMult),
+  );
 }
 
 /**
@@ -119,7 +168,35 @@ export function computeRedTentacleAttackFromRm(
   return Math.ceil(product * 100) / 100;
 }
 
-/** RTM 28 applied: ceil(1.25 × Base Tentacle Damage). */
+/**
+ * RTM 44 multiplier — Support.Multiply Tentacle Damage is percent:
+ * ceil(rate × pureMult × ceil(RM) × 100) / 100.
+ */
+export function computeBenthosRedTentacleDamageFromRmMultiplier(
+  realmMastery: number,
+  isPure: boolean,
+): number {
+  const scalarMult = isPure ? 2 : 1;
+  const rm = Math.max(0, ceilRealmMastery(realmMastery));
+  const product =
+    RTM_BENTHOS_RED_TENTACLE_DAMAGE_FROM_RM_RATE * scalarMult * rm;
+  return Math.ceil(product * 100) / 100;
+}
+
+/** RTM 44 applied: ceil(multiplier × Base Tentacle Damage). */
+export function computeBenthosRedTentacleDamageFromRm(
+  baseTentacleDamage: number,
+  realmMastery: number,
+  isPure: boolean,
+): number {
+  const multiplier = computeBenthosRedTentacleDamageFromRmMultiplier(
+    realmMastery,
+    isPure,
+  );
+  return Math.ceil(multiplier * Math.max(0, baseTentacleDamage));
+}
+
+/** RTM 28 / 34 applied: ceil(1.25 × Base Tentacle Damage). */
 export function computeBaseRedTentacleDamage(
   baseTentacleDamage: number,
 ): number {
@@ -129,11 +206,14 @@ export function computeBaseRedTentacleDamage(
 }
 
 /**
- * Public Aequor Realm calculator: Base Tentacle + RTM 28/26/42/29/43.
+ * Public Aequor / Benthos Aequor Realm calculator.
+ * Aequor: Base Tentacle + RTM 28/26/42/29/43.
+ * Benthos: Base Tentacle + RTM 34/44/32/45/36.
  */
 export function computeAequorRealmCalculator(
   input: ComputeAequorRealmCalculatorInput,
 ): AequorRealmCalculatorResult {
+  const mode: AequorRealmMode = input.mode === "benthos" ? "benthos" : "aequor";
   const { chaosComboStacks, isPure } = resolveAequorRealmFlags(input);
 
   const slots = input.atkSlots.slice(0, TEAM_SLOT_COUNT);
@@ -151,7 +231,7 @@ export function computeAequorRealmCalculator(
       : DEFAULT_ACCOUNT_LEVEL;
 
   const tentacle = computeBaseTentacleDamage({
-    mode: "aequor",
+    mode,
     awakeners: effectiveAtks.map((atk) => ({ atk })),
     teamMaxHp: Math.max(0, input.teamMaxHp),
     chaosComboStacks,
@@ -159,6 +239,45 @@ export function computeAequorRealmCalculator(
     accountLevel,
     atkPer: 0,
   });
+
+  const baseRedTentacleDamage = computeBaseRedTentacleDamage(
+    tentacle.valueScalar,
+  );
+
+  if (mode === "benthos") {
+    const redTentacleDamageFromRm = computeBenthosRedTentacleDamageFromRm(
+      tentacle.valueScalar,
+      input.realmMastery,
+      isPure,
+    );
+    const baseWhiteTentacleShield = computeBenthosBaseWhiteTentacleShield(
+      input.teamMaxHp,
+    );
+    const whiteTentacleShieldFromRm = computeBenthosWhiteTentacleShieldFromRm(
+      input.teamMaxHp,
+      input.realmMastery,
+      isPure,
+    );
+    const baseRedTentacleAttack = RTM_BENTHOS_BASE_RED_TENTACLE_ATTACK_SCALAR;
+
+    return {
+      mode,
+      chaosComboStacks,
+      isPure,
+      effectiveAtks,
+      tentacle,
+      baseRedTentacleDamage,
+      redTentacleDamageFromRm,
+      totalRedTentacleDamage: baseRedTentacleDamage + redTentacleDamageFromRm,
+      baseWhiteTentacleShield,
+      whiteTentacleShieldFromRm,
+      totalWhiteTentacleShield:
+        baseWhiteTentacleShield + whiteTentacleShieldFromRm,
+      baseRedTentacleAttack,
+      redTentacleAttackFromRm: 0,
+      totalRedTentacleAttack: baseRedTentacleAttack,
+    };
+  }
 
   const baseWhiteTentacleShield = computeBaseWhiteTentacleShield(
     input.teamMaxHp,
@@ -175,11 +294,14 @@ export function computeAequorRealmCalculator(
   );
 
   return {
+    mode,
     chaosComboStacks,
     isPure,
     effectiveAtks,
     tentacle,
-    baseRedTentacleDamage: computeBaseRedTentacleDamage(tentacle.valueScalar),
+    baseRedTentacleDamage,
+    redTentacleDamageFromRm: 0,
+    totalRedTentacleDamage: baseRedTentacleDamage,
     baseWhiteTentacleShield,
     whiteTentacleShieldFromRm,
     totalWhiteTentacleShield:
