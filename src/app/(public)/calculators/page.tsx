@@ -2,8 +2,10 @@ import type { Metadata } from "next";
 import { AequorRealmCalculator } from "@/components/public/aequor-realm-calculator";
 import { BaseAliemusCalculator } from "@/components/public/base-aliemus-calculator";
 import { BaseKeyflareCalculator } from "@/components/public/base-keyflare-calculator";
+import { ChaosRealmCalculator } from "@/components/public/chaos-realm-calculator";
 import { DeathResistCalculator } from "@/components/public/death-resist-calculator";
 import { KeyflareHarmonyCalculator } from "@/components/public/keyflare-harmony-calculator";
+import { TeamMaxHpCalculator } from "@/components/public/team-max-hp-calculator";
 
 export const metadata: Metadata = {
   title: "Calculators",
@@ -46,6 +48,17 @@ export default function CalculatorsPage() {
           Death Resist
         </h2>
         <DeathResistCalculator />
+      </section>
+
+      <section className="space-y-6" aria-labelledby="team-max-hp-heading">
+        <h2 id="team-max-hp-heading" className={sectionHeadingClass}>
+          Team Max HP
+        </h2>
+        <TeamMaxHpCalculator />
+      </section>
+
+      <section className="space-y-6" aria-label="Chaos Realm calculators">
+        <ChaosRealmCalculator />
       </section>
 
       <section className="space-y-6" aria-label="Aequor Realm calculators">

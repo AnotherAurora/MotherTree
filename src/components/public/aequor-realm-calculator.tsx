@@ -302,7 +302,7 @@ export function AequorRealmCalculator() {
                   sectionHeadingClass,
                   "rounded-md px-3 py-1.5 text-left transition-colors sm:px-4",
                   selected
-                    ? "bg-[var(--mt-ember)] text-[var(--mt-cream,#fff8f0)] shadow-sm"
+                    ? "bg-[rgb(47_110_168)] text-[var(--mt-cream,#fff8f0)] shadow-sm"
                     : "text-[var(--mt-ink-muted)] hover:bg-[rgb(255_245_235_/_0.7)] hover:text-[var(--mt-ink)]",
                 )}
               >
@@ -527,7 +527,7 @@ export function AequorRealmCalculator() {
               </div>
               <p className="flex flex-wrap items-center gap-1.5 text-sm text-[var(--mt-ink-muted)]">
                 <span>
-                  *Miryam SF has an effect on Chaos tentacle damage bouns and I
+                  *Miryam SF has an effect on Chaos tentacle damage bonus and I
                   won&apos;t calculate it. Just add a few points to tentacle damage yourself.
                 </span>
                 <span className="inline-flex size-8 shrink-0 overflow-hidden rounded-sm">
