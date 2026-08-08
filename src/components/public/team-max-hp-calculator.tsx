@@ -153,12 +153,6 @@ const inputClassName = cn(
   "focus-visible:ring-[var(--mt-ember)]",
 );
 
-const wideInputClassName = cn(
-  "h-10 max-w-[10rem] border-[var(--mt-border)] bg-[rgb(255_245_235_/_0.55)] text-[var(--mt-ink)] shadow-none tabular-nums",
-  "placeholder:text-[var(--mt-ink-muted)]",
-  "focus-visible:ring-[var(--mt-ember)]",
-);
-
 const selectClassName = cn(
   "h-10 rounded-md border border-[var(--mt-border)] bg-[rgb(255_245_235_/_0.55)] px-2 text-sm text-[var(--mt-ink)] tabular-nums",
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mt-ember)]",
@@ -354,7 +348,7 @@ export function TeamMaxHpCalculator() {
             autoComplete="off"
             value={state.rawDeathResist}
             onChange={(e) => onRawDeathResistChange(e.target.value)}
-            className={wideInputClassName}
+            className={inputClassName}
             aria-describedby={resultsId}
           />
           <span className="text-base text-[var(--mt-ink)]" aria-hidden>
@@ -428,7 +422,7 @@ export function TeamMaxHpCalculator() {
             autoComplete="off"
             value={state.accountLevel}
             onChange={(e) => onAccountLevelChange(e.target.value)}
-            className={wideInputClassName}
+            className={inputClassName}
             aria-describedby={resultsId}
           />
         </div>

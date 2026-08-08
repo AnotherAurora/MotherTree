@@ -62,7 +62,7 @@ function readStored(): SlotInputs[] | null {
 }
 
 const inputClassName = cn(
-  "h-10 w-14 px-2 border-[var(--mt-border)] bg-[rgb(255_245_235_/_0.55)] text-[var(--mt-ink)] shadow-none tabular-nums",
+  "h-10 w-16 px-2 border-[var(--mt-border)] bg-[rgb(255_245_235_/_0.55)] text-[var(--mt-ink)] shadow-none tabular-nums",
   "placeholder:text-[var(--mt-ink-muted)]",
   "focus-visible:ring-[var(--mt-ember)]",
 );
