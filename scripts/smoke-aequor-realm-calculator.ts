@@ -68,7 +68,15 @@ assert(
 );
 assert(
   computeRedTentacleAttackFromRm(81.5, true) === 0.04,
-  "RTM43 pure 81.5→0.04 (4%)",
+  "RTM43 pure ceil(81.5)=82 → 0.04 (4%)",
+);
+assert(
+  computeWhiteTentacleShieldFromRm(20_000, 8.1, false) === 18,
+  "RTM42 RM 8.1 ceils to 9 → shield 18 (raw 8.1 would be 17)",
+);
+assert(
+  computeRedTentacleAttackFromRm(8.1, false) === 0.01,
+  "RTM43 RM 8.1 ceils to 9 → 0.01",
 );
 
 console.log("\nIntegration — tentacle matches smoke-base-tentacle (SF0)");

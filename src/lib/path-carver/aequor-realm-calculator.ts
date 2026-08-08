@@ -2,6 +2,7 @@ import {
   computeBaseTentacleDamage,
   type BaseTentacleDamageBreakdown,
 } from "@/lib/path-carver/base-tentacle-damage";
+import { ceilRealmMastery } from "@/lib/path-carver/effective-value-scalar";
 import { TEAM_SLOT_COUNT } from "@/lib/path-carver/keyflare-harmony";
 import { DEFAULT_ACCOUNT_LEVEL } from "@/lib/path-carver/team-max-hp";
 
@@ -91,7 +92,7 @@ export function computeBaseWhiteTentacleShield(teamMaxHp: number): number {
   return Math.ceil(RTM_BASE_WHITE_TENTACLE_SHIELD_RATE * Math.max(0, teamMaxHp));
 }
 
-/** RTM 42 */
+/** RTM 42 — RM input is ceiled first (e.g. 8.1 → 9). */
 export function computeWhiteTentacleShieldFromRm(
   teamMaxHp: number,
   realmMastery: number,
@@ -99,20 +100,21 @@ export function computeWhiteTentacleShieldFromRm(
 ): number {
   const rateMult = isPure ? 2 : 1;
   const hp = Math.max(0, teamMaxHp);
-  const rm = Math.max(0, realmMastery);
+  const rm = Math.max(0, ceilRealmMastery(realmMastery));
   return Math.ceil(hp * (RTM_WHITE_TENTACLE_SHIELD_FROM_RM_RATE * rm * rateMult));
 }
 
 /**
  * RTM 43 — tag Special.Hit = Tentacle Attack is percent:
  * ceil(product × 100) / 100 (same as scaleRealmValueScalar).
+ * RM input is ceiled first (e.g. 8.1 → 9).
  */
 export function computeRedTentacleAttackFromRm(
   realmMastery: number,
   isPure: boolean,
 ): number {
   const scalarMult = isPure ? 2 : 1;
-  const rm = Math.max(0, realmMastery);
+  const rm = Math.max(0, ceilRealmMastery(realmMastery));
   const product = RTM_RED_TENTACLE_ATTACK_FROM_RM_RATE * scalarMult * rm;
   return Math.ceil(product * 100) / 100;
 }

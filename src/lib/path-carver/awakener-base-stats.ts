@@ -1,6 +1,7 @@
 import {
   buildAwakenersById,
   effectiveManifestationScalar,
+  ceilRealmMastery,
 } from "@/lib/path-carver/effective-value-scalar";
 import { REQUIRED_BASE_TENTACLE_TAG_IDS } from "@/lib/path-carver/base-tentacle-damage";
 import {
@@ -184,6 +185,10 @@ function applyDiminishingReturns(byId: Map<number, Awakener>): void {
     }
     if (totals.aliemusRegen != null) {
       totals.aliemusRegen = applyAliemusDiminishingReturn(totals.aliemusRegen);
+    }
+    // Realm Mastery itself rounds up (gear + table can be fractional).
+    if (totals.realmMastery != null) {
+      totals.realmMastery = ceilRealmMastery(totals.realmMastery);
     }
   }
 }

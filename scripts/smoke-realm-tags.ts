@@ -320,6 +320,38 @@ console.log("\nFiesta two-row + pure double");
   );
 }
 
+console.log("\nRM value itself ceils before scale");
+{
+  const awakeners = [
+    makeAwakener({ id: 1, realmId: PROPAGATION_CARO, realmMastery: 8.1 }),
+  ];
+  assert(sumTeamRealmMastery(awakeners) === 9, "sumTeamRealmMastery 8.1 → 9");
+  const teamRealms = resolveTeamRealms(
+    awakeners.map((a) => a.realmId),
+    REALMS,
+  );
+  const rm = makeRealmManifest({
+    id: 52,
+    realmId: PROPAGATION_CARO,
+    tagId: 69,
+    tagName: "Support.Propagation Fiesta",
+    valueScalar: 2,
+    dependencyStat: "realm_mastery",
+    requiredRealmMode: "present",
+    pureBonusTarget: "none",
+  });
+  const opts = {
+    teamRealms,
+    realmMasteryTotal: sumTeamRealmMastery(awakeners),
+  };
+  const byId = buildAwakenersById(awakeners);
+  // Without RM ceil: ceil(2*8.1)=17; with ceil(RM)=9 → ceil(2*9)=18
+  assert(
+    scaleRealmValueScalar(rm, opts, false, byId) === 18,
+    "fiesta RM 8.1→9 then ceil(2*9)=18",
+  );
+}
+
 console.log("\nHP × (rate + RM × rate_mult) ceil");
 {
   const awakeners = [

@@ -65,7 +65,9 @@ export function awakenerStatForDependency(
     case "crit_dmg":
       return awakener.critDmg;
     case "realm_mastery":
-      return awakener.realmMastery;
+      return awakener.realmMastery == null
+        ? null
+        : ceilRealmMastery(awakener.realmMastery);
     case "keyflare_regen":
       return awakener.keyflareRegen;
     case "base_aliemus":
@@ -102,12 +104,18 @@ function ceilAfterDependencyScale(
   return Math.ceil(product);
 }
 
+/** Per-awakener / input RM is ceiled before use (e.g. 8.1 → 9). */
+export function ceilRealmMastery(realmMastery: number): number {
+  if (!Number.isFinite(realmMastery)) return 0;
+  return Math.ceil(realmMastery);
+}
+
 export function sumTeamRealmMastery(
   awakeners: Iterable<Awakener>,
 ): number {
   let sum = 0;
   for (const a of awakeners) {
-    sum += a.realmMastery ?? 0;
+    sum += ceilRealmMastery(a.realmMastery ?? 0);
   }
   return sum;
 }
