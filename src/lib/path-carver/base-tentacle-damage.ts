@@ -110,8 +110,17 @@ export type ComputeBaseTentacleDamageInput = {
 };
 
 /**
+ * Ceil Damage AMP up to the next whole percent point (0.422 → 0.43).
+ */
+export function ceilDamageAmpToWholePercent(damageAmpTotal: number): number {
+  if (!Number.isFinite(damageAmpTotal) || damageAmpTotal <= 0) return 0;
+  return Math.ceil(damageAmpTotal * 100) / 100;
+}
+
+/**
  * Normal Aequor: rawAtk + ceil(HP×0.01)×chaos, then AMP.
  * Benthos: ceil(HP×(0.05+0.01×chaos)), then AMP.
+ * AMP is ceiled to a whole percent before apply.
  */
 export function computeBaseTentacleDamage(
   input: ComputeBaseTentacleDamageInput,
@@ -120,7 +129,7 @@ export function computeBaseTentacleDamage(
   const atkPer = input.atkPer ?? 0;
   const chaos = Math.max(0, input.chaosComboStacks);
   const hp = input.teamMaxHp;
-  const amp = input.damageAmpTotal;
+  const amp = ceilDamageAmpToWholePercent(input.damageAmpTotal);
   const realmId = realmIdForBaseTentacleMode(input.mode);
 
   let sumAtk = 0;

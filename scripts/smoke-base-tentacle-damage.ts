@@ -187,6 +187,23 @@ console.log("\ncomputeBaseTentacleDamage — normal aequor (verified 116)");
     damageAmpTotal: 0.5,
   });
   assert(withAmp.valueScalar === 174, `amp 0.5 → 174 (got ${withAmp.valueScalar})`);
+
+  const fracAmp = computeBaseTentacleDamage({
+    mode: "aequor",
+    awakeners,
+    accountLevel: 80,
+    teamMaxHp: 1724,
+    chaosComboStacks: 3,
+    damageAmpTotal: 0.422,
+  });
+  assert(
+    fracAmp.damageAmpTotal === 0.43,
+    `amp 0.422 ceils to 0.43 (got ${fracAmp.damageAmpTotal})`,
+  );
+  assert(
+    fracAmp.valueScalar === 166,
+    `amp 0.422→0.43 → 166 (got ${fracAmp.valueScalar})`,
+  );
 }
 
 console.log("\ncomputeBaseTentacleDamage — benthos (verified 250)");

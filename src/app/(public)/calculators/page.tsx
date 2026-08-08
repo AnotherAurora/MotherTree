@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { AequorRealmCalculator } from "@/components/public/aequor-realm-calculator";
 import { BaseAliemusCalculator } from "@/components/public/base-aliemus-calculator";
 import { BaseKeyflareCalculator } from "@/components/public/base-keyflare-calculator";
 import { DeathResistCalculator } from "@/components/public/death-resist-calculator";
@@ -45,6 +46,13 @@ export default function CalculatorsPage() {
           Death Resist
         </h2>
         <DeathResistCalculator />
+      </section>
+
+      <section className="space-y-6" aria-labelledby="aequor-realm-heading">
+        <h2 id="aequor-realm-heading" className={sectionHeadingClass}>
+          Aequor Realm
+        </h2>
+        <AequorRealmCalculator />
       </section>
     </div>
   );
