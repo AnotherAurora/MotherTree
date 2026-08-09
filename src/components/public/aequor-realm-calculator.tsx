@@ -565,7 +565,12 @@ export function AequorRealmCalculator() {
               <p>
                 Red Tentacle Damage from RM:{" "}
                 <span className="font-semibold tabular-nums">
-                  {formatScalar(result.redTentacleDamageFromRm)}
+                  {formatScalar(result.redTentacleDamageFromRm)}{" "}
+                  (
+                  {formatAttackPercent(
+                    result.redTentacleDamageFromRmMultiplier,
+                  )}
+                  )
                 </span>
               </p>
               <p>

@@ -250,6 +250,10 @@ console.log("\nIntegration — benthos amp 1.0 + pure RM");
     `RTM44 pure × 250 → 125 (got ${r.redTentacleDamageFromRm})`,
   );
   assert(
+    r.redTentacleDamageFromRmMultiplier === 0.5,
+    `RTM44 pure mult 0.5 (got ${r.redTentacleDamageFromRmMultiplier})`,
+  );
+  assert(
     r.totalRedTentacleDamage === 313 + 125,
     "total red = base + from RM",
   );

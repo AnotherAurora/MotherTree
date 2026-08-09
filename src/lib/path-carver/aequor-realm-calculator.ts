@@ -80,6 +80,8 @@ export type AequorRealmCalculatorResult = {
   tentacle: BaseTentacleDamageBreakdown;
   baseRedTentacleDamage: number;
   redTentacleDamageFromRm: number;
+  /** RTM 44 multiplier fraction (benthos); 0 in aequor. */
+  redTentacleDamageFromRmMultiplier: number;
   totalRedTentacleDamage: number;
   baseWhiteTentacleShield: number;
   whiteTentacleShieldFromRm: number;
@@ -245,6 +247,11 @@ export function computeAequorRealmCalculator(
   );
 
   if (mode === "benthos") {
+    const redTentacleDamageFromRmMultiplier =
+      computeBenthosRedTentacleDamageFromRmMultiplier(
+        input.realmMastery,
+        isPure,
+      );
     const redTentacleDamageFromRm = computeBenthosRedTentacleDamageFromRm(
       tentacle.valueScalar,
       input.realmMastery,
@@ -268,6 +275,7 @@ export function computeAequorRealmCalculator(
       tentacle,
       baseRedTentacleDamage,
       redTentacleDamageFromRm,
+      redTentacleDamageFromRmMultiplier,
       totalRedTentacleDamage: baseRedTentacleDamage + redTentacleDamageFromRm,
       baseWhiteTentacleShield,
       whiteTentacleShieldFromRm,
@@ -301,6 +309,7 @@ export function computeAequorRealmCalculator(
     tentacle,
     baseRedTentacleDamage,
     redTentacleDamageFromRm: 0,
+    redTentacleDamageFromRmMultiplier: 0,
     totalRedTentacleDamage: baseRedTentacleDamage,
     baseWhiteTentacleShield,
     whiteTentacleShieldFromRm,
