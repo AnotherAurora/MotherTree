@@ -12,7 +12,7 @@ const HUB_ITEMS: readonly HubItem[] = [
     href: "/search",
     title: "Search",
     bullets: [
-      "Search my personal interpretations and custom-recorded data for Morimens.",
+      "Search my personal interpretations and custom-cataloged data for Morimens.",
       "Features detailed entries for Awakeners, Wheels, Posses, and Covenants, modeled around my own combat testing and assumptions.",
       "Includes over 160 custom tags to categorize and filter game elements based on my analysis.",
       "Filter by target range, scaling stat, modifier values, or sort by numeric impact.",
@@ -20,7 +20,7 @@ const HUB_ITEMS: readonly HubItem[] = [
     learnMore: {
       href: "/manual",
       label:
-        "Learn more about search features, methodology, and recording assumptions",
+        "Learn more about search features, methodology, and cataloging assumptions",
     },
   },
   {
@@ -37,7 +37,7 @@ const HUB_ITEMS: readonly HubItem[] = [
     title: "Manual",
     bullets: [
       "Complete feature list for both the search engine and calculators.",
-      "Detailed documentation of underlying mechanics and recording assumptions.",
+      "Detailed documentation of underlying mechanics and cataloging assumptions.",
       "Step-by-step instructions for getting the most out of every tool on the site.",
     ],
   },
