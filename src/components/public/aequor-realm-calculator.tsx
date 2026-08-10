@@ -6,6 +6,7 @@ import {
   useState,
   type KeyboardEvent,
 } from "react";
+import { CalculatorPendingHydration } from "@/components/public/calculator-pending-hydration";
 import {
   isValidNumericInputString,
   parseNumericInput,
@@ -77,6 +78,30 @@ function isRealmMode(v: unknown): v is AequorRealmMode {
   return v === "aequor" || v === "benthos";
 }
 
+function readNumericString(value: unknown, fallback: string): string {
+  return typeof value === "string" && isValidNumericInputString(value)
+    ? value
+    : fallback;
+}
+
+function readAtkSlots(raw: unknown): AtkSlotState[] {
+  const defaults = emptyAtkSlots();
+  if (!Array.isArray(raw)) return defaults;
+  return defaults.map((fallback, i) => {
+    const slot = raw[i];
+    if (typeof slot !== "object" || slot === null) return fallback;
+    const s = slot as Record<string, unknown>;
+    const atk =
+      typeof s.atk === "string" && isValidNumericInputString(s.atk)
+        ? s.atk
+        : fallback.atk;
+    const soulforge = isSoulforge(s.soulforge)
+      ? s.soulforge
+      : fallback.soulforge;
+    return { atk, soulforge };
+  });
+}
+
 function readStored(): StoredState | null {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
@@ -84,61 +109,27 @@ function readStored(): StoredState | null {
     const parsed = JSON.parse(raw) as unknown;
     if (typeof parsed !== "object" || parsed === null) return null;
     const o = parsed as Record<string, unknown>;
+    const defaults = defaultState();
 
-    if (
-      typeof o.teamMaxHp !== "string" ||
-      !isValidNumericInputString(o.teamMaxHp)
-    ) {
-      return null;
-    }
-    if (
-      typeof o.damageAmp !== "string" ||
-      !isValidNumericInputString(o.damageAmp)
-    ) {
-      return null;
-    }
-    if (
-      typeof o.realmMastery !== "string" ||
-      !isValidNumericInputString(o.realmMastery)
-    ) {
-      return null;
-    }
-    if (
-      typeof o.accountLevel !== "string" ||
-      !isValidNumericInputString(o.accountLevel)
-    ) {
-      return null;
-    }
-    if (typeof o.primordiaChaos !== "boolean") return null;
-    if (typeof o.pureRealm !== "boolean") return null;
-    if (!isChaosCount(o.chaosAwakeners)) return null;
-    if (!Array.isArray(o.atkSlots) || o.atkSlots.length !== TEAM_SLOT_COUNT) {
-      return null;
-    }
-
-    const atkSlots: AtkSlotState[] = [];
-    for (const slot of o.atkSlots) {
-      if (typeof slot !== "object" || slot === null) return null;
-      const s = slot as Record<string, unknown>;
-      if (typeof s.atk !== "string" || !isValidNumericInputString(s.atk)) {
-        return null;
-      }
-      if (!isSoulforge(s.soulforge)) return null;
-      atkSlots.push({ atk: s.atk, soulforge: s.soulforge });
-    }
-
-    const mode = isRealmMode(o.mode) ? o.mode : "aequor";
+    const chaosAwakeners = isChaosCount(o.chaosAwakeners)
+      ? o.chaosAwakeners
+      : defaults.chaosAwakeners;
+    const pureRealm =
+      typeof o.pureRealm === "boolean" ? o.pureRealm : defaults.pureRealm;
 
     return {
-      mode,
-      teamMaxHp: o.teamMaxHp,
-      atkSlots,
-      damageAmp: o.damageAmp,
-      realmMastery: o.realmMastery,
-      accountLevel: o.accountLevel,
-      primordiaChaos: o.primordiaChaos,
-      pureRealm: o.chaosAwakeners > 0 ? true : o.pureRealm,
-      chaosAwakeners: o.chaosAwakeners,
+      mode: isRealmMode(o.mode) ? o.mode : defaults.mode,
+      teamMaxHp: readNumericString(o.teamMaxHp, defaults.teamMaxHp),
+      atkSlots: readAtkSlots(o.atkSlots),
+      damageAmp: readNumericString(o.damageAmp, defaults.damageAmp),
+      realmMastery: readNumericString(o.realmMastery, defaults.realmMastery),
+      accountLevel: readNumericString(o.accountLevel, defaults.accountLevel),
+      primordiaChaos:
+        typeof o.primordiaChaos === "boolean"
+          ? o.primordiaChaos
+          : defaults.primordiaChaos,
+      pureRealm: chaosAwakeners > 0 ? true : pureRealm,
+      chaosAwakeners,
     };
   } catch {
     return null;
@@ -266,6 +257,10 @@ export function AequorRealmCalculator() {
     { length: SOULFORGE_MAX - SOULFORGE_MIN + 1 },
     (_, i) => SOULFORGE_MIN + i,
   );
+
+  if (!hydrated) {
+    return <CalculatorPendingHydration />;
+  }
 
   return (
     <div className="space-y-6" aria-live="polite">

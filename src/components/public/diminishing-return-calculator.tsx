@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useState } from "react";
+import { CalculatorPendingHydration } from "@/components/public/calculator-pending-hydration";
 import type { DiminishingReturnConfig } from "@/components/public/diminishing-return-config";
 import {
   formatNeededForNext,
@@ -95,6 +96,10 @@ export function DiminishingReturnCalculator({
   const result = config.applyDr(sum);
   const neededForNext = neededForNextDiminishedPoint(config, sum);
   const nextId = `${resultId}-next`;
+
+  if (!hydrated) {
+    return <CalculatorPendingHydration />;
+  }
 
   return (
     <div className="flex flex-col gap-8 md:flex-row md:items-start md:justify-between md:gap-10">

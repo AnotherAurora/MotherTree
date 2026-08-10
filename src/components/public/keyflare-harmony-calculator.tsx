@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useState } from "react";
+import { CalculatorPendingHydration } from "@/components/public/calculator-pending-hydration";
 import { KEYFLARE_DR_CONFIG } from "@/components/public/diminishing-return-config";
 import {
   formatNeededForNext,
@@ -117,6 +118,10 @@ export function KeyflareHarmonyCalculator() {
   );
   const regenPerTurn = harmony.valueScalar;
   const minusPerExalt = harmony.minusPerExalt;
+
+  if (!hydrated) {
+    return <CalculatorPendingHydration />;
+  }
 
   return (
     <div className="space-y-4" aria-live="polite">

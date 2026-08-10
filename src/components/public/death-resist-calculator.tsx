@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useState } from "react";
+import { CalculatorPendingHydration } from "@/components/public/calculator-pending-hydration";
 import {
   DeathResistTriggerChart,
   rawPercentNeededForNextTrigger,
@@ -125,6 +126,10 @@ export function DeathResistCalculator() {
   const inMissionPercent = inMission * 100;
   const triggers = inMissionToCauseTrigger(inMission);
   const neededForNext = rawPercentNeededForNextTrigger(effectiveRawPercent);
+
+  if (!hydrated) {
+    return <CalculatorPendingHydration />;
+  }
 
   return (
     <div className="flex flex-col gap-8 md:flex-row md:items-start md:justify-between md:gap-10">

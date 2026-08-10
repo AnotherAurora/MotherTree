@@ -6,6 +6,7 @@ import {
   useState,
   type KeyboardEvent,
 } from "react";
+import { CalculatorPendingHydration } from "@/components/public/calculator-pending-hydration";
 import { CalculatorStatRow } from "@/components/public/calculator-stat-row";
 import {
   isValidNumericInputString,
@@ -48,6 +49,12 @@ function isUltraRealmMode(v: unknown): v is UltraRealmMode {
   return v === "ultra" || v === "singularity";
 }
 
+function readNumericString(value: unknown, fallback: string): string {
+  return typeof value === "string" && isValidNumericInputString(value)
+    ? value
+    : fallback;
+}
+
 function readStored(): StoredState | null {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
@@ -55,29 +62,24 @@ function readStored(): StoredState | null {
     const parsed = JSON.parse(raw) as unknown;
     if (typeof parsed !== "object" || parsed === null) return null;
     const o = parsed as Record<string, unknown>;
-    if (
-      typeof o.teamMaxHp !== "string" ||
-      !isValidNumericInputString(o.teamMaxHp)
-    ) {
-      return null;
-    }
-    if (
-      typeof o.realmMastery !== "string" ||
-      !isValidNumericInputString(o.realmMastery)
-    ) {
-      return null;
-    }
-    if (typeof o.primordiaChaos !== "boolean") return null;
-    if (typeof o.pureRealm !== "boolean") return null;
-    if (!isChaosCount(o.chaosAwakeners)) return null;
-    const mode = isUltraRealmMode(o.mode) ? o.mode : "ultra";
+    const defaults = defaultState();
+
+    const chaosAwakeners = isChaosCount(o.chaosAwakeners)
+      ? o.chaosAwakeners
+      : defaults.chaosAwakeners;
+    const pureRealm =
+      typeof o.pureRealm === "boolean" ? o.pureRealm : defaults.pureRealm;
+
     return {
-      mode,
-      teamMaxHp: o.teamMaxHp,
-      realmMastery: o.realmMastery,
-      primordiaChaos: o.primordiaChaos,
-      pureRealm: o.chaosAwakeners > 0 ? true : o.pureRealm,
-      chaosAwakeners: o.chaosAwakeners,
+      mode: isUltraRealmMode(o.mode) ? o.mode : defaults.mode,
+      teamMaxHp: readNumericString(o.teamMaxHp, defaults.teamMaxHp),
+      realmMastery: readNumericString(o.realmMastery, defaults.realmMastery),
+      primordiaChaos:
+        typeof o.primordiaChaos === "boolean"
+          ? o.primordiaChaos
+          : defaults.primordiaChaos,
+      pureRealm: chaosAwakeners > 0 ? true : pureRealm,
+      chaosAwakeners,
     };
   } catch {
     return null;
@@ -172,6 +174,10 @@ export function UltraRealmCalculator() {
   });
 
   const showComboRows = result.chaosComboStacks > 0;
+
+  if (!hydrated) {
+    return <CalculatorPendingHydration />;
+  }
 
   return (
     <div className="space-y-6" aria-live="polite">

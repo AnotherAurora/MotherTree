@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useState } from "react";
+import { CalculatorPendingHydration } from "@/components/public/calculator-pending-hydration";
 import {
   isValidNumericInputString,
   parseNumericInput,
@@ -81,6 +82,10 @@ export function ChaosRealmCalculator() {
   const result = computeChaosRealmCalculator({
     realmMastery: parseNumericInput(state.realmMastery),
   });
+
+  if (!hydrated) {
+    return <CalculatorPendingHydration />;
+  }
 
   return (
     <div className="space-y-6" aria-live="polite">

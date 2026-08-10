@@ -6,6 +6,7 @@ import {
   useState,
   type KeyboardEvent,
 } from "react";
+import { CalculatorPendingHydration } from "@/components/public/calculator-pending-hydration";
 import { CalculatorStatRow } from "@/components/public/calculator-stat-row";
 import {
   isValidNumericInputString,
@@ -58,6 +59,12 @@ function clampCurrentHpString(teamMaxHp: string, currentHp: string): string {
   return String(maxHp);
 }
 
+function readNumericString(value: unknown, fallback: string): string {
+  return typeof value === "string" && isValidNumericInputString(value)
+    ? value
+    : fallback;
+}
+
 function readStored(): StoredState | null {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
@@ -65,40 +72,27 @@ function readStored(): StoredState | null {
     const parsed = JSON.parse(raw) as unknown;
     if (typeof parsed !== "object" || parsed === null) return null;
     const o = parsed as Record<string, unknown>;
+    const defaults = defaultState();
 
-    if (
-      typeof o.teamMaxHp !== "string" ||
-      !isValidNumericInputString(o.teamMaxHp)
-    ) {
-      return null;
-    }
-    if (
-      typeof o.currentHp !== "string" ||
-      !isValidNumericInputString(o.currentHp)
-    ) {
-      return null;
-    }
-    if (
-      typeof o.realmMastery !== "string" ||
-      !isValidNumericInputString(o.realmMastery)
-    ) {
-      return null;
-    }
-    if (typeof o.primordiaChaos !== "boolean") return null;
-    if (typeof o.pureRealm !== "boolean") return null;
-
-    const mode = isRealmMode(o.mode) ? o.mode : "caro";
-    const teamMaxHp = o.teamMaxHp;
-    const currentHp = clampCurrentHpString(teamMaxHp, o.currentHp);
-    const primordiaChaos = o.primordiaChaos;
+    const teamMaxHp = readNumericString(o.teamMaxHp, defaults.teamMaxHp);
+    const currentHp = clampCurrentHpString(
+      teamMaxHp,
+      readNumericString(o.currentHp, defaults.currentHp),
+    );
+    const primordiaChaos =
+      typeof o.primordiaChaos === "boolean"
+        ? o.primordiaChaos
+        : defaults.primordiaChaos;
+    const pureRealm =
+      typeof o.pureRealm === "boolean" ? o.pureRealm : defaults.pureRealm;
 
     return {
-      mode,
+      mode: isRealmMode(o.mode) ? o.mode : defaults.mode,
       teamMaxHp,
       currentHp,
-      realmMastery: o.realmMastery,
+      realmMastery: readNumericString(o.realmMastery, defaults.realmMastery),
       primordiaChaos,
-      pureRealm: primordiaChaos ? false : o.pureRealm,
+      pureRealm: primordiaChaos ? false : pureRealm,
     };
   } catch {
     return null;
@@ -201,6 +195,10 @@ export function CaroRealmCalculator() {
     primordiaChaos: state.primordiaChaos,
     pureRealm: state.pureRealm,
   });
+
+  if (!hydrated) {
+    return <CalculatorPendingHydration />;
+  }
 
   return (
     <div className="space-y-6" aria-live="polite">

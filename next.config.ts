@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { getFlatSlugRedirects } from "./src/lib/public/calculator-catalog";
 
 const nextConfig: NextConfig = {
   async redirects() {
@@ -13,6 +14,7 @@ const nextConfig: NextConfig = {
         destination: "/calculators/:path*",
         permanent: true,
       },
+      ...getFlatSlugRedirects(),
     ];
   },
 };

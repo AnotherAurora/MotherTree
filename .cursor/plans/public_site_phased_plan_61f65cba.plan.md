@@ -6,7 +6,7 @@ todos:
     content: Phase 0 — Scope locked (Search naming, calculator catalog, table allowlist, localStorage)
     status: completed
   - id: phase-1-shell
-    content: Phase 1 — Public `/` + `/search` + `/calculator`; move admin home to `/admin`; Mother Tree / root version chrome
+    content: Phase 1 — Public `/` + `/search` + `/calculators`; move admin home to `/admin`; Mother Tree / root version chrome
     status: completed
   - id: phase-1-1-theme
     content: Phase 1.1 — Public desert dusk theme + simple hub (no Path Carver in public copy)
@@ -39,7 +39,7 @@ isProject: false
 | Decision             | Locked choice                                                                                                           |
 | -------------------- | ----------------------------------------------------------------------------------------------------------------------- |
 | Repo                 | Same MotherTree Next.js app ([README.md](README.md)) — not a separate site                                              |
-| Public vs private    | **Homepage tree is public** (`/`, `/search`, `/calculator`, `/manual`, `/about`…); **everything else is private admin** |
+| Public vs private    | **Homepage tree is public** (`/`, `/search`, `/calculators`, `/manual`, `/about`…); **everything else is private admin** |
 | Admin home           | **`/admin`** — private dashboard (table hub); replaces today’s `/` admin welcome                                        |
 | Public brand         | Top-left **Mother Tree** with subtitle **root version**                                                                 |
 | Public chrome        | No “Admin Dashboard” label; **no** admin side nav to private pages                                                      |
@@ -89,7 +89,7 @@ _Product boundaries. Detail below is decided; UX specifics for Search remain for
 
 - **Homepage** (`/`) — public hub with four rows: Search, Calculator, Manual, About Me
 - **Search** (`/search`) — one page
-- **Calculator** (`/calculator`) — hub that may expand into **sub-pages** per calculator tool
+- **Calculators** (`/calculators`) — hub with **sub-pages** per calculator tool (`/calculators/...`)
 - **Manual** (`/manual`) — docs placeholder (Phase 1.2)
 - **About Me** (`/about`) — about placeholder (Phase 1.2)
 
@@ -102,7 +102,7 @@ _Product boundaries. Detail below is decided; UX specifics for Search remain for
 
 ### Calculator catalog (factors)
 
-Each factor is a calculator tool (likely its own sub-route under `/calculator/...`). Source of truth remains Path Carver libs; map and extract in Phase 3.
+Each factor is a calculator tool (own sub-route under `/calculators/...`). Source of truth remains Path Carver libs; map and extract in Phase 3.
 
 | Factor                              | Notes / starting lib                                                                                                |
 | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
@@ -154,13 +154,13 @@ _Homepage tree = public. All other existing tool/table routes = private admin._
 | ----------- | -------------------------------------------------------------------- | ------------------------------------------------------------ |
 | Public hub  | `/`                                                                  | Public — four-row hub (Search, Calculator, Manual, About Me) |
 | Search      | `/search`                                                            | Public                                                       |
-| Calculator  | `/calculator` (hub) + `/calculator/...` sub-pages as tools are added | Public                                                       |
+| Calculators | `/calculators` (hub) + `/calculators/...` sub-pages                   | Public                                                       |
 | Manual      | `/manual`                                                            | Public                                                       |
 | About Me    | `/about`                                                             | Public                                                       |
 | Admin home  | `/admin`                                                             | **Private** — admin dashboard (table hub / welcome)          |
 | Admin tools | `/tables/*`, `/path-carver`, `/simulator`                            | **Private admin only**                                       |
 
-Public allowlist for access control (Phase 5): `/`, `/search`, `/calculator` and `/calculator/*`, `/manual`, `/about` only. All other routes (including `/admin`) stay private.
+Public allowlist for access control (Phase 5): `/`, `/search`, `/calculators` and `/calculators/*`, `/manual`, `/about` only. All other routes (including `/admin`) stay private.
 
 ### Public chrome (not admin)
 
@@ -185,12 +185,12 @@ Public allowlist for access control (Phase 5): `/`, `/search`, `/calculator` and
 ### Phase 1 deliverables (placeholders)
 
 - Placeholder **public homepage hub** at `/` with links + brief descriptions covering Search and Calculator
-- Placeholder **Calculator hub** at `/calculator`
+- Placeholder **Calculators hub** at `/calculators`
 - Placeholder **Search** at `/search`
 - Wire public layout so those routes use Mother Tree / root version chrome without the admin side nav
 - **Relocate admin home** to `/admin` (current dashboard content); update sidebar home link to `/admin`
 
-**Exit:** Public placeholders at `/`, `/search`, `/calculator`; admin home at `/admin` with sidebar; no admin chrome on public pages.
+**Exit:** Public placeholders at `/`, `/search`, `/calculators`; admin home at `/admin` with sidebar; no admin chrome on public pages.
 
 ---
 
@@ -206,7 +206,7 @@ _Visual polish on the public shell. Inspired by Ch7 Mother Tree desert mood; no 
 - **Display font:** Cormorant Garamond for brand / public headings; body stays Geist
 - **Homepage:** Simple hub — Search and Calculator as two linked titles with short descriptions; no oversized brand, no hero CTAs, no full-viewport stage. Visible brand stays in the header (visually hidden `h1` for a11y)
 - **Public copy:** Do not mention Path Carver on public pages; describe tools in plain product terms
-- **Surfaces touched:** [`src/app/(public)/layout.tsx`](<src/app/(public)/layout.tsx>), [`site-header.tsx`](src/components/public/site-header.tsx), [`site-footer.tsx`](src/components/public/site-footer.tsx), [`mother-tree-mark.tsx`](src/components/public/mother-tree-mark.tsx), [`/`](<src/app/(public)/page.tsx>), [`/search`](<src/app/(public)/search/page.tsx>), [`/calculator`](<src/app/(public)/calculator/page.tsx>), plus [`globals.css`](src/app/globals.css) `.public-theme` tokens
+- **Surfaces touched:** [`src/app/(public)/layout.tsx`](<src/app/(public)/layout.tsx>), [`site-header.tsx`](src/components/public/site-header.tsx), [`site-footer.tsx`](src/components/public/site-footer.tsx), [`mother-tree-mark.tsx`](src/components/public/mother-tree-mark.tsx), [`/`](<src/app/(public)/page.tsx>), [`/search`](<src/app/(public)/search/page.tsx>), [`/calculators`](<src/app/(public)/calculators/page.tsx>), plus [`globals.css`](src/app/globals.css) `.public-theme` tokens
 
 **Exit:** Public pages share the desert dusk theme; homepage is a two-link hub; brand reads as Mother Tree with crimson glow in chrome only.
 
@@ -280,7 +280,7 @@ Sized to current data (~1.1k allowlisted rows; largest table ~336) and Free-tier
 _Extract Path Carver functions into standalone tools per Phase 0 catalog._
 
 - Implement tools for: Base Keyflare, Death Resist, Base Aliemus, Team max HP, Base Tentacle Damage (benthos aequor + aequor), Realm Mastery + Realm Manifestation
-- Structure as calculator hub + sub-pages when tools multiply
+- Structure as `/calculators` hub + `/calculators/[slug]` sub-pages per tool
 - UI per tool: inputs → shared Path Carver function → result (no desire load/save)
 - Persist inputs in **localStorage**; restore on load
 - Defaults: align with Path Carver assumptions (account/awakener level 60, etc.) unless a tool exposes overrides
@@ -309,7 +309,7 @@ _Query UI on Phase 2 read layer (product name: Search)._
 ## Phase 5 — Public release gate
 
 - Protect admin/write routes (auth or deploy protection) so `/admin`, `/tables`, `/path-carver`, `/simulator`, etc. are not reachable by the public
-- Public `/`, `/search`, `/calculator/*`, `/manual`, `/about` live with Mother Tree / root version chrome only
+- Public `/`, `/search`, `/calculators/*`, `/manual`, `/about` live with Mother Tree / root version chrome only
 - Env review: publishable/anon for public path; service role server-only
 - Deploy to Vercel; set env vars; confirm soft-delete/RLS behavior in production
 - Attribution footer (SKeyDB / CC BY-NC-SA) on public pages

@@ -185,9 +185,9 @@ body:has(.public-theme) {
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-  filter: drop-shadow(0 0 10px rgb(185 28 28 / 0.45))
-    drop-shadow(0 0 22px rgb(255 107 74 / 0.28));
-  animation: mt-ember-pulse 4.5s ease-in-out infinite;
+  /* Avoid filter here: with an overlay link above the title, drop-shadow +
+     background-clip:text can make the label invisible in Chromium. */
+  animation: mt-ember-shift 4.5s ease-in-out infinite;
 }
 
 .mt-hub-title:hover,
@@ -203,9 +203,7 @@ body:has(.public-theme) {
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-  filter: drop-shadow(0 0 10px rgb(185 28 28 / 0.45))
-    drop-shadow(0 0 22px rgb(255 107 74 / 0.28));
-  animation: mt-ember-pulse 4.5s ease-in-out infinite;
+  animation: mt-ember-shift 4.5s ease-in-out infinite;
   outline: none;
 }
 
@@ -220,6 +218,16 @@ body:has(.public-theme) {
     background-position: 100% 50%;
     filter: drop-shadow(0 0 16px rgb(185 28 28 / 0.65))
       drop-shadow(0 0 32px rgb(255 107 74 / 0.4));
+  }
+}
+
+@keyframes mt-ember-shift {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
   }
 }
 

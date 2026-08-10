@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useState } from "react";
+import { CalculatorPendingHydration } from "@/components/public/calculator-pending-hydration";
 import {
   isValidNumericInputString,
   parseNumericInput,
@@ -76,6 +77,36 @@ function isSoulforge(n: unknown): n is number {
   );
 }
 
+function readNumericString(value: unknown, fallback: string): string {
+  return typeof value === "string" && isValidNumericInputString(value)
+    ? value
+    : fallback;
+}
+
+function readConSlots(raw: unknown): ConSlotState[] {
+  const defaults = emptyConSlots();
+  if (!Array.isArray(raw)) return defaults;
+  return defaults.map((fallback, i) => {
+    const slot = raw[i];
+    if (typeof slot !== "object" || slot === null) return fallback;
+    const s = slot as Record<string, unknown>;
+    const con =
+      typeof s.con === "string" && isValidNumericInputString(s.con)
+        ? s.con
+        : fallback.con;
+    const soulforge = isSoulforge(s.soulforge)
+      ? s.soulforge
+      : fallback.soulforge;
+    return { con, soulforge };
+  });
+}
+
+function readAwakenerLevels(raw: unknown): string[] {
+  const defaults = defaultAwakenerLevels();
+  if (!Array.isArray(raw)) return defaults;
+  return defaults.map((fallback, i) => readNumericString(raw[i], fallback));
+}
+
 function readStored(): StoredState | null {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
@@ -83,64 +114,27 @@ function readStored(): StoredState | null {
     const parsed = JSON.parse(raw) as unknown;
     if (typeof parsed !== "object" || parsed === null) return null;
     const o = parsed as Record<string, unknown>;
-
-    if (
-      typeof o.accountLevel !== "string" ||
-      !isValidNumericInputString(o.accountLevel)
-    ) {
-      return null;
-    }
-    const rawDeathResist =
-      typeof o.rawDeathResist === "string" &&
-      isValidNumericInputString(o.rawDeathResist)
-        ? o.rawDeathResist
-        : "0";
-    if (
-      !Array.isArray(o.conSlots) ||
-      o.conSlots.length !== TEAM_SLOT_COUNT
-    ) {
-      return null;
-    }
-    if (
-      !Array.isArray(o.awakenerLevels) ||
-      o.awakenerLevels.length !== TEAM_SLOT_COUNT
-    ) {
-      return null;
-    }
-
-    const conSlots: ConSlotState[] = [];
-    for (const slot of o.conSlots) {
-      if (typeof slot !== "object" || slot === null) return null;
-      const s = slot as Record<string, unknown>;
-      if (typeof s.con !== "string" || !isValidNumericInputString(s.con)) {
-        return null;
-      }
-      if (!isSoulforge(s.soulforge)) return null;
-      conSlots.push({ con: s.con, soulforge: s.soulforge });
-    }
-
-    const awakenerLevels: string[] = [];
-    for (const level of o.awakenerLevels) {
-      if (typeof level !== "string" || !isValidNumericInputString(level)) {
-        return null;
-      }
-      awakenerLevels.push(level);
-    }
+    const defaults = defaultState();
 
     const primordiaChaos =
-      typeof o.primordiaChaos === "boolean" ? o.primordiaChaos : false;
+      typeof o.primordiaChaos === "boolean"
+        ? o.primordiaChaos
+        : defaults.primordiaChaos;
     const chaosAwakenerExist =
       typeof o.chaosAwakenerExist === "boolean"
         ? o.chaosAwakenerExist
-        : false;
+        : defaults.chaosAwakenerExist;
 
     return {
-      conSlots,
-      rawDeathResist,
+      conSlots: readConSlots(o.conSlots),
+      rawDeathResist: readNumericString(
+        o.rawDeathResist,
+        defaults.rawDeathResist,
+      ),
       primordiaChaos,
       chaosAwakenerExist: primordiaChaos ? false : chaosAwakenerExist,
-      accountLevel: o.accountLevel,
-      awakenerLevels,
+      accountLevel: readNumericString(o.accountLevel, defaults.accountLevel),
+      awakenerLevels: readAwakenerLevels(o.awakenerLevels),
     };
   } catch {
     return null;
@@ -268,6 +262,10 @@ export function TeamMaxHpCalculator() {
     { length: SOULFORGE_MAX - SOULFORGE_MIN + 1 },
     (_, i) => SOULFORGE_MIN + i,
   );
+
+  if (!hydrated) {
+    return <CalculatorPendingHydration />;
+  }
 
   return (
     <div className="space-y-6" aria-live="polite">

@@ -70,16 +70,16 @@ export default function HomePage() {
               />
               <h2
                 id={titleId}
-                className="mt-hub-title relative shrink-0 font-[family-name:var(--font-mother-display)] text-3xl font-semibold sm:w-44"
+                className="mt-hub-title relative z-[2] shrink-0 font-[family-name:var(--font-mother-display)] text-3xl font-semibold pointer-events-none sm:w-44"
               >
                 {item.title}
               </h2>
-              <ul className="mt-hub-card-body relative min-w-0 flex-1 list-disc space-y-2 pl-5 text-base font-medium leading-relaxed text-[var(--mt-ink)]">
+              <ul className="mt-hub-card-body relative z-[2] min-w-0 flex-1 list-disc space-y-2 pl-5 text-base font-medium leading-relaxed text-[var(--mt-ink)] pointer-events-none">
                 {item.bullets.map((bullet) => (
                   <li key={bullet}>{bullet}</li>
                 ))}
                 {item.learnMore ? (
-                  <li className="relative z-[2] list-none -ml-5 font-normal">
+                  <li className="relative z-[2] list-none -ml-5 font-normal pointer-events-auto">
                     <Link
                       href={item.learnMore.href}
                       className="font-medium text-[var(--mt-ember)] underline underline-offset-4 hover:text-[var(--mt-ember-deep)]"
