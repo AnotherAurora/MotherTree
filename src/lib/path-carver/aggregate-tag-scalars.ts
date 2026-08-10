@@ -475,6 +475,7 @@ export function aggregateTagScalarsForAwakeners(
       damageDealerAwakenerIds,
       new Map(),
       realms,
+      manifestations,
     ),
     awakeners,
     tagsById,

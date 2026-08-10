@@ -32,6 +32,11 @@ export type ManifestationApplyContext = {
   damageDealerAwakenerIds: Set<number>;
   /** When tag id → apply-times. Missing / unknown When → 0. */
   triggerCounts: ReadonlyMap<number, number>;
+  /**
+   * Combo RTM ids suppressed by prefer-effective dedupe
+   * (same familyId + tagId as an effective combo row).
+   */
+  suppressedRealmComboIds: ReadonlySet<number>;
 };
 
 export function getTeamRealmIds(awakeners: Awakener[]): Set<number> {
@@ -42,11 +47,61 @@ export function getTeamRealmIds(awakeners: Awakener[]): Set<number> {
   return realmIds;
 }
 
+/**
+ * Prefer effective-realm combo RTMs; suppress replaced-base peers for the same
+ * (familyId, tagId). When no effective peer exists, replaced-base combo stays.
+ */
+export function computeSuppressedRealmComboIds(
+  manifestations: Iterable<Manifestation>,
+  teamRealms: TeamRealmResolution,
+): ReadonlySet<number> {
+  if (teamRealms.chaosComboStacks <= 0) return new Set();
+
+  type Candidate = {
+    id: number;
+    effective: boolean;
+    familyId: number;
+    tagId: number;
+  };
+  const candidates: Candidate[] = [];
+  for (const m of manifestations) {
+    if (m.sourceKind !== "realm") continue;
+    if ((m.requiredRealmMode ?? "present") !== "combo") continue;
+    const realmId = m.realmId;
+    if (realmId == null) continue;
+    if (!teamRealms.satisfiesRequiredRealm(realmId, "present")) continue;
+    candidates.push({
+      id: m.id,
+      effective: teamRealms.effectiveRealmIds.has(realmId),
+      familyId: teamRealms.familyIdOf(realmId),
+      tagId: m.tagId,
+    });
+  }
+
+  const byKey = new Map<string, Candidate[]>();
+  for (const c of candidates) {
+    const key = `${c.familyId}:${c.tagId}`;
+    const list = byKey.get(key);
+    if (list) list.push(c);
+    else byKey.set(key, [c]);
+  }
+
+  const suppressed = new Set<number>();
+  for (const group of byKey.values()) {
+    if (!group.some((c) => c.effective)) continue;
+    for (const c of group) {
+      if (!c.effective) suppressed.add(c.id);
+    }
+  }
+  return suppressed;
+}
+
 export function createManifestationApplyContext(
   awakeners: Awakener[],
   damageDealerAwakenerIds: Iterable<number> = [],
   triggerCounts: ReadonlyMap<number, number> = new Map(),
   realms: Iterable<RealmLookupRow> = [],
+  manifestations: Iterable<Manifestation> = [],
 ): ManifestationApplyContext {
   const teamRealms = resolveTeamRealms(
     awakeners.map((a) => a.realmId),
@@ -62,6 +117,10 @@ export function createManifestationApplyContext(
     teamAwakenerIds: new Set(awakeners.map((a) => a.id)),
     damageDealerAwakenerIds: new Set(damageDealerAwakenerIds),
     triggerCounts,
+    suppressedRealmComboIds: computeSuppressedRealmComboIds(
+      manifestations,
+      teamRealms,
+    ),
   };
 }
 
@@ -108,8 +167,9 @@ function realmAndRequiredAwakenerPass(
 }
 
 /**
- * RTM apply: realm_id must be in effectiveRealmIds (replaced bases never apply),
- * then required_realm_mode (present / exclusive / combo).
+ * RTM apply: present/exclusive require realm_id ∈ effectiveRealmIds.
+ * Combo: family present (replacer counts) + chaosComboStacks > 0, with
+ * prefer-effective dedupe via suppressedRealmComboIds.
  */
 function realmTagManifestationPass(
   m: Manifestation,
@@ -120,22 +180,30 @@ function realmTagManifestationPass(
     return { applied: false, reason: "realm", triggerTimes: null };
   }
 
-  if (!ctx.teamRealms.effectiveRealmIds.has(realmId)) {
-    return { applied: false, reason: "realm", triggerTimes: null };
-  }
-
   const mode = m.requiredRealmMode ?? "present";
-  if (mode === "present") {
-    return { applied: true, reason: null, triggerTimes: null };
-  }
-  if (mode === "exclusive") {
-    if (!ctx.teamRealms.isPure(realmId)) {
+
+  if (mode === "combo") {
+    if (!ctx.teamRealms.satisfiesRequiredRealm(realmId, "present")) {
+      return { applied: false, reason: "realm", triggerTimes: null };
+    }
+    if (ctx.teamRealms.chaosComboStacks <= 0) {
+      return { applied: false, reason: "realm.mode", triggerTimes: null };
+    }
+    if (ctx.suppressedRealmComboIds.has(m.id)) {
       return { applied: false, reason: "realm.mode", triggerTimes: null };
     }
     return { applied: true, reason: null, triggerTimes: null };
   }
-  // combo
-  if (ctx.teamRealms.chaosComboStacks <= 0) {
+
+  if (!ctx.teamRealms.effectiveRealmIds.has(realmId)) {
+    return { applied: false, reason: "realm", triggerTimes: null };
+  }
+
+  if (mode === "present") {
+    return { applied: true, reason: null, triggerTimes: null };
+  }
+  // exclusive
+  if (!ctx.teamRealms.isPure(realmId)) {
     return { applied: false, reason: "realm.mode", triggerTimes: null };
   }
   return { applied: true, reason: null, triggerTimes: null };

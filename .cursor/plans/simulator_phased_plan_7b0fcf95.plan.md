@@ -35,6 +35,9 @@ todos:
   - id: base-tentacle-damage
     content: Phase 2b.6 — Base Tentacle Damage synthetic (aequor ATK×Ocean + HP×chaos; benthos 5% HP + chaos; AMP last; suppress RTM 5/30)
     status: completed
+  - id: combo-through-replace
+    content: Phase 2b.3 follow-up — combo RTM kept through non-chaos realm.replace; Primordia still zeros chaosComboStacks; prefer-effective (familyId, tagId) dedupe
+    status: completed
   - id: damage-layers-formula
     content: Phase 2c — Pass order by modifier tag.layer; datapatch layer f→z; rename DB layer enum; replace temp add-then-multiply; rename manifestation_interaction_override → awakener_local_manifestation_interaction; smoke + math-debug layer
     status: completed
@@ -669,15 +672,20 @@ Load `realm_tag_manifestation` into Path Carver Review Tags as **team-once** Lay
 | --------------- | ---------------------------------------------------------------- |
 | Apply count     | One contribution per matching RTM row                            |
 | Combo           | × `chaosComboStacks` on effective scalar                         |
-| Replaced realms | Apply only if `realm_id ∈ effectiveRealmIds`                     |
+| Replaced realms | **present / exclusive:** `realm_id ∈ effectiveRealmIds`. **combo:** family present (replacer satisfies base) + `chaosComboStacks > 0`; dedupe `(familyId, tagId)` preferring effective, else replaced base |
 | Chaos replaced  | Chaos RTM off; `chaosComboStacks === 0` ⇒ all `combo` off        |
 | Attacker.\* RTM | Always apply when realm mode gates pass (no damage-dealer check) |
 | `realm_mastery` | Σ total-base `awakener.realmMastery`                             |
 | Immunity        | `sourceKind === "realm"` skips inbound interaction ops           |
 
+### Follow-up — combo through replace
+
+Non-chaos `realm.replace` (e.g. Propagation → Caro) no longer drops `required_realm_mode = combo` rows for the replaced base: combo gates on family presence via `satisfiesRequiredRealm(..., "present")` plus stacks. Primordia / any chaos replacer still zeros `chaosComboStacks`, wiping all combo. When both base and variant have a combo row for the same tag, prefer the effective realm’s row (`suppressedRealmComboIds` on apply context) so Caro + Propagation never double. Implemented in [`manifestation-apply.ts`](src/lib/path-carver/manifestation-apply.ts); covered by `npx tsx scripts/smoke-realm-tags.ts`.
+
 ### Primary files
 
 - [`src/lib/team-data/types.ts`](src/lib/team-data/types.ts) / [`load-team-data.ts`](src/lib/team-data/load-team-data.ts)
+- [`src/lib/team-data/resolve-team-realms.ts`](src/lib/team-data/resolve-team-realms.ts)
 - [`src/lib/path-carver/manifestation-apply.ts`](src/lib/path-carver/manifestation-apply.ts)
 - [`src/lib/path-carver/effective-value-scalar.ts`](src/lib/path-carver/effective-value-scalar.ts)
 - [`src/lib/path-carver/aggregate-tag-scalars.ts`](src/lib/path-carver/aggregate-tag-scalars.ts)

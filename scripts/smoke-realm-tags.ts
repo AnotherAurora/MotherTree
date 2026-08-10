@@ -165,8 +165,6 @@ console.log("\nPrimordia replaces chaos — chaos RTM + combo off");
     makeAwakener({ id: 1, realmId: PRIMORDIA }),
     makeAwakener({ id: 2, realmId: CARO }),
   ];
-  const ctx = createManifestationApplyContext(awakeners, [1], new Map(), REALMS);
-  assert(ctx.teamRealms.chaosComboStacks === 0, "primordia → combo stacks 0");
   const chaosExclusive = makeRealmManifest({
     id: 1,
     realmId: CHAOS_REALM_ID,
@@ -183,13 +181,109 @@ console.log("\nPrimordia replaces chaos — chaos RTM + combo off");
     valueScalar: 35,
     requiredRealmMode: "combo",
   });
+  const ctx = createManifestationApplyContext(
+    awakeners,
+    [1],
+    new Map(),
+    REALMS,
+    [chaosExclusive, caroCombo],
+  );
+  assert(ctx.teamRealms.chaosComboStacks === 0, "primordia → combo stacks 0");
   assert(
     !evaluateManifestationApply(chaosExclusive, ctx).applied,
     "chaos exclusive RTM off when replaced",
   );
   assert(
     !evaluateManifestationApply(caroCombo, ctx).applied,
-    "caro combo off when chaos replaced",
+    "caro combo off when chaos replaced (Primordia wipe)",
+  );
+}
+
+console.log("\nPropagation + Chaos — Caro combo kept through replace");
+{
+  const awakeners = [
+    makeAwakener({ id: 1, realmId: PROPAGATION_CARO }),
+    makeAwakener({ id: 2, realmId: CHAOS_REALM_ID }),
+  ];
+  const caroCombo = makeRealmManifest({
+    id: 7,
+    realmId: CARO,
+    tagId: 59,
+    tagName: "Support.Embryo Fusion",
+    valueScalar: 35,
+    requiredRealmMode: "combo",
+  });
+  const caroPresent = makeRealmManifest({
+    id: 100,
+    realmId: CARO,
+    tagId: 9,
+    tagName: "Defender.Shield",
+    valueScalar: 0.08,
+    requiredRealmMode: "present",
+  });
+  const ctx = createManifestationApplyContext(
+    awakeners,
+    [1],
+    new Map(),
+    REALMS,
+    [caroCombo, caroPresent],
+  );
+  assert(ctx.teamRealms.chaosComboStacks === 1, "propagation+chaos stacks 1");
+  assert(
+    evaluateManifestationApply(caroCombo, ctx).applied,
+    "caro combo applied when only propagation is effective",
+  );
+  assert(
+    !evaluateManifestationApply(caroPresent, ctx).applied,
+    "caro present still off when replaced",
+  );
+  const scaled = scaleRealmValueScalar(
+    caroCombo,
+    { teamRealms: ctx.teamRealms },
+    false,
+    buildAwakenersById(awakeners),
+  );
+  assert(scaled === 35, "caro combo ×1 → 35");
+}
+
+console.log("\nCaro + Propagation + Chaos — prefer effective combo (no double)");
+{
+  const awakeners = [
+    makeAwakener({ id: 1, realmId: CARO }),
+    makeAwakener({ id: 2, realmId: PROPAGATION_CARO }),
+    makeAwakener({ id: 3, realmId: CHAOS_REALM_ID }),
+  ];
+  const caroCombo = makeRealmManifest({
+    id: 7,
+    realmId: CARO,
+    tagId: 59,
+    tagName: "Support.Embryo Fusion",
+    valueScalar: 35,
+    requiredRealmMode: "combo",
+  });
+  const propCombo = makeRealmManifest({
+    id: 70,
+    realmId: PROPAGATION_CARO,
+    tagId: 59,
+    tagName: "Support.Embryo Fusion",
+    valueScalar: 40,
+    requiredRealmMode: "combo",
+  });
+  const ctx = createManifestationApplyContext(
+    awakeners,
+    [1],
+    new Map(),
+    REALMS,
+    [caroCombo, propCombo],
+  );
+  assert(ctx.suppressedRealmComboIds.has(7), "caro combo id suppressed");
+  assert(
+    !evaluateManifestationApply(caroCombo, ctx).applied,
+    "caro combo suppressed when propagation combo exists",
+  );
+  assert(
+    evaluateManifestationApply(propCombo, ctx).applied,
+    "propagation combo (effective) applied",
   );
 }
 

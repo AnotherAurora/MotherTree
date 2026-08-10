@@ -10,7 +10,11 @@ export type TeamRealmResolution = {
   rawRealmIds: Set<number>;
   effectiveRealmIds: Set<number>;
   familyIds: Set<number>;
+  /** Bases removed from effective because a replacer is on the team. */
+  replacedBases: ReadonlySet<number>;
   chaosComboStacks: number;
+  /** Family id for max-2: `replace ?? id`. */
+  familyIdOf: (realmId: number) => number;
   isPure: (realmId: number) => boolean;
   satisfiesRequiredRealm: (
     requiredId: number,
@@ -111,7 +115,9 @@ export function resolveTeamRealms(
     rawRealmIds,
     effectiveRealmIds,
     familyIds,
+    replacedBases,
     chaosComboStacks,
+    familyIdOf: (realmId: number) => realmFamilyId(realmId, replaceOf),
     isPure,
     satisfiesRequiredRealm,
   };

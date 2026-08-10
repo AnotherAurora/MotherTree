@@ -107,6 +107,7 @@ export function ReviewTagsStep({
         damageDealerAwakenerIds,
         new Map(),
         result.data.realms,
+        result.data.manifestations,
       );
       const {
         totalsByTagId,
@@ -163,6 +164,7 @@ export function ReviewTagsStep({
       damageDealerAwakenerIds,
       triggerCounts,
       teamData.realms,
+      teamData.manifestations,
     );
   }, [teamData, damageDealerAwakenerIds, triggerCounts]);
 
