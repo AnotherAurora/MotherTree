@@ -6,6 +6,7 @@ import { ChaosRealmCalculator } from "@/components/public/chaos-realm-calculator
 import { DeathResistCalculator } from "@/components/public/death-resist-calculator";
 import { KeyflareHarmonyCalculator } from "@/components/public/keyflare-harmony-calculator";
 import { TeamMaxHpCalculator } from "@/components/public/team-max-hp-calculator";
+import { UltraRealmCalculator } from "@/components/public/ultra-realm-calculator";
 
 export const metadata: Metadata = {
   title: "Calculators",
@@ -59,6 +60,10 @@ export default function CalculatorsPage() {
 
       <section className="space-y-6" aria-label="Chaos Realm calculators">
         <ChaosRealmCalculator />
+      </section>
+
+      <section className="space-y-6" aria-label="Ultra Realm calculators">
+        <UltraRealmCalculator />
       </section>
 
       <section className="space-y-6" aria-label="Aequor Realm calculators">
