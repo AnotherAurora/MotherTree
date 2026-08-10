@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { AequorRealmCalculator } from "@/components/public/aequor-realm-calculator";
 import { BaseAliemusCalculator } from "@/components/public/base-aliemus-calculator";
 import { BaseKeyflareCalculator } from "@/components/public/base-keyflare-calculator";
+import { CaroRealmCalculator } from "@/components/public/caro-realm-calculator";
 import { ChaosRealmCalculator } from "@/components/public/chaos-realm-calculator";
 import { DeathResistCalculator } from "@/components/public/death-resist-calculator";
 import { KeyflareHarmonyCalculator } from "@/components/public/keyflare-harmony-calculator";
@@ -62,12 +63,16 @@ export default function CalculatorsPage() {
         <ChaosRealmCalculator />
       </section>
 
-      <section className="space-y-6" aria-label="Ultra Realm calculators">
-        <UltraRealmCalculator />
-      </section>
-
       <section className="space-y-6" aria-label="Aequor Realm calculators">
         <AequorRealmCalculator />
+      </section>
+
+      <section className="space-y-6" aria-label="Caro Realm calculators">
+        <CaroRealmCalculator />
+      </section>
+
+      <section className="space-y-6" aria-label="Ultra Realm calculators">
+        <UltraRealmCalculator />
       </section>
     </div>
   );

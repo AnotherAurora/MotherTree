@@ -137,7 +137,7 @@ function readStored(): StoredState | null {
       realmMastery: o.realmMastery,
       accountLevel: o.accountLevel,
       primordiaChaos: o.primordiaChaos,
-      pureRealm: o.pureRealm,
+      pureRealm: o.chaosAwakeners > 0 ? true : o.pureRealm,
       chaosAwakeners: o.chaosAwakeners,
     };
   } catch {
@@ -488,6 +488,7 @@ export function AequorRealmCalculator() {
                   setState((prev) => ({
                     ...prev,
                     pureRealm: e.target.checked,
+                    ...(e.target.checked ? {} : { chaosAwakeners: 0 }),
                   }))
                 }
                 className="size-4 accent-[var(--mt-ember)]"
@@ -509,7 +510,11 @@ export function AequorRealmCalculator() {
                   onChange={(e) => {
                     const n = Number(e.target.value);
                     if (!isChaosCount(n)) return;
-                    setState((prev) => ({ ...prev, chaosAwakeners: n }));
+                    setState((prev) => ({
+                      ...prev,
+                      chaosAwakeners: n,
+                      ...(n > 0 ? { pureRealm: true } : {}),
+                    }));
                   }}
                 >
                   {[0, 1, 2, 3].map((n) => (

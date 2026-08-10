@@ -6,6 +6,7 @@ import {
   useState,
   type KeyboardEvent,
 } from "react";
+import { CalculatorStatRow } from "@/components/public/calculator-stat-row";
 import {
   isValidNumericInputString,
   parseNumericInput,
@@ -75,7 +76,7 @@ function readStored(): StoredState | null {
       teamMaxHp: o.teamMaxHp,
       realmMastery: o.realmMastery,
       primordiaChaos: o.primordiaChaos,
-      pureRealm: o.pureRealm,
+      pureRealm: o.chaosAwakeners > 0 ? true : o.pureRealm,
       chaosAwakeners: o.chaosAwakeners,
     };
   } catch {
@@ -269,6 +270,7 @@ export function UltraRealmCalculator() {
                   setState((prev) => ({
                     ...prev,
                     pureRealm: e.target.checked,
+                    ...(e.target.checked ? {} : { chaosAwakeners: 0 }),
                   }))
                 }
                 className="size-4 accent-[var(--mt-ember)]"
@@ -289,7 +291,11 @@ export function UltraRealmCalculator() {
                 onChange={(e) => {
                   const n = Number(e.target.value);
                   if (!isChaosCount(n)) return;
-                  setState((prev) => ({ ...prev, chaosAwakeners: n }));
+                  setState((prev) => ({
+                    ...prev,
+                    chaosAwakeners: n,
+                    ...(n > 0 ? { pureRealm: true } : {}),
+                  }));
                 }}
               >
                 {[0, 1, 2, 3].map((n) => (
@@ -323,76 +329,71 @@ export function UltraRealmCalculator() {
 
       <div
         id={resultsId}
-        className="space-y-3 text-base text-[var(--mt-ink)]"
+        className="space-y-4 text-base text-[var(--mt-ink)]"
       >
         {isSingularity ? (
           <>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="min-w-[11rem]">Base Singularity Beacon:</span>
-              <span className="font-semibold tabular-nums">
-                {formatScalar(result.baseSingularityBeacon)}
-              </span>
+            <div className="space-y-2">
+              <h3 className="font-[family-name:var(--font-mother-display)] text-xl font-semibold tracking-tight text-[var(--mt-ink)]">
+                Singularity Beacon
+              </h3>
+              <CalculatorStatRow
+                label="Base Singularity Beacon:"
+                value={formatScalar(result.baseSingularityBeacon)}
+              />
+              <CalculatorStatRow
+                label="Singularity Beacon from RM:"
+                value={formatScalar(result.singularityBeaconFromRm)}
+              />
+              <CalculatorStatRow
+                label="Total Singularity Beacon:"
+                value={formatScalar(result.totalSingularityBeacon)}
+              />
             </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="min-w-[11rem]">Singularity Beacon from RM:</span>
-              <span className="font-semibold tabular-nums">
-                {formatScalar(result.singularityBeaconFromRm)}
-              </span>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="min-w-[11rem]">Total Singularity Beacon:</span>
-              <span className="font-semibold tabular-nums">
-                {formatScalar(result.totalSingularityBeacon)}
-              </span>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="min-w-[11rem]">Base Singularity Prism:</span>
-              <span className="font-semibold tabular-nums">
-                {formatScalar(result.baseSingularityPrism)}
-              </span>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="min-w-[11rem]">Singularity Prism from RM:</span>
-              <span className="font-semibold tabular-nums">
-                {formatScalar(result.singularityPrismFromRm)}
-              </span>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="min-w-[11rem]">Total Singularity Prism:</span>
-              <span className="font-semibold tabular-nums">
-                {formatScalar(result.totalSingularityPrism)}
-              </span>
+            <div className="space-y-2 border-t border-[var(--mt-border)]/40 pt-3">
+              <h3 className="font-[family-name:var(--font-mother-display)] text-xl font-semibold tracking-tight text-[var(--mt-ink)]">
+                Singularity Prism
+              </h3>
+              <CalculatorStatRow
+                label="Base Singularity Prism:"
+                value={formatScalar(result.baseSingularityPrism)}
+              />
+              <CalculatorStatRow
+                label="Singularity Prism from RM:"
+                value={formatScalar(result.singularityPrismFromRm)}
+              />
+              <CalculatorStatRow
+                label="Total Singularity Prism:"
+                value={formatScalar(result.totalSingularityPrism)}
+              />
             </div>
           </>
         ) : (
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="min-w-[11rem]">Insight Chance:</span>
-            <span className="font-semibold tabular-nums">
-              {formatScalar(result.insightChance)}%
-            </span>
+          <div className="space-y-2">
+            <CalculatorStatRow
+              label="Insight Chance:"
+              value={`${formatScalar(result.insightChance)}%`}
+            />
           </div>
         )}
         {showComboRows ? (
-          <>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="min-w-[11rem]">Enemy STR Down:</span>
-              <span className="font-semibold tabular-nums">
-                {formatScalar(result.enemyStrDown)}
-              </span>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="min-w-[11rem]">Team STR Up:</span>
-              <span className="font-semibold tabular-nums">
-                {formatScalar(result.teamStrUp)}
-              </span>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="min-w-[11rem]">Ultra Awakener Crit Damage:</span>
-              <span className="font-semibold tabular-nums">
-                {formatCritPercent(result.ultraAwakenerCritDamage)}
-              </span>
-            </div>
-          </>
+          <div className="space-y-2 border-t border-[var(--mt-border)]/40 pt-3">
+            <h3 className="font-[family-name:var(--font-mother-display)] text-xl font-semibold tracking-tight text-[var(--mt-ink)]">
+              Chaos Symbiosis
+            </h3>
+            <CalculatorStatRow
+              label="Enemy STR Down:"
+              value={formatScalar(result.enemyStrDown)}
+            />
+            <CalculatorStatRow
+              label="Team STR Up:"
+              value={formatScalar(result.teamStrUp)}
+            />
+            <CalculatorStatRow
+              label="Ultra Awakener Crit Damage:"
+              value={formatCritPercent(result.ultraAwakenerCritDamage)}
+            />
+          </div>
         ) : null}
       </div>
     </div>
