@@ -1183,6 +1183,7 @@ export type Database = {
           id: number
           is_additive: boolean
           is_percent: boolean
+          is_searchable: boolean
           layer: Database["public"]["Enums"]["layer"] | null
           tag_name: string
           updated_at: string | null
@@ -1193,6 +1194,7 @@ export type Database = {
           id?: number
           is_additive?: boolean
           is_percent?: boolean
+          is_searchable?: boolean
           layer?: Database["public"]["Enums"]["layer"] | null
           tag_name: string
           updated_at?: string | null
@@ -1203,6 +1205,7 @@ export type Database = {
           id?: number
           is_additive?: boolean
           is_percent?: boolean
+          is_searchable?: boolean
           layer?: Database["public"]["Enums"]["layer"] | null
           tag_name?: string
           updated_at?: string | null

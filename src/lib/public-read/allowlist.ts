@@ -1,6 +1,6 @@
 import type { TableRow } from "@/lib/database.types";
 
-/** Final Phase 2 public SELECT allowlist — do not expand without amending the plan. */
+/** Public SELECT allowlist — expand only when amending the public site plan. */
 export const PUBLIC_READ_TABLES = [
   "realm",
   "realm_tag_manifestation",
@@ -14,6 +14,7 @@ export const PUBLIC_READ_TABLES = [
   "wheel",
   "wheel_tag_manifestation",
   "tag",
+  "tag_default_interaction",
 ] as const;
 
 export type PublicReadTable = (typeof PUBLIC_READ_TABLES)[number];
@@ -146,7 +147,18 @@ export const PUBLIC_TABLE_COLUMNS = {
     "trigger_condition",
     "required_realm",
   ],
-  tag: ["id", "tag_name", "layer", "is_percent", "is_additive"],
+  tag: ["id", "tag_name", "layer", "is_percent", "is_additive", "is_searchable"],
+  tag_default_interaction: [
+    "id",
+    "modifier_tag_id",
+    "target_tag_id",
+    "math_operation",
+    "default_factor",
+    "exclusion_suffix",
+    "buff_target_type_restriction",
+    "creates_base",
+    "amplifies_subject",
+  ],
 } as const satisfies {
   [K in PublicReadTable]: readonly (keyof PublicRow<K> & string)[];
 };

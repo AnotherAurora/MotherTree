@@ -1,6 +1,6 @@
 ---
 name: Public Site Phased Plan
-overview: "Public Mother Tree (root version): homepage hub + Search + Calculator + Manual + About are public; other routes stay private admin. Phase 0–3 done; Search next → Vercel release."
+overview: "Public Mother Tree (root version): homepage hub + Search + Calculator + Manual + About are public; other routes stay private admin. Phase 0–3 done; Search options done, results next → Vercel release."
 todos:
   - id: phase-0-scope
     content: Phase 0 — Scope locked (Search naming, calculator catalog, table allowlist, localStorage)
@@ -21,7 +21,7 @@ todos:
     content: Phase 3 — Calculator tools from catalog + localStorage persistence for inputs
     status: completed
   - id: phase-4-search
-    content: Phase 4 — Guided read-only Search UI on allowlisted tables
+    content: "Phase 4 — Search: options UI done; results / guided joins still pending"
     status: pending
   - id: phase-5-release
     content: Phase 5 — Gate admin, Vercel deploy, attribution, env/RLS review
@@ -131,8 +131,9 @@ Public SELECT (via Phase 2 RLS / allowlisted server reads) is limited to:
 - `wheel`
 - `wheel_tag_manifestation`
 - `tag`
+- `tag_default_interaction` (added Phase 4 for Search filter graph; timestamps trimmed)
 
-No other tables are public-readable unless this plan is amended. Soft-deleted rows (`deleted_at` where present) stay hidden from public reads by default. Column-level trimming is locked in Phase 2 (hide `created_at`, `updated_at`, `deleted_at`). Allowlist confirmed final in Phase 2.
+No other tables are public-readable unless this plan is amended. Soft-deleted rows (`deleted_at` where present) stay hidden from public reads by default. Column-level trimming is locked in Phase 2 (hide `created_at`, `updated_at`, `deleted_at`). Allowlist confirmed final in Phase 2; **`tag_default_interaction` amended in Phase 4**.
 
 ### Success criteria (baseline)
 
@@ -243,6 +244,7 @@ Phase 0 table allowlist is **confirmed final** — no additions without amending
 - `posse`, `posse_tag_manifestation`
 - `wheel`, `wheel_tag_manifestation`
 - `tag`
+- `tag_default_interaction` (**Phase 4 amendment** — Search Attacker/Defender reachability graph; timestamps omitted in projection)
 
 Do not grant SELECT on non-allowlisted tables (including desires, paths, demands, etc.).
 
@@ -298,13 +300,46 @@ _Extract Path Carver functions into standalone public tools; hub + nested routes
 
 _Query UI on Phase 2 read layer (product name: Search)._
 
-- Guided Search UX (filters / entity pickers / results) — **no public free-form SQL**
-- Wire only to Phase 0 allowlisted tables; loading / empty / error states
-- Reuse admin labeling patterns from schema config where useful ([`schema-config`](src/lib/schema-config.ts), FK comboboxes) without exposing CRUD
-- Iterate under admin preview
-- No recommendation UI or links into simulator/Path Carver flows
+### Locked filter UX (options pass)
 
-**Exit:** Useful read-only Search in preview against allowlisted tables.
+- Guided Search UX — **no public free-form SQL**
+- Wire only to allowlisted tables; reuse admin labeling patterns where useful without exposing CRUD
+- No recommendation UI or links into simulator/Path Carver flows
+- Filter controls are **single-select** (plus Every Turn checkbox)
+- Attacker / Defender / Support share **one** tag slot: selecting any of those dropdowns clears the other four
+- Attacker `layer IS NULL` buckets into **add**
+
+### Filter rows (options UI)
+
+| Row | Source |
+| --- | --- |
+| Attacker | Tags that are `Attacker.*` or reach `Attacker.*` via `tag_default_interaction` chains; `is_searchable`; three dropdowns by `layer` (`pre_add` / `add` / `post_add`) |
+| Defender | Same reachability for `Defender.*`; one dropdown |
+| Support | `Support.*` + `is_searchable`; one dropdown |
+| From | Awakener / Wheel / Posse / Covenant (scopes `*_tag_manifestation` parent; no Realm) |
+| Target Type | `target_type` enum |
+| Dependency Stat | `all_stats` enum |
+| Buff Restriction | `source_type` enum (`buff_target_type_restriction`) |
+| Every Turn | checkbox → `is_accumulating` |
+| Trigger Condition | `Special.When.*` tags |
+| Required Realm | realm ids `1, 2, 4, 6` (chaos / caro / aequor / ultra) |
+
+### Done (options pass)
+
+- Allowlist + RLS: `tag_default_interaction` public SELECT ([`20260811040123_public_readonly_tag_default_interaction.sql`](supabase/migrations/20260811040123_public_readonly_tag_default_interaction.sql)); projection omits timestamps ([`allowlist.ts`](src/lib/public-read/allowlist.ts)); smoke extended
+- Option builders: [`search-filter-options.ts`](src/lib/public/search-filter-options.ts)
+- `/search` SSR loads `tag` + `tag_default_interaction` + `realm`; client form [`search-filters.tsx`](src/components/public/search-filters.tsx) with `SearchFilterState` ready for results
+
+### Not done yet (results pass)
+
+- Results list / cards across manifestation tables
+- Applying filters as guided joins / queries
+- Loading / empty / error states for **results**
+- Sort by numeric impact
+- Shareable filter URLs (Phase 6)
+- Entity pickers beyond the rows above
+
+**Exit (full Phase 4):** Useful read-only Search with options **and** results in preview against allowlisted tables. Options-only is not full exit.
 
 ---
 
@@ -335,7 +370,7 @@ _Query UI on Phase 2 read layer (product name: Search)._
 | Slot                                              | Status                                               | Where it lands          |
 | ------------------------------------------------- | ---------------------------------------------------- | ----------------------- |
 | Calculator factor list                            | Done in Phase 3 (Core Mechanics + Realms catalog)    | Phase 3                 |
-| Public table allowlist                            | Locked in Phase 0; **confirmed final** in Phase 2    | Phase 2 + 4             |
+| Public table allowlist                            | Locked in Phase 0; confirmed Phase 2; **+`tag_default_interaction` in Phase 4** | Phase 2 + 4             |
 | localStorage for calculator inputs                | Done in Phase 3                                      | Phase 3                 |
 | Calculators hub IA                                | Done: two-button hub + `/calculators/{group}/{slug}` | Phase 3                 |
 | Public routes + Mother Tree / root version chrome | Locked in Phase 1                                    | Phase 1 implementation  |
@@ -345,7 +380,7 @@ _Query UI on Phase 2 read layer (product name: Search)._
 | Homepage hub                                      | Done in Phase 1.2 — four rows + locked copy          | Phase 1.2               |
 | Public `/manual` + `/about`                       | Placeholders done in Phase 1.2                       | Phase 1.2; body later   |
 | No Path Carver naming on public pages             | Locked in Phase 1.1                                  | Public copy             |
-| Search UX specifics                               | Open                                                 | Phase 4                 |
+| Search UX specifics                               | **Options locked** (rows + mutual exclusion); results open | Phase 4                 |
 | Column-level public trimming                      | Done: hide `created_at`, `updated_at`, `deleted_at`  | Phase 2                 |
 | Public read caps                                  | Done: 500 rows/query; ~60 req/min/IP                 | Phase 2                 |
 | Admin auth mechanism                              | Open                                                 | Phase 5                 |

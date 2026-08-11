@@ -119,6 +119,25 @@ async function main() {
     }
   }
 
+  console.log("\n5b) tag_default_interaction fits under 500-row option-list cap");
+  {
+    const full = await fetchPublicTable("tag_default_interaction", {
+      client: anon,
+      limit: PUBLIC_ROW_LIMIT,
+    });
+    assert(full.success, "tag_default_interaction full fetch succeeded");
+    if (full.success) {
+      assert(
+        !full.truncated,
+        `tag_default_interaction not truncated (got ${full.data.length} rows)`,
+      );
+      assert(
+        full.data.length <= PUBLIC_ROW_LIMIT,
+        `tag_default_interaction ≤ ${PUBLIC_ROW_LIMIT} (got ${full.data.length})`,
+      );
+    }
+  }
+
   console.log("\n6) In-memory rate limit (~60/min/IP)");
   {
     resetPublicRateLimitForTests();

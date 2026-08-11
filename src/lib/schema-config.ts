@@ -143,6 +143,13 @@ export const TABLE_CONFIGS: TableConfig[] = [
         defaultValue: true,
         inlineEditable: true,
       },
+      {
+        name: "is_searchable",
+        label: "Available in Search",
+        type: "boolean",
+        defaultValue: false,
+        inlineEditable: true,
+      },
       ...timestampFields(),
     ],
   },
