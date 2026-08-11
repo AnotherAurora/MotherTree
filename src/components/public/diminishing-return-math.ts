@@ -12,6 +12,8 @@ export function parseNumericInput(value: string): number {
 
 /**
  * Extra raw input needed so diminished rises by 1.
+ * Snapped up to 0.1 so the displayed step actually crosses the next ceil
+ * breakpoint (avoids 0 on exact continuous-integer edges, e.g. raw Keyflare 33).
  * Returns null when already at the DR cap.
  */
 export function neededForNextDiminishedPoint(
@@ -35,13 +37,21 @@ export function neededForNextDiminishedPoint(
     if (config.applyDr(mid) >= target) hi = mid;
     else lo = mid;
   }
-  return hi - sum;
+
+  const delta = hi - sum;
+  let step = delta <= 0 ? 0.1 : Math.ceil(delta * 10 - 1e-9) / 10;
+  if (delta > 0 && step <= 0) step = 0.1;
+
+  while (config.applyDr(sum + step) <= current && step < 1e9) {
+    step = Math.round((step + 0.1) * 10) / 10;
+  }
+  return step;
 }
 
 export function formatNeededForNext(needed: number): string {
-  if (needed <= 0) return "0";
+  if (needed <= 0) return "0.1";
   const roundedUp = Math.ceil(needed * 10 - 1e-9) / 10;
-  return roundedUp.toFixed(1);
+  return (roundedUp <= 0 ? 0.1 : roundedUp).toFixed(1);
 }
 
 export function isValidNumericInputString(value: string): boolean {

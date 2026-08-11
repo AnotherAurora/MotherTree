@@ -59,6 +59,51 @@ export function formatSearchTagLabel(tagName: string): string {
   return kept.join(" for ");
 }
 
+/**
+ * Human-readable Search label for an all_stats enum value.
+ * Stored filter value stays the raw enum string.
+ */
+export function formatSearchDependencyStatLabel(stat: string): string {
+  if (stat === "con" || stat === "atk" || stat === "def") {
+    return stat.toUpperCase();
+  }
+  return stat
+    .split("_")
+    .filter((part) => part.length > 0)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+/**
+ * Human-readable Search label for a target_type enum value.
+ * Stored filter value stays the raw enum string.
+ */
+export function formatSearchTargetTypeLabel(targetType: string): string {
+  if (targetType === "aoe") return "AoE";
+  if (targetType.length === 0) return targetType;
+  return targetType.charAt(0).toUpperCase() + targetType.slice(1);
+}
+
+/**
+ * Human-readable Search label for a source_type / buff restriction enum value.
+ * Stored filter value stays the raw enum string.
+ */
+export function formatSearchBuffRestrictionLabel(value: string): string {
+  return value
+    .split(/\s+/)
+    .filter((part) => part.length > 0)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+/**
+ * Human-readable Search label for a realm name.
+ * Stored filter value stays the realm id.
+ */
+export function formatSearchRealmLabel(name: string): string {
+  return formatSearchBuffRestrictionLabel(name);
+}
+
 function sortByTagName(a: SearchTagOption, b: SearchTagOption): number {
   return a.tag_name.localeCompare(b.tag_name);
 }

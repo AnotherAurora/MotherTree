@@ -9,7 +9,13 @@ import type {
   SearchFromValue,
   SearchRequiredRealmId,
 } from "@/lib/public/search-filter-options";
-import { formatSearchTagLabel } from "@/lib/public/search-filter-options";
+import {
+  formatSearchBuffRestrictionLabel,
+  formatSearchDependencyStatLabel,
+  formatSearchRealmLabel,
+  formatSearchTagLabel,
+  formatSearchTargetTypeLabel,
+} from "@/lib/public/search-filter-options";
 import { cn } from "@/lib/utils";
 
 export type SearchTagFamily = "attacker" | "defender" | "support";
@@ -118,11 +124,12 @@ export function SearchFilters({ options }: SearchFiltersProps) {
       </div>
 
       <div className={rowClassName}>
-        <label htmlFor={`${baseId}-defender`} className={labelClassName}>
+        <div id={`${baseId}-defender-label`} className={labelClassName}>
           Defender
-        </label>
+        </div>
         <SearchTagCombobox
           id={`${baseId}-defender`}
+          aria-labelledby={`${baseId}-defender-label`}
           value={defenderValue()}
           onChange={(id) => setTagSelection("defender", id)}
           options={options.defender}
@@ -130,11 +137,12 @@ export function SearchFilters({ options }: SearchFiltersProps) {
       </div>
 
       <div className={rowClassName}>
-        <label htmlFor={`${baseId}-support`} className={labelClassName}>
+        <div id={`${baseId}-support-label`} className={labelClassName}>
           Support
-        </label>
+        </div>
         <SearchTagCombobox
           id={`${baseId}-support`}
+          aria-labelledby={`${baseId}-support-label`}
           value={supportValue()}
           onChange={(id) => setTagSelection("support", id)}
           options={options.support}
@@ -191,7 +199,7 @@ export function SearchFilters({ options }: SearchFiltersProps) {
           <option value="">Any</option>
           {options.targetType.map((v) => (
             <option key={v} value={v}>
-              {v}
+              {formatSearchTargetTypeLabel(v)}
             </option>
           ))}
         </select>
@@ -216,7 +224,7 @@ export function SearchFilters({ options }: SearchFiltersProps) {
           <option value="">Any</option>
           {options.dependencyStat.map((v) => (
             <option key={v} value={v}>
-              {v}
+              {formatSearchDependencyStatLabel(v)}
             </option>
           ))}
         </select>
@@ -244,7 +252,7 @@ export function SearchFilters({ options }: SearchFiltersProps) {
           <option value="">Any</option>
           {options.buffRestriction.map((v) => (
             <option key={v} value={v}>
-              {v}
+              {formatSearchBuffRestrictionLabel(v)}
             </option>
           ))}
         </select>
@@ -321,7 +329,7 @@ export function SearchFilters({ options }: SearchFiltersProps) {
           <option value="">Any</option>
           {options.requiredRealm.map((realm) => (
             <option key={realm.id} value={realm.id}>
-              {realm.name}
+              {formatSearchRealmLabel(realm.name)}
             </option>
           ))}
         </select>

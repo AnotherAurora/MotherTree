@@ -21,6 +21,7 @@ type SearchTagComboboxProps = {
   onChange: (value: number | null) => void;
   options: readonly SearchTagComboboxOption[];
   placeholder?: string;
+  "aria-labelledby"?: string;
 };
 
 export function SearchTagCombobox({
@@ -29,6 +30,7 @@ export function SearchTagCombobox({
   onChange,
   options,
   placeholder = "Any",
+  "aria-labelledby": ariaLabelledBy,
 }: SearchTagComboboxProps) {
   const listboxId = useId();
   const [open, setOpen] = useState(false);
@@ -57,6 +59,7 @@ export function SearchTagCombobox({
           role="combobox"
           aria-expanded={open}
           aria-controls={listboxId}
+          aria-labelledby={ariaLabelledBy}
           className={cn(
             "flex h-10 w-full min-w-0 items-center justify-between gap-2 rounded-md border border-[var(--mt-border)] bg-[rgb(255_245_235_/_0.55)] px-2 text-left text-sm text-[var(--mt-ink)]",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mt-ember)]",
