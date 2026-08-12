@@ -48,14 +48,11 @@ export default async function SearchPage() {
   const loaded = await loadSearchFilterOptions();
 
   return (
-    <div className="mx-auto max-w-5xl space-y-8 px-6 py-10">
+    <div className="mx-auto max-w-7xl space-y-8 px-4 py-8 sm:px-6 sm:py-10">
       <div>
         <h1 className="font-[family-name:var(--font-mother-display)] text-4xl font-semibold tracking-tight text-[var(--mt-ink)]">
           Search
         </h1>
-        <p className="mt-3 max-w-2xl text-[var(--mt-ink-muted)]">
-          Only 1 tag from Attacker/Defender/Support at a time
-        </p>
       </div>
 
       {loaded.success ? (

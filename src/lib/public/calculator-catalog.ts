@@ -1,4 +1,4 @@
-export type CalculatorGroup = "core" | "realms";
+export type CalculatorGroup = "core" | "realms" | "covenant";
 
 export type CalculatorPageHeading = "visible" | "sr-only";
 
@@ -27,6 +27,11 @@ export const CALCULATOR_GROUPS: readonly {
     id: "realms",
     label: "Realms",
     hubBlurb: "Chaos, Aequor, Caro, and Ultra Realm calculators.",
+  },
+  {
+    id: "covenant",
+    label: "Covenant",
+    hubBlurb: "Main Stat and Sub Stat",
   },
 ] as const;
 
@@ -129,7 +134,7 @@ export function isCalculatorSlug(slug: string): slug is CalculatorSlug {
 }
 
 export function isCalculatorGroup(value: string): value is CalculatorGroup {
-  return value === "core" || value === "realms";
+  return value === "core" || value === "realms" || value === "covenant";
 }
 
 export function getCalculatorsByGroup(

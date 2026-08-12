@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { SKEYDB_COMMIT } from "../src/lib/assets/skeydb-base";
 
@@ -31,7 +31,7 @@ type AssetsIndex = {
 
 const ROOT = resolve(process.cwd());
 const MAPS_DIR = join(ROOT, "src/lib/assets/maps");
-const DUMPS_DIR = join(ROOT, "sample-data/dumps");
+const ASSET_NAMES_DIR = join(ROOT, "sample-data/skeydb-asset-names");
 
 const RAW_BASE = `https://raw.githubusercontent.com/dansa/SKeyDB/${SKEYDB_COMMIT}`;
 
@@ -44,21 +44,13 @@ function basenameWithoutExt(path: string): string {
   return filename.replace(/\.(webp|png)$/i, "");
 }
 
-function latestDumpDate(): string {
-  const dates = readdirSync(DUMPS_DIR, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => entry.name)
-    .filter((name) => /^\d{4}-\d{2}-\d{2}$/.test(name))
-    .sort();
-  const latest = dates.at(-1);
-  if (!latest) {
-    throw new Error(`No dated dumps found under ${DUMPS_DIR}`);
+function readMotherTreeNames(table: string): string[] {
+  const filePath = join(ASSET_NAMES_DIR, `${table}.json`);
+  if (!existsSync(filePath)) {
+    throw new Error(
+      `Missing ${filePath}. Run: npm run db:dump-skeydb-assets (or npm run sync:skeydb-assets)`,
+    );
   }
-  return latest;
-}
-
-function readMotherTreeNames(dumpDate: string, table: string): string[] {
-  const filePath = join(DUMPS_DIR, dumpDate, `${table}.json`);
   const rows = JSON.parse(readFileSync(filePath, "utf8")) as NamedRow[];
   return rows.map((row) => row.name).filter((name) => typeof name === "string");
 }
@@ -137,8 +129,13 @@ function writeMap(filename: string, data: Record<string, string>) {
 }
 
 async function main() {
-  const dumpDate = latestDumpDate();
-  console.log(`Using MotherTree dump: ${dumpDate}`);
+  if (!existsSync(ASSET_NAMES_DIR)) {
+    throw new Error(
+      `Missing ${ASSET_NAMES_DIR}. Run: npm run db:dump-skeydb-assets (or npm run sync:skeydb-assets)`,
+    );
+  }
+
+  console.log(`Using MotherTree asset names: ${ASSET_NAMES_DIR}`);
   console.log(`SKeyDB commit: ${SKEYDB_COMMIT}`);
 
   const [wheelsCatalog, covenantsCatalog, possesCatalog, assetsIndex] =
@@ -153,21 +150,13 @@ async function main() {
   const covenantSkey = buildNameToAssetMap(covenantsCatalog, assetsIndex);
   const posseSkey = buildNameToAssetMap(possesCatalog, assetsIndex);
 
-  const wheelMap = joinMaps(
-    readMotherTreeNames(dumpDate, "wheel"),
-    wheelSkey,
-    "wheel",
-  );
+  const wheelMap = joinMaps(readMotherTreeNames("wheel"), wheelSkey, "wheel");
   const covenantMap = joinMaps(
-    readMotherTreeNames(dumpDate, "covenant"),
+    readMotherTreeNames("covenant"),
     covenantSkey,
     "covenant",
   );
-  const posseMap = joinMaps(
-    readMotherTreeNames(dumpDate, "posse"),
-    posseSkey,
-    "posse",
-  );
+  const posseMap = joinMaps(readMotherTreeNames("posse"), posseSkey, "posse");
 
   writeMap("wheel-by-name.json", wheelMap);
   writeMap("covenant-by-name.json", covenantMap);

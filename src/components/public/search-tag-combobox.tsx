@@ -29,7 +29,7 @@ export function SearchTagCombobox({
   value,
   onChange,
   options,
-  placeholder = "Any",
+  placeholder = "No Filter",
   "aria-labelledby": ariaLabelledBy,
 }: SearchTagComboboxProps) {
   const listboxId = useId();
@@ -98,7 +98,7 @@ export function SearchTagCombobox({
               setOpen(false);
             }}
           >
-            Any
+            No Filter
           </button>
           {filtered.length === 0 ? (
             <p className="px-2 py-6 text-center text-sm text-[var(--mt-ink-muted)]">

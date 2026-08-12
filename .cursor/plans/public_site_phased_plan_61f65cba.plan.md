@@ -1,6 +1,6 @@
 ---
 name: Public Site Phased Plan
-overview: "Public Mother Tree (root version): homepage hub + Search + Calculator + Manual + About are public; other routes stay private admin. Phase 0–3 done; Search options done, results next → Vercel release."
+overview: "Public Mother Tree (root version): homepage hub + Search + Calculator + Manual + About are public; other routes stay private admin. Phase 0–4 done; Phase 5 Vercel release next."
 todos:
   - id: phase-0-scope
     content: Phase 0 — Scope locked (Search naming, calculator catalog, table allowlist, localStorage)
@@ -20,9 +20,15 @@ todos:
   - id: phase-3-calculator
     content: Phase 3 — Calculator tools from catalog + localStorage persistence for inputs
     status: completed
+  - id: phase-3-1-covenant
+    content: Phase 3.1 — Covenant hub entry + `/calculators/covenant` placeholder (Main Stat / Sub Stat)
+    status: completed
+  - id: phase-3-2-covenant
+    content: Phase 3.2 — Covenant Main / Sub Stat calculator (I–VI, bond, totals, localStorage)
+    status: completed
   - id: phase-4-search
-    content: "Phase 4 — Search: options UI done; results / guided joins still pending"
-    status: pending
+    content: "Phase 4 — Search: options + results (tag-tree match, manifestation table, Value scaling)"
+    status: completed
   - id: phase-5-release
     content: Phase 5 — Gate admin, Vercel deploy, attribution, env/RLS review
     status: pending
@@ -65,6 +71,8 @@ flowchart TD
   P1_2[Phase1_2_Hub]
   P2[Phase2_ReadOnlyAccess]
   P3[Phase3_Calculator]
+  P3_1[Phase3_1_Covenant]
+  P3_2[Phase3_2_Covenant]
   P4[Phase4_Search]
   P5[Phase5_PublicRelease]
   P6[Phase6_Expand]
@@ -72,12 +80,13 @@ flowchart TD
   P1 --> P2
   P2 --> P3
   P2 --> P4
+  P3 --> P3_1 --> P3_2
   P3 --> P5
   P4 --> P5
   P5 --> P6
 ```
 
-Phase 3 and 4 both need Phase 2. Prefer finishing **calculator (3)** before deep search work; search can start after Phase 2 if you want parallel work later. Phase 1.1 / 1.2 (theme + hub) do not block Phase 2+.
+Phase 3 and 4 both need Phase 2. Prefer finishing **calculator (3)** before deep search work; search can start after Phase 2 if you want parallel work later. Phase 1.1 / 1.2 (theme + hub) do not block Phase 2+. Phase 3.1 (Covenant placeholder) and Phase 3.2 (Covenant calculator body) follow Phase 3 and do not block Phase 5 release.
 
 ---
 
@@ -296,7 +305,89 @@ _Extract Path Carver functions into standalone public tools; hub + nested routes
 
 ---
 
-## Phase 4 — Search
+## Phase 3.1 — Covenant hub + placeholder (done)
+
+_Expand the Calculators hub with a Covenant entry. Placeholder only; body replaced in Phase 3.2._
+
+### Locked product copy
+
+| Surface   | Copy                       |
+| --------- | -------------------------- |
+| Hub label | **Covenant**               |
+| Hub blurb | **Main Stat and Sub Stat** |
+
+### Route
+
+- **`/calculators/covenant`** under public chrome (Mother Tree / root version)
+- Static page at [`src/app/(public)/calculators/covenant/page.tsx`](<src/app/(public)/calculators/covenant/page.tsx>) — takes precedence over the dynamic `[group]` redirect
+- Not a catalog slug tool (`/calculators/{group}/{slug}`); no tool shell / related tabs
+
+### Catalog rules
+
+- Extend `CalculatorGroup` and `CALCULATOR_GROUPS` in [`calculator-catalog.ts`](src/lib/public/calculator-catalog.ts) with `covenant`
+- Hub page ([`calculators/page.tsx`](<src/app/(public)/calculators/page.tsx>)) picks up the third row from `CALCULATOR_GROUPS` with no hub UI rewrite
+- **Do not** add a `CALCULATOR_CATALOG` entry, `calculator-by-slug` branch, or flat-slug redirect
+- Leave `[group]` `generateStaticParams` as `core` / `realms` only (Covenant uses the static route)
+
+### What was done
+
+- Third Calculators hub card: Covenant → `/calculators/covenant`
+- Placeholder page with visible **Covenant** heading and muted copy that Main Stat / Sub Stat tools are forthcoming (superseded by Phase 3.2)
+- Surfaces touched: [`calculator-catalog.ts`](src/lib/public/calculator-catalog.ts), new [`covenant/page.tsx`](<src/app/(public)/calculators/covenant/page.tsx>)
+
+### Non-goals (Phase 3.1)
+
+- No Path Carver formulas / forked math
+- No localStorage persistence (added in Phase 3.2)
+- No desire load/save or DB writes
+- No Path Carver naming in public copy
+
+**Exit:** Three-row Calculators hub (Core Mechanics / Realms / Covenant); Covenant opens the placeholder; Core and Realms behavior unchanged.
+
+---
+
+## Phase 3.2 — Covenant Main / Sub Stat calculator (done)
+
+_Replace the Phase 3.1 placeholder with the interactive Main / Sub Stat calculator on `/calculators/covenant`._
+
+### Locked rules
+
+- Six roman slots **I–VI**; each has Main Stat select (slot-restricted options), displayed main value, **Bond** (+50% / ×1.5 on that main only)
+- Three sub-rows per slot: Sub Stat (all 8 stats), Level **1–8** (default **1**), displayed `perLevel × level`
+- Dropdowns default to **“—”**; unset contributes **0**; empty row values display **—** (not `0`)
+- Duplicates allowed across slots/subs; totals sum all contributions by stat
+- Main Stat options by slot:
+
+| Slot | Main Stat options                                    |
+| ---- | ---------------------------------------------------- |
+| I    | Crit Damage, Crit Rate, Aliemus Regen, Keyflare      |
+| II   | Crit Damage, Crit Rate, Realm Mastery, Sigil Yield   |
+| III  | Crit Damage, Crit Rate, Damage AMP, Death Resist     |
+| IV   | Aliemus Regen, Realm Mastery, Keyflare, Sigil Yield  |
+| V    | Aliemus Regen, Damage AMP, Keyflare, Death Resist    |
+| VI   | Realm Mastery, Damage AMP, Sigil Yield, Death Resist |
+
+- Value tables live in [`covenant-stats.ts`](src/lib/public/covenant-stats.ts) (not Path Carver)
+- Persist under `mt.calculators.covenant`; sanitize invalid mains against the slot allowlist on restore; `CalculatorPendingHydration` until restore
+
+### What was done
+
+- Pure client tables + helpers: [`src/lib/public/covenant-stats.ts`](src/lib/public/covenant-stats.ts)
+- Client UI + totals panel: [`src/components/public/covenant-calculator.tsx`](src/components/public/covenant-calculator.tsx)
+- Page mounts the calculator: [`src/app/(public)/calculators/covenant/page.tsx`](<src/app/(public)/calculators/covenant/page.tsx>)
+- Still no `CALCULATOR_CATALOG` slug / tool-shell tabs for Covenant
+
+### Non-goals (Phase 3.2)
+
+- No DB / Search / Path Carver integration
+- No uniqueness constraints between picks (slot main lists only)
+- No catalog nesting under `/calculators/covenant/...`
+
+**Exit:** `/calculators/covenant` runs the Main / Sub Stat calculator with bond, levels, and summed totals; inputs persist in localStorage.
+
+---
+
+## Phase 4 — Search (done)
 
 _Query UI on Phase 2 read layer (product name: Search)._
 
@@ -311,18 +402,18 @@ _Query UI on Phase 2 read layer (product name: Search)._
 
 ### Filter rows (options UI)
 
-| Row | Source |
-| --- | --- |
-| Attacker | Tags that are `Attacker.*` or reach `Attacker.*` via `tag_default_interaction` chains; `is_searchable`; three dropdowns by `layer` (`pre_add` / `add` / `post_add`) |
-| Defender | Same reachability for `Defender.*`; one dropdown |
-| Support | `Support.*` + `is_searchable`; one dropdown |
-| From | Awakener / Wheel / Posse / Covenant (scopes `*_tag_manifestation` parent; no Realm) |
-| Target Type | `target_type` enum |
-| Dependency Stat | `all_stats` enum |
-| Buff Restriction | `source_type` enum (`buff_target_type_restriction`) |
-| Every Turn | checkbox → `is_accumulating` |
-| Trigger Condition | `Special.When.*` tags |
-| Required Realm | realm ids `1, 2, 4, 6` (chaos / caro / aequor / ultra) |
+| Row               | Source                                                                                                                                                              |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Attacker          | Tags that are `Attacker.*` or reach `Attacker.*` via `tag_default_interaction` chains; `is_searchable`; three dropdowns by `layer` (`pre_add` / `add` / `post_add`) |
+| Defender          | Same reachability for `Defender.*`; one dropdown                                                                                                                    |
+| Support           | `Support.*` + `is_searchable`; one dropdown                                                                                                                         |
+| From              | Awakener / Wheel / Posse / Covenant (scopes `*_tag_manifestation` parent; no Realm)                                                                                 |
+| Target Type       | `target_type` enum                                                                                                                                                  |
+| Dependency Stat   | `all_stats` enum                                                                                                                                                    |
+| Buff Restriction  | `source_type` enum (`buff_target_type_restriction`)                                                                                                                 |
+| Every Turn        | checkbox → `is_accumulating`                                                                                                                                        |
+| Trigger Condition | `Special.When.*` tags                                                                                                                                               |
+| Required Realm    | realm ids `1, 2, 4, 6` (chaos / caro / aequor / ultra)                                                                                                              |
 
 ### Done (options pass)
 
@@ -330,16 +421,20 @@ _Query UI on Phase 2 read layer (product name: Search)._
 - Option builders: [`search-filter-options.ts`](src/lib/public/search-filter-options.ts)
 - `/search` SSR loads `tag` + `tag_default_interaction` + `realm`; client form [`search-filters.tsx`](src/components/public/search-filters.tsx) with `SearchFilterState` ready for results
 
-### Not done yet (results pass)
+### Done (results pass)
 
-- Results list / cards across manifestation tables
-- Applying filters as guided joins / queries
-- Loading / empty / error states for **results**
-- Sort by numeric impact
-- Shareable filter URLs (Phase 6)
+- Guided query: [`runPublicSearch`](src/lib/actions/public-search.ts) (one rate-limit hit) + [`buildSearchResults`](src/lib/public/search-results.ts)
+- Tag filter matches exact + dotted descendants (`matchesDemandTag`)
+- Results table: From, Name, Tag, Target Type, Dependency Stat, Value, Buff Restriction, Every Turn, Trigger Condition, Required Realm
+- Awakener Value uses Path Carver `scaleValueScalar`; wheel / posse / covenant show raw `value_scalar`
+- Sort by Value desc; 500-row cap; loading / empty / error states; Search button (no shareable URLs yet)
+
+### Deferred (Phase 6)
+
+- Shareable filter URLs
 - Entity pickers beyond the rows above
 
-**Exit (full Phase 4):** Useful read-only Search with options **and** results in preview against allowlisted tables. Options-only is not full exit.
+**Exit (full Phase 4):** Useful read-only Search with options **and** results against allowlisted tables.
 
 ---
 
@@ -367,24 +462,25 @@ _Query UI on Phase 2 read layer (product name: Search)._
 
 ## Remaining detail slots (without reordering phases)
 
-| Slot                                              | Status                                               | Where it lands          |
-| ------------------------------------------------- | ---------------------------------------------------- | ----------------------- |
-| Calculator factor list                            | Done in Phase 3 (Core Mechanics + Realms catalog)    | Phase 3                 |
+| Slot                                              | Status                                                                          | Where it lands          |
+| ------------------------------------------------- | ------------------------------------------------------------------------------- | ----------------------- |
+| Calculator factor list                            | Done in Phase 3 (Core Mechanics + Realms catalog)                               | Phase 3                 |
 | Public table allowlist                            | Locked in Phase 0; confirmed Phase 2; **+`tag_default_interaction` in Phase 4** | Phase 2 + 4             |
-| localStorage for calculator inputs                | Done in Phase 3                                      | Phase 3                 |
-| Calculators hub IA                                | Done: two-button hub + `/calculators/{group}/{slug}` | Phase 3                 |
-| Public routes + Mother Tree / root version chrome | Locked in Phase 1                                    | Phase 1 implementation  |
-| Private admin home `/admin`                       | Locked in Phase 1                                    | Phase 1 (move from `/`) |
-| Public desert dusk theme                          | Done in Phase 1.1                                    | Public layout + hub     |
-| Public brand spelling                             | Locked: Mother Tree (space)                          | Phase 1.1               |
-| Homepage hub                                      | Done in Phase 1.2 — four rows + locked copy          | Phase 1.2               |
-| Public `/manual` + `/about`                       | Placeholders done in Phase 1.2                       | Phase 1.2; body later   |
-| No Path Carver naming on public pages             | Locked in Phase 1.1                                  | Public copy             |
-| Search UX specifics                               | **Options locked** (rows + mutual exclusion); results open | Phase 4                 |
-| Column-level public trimming                      | Done: hide `created_at`, `updated_at`, `deleted_at`  | Phase 2                 |
-| Public read caps                                  | Done: 500 rows/query; ~60 req/min/IP                 | Phase 2                 |
-| Admin auth mechanism                              | Open                                                 | Phase 5                 |
-| Manual / About body content                       | Open                                                 | Later expand            |
+| localStorage for calculator inputs                | Done in Phase 3                                                                 | Phase 3                 |
+| Calculators hub IA                                | Done in Phase 3 (two-group + nested tools); **+Covenant third hub row in 3.1**  | Phase 3 + 3.1           |
+| Covenant calculator                               | Done: hub in 3.1; Main / Sub Stat body + localStorage in 3.2                    | Phase 3.1 + 3.2         |
+| Public routes + Mother Tree / root version chrome | Locked in Phase 1                                                               | Phase 1 implementation  |
+| Private admin home `/admin`                       | Locked in Phase 1                                                               | Phase 1 (move from `/`) |
+| Public desert dusk theme                          | Done in Phase 1.1                                                               | Public layout + hub     |
+| Public brand spelling                             | Locked: Mother Tree (space)                                                     | Phase 1.1               |
+| Homepage hub                                      | Done in Phase 1.2 — four rows + locked copy                                     | Phase 1.2               |
+| Public `/manual` + `/about`                       | Placeholders done in Phase 1.2                                                  | Phase 1.2; body later   |
+| No Path Carver naming on public pages             | Locked in Phase 1.1                                                             | Public copy             |
+| Search UX specifics                               | Done: options + results (tag-tree, columns, Value scaling)                      | Phase 4                 |
+| Column-level public trimming                      | Done: hide `created_at`, `updated_at`, `deleted_at`                             | Phase 2                 |
+| Public read caps                                  | Done: 500 rows/query; ~60 req/min/IP                                            | Phase 2                 |
+| Admin auth mechanism                              | Open                                                                            | Phase 5                 |
+| Manual / About body content                       | Open                                                                            | Later expand            |
 
 ---
 
