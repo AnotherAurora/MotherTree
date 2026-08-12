@@ -91,22 +91,22 @@ export function SearchResultsTable({
   if (rows.length === 0) {
     return (
       <p className="text-sm text-[var(--mt-ink-muted)]">
-        No matching manifestations.
+        No matching records.
       </p>
     );
   }
 
   return (
     <div className="space-y-3">
-      <div className="overflow-x-auto rounded-md border border-[var(--mt-border)]">
+      <div className="overflow-x-auto rounded-md border border-[var(--mt-border)] bg-[rgb(237_214_190)]">
         <table className="w-full min-w-[64rem] border-collapse text-left text-sm text-[var(--mt-ink)]">
           <thead>
-            <tr className="border-b border-[var(--mt-border)] bg-[rgb(255_245_235_/_0.45)]">
+            <tr className="border-b border-[var(--mt-border)]">
               {COLUMNS.map((col) => (
                 <th
                   key={col.key}
                   scope="col"
-                  className="whitespace-nowrap px-3 py-2.5 font-medium text-[var(--mt-ink)]"
+                  className="sticky top-0 z-10 whitespace-nowrap bg-[rgb(228_201_168)] px-3 py-2.5 font-medium text-[var(--mt-ink)]"
                 >
                   {col.label}
                 </th>
@@ -117,7 +117,7 @@ export function SearchResultsTable({
             {rows.map((row) => (
               <tr
                 key={row.id}
-                className="border-b border-[var(--mt-border)]/50 last:border-b-0"
+                className="border-b border-[var(--mt-border)]/50 odd:bg-[rgb(255_245_235_/_0.25)] hover:bg-[rgb(255_245_235_/_0.4)] last:border-b-0"
               >
                 {COLUMNS.map((col) => (
                   <td

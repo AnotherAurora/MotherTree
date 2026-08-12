@@ -595,7 +595,7 @@ export function SearchFilters({ options }: SearchFiltersProps) {
           onClick={runSearch}
           disabled={empty || loading}
           className={cn(
-            "inline-flex h-10 items-center justify-center rounded-md px-5 text-sm font-medium",
+            "inline-flex h-10 w-full items-center justify-center rounded-md px-5 text-sm font-medium sm:w-auto",
             "bg-[var(--mt-ember)] text-[rgb(255_248_240)]",
             "hover:bg-[var(--mt-ember-deep)]",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mt-ember)]",
@@ -614,7 +614,7 @@ export function SearchFilters({ options }: SearchFiltersProps) {
       <section
         aria-labelledby={`${baseId}-results-heading`}
         aria-busy={loading}
-        className="space-y-3 border-t border-[var(--mt-border)]/40 pt-6"
+        className="space-y-3 rounded-md border border-[var(--mt-border)] bg-[rgb(255_245_235_/_0.35)] px-4 py-5 sm:px-5"
       >
         <h2
           id={`${baseId}-results-heading`}
