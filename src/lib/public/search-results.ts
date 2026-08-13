@@ -237,7 +237,9 @@ function passesCommonFilters(
 }
 
 function sortAndCap(rows: SearchResultRow[]): SearchResultsOutput {
-  rows.sort((a, b) => {
+  // Negative Value is a penalty/debuff; omit it from Search results.
+  const visible = rows.filter((row) => row.value == null || row.value >= 0);
+  visible.sort((a, b) => {
     const av = a.value;
     const bv = b.value;
     if (av == null && bv == null) {
@@ -249,9 +251,9 @@ function sortAndCap(rows: SearchResultRow[]): SearchResultsOutput {
     return a.name.localeCompare(b.name);
   });
 
-  const truncated = rows.length > PUBLIC_ROW_LIMIT;
+  const truncated = visible.length > PUBLIC_ROW_LIMIT;
   return {
-    rows: truncated ? rows.slice(0, PUBLIC_ROW_LIMIT) : rows,
+    rows: truncated ? visible.slice(0, PUBLIC_ROW_LIMIT) : visible,
     truncated,
   };
 }

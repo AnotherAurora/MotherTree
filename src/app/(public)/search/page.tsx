@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { SearchFilters } from "@/components/public/search-filters";
 import { listPublicTable } from "@/lib/actions/public-read";
 import type { PublicRow } from "@/lib/public-read/allowlist";
@@ -49,10 +50,18 @@ export default async function SearchPage() {
 
   return (
     <div className="mx-auto max-w-7xl space-y-8 px-4 py-8 sm:px-6 sm:py-10">
-      <div>
+      <div className="space-y-3">
         <h1 className="font-[family-name:var(--font-mother-display)] text-4xl font-semibold tracking-tight text-[var(--mt-ink)]">
           Search
         </h1>
+        <p>
+          <Link
+            href="/manual/search"
+            className="text-sm font-medium text-[var(--mt-ember)] underline underline-offset-4 hover:text-[var(--mt-ember-deep)]"
+          >
+            Search Manual →
+          </Link>
+        </p>
       </div>
 
       {loaded.success ? (

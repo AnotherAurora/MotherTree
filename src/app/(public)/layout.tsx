@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
-import { Cormorant_Garamond } from "next/font/google";
+import { Lora } from "next/font/google";
 import { SiteFooter } from "@/components/public/site-footer";
 import { SiteHeader } from "@/components/public/site-header";
 
-const motherDisplay = Cormorant_Garamond({
+const motherDisplay = Lora({
   variable: "--font-mother-display",
   subsets: ["latin"],
   weight: ["500", "600", "700"],

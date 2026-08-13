@@ -10,6 +10,8 @@ export type CalculatorEntry = {
   relatedSlugs: readonly string[];
   /** Core tools: visible page h1. Realm tools: sr-only h1 (component owns visual title). */
   pageHeading: CalculatorPageHeading;
+  /** Manual showcase deep-link shown in the Related footer. */
+  manualHref?: string;
 };
 
 export const CALCULATOR_GROUPS: readonly {
@@ -44,6 +46,7 @@ export const CALCULATOR_CATALOG: readonly CalculatorEntry[] = [
       "Diminishing-return Keyflare from raw sources, plus the amount needed for the next breakpoint.",
     relatedSlugs: ["keyflare-harmony"],
     pageHeading: "visible",
+    manualHref: "/manual/calculators#showcase-keyflare-aliemus",
   },
   {
     slug: "keyflare-harmony",
@@ -53,6 +56,7 @@ export const CALCULATOR_CATALOG: readonly CalculatorEntry[] = [
       "Team Keyflare regen per turn and exalt penalty from Awakener Keyflare Harmony slots.",
     relatedSlugs: ["keyflare"],
     pageHeading: "visible",
+    manualHref: "/manual/calculators#showcase-keyflare-harmony",
   },
   {
     slug: "aliemus",
@@ -62,6 +66,7 @@ export const CALCULATOR_CATALOG: readonly CalculatorEntry[] = [
       "Diminishing-return Aliemus from raw sources, plus the amount needed for the next breakpoint.",
     relatedSlugs: [],
     pageHeading: "visible",
+    manualHref: "/manual/calculators#showcase-keyflare-aliemus",
   },
   {
     slug: "death-resist",
@@ -71,6 +76,7 @@ export const CALCULATOR_CATALOG: readonly CalculatorEntry[] = [
       "In-mission Death Resist from raw values, Primordia Chaos, and Chaos Awakener presence.",
     relatedSlugs: ["team-max-hp"],
     pageHeading: "visible",
+    manualHref: "/manual/calculators#showcase-death-resist",
   },
   {
     slug: "team-max-hp",
@@ -78,8 +84,9 @@ export const CALCULATOR_CATALOG: readonly CalculatorEntry[] = [
     group: "core",
     description:
       "Team Max HP from constitution slots, Awakener levels, and Death Resist context.",
-    relatedSlugs: ["death-resist", "caro-realm", "aequor-realm"],
+    relatedSlugs: ["death-resist", "caro-realm", "aequor-realm", "ultra-realm"],
     pageHeading: "visible",
+    manualHref: "/manual/calculators#showcase-team-max-hp",
   },
   {
     slug: "chaos-realm",
@@ -114,7 +121,7 @@ export const CALCULATOR_CATALOG: readonly CalculatorEntry[] = [
     group: "realms",
     description:
       "Ultra / Singularity Ultra Realm crit and insight chance from Realm Mastery and Chaos context.",
-    relatedSlugs: [],
+    relatedSlugs: ["team-max-hp"],
     pageHeading: "sr-only",
   },
 ] as const;

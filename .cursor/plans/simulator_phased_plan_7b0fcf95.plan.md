@@ -107,7 +107,7 @@ Path Carver’s **Review Tags** page is the primary surface for testing recommen
 - Awakener skills lv6
 - Wheels +12
 - Soulforge lv10
-- Gnostic Potential lv0
+- Gnostic Potential lv0, except limited awakeners who are lv5
 
 ---
 
@@ -668,15 +668,15 @@ Load `realm_tag_manifestation` into Path Carver Review Tags as **team-once** Lay
 
 ### Locked decisions
 
-| Topic           | Lock                                                             |
-| --------------- | ---------------------------------------------------------------- |
-| Apply count     | One contribution per matching RTM row                            |
-| Combo           | × `chaosComboStacks` on effective scalar                         |
+| Topic           | Lock                                                                                                                                                                                                       |
+| --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Apply count     | One contribution per matching RTM row                                                                                                                                                                      |
+| Combo           | × `chaosComboStacks` on effective scalar                                                                                                                                                                   |
 | Replaced realms | **present / exclusive:** `realm_id ∈ effectiveRealmIds`. **combo:** family present (replacer satisfies base) + `chaosComboStacks > 0`; dedupe `(familyId, tagId)` preferring effective, else replaced base |
-| Chaos replaced  | Chaos RTM off; `chaosComboStacks === 0` ⇒ all `combo` off        |
-| Attacker.\* RTM | Always apply when realm mode gates pass (no damage-dealer check) |
-| `realm_mastery` | Σ total-base `awakener.realmMastery`                             |
-| Immunity        | `sourceKind === "realm"` skips inbound interaction ops           |
+| Chaos replaced  | Chaos RTM off; `chaosComboStacks === 0` ⇒ all `combo` off                                                                                                                                                  |
+| Attacker.\* RTM | Always apply when realm mode gates pass (no damage-dealer check)                                                                                                                                           |
+| `realm_mastery` | Σ total-base `awakener.realmMastery`                                                                                                                                                                       |
+| Immunity        | `sourceKind === "realm"` skips inbound interaction ops                                                                                                                                                     |
 
 ### Follow-up — combo through replace
 

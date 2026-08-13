@@ -70,10 +70,10 @@ export function CalculatorToolShell({ entry }: { entry: CalculatorEntry }) {
 
       <CalculatorBySlug slug={entry.slug} />
 
-      {related.length > 0 ? (
+      {related.length > 0 || entry.manualHref ? (
         <nav
           className="border-t border-[var(--mt-border)] pt-6"
-          aria-label="Related calculators"
+          aria-label="Related"
         >
           <p className="mb-3 text-sm font-medium text-[var(--mt-ink-muted)]">
             Related
@@ -89,6 +89,16 @@ export function CalculatorToolShell({ entry }: { entry: CalculatorEntry }) {
                 </Link>
               </li>
             ))}
+            {entry.manualHref ? (
+              <li>
+                <Link
+                  href={entry.manualHref}
+                  className="text-base font-medium text-[var(--mt-ember)] underline underline-offset-4 hover:text-[var(--mt-ember-deep)]"
+                >
+                  Manual
+                </Link>
+              </li>
+            ) : null}
           </ul>
         </nav>
       ) : null}

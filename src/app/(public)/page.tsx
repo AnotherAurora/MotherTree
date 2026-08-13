@@ -18,7 +18,7 @@ const HUB_ITEMS: readonly HubItem[] = [
       "Filter by target range, scaling stat, modifier values, or sort by numeric impact.",
     ],
     learnMore: {
-      href: "/manual",
+      href: "/manual/search",
       label:
         "Learn more about search features, methodology, and cataloging assumptions",
     },
