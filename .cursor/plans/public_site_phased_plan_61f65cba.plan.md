@@ -42,21 +42,21 @@ isProject: false
 
 ## Strategic locks
 
-| Decision             | Locked choice                                                                                                            |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| Repo                 | Same MotherTree Next.js app ([README.md](README.md)) — not a separate site                                               |
+| Decision             | Locked choice                                                                                                                         |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| Repo                 | Same MotherTree Next.js app ([README.md](README.md)) — not a separate site                                                            |
 | Public vs private    | **Homepage tree is public** (`/`, `/search`, `/calculators`, `/manual` + `/manual/*`, `/about`); **everything else is private admin** |
-| Admin home           | **`/admin`** — private dashboard (table hub); replaces today’s `/` admin welcome                                         |
-| Public brand         | Top-left **Mother Tree** with subtitle **root version**                                                                  |
-| Public chrome        | No “Admin Dashboard” label; **no** admin side nav to private pages                                                       |
-| Calculator vs search | **Calculator before search** (easier; reuses pure libs)                                                                  |
-| Public writes        | Never — SELECT-only / server-mediated reads                                                                              |
-| Public product names | **Search** and **Calculator** (not “Explore” as a product name)                                                          |
-| Math source of truth | [`src/lib/path-carver/*`](src/lib/path-carver/) — calculator imports only; no duplicated formulas                        |
-| Calculator inputs    | Persist user-entered numbers in **localStorage** (client-only; not the DB)                                               |
-| Hosting              | Vercel hobby; production URL **`mothertree.vercel.app`** (project name **mothertree** — no “admin” in the slug)          |
-| Admin runtime        | **Local-only.** Live site never runs admin. No production login. Service role never on Vercel.                           |
-| README live link     | After deploy, add a **Live site** link in [README.md](README.md) pointing at that URL                                    |
+| Admin home           | **`/admin`** — private dashboard (table hub); replaces today’s `/` admin welcome                                                      |
+| Public brand         | Top-left **Mother Tree** with subtitle **root version**                                                                               |
+| Public chrome        | No “Admin Dashboard” label; **no** admin side nav to private pages                                                                    |
+| Calculator vs search | **Calculator before search** (easier; reuses pure libs)                                                                               |
+| Public writes        | Never — SELECT-only / server-mediated reads                                                                                           |
+| Public product names | **Search** and **Calculator** (not “Explore” as a product name)                                                                       |
+| Math source of truth | [`src/lib/path-carver/*`](src/lib/path-carver/) — calculator imports only; no duplicated formulas                                     |
+| Calculator inputs    | Persist user-entered numbers in **localStorage** (client-only; not the DB)                                                            |
+| Hosting              | Vercel hobby; production URL **`mothertree.vercel.app`** (project name **mothertree** — no “admin” in the slug)                       |
+| Admin runtime        | **Local-only.** Live site never runs admin. No production login. Service role never on Vercel.                                        |
+| README live link     | After deploy, add a **Live site** link in [README.md](README.md) pointing at that URL                                                 |
 
 Recommendation / Path Carver full flow / simulator remain **admin-only** and out of public scope. Public pages are **read-only** and must not expose recommendation features.
 
@@ -468,10 +468,10 @@ Layers (all required):
 3. **Production 404 for admin routes.** `/admin`, `/tables`, `/path-carver`, `/simulator` look like they do not exist on `mothertree.vercel.app`.
 4. **Same check in every admin Server Action.** Apply in [`crud.ts`](src/lib/actions/crud.ts), [`path-carver.ts`](src/lib/actions/path-carver.ts), [`simulator.ts`](src/lib/actions/simulator.ts), [`simulator-flow.ts`](src/lib/actions/simulator-flow.ts), [`team-data.ts`](src/lib/actions/team-data.ts). Hiding pages is not enough: this is a public repo and Next still ships `"use server"` modules on Vercel.
 
-| Environment | Anon key | Service role | Admin routes / write actions |
-| ----------- | -------- | ------------ | ---------------------------- |
-| Vercel (`mothertree.vercel.app`) | Yes | **No** | 404 / refuse |
-| Local (`npm run dev`) | Yes | `.env.local` | Works |
+| Environment                      | Anon key | Service role | Admin routes / write actions |
+| -------------------------------- | -------- | ------------ | ---------------------------- |
+| Vercel (`mothertree.vercel.app`) | Yes      | **No**       | 404 / refuse                 |
+| Local (`npm run dev`)            | Yes      | `.env.local` | Works                        |
 
 RLS SELECT-only for anon remains the database backstop.
 
