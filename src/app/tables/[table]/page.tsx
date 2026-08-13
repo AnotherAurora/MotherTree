@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Sidebar } from "@/components/admin/sidebar";
 import { TableManager } from "@/components/admin/table-manager";
@@ -10,6 +11,10 @@ import {
   TABLE_CONFIG_MAP,
   isValidTableName,
 } from "@/lib/schema-config";
+
+export const metadata: Metadata = {
+  title: "Tables",
+};
 
 type PageProps = {
   params: Promise<{ table: string }>;

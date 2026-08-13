@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Sidebar } from "@/components/admin/sidebar";
@@ -10,6 +11,10 @@ import {
 } from "@/components/ui/card";
 import { isAdminRuntimeEnabled } from "@/lib/admin-runtime";
 import { TABLE_CONFIGS } from "@/lib/schema-config";
+
+export const metadata: Metadata = {
+  title: "Admin",
+};
 
 export default function AdminDashboardPage() {
   if (!isAdminRuntimeEnabled()) notFound();

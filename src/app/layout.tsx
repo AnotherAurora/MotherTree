@@ -14,8 +14,11 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "MotherTree Admin",
-  description: "Admin dashboard for MotherTree game data",
+  title: {
+    default: "Mother Tree",
+    template: "%s · Mother Tree",
+  },
+  description: "Mother Tree — root version. Search and Calculators for game data.",
 };
 
 export default function RootLayout({

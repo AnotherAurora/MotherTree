@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { Lora } from "next/font/google";
 import { SiteFooter } from "@/components/public/site-footer";
 import { SiteHeader } from "@/components/public/site-header";
@@ -8,6 +9,10 @@ const motherDisplay = Lora({
   weight: ["500", "600", "700"],
   display: "swap",
 });
+
+export const metadata: Metadata = {
+  title: "Not found",
+};
 
 export default function NotFound() {
   return (
