@@ -31,7 +31,7 @@ todos:
     status: completed
   - id: phase-5-release
     content: Phase 5 — Local-only admin (prod 404, no service role on Vercel), mothertree.vercel.app, README live link
-    status: pending
+    status: in_progress
   - id: phase-6-expand
     content: Phase 6 — More calculator sub-tools, Search v2, caching/WAF as needed
     status: pending

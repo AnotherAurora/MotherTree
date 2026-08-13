@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { Sidebar } from "@/components/admin/sidebar";
 import {
   Card,
@@ -7,9 +8,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { isAdminRuntimeEnabled } from "@/lib/admin-runtime";
 import { TABLE_CONFIGS } from "@/lib/schema-config";
 
 export default function AdminDashboardPage() {
+  if (!isAdminRuntimeEnabled()) notFound();
   const sorted = [...TABLE_CONFIGS].sort((a, b) => a.order - b.order);
 
   return (

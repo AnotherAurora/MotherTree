@@ -16,6 +16,10 @@ import type {
   SlotState,
 } from "@/lib/simulator/types";
 import { effectiveEnlightenment } from "@/lib/team-data/resolve-manifestations";
+import {
+  adminUnavailableResult,
+  isAdminRuntimeEnabled,
+} from "@/lib/admin-runtime";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export type {
@@ -30,6 +34,7 @@ export type {
 } from "@/lib/simulator/types";
 
 export async function getDesires(): Promise<ActionResult<DesireSummary[]>> {
+  if (!isAdminRuntimeEnabled()) return adminUnavailableResult();
   try {
     const supabase = createAdminClient();
     const { data, error } = await supabase
@@ -62,6 +67,7 @@ export async function getDesires(): Promise<ActionResult<DesireSummary[]>> {
 export async function getDesireDetail(
   desireId: number,
 ): Promise<ActionResult<DesireDetail>> {
+  if (!isAdminRuntimeEnabled()) return adminUnavailableResult();
   try {
     const supabase = createAdminClient();
 
@@ -125,6 +131,7 @@ export async function getDesireDetail(
 export async function getSimulatorGearOptions(): Promise<
   ActionResult<SimulatorGearOptions>
 > {
+  if (!isAdminRuntimeEnabled()) return adminUnavailableResult();
   try {
     const supabase = createAdminClient();
 
@@ -201,6 +208,7 @@ export async function getSimulatorGearOptions(): Promise<
 export async function runGenerateTeamForDesire(
   input: GenerateTeamInput,
 ): Promise<ActionResult<GenerateTeamResult>> {
+  if (!isAdminRuntimeEnabled()) return adminUnavailableResult();
   try {
     const supabase = createAdminClient();
     const result = await generateTeamForDesire(
@@ -222,6 +230,7 @@ export async function runGenerateTeamForDesire(
 export async function runRecommendEmptySlots(
   input: RecommendInput,
 ): Promise<ActionResult<{ slots: SlotState[]; posseId: number | null }>> {
+  if (!isAdminRuntimeEnabled()) return adminUnavailableResult();
   try {
     const supabase = createAdminClient();
     const result = await recommendEmptySlots(

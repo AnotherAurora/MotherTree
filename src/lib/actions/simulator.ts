@@ -5,6 +5,10 @@ import {
   applyManifestationReplacements,
   effectiveEnlightenment,
 } from "@/lib/team-data/resolve-manifestations";
+import {
+  adminUnavailableResult,
+  isAdminRuntimeEnabled,
+} from "@/lib/admin-runtime";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export type AwakenerRelatedTagOverride = {
@@ -33,6 +37,7 @@ export type SimulatorAwakenerOption = ForeignKeyOption & {
 export async function getSimulatorAwakenerOptions(): Promise<
   ActionResult<SimulatorAwakenerOption[]>
 > {
+  if (!isAdminRuntimeEnabled()) return adminUnavailableResult();
   try {
     const supabase = createAdminClient();
     const { data, error } = await supabase
@@ -76,6 +81,7 @@ export async function getSimulatorAwakenerOptions(): Promise<
 export async function getAwakenerRelatedTags(
   awakenerId: number,
 ): Promise<ActionResult<AwakenerRelatedTags>> {
+  if (!isAdminRuntimeEnabled()) return adminUnavailableResult();
   try {
     const supabase = createAdminClient();
 

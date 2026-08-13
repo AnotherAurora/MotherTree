@@ -7,6 +7,10 @@ import {
   isValidTableName,
   type TableConfig,
 } from "@/lib/schema-config";
+import {
+  adminUnavailableResult,
+  isAdminRuntimeEnabled,
+} from "@/lib/admin-runtime";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
@@ -212,6 +216,7 @@ export async function listRecords(
   tableName: string,
   deletedOnly = false,
 ): Promise<ActionResult<Record<string, unknown>[]>> {
+  if (!isAdminRuntimeEnabled()) return adminUnavailableResult();
   const config = getConfig(tableName);
   if (!config) return { success: false, error: "Unknown table" };
 
@@ -253,6 +258,7 @@ export async function getForeignKeyOptions(
   labelKind?: "manifestation",
   filterColumn?: string,
 ): Promise<ActionResult<ForeignKeyOption[]>> {
+  if (!isAdminRuntimeEnabled()) return adminUnavailableResult();
   const config = getConfig(tableName);
   if (!config) return { success: false, error: "Unknown parent table" };
 
@@ -317,6 +323,7 @@ export async function createRecord(
   tableName: string,
   payload: Record<string, unknown>,
 ): Promise<ActionResult<Record<string, unknown>>> {
+  if (!isAdminRuntimeEnabled()) return adminUnavailableResult();
   const config = getConfig(tableName);
   if (!config) return { success: false, error: "Unknown table" };
 
@@ -362,6 +369,7 @@ export async function updateRecord(
   id: number,
   payload: Record<string, unknown>,
 ): Promise<ActionResult<Record<string, unknown>>> {
+  if (!isAdminRuntimeEnabled()) return adminUnavailableResult();
   const config = getConfig(tableName);
   if (!config) return { success: false, error: "Unknown table" };
 
@@ -422,6 +430,7 @@ export async function updateRecord(
 export async function listAwakenerLocalManifestationInteractions(
   manifestationId: number,
 ): Promise<ActionResult<Record<string, unknown>[]>> {
+  if (!isAdminRuntimeEnabled()) return adminUnavailableResult();
   try {
     const supabase = createAdminClient();
     const { data, error } = await supabase
@@ -472,6 +481,7 @@ export async function saveManifestationWithOverrides(
   overrides: AwakenerLocalManifestationInteractionInput[],
   manifestationId?: number,
 ): Promise<ActionResult<Record<string, unknown>>> {
+  if (!isAdminRuntimeEnabled()) return adminUnavailableResult();
   const config = getConfig("awakener_tag_manifestation");
   if (!config) return { success: false, error: "Unknown table" };
 
@@ -629,6 +639,7 @@ export async function saveManifestationWithOverrides(
 export async function listDesireAnchoredAwakeners(
   desireId: number,
 ): Promise<ActionResult<Record<string, unknown>[]>> {
+  if (!isAdminRuntimeEnabled()) return adminUnavailableResult();
   try {
     const supabase = createAdminClient();
     const { data, error } = await supabase
@@ -668,6 +679,7 @@ export async function saveDesireWithAnchoredAwakeners(
   anchors: AnchoredAwakenerInput[],
   desireId?: number,
 ): Promise<ActionResult<Record<string, unknown>>> {
+  if (!isAdminRuntimeEnabled()) return adminUnavailableResult();
   const config = getConfig("desire");
   if (!config) return { success: false, error: "Unknown table" };
 
@@ -825,6 +837,7 @@ export type CopyProviderGroupMemberInput = {
 export async function listCopyProviderGroupMembers(
   groupId: number,
 ): Promise<ActionResult<Record<string, unknown>[]>> {
+  if (!isAdminRuntimeEnabled()) return adminUnavailableResult();
   try {
     const supabase = createAdminClient();
     const { data, error } = await supabase
@@ -863,6 +876,7 @@ export async function saveCopyProviderGroupWithMembers(
   members: CopyProviderGroupMemberInput[],
   groupId?: number,
 ): Promise<ActionResult<Record<string, unknown>>> {
+  if (!isAdminRuntimeEnabled()) return adminUnavailableResult();
   const config = getConfig("copy_provider_group");
   if (!config) return { success: false, error: "Unknown table" };
 
@@ -1038,6 +1052,7 @@ export async function softDeleteRecord(
   tableName: string,
   id: number,
 ): Promise<ActionResult> {
+  if (!isAdminRuntimeEnabled()) return adminUnavailableResult();
   const config = getConfig(tableName);
   if (!config) return { success: false, error: "Unknown table" };
 
@@ -1077,6 +1092,7 @@ export async function restoreRecord(
   tableName: string,
   id: number,
 ): Promise<ActionResult> {
+  if (!isAdminRuntimeEnabled()) return adminUnavailableResult();
   const config = getConfig(tableName);
   if (!config) return { success: false, error: "Unknown table" };
   if (!config.softDelete) {
@@ -1110,6 +1126,7 @@ export async function permanentDeleteRecord(
   tableName: string,
   id: number,
 ): Promise<ActionResult> {
+  if (!isAdminRuntimeEnabled()) return adminUnavailableResult();
   const config = getConfig(tableName);
   if (!config) return { success: false, error: "Unknown table" };
 
@@ -1141,6 +1158,7 @@ export async function resolveForeignKeyLabels(
   tableName: string,
   records: Record<string, unknown>[],
 ): Promise<ActionResult<Record<string, string>>> {
+  if (!isAdminRuntimeEnabled()) return adminUnavailableResult();
   const config = getConfig(tableName);
   if (!config) return { success: false, error: "Unknown table" };
 

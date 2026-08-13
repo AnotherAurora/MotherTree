@@ -5,6 +5,7 @@ import {
   listRecords,
   resolveForeignKeyLabels,
 } from "@/lib/actions/crud";
+import { isAdminRuntimeEnabled } from "@/lib/admin-runtime";
 import {
   TABLE_CONFIG_MAP,
   isValidTableName,
@@ -15,6 +16,7 @@ type PageProps = {
 };
 
 export default async function TablePage({ params }: PageProps) {
+  if (!isAdminRuntimeEnabled()) notFound();
   const { table } = await params;
 
   if (!isValidTableName(table)) {

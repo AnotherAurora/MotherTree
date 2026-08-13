@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import { Sidebar } from "@/components/admin/sidebar";
 import { RecommendationSimulator } from "@/components/simulator/recommendation-simulator";
 import {
   getSimulatorAwakenerOptions,
 } from "@/lib/actions/simulator";
 import { getSimulatorGearOptions } from "@/lib/actions/simulator-flow";
+import { isAdminRuntimeEnabled } from "@/lib/admin-runtime";
 
 export const metadata: Metadata = {
   title: "Recommendation Simulator Debugger",
@@ -18,6 +20,7 @@ const EMPTY_GEAR_OPTIONS = {
 };
 
 export default async function SimulatorPage() {
+  if (!isAdminRuntimeEnabled()) notFound();
   const [awakenerOptionsResult, gearOptionsResult] = await Promise.all([
     getSimulatorAwakenerOptions(),
     getSimulatorGearOptions(),

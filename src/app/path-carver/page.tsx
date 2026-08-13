@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import { Sidebar } from "@/components/admin/sidebar";
 import { PathCarver } from "@/components/path-carver/path-carver";
 import { getSimulatorAwakenerOptions } from "@/lib/actions/simulator";
 import { getSimulatorGearOptions } from "@/lib/actions/simulator-flow";
+import { isAdminRuntimeEnabled } from "@/lib/admin-runtime";
 
 export const metadata: Metadata = {
   title: "Path Carver",
@@ -16,6 +18,7 @@ const EMPTY_GEAR_OPTIONS = {
 };
 
 export default async function PathCarverPage() {
+  if (!isAdminRuntimeEnabled()) notFound();
   const [awakenerOptionsResult, gearOptionsResult] = await Promise.all([
     getSimulatorAwakenerOptions(),
     getSimulatorGearOptions(),

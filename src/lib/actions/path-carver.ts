@@ -16,6 +16,10 @@ import {
   validateReview2Demands,
 } from "@/lib/path-carver/validation";
 import type { DesireDemandRow } from "@/lib/simulator/types";
+import {
+  adminUnavailableResult,
+  isAdminRuntimeEnabled,
+} from "@/lib/admin-runtime";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getSimulatorAwakenerOptions } from "@/lib/actions/simulator";
 import { getSimulatorGearOptions } from "@/lib/actions/simulator-flow";
@@ -45,6 +49,7 @@ function revalidatePathCarverTables(): void {
 export async function getPathCarverDesireBundle(
   desireId: number,
 ): Promise<ActionResult<PathCarverDesireBundle>> {
+  if (!isAdminRuntimeEnabled()) return adminUnavailableResult();
   try {
     const supabase = createAdminClient();
 
@@ -318,6 +323,7 @@ async function upsertTemplate(
 export async function savePathCarverDesire(
   input: SavePathCarverInput,
 ): Promise<ActionResult<{ desireId: number }>> {
+  if (!isAdminRuntimeEnabled()) return adminUnavailableResult();
   const nameCheck = validateDesireName(input.name);
   if (!nameCheck.valid) {
     return { success: false, error: nameCheck.errors.join("; ") };
