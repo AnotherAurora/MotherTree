@@ -30,7 +30,7 @@ todos:
     content: "Phase 4 — Search: options + results (tag-tree match, manifestation table, Value scaling)"
     status: completed
   - id: phase-5-release
-    content: Phase 5 — Gate admin, Vercel deploy, attribution, env/RLS review
+    content: Phase 5 — Local-only admin (prod 404, no service role on Vercel), mothertree.vercel.app, README live link
     status: pending
   - id: phase-6-expand
     content: Phase 6 — More calculator sub-tools, Search v2, caching/WAF as needed
@@ -45,7 +45,7 @@ isProject: false
 | Decision             | Locked choice                                                                                                            |
 | -------------------- | ------------------------------------------------------------------------------------------------------------------------ |
 | Repo                 | Same MotherTree Next.js app ([README.md](README.md)) — not a separate site                                               |
-| Public vs private    | **Homepage tree is public** (`/`, `/search`, `/calculators`, `/manual`, `/about`…); **everything else is private admin** |
+| Public vs private    | **Homepage tree is public** (`/`, `/search`, `/calculators`, `/manual` + `/manual/*`, `/about`); **everything else is private admin** |
 | Admin home           | **`/admin`** — private dashboard (table hub); replaces today’s `/` admin welcome                                         |
 | Public brand         | Top-left **Mother Tree** with subtitle **root version**                                                                  |
 | Public chrome        | No “Admin Dashboard” label; **no** admin side nav to private pages                                                       |
@@ -54,8 +54,9 @@ isProject: false
 | Public product names | **Search** and **Calculator** (not “Explore” as a product name)                                                          |
 | Math source of truth | [`src/lib/path-carver/*`](src/lib/path-carver/) — calculator imports only; no duplicated formulas                        |
 | Calculator inputs    | Persist user-entered numbers in **localStorage** (client-only; not the DB)                                               |
-| Hosting              | Vercel hobby when releasing (Phase 5)                                                                                    |
-| Attribution          | Public chrome includes SKeyDB notice per [DATA-NOTICE.md](DATA-NOTICE.md)                                                |
+| Hosting              | Vercel hobby; production URL **`mothertree.vercel.app`** (project name **mothertree** — no “admin” in the slug)          |
+| Admin runtime        | **Local-only.** Live site never runs admin. No production login. Service role never on Vercel.                           |
+| README live link     | After deploy, add a **Live site** link in [README.md](README.md) pointing at that URL                                    |
 
 Recommendation / Path Carver full flow / simulator remain **admin-only** and out of public scope. Public pages are **read-only** and must not expose recommendation features.
 
@@ -99,8 +100,8 @@ _Product boundaries. Detail below is decided; UX specifics for Search remain for
 - **Homepage** (`/`) — public hub with four rows: Search, Calculator, Manual, About Me
 - **Search** (`/search`) — one page
 - **Calculators** (`/calculators`) — hub with **sub-pages** per calculator tool (`/calculators/...`)
-- **Manual** (`/manual`) — docs placeholder (Phase 1.2)
-- **About Me** (`/about`) — about placeholder (Phase 1.2)
+- **Manual** (`/manual` + `/manual/*`) — finished public docs (hub + Calculators / Search sections)
+- **About Me** (`/about`) — finished; ship current copy
 
 ### Non-goals (confirmed)
 
@@ -165,12 +166,12 @@ _Homepage tree = public. All other existing tool/table routes = private admin._
 | Public hub  | `/`                                                 | Public — four-row hub (Search, Calculator, Manual, About Me) |
 | Search      | `/search`                                           | Public                                                       |
 | Calculators | `/calculators` (hub) + `/calculators/...` sub-pages | Public                                                       |
-| Manual      | `/manual`                                           | Public                                                       |
+| Manual      | `/manual` + `/manual/*`                             | Public                                                       |
 | About Me    | `/about`                                            | Public                                                       |
 | Admin home  | `/admin`                                            | **Private** — admin dashboard (table hub / welcome)          |
 | Admin tools | `/tables/*`, `/path-carver`, `/simulator`           | **Private admin only**                                       |
 
-Public allowlist for access control (Phase 5): `/`, `/search`, `/calculators` and `/calculators/*`, `/manual`, `/about` only. All other routes (including `/admin`) stay private.
+Public allowlist for access control (Phase 5): `/`, `/search`, `/calculators` and `/calculators/*`, `/manual` and `/manual/*`, `/about` only. All other routes (including `/admin`) stay private.
 
 ### Public chrome (not admin)
 
@@ -271,7 +272,7 @@ Sized to current data (~1.1k allowlisted rows; largest table ~336) and Free-tier
 | Cap                 | Value                            | Notes                                                                                                          |
 | ------------------- | -------------------------------- | -------------------------------------------------------------------------------------------------------------- |
 | Per-query row limit | **500**                          | Covers a full read of the largest allowlisted table with headroom; do not set below ~400 or option lists break |
-| Rate limit          | **~60 requests / minute / IP**   | Simple in-memory for Phase 2; blocks scrapers better than a tighter row cap                                    |
+| Rate limit          | **~60 requests / minute / IP**   | In-memory per process (Phase 2); **keep in-memory for Phase 5** — do not add Redis/WAF                         |
 | SQL surface         | No arbitrary SQL from the client | Guided / allowlisted server entrypoints only                                                                   |
 
 ### What was done
@@ -440,14 +441,63 @@ _Query UI on Phase 2 read layer (product name: Search)._
 
 ## Phase 5 — Public release gate
 
-- Protect admin/write routes (auth or deploy protection) so `/admin`, `/tables`, `/path-carver`, `/simulator`, etc. are not reachable by the public
-- Public `/`, `/search`, `/calculators/*`, `/manual`, `/about` live with Mother Tree / root version chrome only
-- Env review: publishable/anon for public path; service role server-only
-- Deploy to Vercel; set env vars; confirm soft-delete/RLS behavior in production
-- Attribution footer (SKeyDB / CC BY-NC-SA) on public pages
-- Basic abuse/error visibility
+_Locks below are decided; implement against them. Do not expand into Phase 6._
 
-**Exit:** Public Calculator + Search (+ Manual / About) via homepage hub; no public DB writes; admin tools (including `/admin`) gated.
+### Public route allowlist (access control)
+
+Unauthenticated public:
+
+- `/`
+- `/search`
+- `/calculators` and `/calculators/*`
+- `/manual` and `/manual/*`
+- `/about`
+
+Everything else (including `/admin`, `/tables`, `/path-carver`, `/simulator`) is **local-only admin** — not reachable on Vercel (404, not a login).
+
+### Admin gate (local-only; no production login)
+
+Admin is used only on the developer machine (`npm run dev` + service role in `.env.local`). The live site never uses admin functions or pages.
+
+**Do not** add a production password, Supabase Auth, or Vercel Deployment Protection (the last would hide public pages too).
+
+Layers (all required):
+
+1. **Vercel env — anon only.** Set `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`. **Never** set `SUPABASE_SERVICE_ROLE_KEY` / `SUPABASE_SECRET_KEY` on Vercel (Production or Preview). Service role stays in `.env.local` only.
+2. **`createAdminClient` fail-closed.** Refuse to create the client when `process.env.VERCEL` is set, even if a key is present later by mistake. Optionally also require `ADMIN_ENABLED=true` in `.env.local`. Client-facing errors must be generic (not-found); do not leak “missing service role key.”
+3. **Production 404 for admin routes.** `/admin`, `/tables`, `/path-carver`, `/simulator` look like they do not exist on `mothertree.vercel.app`.
+4. **Same check in every admin Server Action.** Apply in [`crud.ts`](src/lib/actions/crud.ts), [`path-carver.ts`](src/lib/actions/path-carver.ts), [`simulator.ts`](src/lib/actions/simulator.ts), [`simulator-flow.ts`](src/lib/actions/simulator-flow.ts), [`team-data.ts`](src/lib/actions/team-data.ts). Hiding pages is not enough: this is a public repo and Next still ships `"use server"` modules on Vercel.
+
+| Environment | Anon key | Service role | Admin routes / write actions |
+| ----------- | -------- | ------------ | ---------------------------- |
+| Vercel (`mothertree.vercel.app`) | Yes | **No** | 404 / refuse |
+| Local (`npm run dev`) | Yes | `.env.local` | Works |
+
+RLS SELECT-only for anon remains the database backstop.
+
+### Content freeze
+
+**Manual** and **About** are finished and ready for public. Ship current copy as-is; do not rewrite, stub, or defer those pages.
+
+### Rate limit
+
+Keep the Phase 2 **in-memory** ~60 req/min/IP limiter. Do not add Redis, Upstash, or WAF in this phase.
+
+### Hosting and README
+
+- Vercel Hobby; production hostname **`mothertree.vercel.app`**
+- Vercel project / slug name **`mothertree`** — no “admin” in the URL or project name
+- After the live URL exists, add a **Live site** link in [README.md](README.md) pointing at it
+
+### What to implement
+
+- Production hard-disable for admin pages **and** write Server Actions (404 / refuse; no login page)
+- `createAdminClient` refuses the Vercel runtime; document `ADMIN_ENABLED` in [`.env.example`](.env.example) if used
+- Public allowlisted routes live with Mother Tree / root version chrome only
+- Env review: Vercel gets publishable/anon only; service role never on Vercel
+- Deploy to Vercel; confirm anon SELECT + anon write-fail (RLS) in production
+
+**Exit:** Public Calculator + Search + Manual + About via homepage hub; no public DB writes; admin exists only locally; live URL is `mothertree.vercel.app` and linked from README.
 
 ---
 
@@ -474,13 +524,14 @@ _Query UI on Phase 2 read layer (product name: Search)._
 | Public desert dusk theme                          | Done in Phase 1.1                                                               | Public layout + hub     |
 | Public brand spelling                             | Locked: Mother Tree (space)                                                     | Phase 1.1               |
 | Homepage hub                                      | Done in Phase 1.2 — four rows + locked copy                                     | Phase 1.2               |
-| Public `/manual` + `/about`                       | Placeholders done in Phase 1.2                                                  | Phase 1.2; body later   |
+| Public `/manual` + `/about`                       | Body finished; freeze for public (Phase 5)                                      | Phase 1.2 + content     |
+| Public route allowlist                            | `/`, `/search`, `/calculators/*`, `/manual/*`, `/about`                         | Phase 5                 |
 | No Path Carver naming on public pages             | Locked in Phase 1.1                                                             | Public copy             |
 | Search UX specifics                               | Done: options + results (tag-tree, columns, Value scaling)                      | Phase 4                 |
 | Column-level public trimming                      | Done: hide `created_at`, `updated_at`, `deleted_at`                             | Phase 2                 |
-| Public read caps                                  | Done: 500 rows/query; ~60 req/min/IP                                            | Phase 2                 |
-| Admin auth mechanism                              | Open                                                                            | Phase 5                 |
-| Manual / About body content                       | Open                                                                            | Later expand            |
+| Public read caps                                  | Done: 500 rows/query; ~60 req/min/IP **in-memory** (keep for Phase 5)           | Phase 2 + 5             |
+| Admin runtime                                     | Locked: local-only; prod 404; no service role on Vercel; no login               | Phase 5                 |
+| Vercel production URL                             | Locked: **mothertree.vercel.app** (no “admin” in slug); README Live site link   | Phase 5                 |
 
 ---
 
@@ -489,4 +540,6 @@ _Query UI on Phase 2 read layer (product name: Search)._
 - Recommendation engine / simulator public access
 - Full Path Carver multi-step flow for the public
 - Separate Cloudflare-first deploy (Vercel first)
+- Production admin login / password / Supabase Auth (admin is local-only)
+- Service role key on Vercel (Production or Preview)
 - Monetization (conflicts with SKeyDB NC license unless separately cleared)

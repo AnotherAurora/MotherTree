@@ -19,7 +19,7 @@ const MANUAL_SECTIONS = [
     id: "search",
     href: "/manual/search",
     label: "Search",
-    blurb: "Investment assumptions, how effects are cataloged, search behavior, and what each filter and result column means.",
+    blurb: "Investment assumptions, how effects are cataloged, and how Search filters and results work.",
   },
 ] as const;
 

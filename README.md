@@ -1,77 +1,35 @@
-# MotherTree Admin Dashboard
+# Mother Tree
 
-A clean, modern admin dashboard for managing MotherTree game data stored in Supabase PostgreSQL.
+**root version** — a public Morimens reference: Search, Calculators, and a Manual.
 
-Game data in the database is sourced from [SKeyDB](https://github.com/dansa/SKeyDB). See [DATA-NOTICE.md](DATA-NOTICE.md) for attribution and licensing terms.
+Game data is sourced from [SKeyDB](https://github.com/dansa/SKeyDB). See [DATA-NOTICE.md](DATA-NOTICE.md) for attribution and licensing (CC BY-NC-SA 4.0).
 
-## Stack
+## Public
 
-- **Next.js 16** (App Router, Server Actions)
-- **React 19** + **TypeScript**
-- **Tailwind CSS v4**
-- **Supabase** (`@supabase/supabase-js`) with service-role server access
+| Path | What it is |
+|------|------------|
+| `/` | Hub |
+| `/search` | Catalog search (Awakeners, Wheels, Posses, Covenants, tags) |
+| `/calculators` | Mechanic calculators (Keyflare, Death Resist, Aliemus, Team max HP, Tentacle Damage, Covenant, and more) |
+| `/manual` | How the tools work and cataloging assumptions |
+| `/about` | Project background |
 
-## Features
+Public pages are read-only. Calculator inputs stay in the browser (`localStorage`); they are not written to the database.
 
-- Sidebar navigation for all 9 database tables
-- List, Create, Update, and Soft-Delete (where `deleted_at` exists)
-- Searchable foreign-key dropdowns with human-readable labels
-- Strict enum dropdowns matching exact database casing
-- Auto-increment primary keys (Postgres `IDENTITY` — no manual ID entry)
-- Environment-variable based Supabase configuration
+## This repository
 
-## Tables
+One Next.js app. Public pages and a private admin (table editor, Path Carver, simulator) share the same codebase. Admin routes are not part of the public site.
 
-| Table | Soft Delete |
-|-------|-------------|
-| Tags | Yes |
-| Awakeners | Yes |
-| Desires | Yes |
-| Manifestations | Yes |
-| Tag Interactions | Yes |
-| Interaction Overrides | Yes |
-| Desire Demands | Yes |
-| Paths | No (hard delete) |
-| Anchored Awakeners | Yes |
-
-## Setup
-
-### 1. Clone and install
+## Local development
 
 ```bash
 git clone https://github.com/AnotherAurora/MotherTree.git
 cd MotherTree
 npm install
-```
-
-### 2. Configure Supabase environment
-
-Copy the example env file:
-
-```bash
 cp .env.example .env.local
 ```
 
-Fill in `.env.local`:
-
-```env
-NEXT_PUBLIC_SUPABASE_URL=https://brsxrctacuhllumnfwgx.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_or_publishable_key
-SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
-```
-
-**Where to find keys**
-
-1. Open [Supabase Dashboard](https://supabase.com/dashboard/project/brsxrctacuhllumnfwgx/settings/api)
-2. Copy **Project URL** → `NEXT_PUBLIC_SUPABASE_URL`
-3. Copy **anon/public key** (or publishable key) → `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-4. Copy **service_role key** → `SUPABASE_SERVICE_ROLE_KEY`
-
-> **Important:** The service role key bypasses Row Level Security and must **only** be used server-side. Never expose it in client code or commit it to git.
-
-RLS is enabled on all tables with no public policies, so the service role key is required for admin CRUD operations.
-
-### 3. Run the dev server
+Fill `.env.local` from [`.env.example`](.env.example). The anon/publishable key is for public SELECT. The service role / secret key is server-only — never put it in `NEXT_PUBLIC_*` or commit it.
 
 ```bash
 npm run dev
@@ -79,55 +37,12 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
-### 4. Link to GitHub remote (optional)
+## Stack
 
-```bash
-git remote add origin https://github.com/AnotherAurora/MotherTree.git
-git push -u origin main
-```
-
-## Regenerating TypeScript types
-
-When your schema changes, regenerate types from Supabase:
-
-```bash
-npm run db:types
-```
-
-This writes `src/lib/database.types.generated.ts`. App helpers (`TableName`, `ENUM_VALUES`, etc.) live in `src/lib/database.types.ts` and are preserved across regens.
-
-Or use the Supabase MCP `generate_typescript_types` tool in Cursor.
-
-## Recommended data entry order
-
-1. **Tags** — foundation for interactions
-2. **Awakeners** — character stats
-3. **Desires** — team goals
-4. **Desire Templates** — loadout presets linked to a desire
-5. **Anchored Awakeners** — awakeners tied to a desire
-6. **Manifestations** — awakener + tag pairings
-7. **Tag Interactions** — default synergy rules
-8. **Interaction Overrides** — per-manifestation tweaks
-9. **Desire Demands** — tag priority curves
-10. **Paths** — awakener ↔ desire links
-11. **Posse** — posse definitions
-12. **Posse Manifestations** — posse + tag pairings
-13. **Wheels** — wheel gear with rarity/stat
-14. **Wheel Manifestations** — wheel + tag pairings
-15. **Covenants** — covenant gear with stat
-16. **Covenant Manifestations** — covenant + tag pairings
-
-## Scripts
-
-| Command | Description |
-|---------|-------------|
-| `npm run dev` | Start development server |
-| `npm run build` | Production build |
-| `npm run start` | Start production server |
-| `npm run lint` | Run ESLint |
-| `npm run db:types` | Regenerate TypeScript types from Supabase |
-| `npm run db:dump` | Export database rows to `sample-data/dumps/` |
-| `npm run db:pull` | Pull remote schema into local migrations |
+- **Next.js** (App Router, Server Actions)
+- **React** + **TypeScript**
+- **Tailwind CSS**
+- **Supabase** (PostgreSQL)
 
 ## Credits
 
