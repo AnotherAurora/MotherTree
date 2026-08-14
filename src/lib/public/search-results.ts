@@ -61,6 +61,7 @@ export type SearchResultsInput = {
   posses: PublicRow<"posse">[];
   covenants: PublicRow<"covenant">[];
   awakenerManifestations: PublicRow<"awakener_tag_manifestation">[];
+  awakenerLocalInteractions: PublicRow<"awakener_local_manifestation_interaction">[];
   wheelManifestations: PublicRow<"wheel_tag_manifestation">[];
   posseManifestations: PublicRow<"posse_tag_manifestation">[];
   covenantManifestations: PublicRow<"covenant_tag_manifestation">[];
@@ -200,6 +201,32 @@ function computeAwakenerValue(
   );
 }
 
+/** ATM instance_count (NOT NULL default 1); treat null/missing as 1. */
+function instanceCount(
+  raw: number | null | undefined,
+): number {
+  return raw == null ? 1 : raw;
+}
+
+/** Final Search value ceil: percent → 2 dp; else whole number. */
+function ceilSearchValue(value: number, tagIsPercent: boolean): number {
+  if (tagIsPercent) return Math.ceil(value * 100) / 100;
+  return Math.ceil(value);
+}
+
+/**
+ * Aftereffect contribution: op(finishedOnce, factor). `before` is not in the op.
+ * Search only supports multiply / add_scaled (default multiply).
+ */
+function aftereffectContribution(
+  finishedOnce: number,
+  factor: number,
+  mathOperation: Enums<"operation_type"> | null,
+): number {
+  if (mathOperation === "add_scaled") return finishedOnce + factor;
+  return finishedOnce * factor;
+}
+
 function computeRawValue(raw: number | null): number | null {
   return raw == null ? null : raw;
 }
@@ -312,6 +339,9 @@ export function buildSearchResults(
         replacesManifestationId: row.replaces_manifestation_id,
       })),
     );
+    const resolvedAtmById = new Map(
+      resolvedAwakenerManifestations.map((m) => [m.id, m]),
+    );
 
     for (const m of resolvedAwakenerManifestations) {
       if (
@@ -347,12 +377,19 @@ export function buildSearchResults(
       const scalingAwakener = awakenerRow
         ? publicAwakenerToScalingAwakener(awakenerRow)
         : null;
-      const value = computeAwakenerValue(
+      const finishedOnce = computeAwakenerValue(
         m.value_scalar,
         m.dependency_stat,
         scalingAwakener,
         tag?.is_percent === true,
       );
+      const value =
+        finishedOnce == null
+          ? null
+          : ceilSearchValue(
+              finishedOnce * instanceCount(m.instance_count),
+              tag?.is_percent === true,
+            );
 
       rows.push({
         id: `awakener:${m.id}`,
@@ -370,6 +407,120 @@ export function buildSearchResults(
         ),
         value,
         valueDisplay: formatValueDisplay(value, tag?.is_percent === true),
+        buffRestriction: formatOptionalEnum(
+          m.buff_target_type_restriction,
+          formatSearchBuffRestrictionLabel,
+        ),
+        everyTurn: formatEveryTurn(m.is_accumulating),
+        triggerCondition: formatTriggerCondition(
+          m.trigger_condition,
+          tagsById,
+        ),
+        requiredRealm: formatRequiredRealmSingle(
+          m.required_realm,
+          realmsById,
+        ),
+        metadata: formatMetadata(m.metadata),
+      });
+    }
+
+    // Aftereffect rows: target tag from local interaction; value from ATM + factor.
+    for (const local of input.awakenerLocalInteractions) {
+      if (
+        local.mode !== "aftereffect" ||
+        local.is_disabled ||
+        local.target_tag_id == null ||
+        local.manifestation_id == null
+      ) {
+        continue;
+      }
+      const m = resolvedAtmById.get(local.manifestation_id);
+      if (!m) continue;
+
+      if (
+        !passesCommonFilters(
+          {
+            tagId: local.target_tag_id,
+            targetType: local.target_type,
+            dependencyStat: m.dependency_stat,
+            buffRestriction: m.buff_target_type_restriction,
+            isAccumulating: m.is_accumulating,
+          },
+          filters,
+          matchingTagIds,
+        )
+      ) {
+        continue;
+      }
+      if (
+        filters.triggerConditionTagId != null &&
+        m.trigger_condition !== filters.triggerConditionTagId
+      ) {
+        continue;
+      }
+      if (
+        filters.requiredRealmId != null &&
+        m.required_realm !== filters.requiredRealmId
+      ) {
+        continue;
+      }
+
+      const atmTag = tagsById.get(m.tag_id);
+      const targetTag = tagsById.get(local.target_tag_id);
+      const awakenerRow = awakenersById.get(m.awakener_id);
+      const scalingAwakener = awakenerRow
+        ? publicAwakenerToScalingAwakener(awakenerRow)
+        : null;
+      const finishedOnce = computeAwakenerValue(
+        m.value_scalar,
+        m.dependency_stat,
+        scalingAwakener,
+        atmTag?.is_percent === true,
+      );
+      if (finishedOnce == null) continue;
+
+      const factorRaw = local.value_scalar;
+      const factor =
+        factorRaw == null
+          ? 1
+          : scaleValueScalar(
+              factorRaw,
+              local.dependency_stat as AllStats | null,
+              scalingAwakener,
+              "awakener",
+              targetTag?.is_percent === true,
+            );
+      const contrib = aftereffectContribution(
+        finishedOnce,
+        factor,
+        local.math_operation,
+      );
+      const value = ceilSearchValue(
+        contrib * instanceCount(m.instance_count),
+        targetTag?.is_percent === true,
+      );
+
+      rows.push({
+        id: `awakener-aftereffect:${local.id}`,
+        assetKind: "awakener",
+        from: fromLabel("awakener"),
+        name: parentName(awakenersById, m.awakener_id),
+        tag: targetTag
+          ? formatSearchTagLabel(targetTag.tag_name)
+          : EMPTY_DISPLAY,
+        targetType: formatOptionalEnum(
+          local.target_type,
+          formatSearchTargetTypeLabel,
+        ),
+        dependencyStat: formatOptionalEnum(
+          m.dependency_stat,
+          formatSearchDependencyStatLabel,
+        ),
+        value,
+        valueDisplay: formatValueDisplay(
+          value,
+          targetTag?.is_percent === true,
+        ),
         buffRestriction: formatOptionalEnum(
           m.buff_target_type_restriction,
           formatSearchBuffRestrictionLabel,

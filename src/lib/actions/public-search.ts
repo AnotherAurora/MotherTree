@@ -64,6 +64,9 @@ export async function runPublicSearch(
   const needPosse = from == null || from === "posse";
   const needCovenant = from == null || from === "covenant";
 
+  const emptyLocal: PublicRow<"awakener_local_manifestation_interaction">[] =
+    [];
+
   const [
     tagsResult,
     realmsResult,
@@ -72,6 +75,7 @@ export async function runPublicSearch(
     possesResult,
     covenantsResult,
     atmResult,
+    localResult,
     wtmResult,
     ptmResult,
     ctmResult,
@@ -113,6 +117,13 @@ export async function runPublicSearch(
           data: [] as PublicRow<"awakener_tag_manifestation">[],
           truncated: false,
         }),
+    needAwakener
+      ? fetchPublicTable("awakener_local_manifestation_interaction")
+      : Promise.resolve({
+          success: true as const,
+          data: emptyLocal,
+          truncated: false,
+        }),
     needWheel
       ? fetchPublicTable("wheel_tag_manifestation")
       : Promise.resolve({
@@ -144,6 +155,7 @@ export async function runPublicSearch(
     possesResult,
     covenantsResult,
     atmResult,
+    localResult,
     wtmResult,
     ptmResult,
     ctmResult,
@@ -161,6 +173,7 @@ export async function runPublicSearch(
     !possesResult.success ||
     !covenantsResult.success ||
     !atmResult.success ||
+    !localResult.success ||
     !wtmResult.success ||
     !ptmResult.success ||
     !ctmResult.success
@@ -176,6 +189,7 @@ export async function runPublicSearch(
     possesResult.truncated ||
     covenantsResult.truncated ||
     atmResult.truncated ||
+    localResult.truncated ||
     wtmResult.truncated ||
     ptmResult.truncated ||
     ctmResult.truncated;
@@ -189,6 +203,7 @@ export async function runPublicSearch(
     posses: possesResult.data,
     covenants: covenantsResult.data,
     awakenerManifestations: atmResult.data,
+    awakenerLocalInteractions: localResult.data,
     wheelManifestations: wtmResult.data,
     posseManifestations: ptmResult.data,
     covenantManifestations: ctmResult.data,
