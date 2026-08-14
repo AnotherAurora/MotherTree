@@ -61,6 +61,9 @@ const TEAM_POOL_OWNER = "*team*";
 const REALM_OWNER = "realm";
 const DEFERRED_CREATE_SUBJECT_KEY = "deferred-create";
 const DEFERRED_CREATE_SUBJECT_LABEL = "Deferred create (closure)";
+const DEFERRED_STACK_AMPLIFY_SUBJECT_KEY = "deferred-stack-amplify";
+const DEFERRED_STACK_AMPLIFY_SUBJECT_LABEL =
+  "Deferred stack amplify (closure0)";
 const DEFERRED_AMPLIFY_SUBJECT_KEY = "deferred-amplify";
 const DEFERRED_AMPLIFY_SUBJECT_LABEL = "Deferred amplify (closure)";
 
@@ -402,12 +405,17 @@ type AftereffectClosure = {
   closure0: Set<number>;
   closure: Set<number>;
   deferredCreates: DefaultInteraction[];
-  deferredAmplifies: DefaultInteraction[];
+  /** Amplifies targeting aftereffect sinks (Increase → Poison/Bleed). */
+  deferredStackAmplifies: DefaultInteraction[];
+  /** Amplifies targeting created bases (Trigger → Damage). */
+  deferredCreateAmplifies: DefaultInteraction[];
 };
 
 /**
  * Option A look-ahead: closure0 = aftereffect targets; expand via creates_base
- * (exact modifier match); defer amplifies whose target intersects closure.
+ * (exact modifier match). Split amplifies:
+ * - stack: target intersects closure0 (run on combined stack before create)
+ * - create: target intersects closure\closure0 (thin hop on Damage synthetics)
  * Empty closure0 → pull nothing (3b path).
  */
 function buildAftereffectClosure(
@@ -422,7 +430,8 @@ function buildAftereffectClosure(
       closure0,
       closure: new Set(),
       deferredCreates: [],
-      deferredAmplifies: [],
+      deferredStackAmplifies: [],
+      deferredCreateAmplifies: [],
     };
   }
 
@@ -456,11 +465,23 @@ function buildAftereffectClosure(
     }
   }
 
-  const deferredAmplifies = amplifyRows.filter((interaction) =>
-    amplifyTargetIntersectsClosure(interaction, closure, tagsById),
+  const closureCreated = new Set(
+    [...closure].filter((id) => !closure0.has(id)),
+  );
+  const deferredStackAmplifies = amplifyRows.filter((interaction) =>
+    amplifyTargetIntersectsClosure(interaction, closure0, tagsById),
+  );
+  const deferredCreateAmplifies = amplifyRows.filter((interaction) =>
+    amplifyTargetIntersectsClosure(interaction, closureCreated, tagsById),
   );
 
-  return { closure0, closure, deferredCreates, deferredAmplifies };
+  return {
+    closure0,
+    closure,
+    deferredCreates,
+    deferredStackAmplifies,
+    deferredCreateAmplifies,
+  };
 }
 
 function tagNamesForIds(
@@ -496,6 +517,35 @@ function snapshotCombinedModifier(
   );
   if (combined === 0) return null;
   return buildCreatedBaseManifestation(tag, combined);
+}
+
+/**
+ * Per-owner closure0 stack snapshot for deferred stack amplify.
+ * Preserves awakener ownership so target_type=self modifiers apply.
+ */
+function buildOwnerStackSnapshot(
+  tag: Tag,
+  owner: OwnerKey,
+  value: number,
+): Manifestation | null {
+  if (value === 0) return null;
+  const awakenerId = awakenerIdFromOwnerKey(owner);
+  const base = buildCreatedBaseManifestation(tag, value);
+  if (awakenerId != null) {
+    return {
+      ...base,
+      sourceKind: "awakener",
+      awakenerId,
+      sourceName: "(aftereffect stack)",
+    };
+  }
+  if (owner === "posse") {
+    return { ...base, sourceKind: "posse", sourceName: "(aftereffect stack)" };
+  }
+  if (owner === REALM_OWNER) {
+    return { ...base, sourceKind: "realm", sourceName: "(aftereffect stack)" };
+  }
+  return { ...base, sourceName: "(aftereffect stack)" };
 }
 
 function findTagIdByName(
@@ -2312,17 +2362,21 @@ function collectInteractionTargetIds(
  * Pass order (Phase 2c): modifier tag.layer — pre_add → add/null → post_add;
  * within rank add_scaled then other ops then id.
  *
- * Pipeline (Phase 3c):
+ * Pipeline (Phase 3c + stack amplify):
  * 0. Look-ahead: closure0 = aftereffect targets; expand via creates_base
- *    (exact modifier); pull those creates + amplifies intersecting closure.
+ *    (exact modifier); pull those creates; split amplifies into
+ *    closure0 (stack) vs closure\\closure0 (create/Trigger).
  *    Empty closure0 → pull nothing (3b path).
  * 1. Other unrestricted creates_base (excluding pulled closure edges).
  * 2. Shared owner totals (aftereffect sinks + deferred create/amplify).
  * 3. Each subject (slotIndex → awakenerId → tagId → sourceKind → id; null last):
  *    finish single-hit → aftereffect from finishedOnce (merge × hitCount) →
  *    own-tag finishedOnce × hitCount. unique_scaling stays in-band.
- * 4. Deferred thin create (combined stack, *team* OK) + thin amplify
- *    (leafContext = synthetic sourceType null). Not a subject loop.
+ * 4a. Deferred stack amplify on combined per-owner closure0 totals
+ *    (Increase → Poison/Bleed); replace owner totals.
+ * 4b. Deferred thin create (combined stack, *team* OK).
+ * 4c. Deferred thin amplify on created synthetics (Trigger → Damage;
+ *    leafContext = synthetic sourceType null). Not a subject loop.
  * 5. Special conversions last inside Layer B.
  *
  * Phase 2b.1: isBaseStatTransfer / realm / Support isCreatedBase subjects contribute
@@ -2404,9 +2458,10 @@ export function applyInteractions(
   const deferredCreateIds = new Set(
     lookAhead.deferredCreates.map((i) => i.id),
   );
-  const deferredAmplifyIds = new Set(
-    lookAhead.deferredAmplifies.map((i) => i.id),
-  );
+  const deferredAmplifyIds = new Set([
+    ...lookAhead.deferredStackAmplifies.map((i) => i.id),
+    ...lookAhead.deferredCreateAmplifies.map((i) => i.id),
+  ]);
   const unrestrictedCreatesLive = unrestrictedCreates.filter(
     (i) => !deferredCreateIds.has(i.id),
   );
@@ -2696,7 +2751,72 @@ export function applyInteractions(
 
   const deferredSynthetics: Manifestation[] = [];
 
-  // Deferred Option A — thin create from combined closure0 stacks, then thin amplify.
+  // 4a — Deferred stack amplify on combined per-owner closure0 totals
+  // (Increase → Poison/Bleed) before create snapshots the stack.
+  if (lookAhead.deferredStackAmplifies.length > 0) {
+    const stackSnapshots: Manifestation[] = [];
+    const snapshotKeys: Array<{ owner: OwnerKey; tagId: number }> = [];
+    for (const [owner, tagMap] of mergedOwnerValues) {
+      for (const tagId of lookAhead.closure0) {
+        const value = tagMap.get(tagId) ?? 0;
+        if (value === 0) continue;
+        const tag = input.tagsById[tagId];
+        if (!tag) continue;
+        const snapshot = buildOwnerStackSnapshot(tag, owner, value);
+        if (snapshot == null) continue;
+        stackSnapshots.push(snapshot);
+        snapshotKeys.push({ owner, tagId });
+      }
+    }
+
+    if (stackSnapshots.length > 0) {
+      const thinApplied = [
+        ...applied.filter((m) => !lookAhead.closure0.has(m.tagId)),
+        ...stackSnapshots,
+      ];
+      const amplifyResult = runInteractionsForLeafContext({
+        appliedManifestations: thinApplied,
+        defaultInteractions: lookAhead.deferredStackAmplifies,
+        tagsById: input.tagsById,
+        awakenersById,
+        leafContext: null,
+        awakenerNamesById: input.awakenerNamesById,
+        recordBaseSteps: false,
+        runSpecial: false,
+        applyUniqueScalingInvents: false,
+        teamMaxHp: input.teamMaxHp,
+        realmMasteryTotal: input.realmMasteryTotal,
+        teamRealms: input.teamRealms,
+      });
+
+      const amplifyTargetIds = collectInteractionTargetIds(
+        lookAhead.deferredStackAmplifies,
+        input.tagsById,
+      );
+      for (const step of amplifyResult.steps) {
+        if (step.kind !== "op") continue;
+        if (amplifyTargetIds.has(step.tagId)) {
+          opSteps.push({
+            ...step,
+            subjectKey: DEFERRED_STACK_AMPLIFY_SUBJECT_KEY,
+            subjectLabel: DEFERRED_STACK_AMPLIFY_SUBJECT_LABEL,
+            leafContext: null,
+          });
+        }
+      }
+
+      for (const { owner, tagId } of snapshotKeys) {
+        setOwnerValue(
+          mergedOwnerValues,
+          owner,
+          tagId,
+          getOwnerValue(amplifyResult.ownerValues, owner, tagId),
+        );
+      }
+    }
+  }
+
+  // 4b — Deferred Option A thin create from (amplified) combined closure0 stacks.
   if (lookAhead.deferredCreates.length > 0) {
     const modifierTagIds = new Set<number>();
     for (const interaction of lookAhead.deferredCreates) {
@@ -2758,9 +2878,10 @@ export function applyInteractions(
     }
   }
 
+  // 4c — Deferred thin amplify on created synthetics (Trigger → Damage).
   if (
     deferredSynthetics.length > 0 &&
-    lookAhead.deferredAmplifies.length > 0
+    lookAhead.deferredCreateAmplifies.length > 0
   ) {
     const thinApplied = [
       ...applied.filter((m) => !lookAhead.closure0.has(m.tagId)),
@@ -2768,7 +2889,7 @@ export function applyInteractions(
     ];
     const amplifyResult = runInteractionsForLeafContext({
       appliedManifestations: thinApplied,
-      defaultInteractions: lookAhead.deferredAmplifies,
+      defaultInteractions: lookAhead.deferredCreateAmplifies,
       tagsById: input.tagsById,
       awakenersById,
       leafContext: null,
@@ -2782,7 +2903,7 @@ export function applyInteractions(
     });
 
     const amplifyTargetIds = collectInteractionTargetIds(
-      lookAhead.deferredAmplifies,
+      lookAhead.deferredCreateAmplifies,
       input.tagsById,
     );
     for (const step of amplifyResult.steps) {

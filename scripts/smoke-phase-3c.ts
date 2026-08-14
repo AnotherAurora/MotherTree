@@ -166,6 +166,16 @@ const bleedDamage = makeTag(
 const trigger = makeTag(12, "Support.Bleed Trigger", { layer: "post_add" });
 const shield = makeTag(2, "Defender.Shield", { layer: "pre_add" });
 const shieldInc = makeTag(3, "Support.Shield Increase", { layer: "pre_add" });
+const poison = makeTag(20, "Attacker.Poison", { layer: "pre_add" });
+const poisonDamage = makeTag(
+  21,
+  "Attacker.Non-Active Damage.Poison Damage",
+);
+const poisonInc = makeTag(22, "Support.Increase Gain.Poison", {
+  layer: "post_add",
+  isPercent: true,
+  isAdditive: false,
+});
 
 console.log("Part A — one-subject aftereffect (invent on source owner)");
 {
@@ -546,6 +556,281 @@ console.log("Part E — empty aftereffect set matches 3b additive totals");
     "empty closure0 does not pull / does not log look-ahead",
   );
   assert(aftereffectSteps(result.steps).length === 0, "no aftereffect steps");
+}
+
+console.log("Part F — aftereffect Poison + Increase stack amplify before create");
+{
+  const awakener = makeAwakener({ id: 1, name: "Sunfall" });
+  const manifests = [
+    makeManifestation({
+      id: 60,
+      tagId: damage.id,
+      tagName: damage.tagName,
+      valueScalar: 100,
+      interactionOverrides: [
+        makeLocal({
+          id: 1,
+          mode: "aftereffect",
+          targetTagId: poison.id,
+          targetTagName: poison.tagName,
+          mathOperation: "multiply",
+          valueScalar: 0.5,
+        }),
+      ],
+    }),
+    makeManifestation({
+      id: 61,
+      tagId: poisonInc.id,
+      tagName: poisonInc.tagName,
+      valueScalar: 0.2,
+      targetType: "self",
+    }),
+  ];
+  const interactions = [
+    makeInteraction({
+      id: 1,
+      modifierTagId: poisonInc.id,
+      modifierTagName: poisonInc.tagName,
+      targetTagId: poison.id,
+      targetTagName: poison.tagName,
+      mathOperation: "multiply_one_plus",
+      defaultFactor: 1,
+    }),
+    makeInteraction({
+      id: 2,
+      modifierTagId: poison.id,
+      modifierTagName: poison.tagName,
+      targetTagId: poisonDamage.id,
+      targetTagName: poisonDamage.tagName,
+      mathOperation: "add_scaled",
+      defaultFactor: 1,
+      createsBase: true,
+      amplifiesSubject: false,
+    }),
+  ];
+  const result = applyInteractions({
+    manifestations: manifests,
+    appliedManifestations: manifests,
+    defaultInteractions: interactions,
+    tagsById: {
+      [damage.id]: damage,
+      [poison.id]: poison,
+      [poisonDamage.id]: poisonDamage,
+      [poisonInc.id]: poisonInc,
+    },
+    awakenersById: buildAwakenersById([awakener]),
+  });
+  // Aftereffect 50; Increase ×1.2 → 60; create Damage 60.
+  assert(
+    (result.totalsByTagId.get(poison.id) ?? 0) === 60,
+    `aftereffect Poison×Increase 60 (got ${result.totalsByTagId.get(poison.id)})`,
+  );
+  assert(
+    (result.totalsByTagId.get(poisonDamage.id) ?? 0) === 60,
+    `Poison Damage from amplified stack 60 (got ${result.totalsByTagId.get(poisonDamage.id)})`,
+  );
+  const stackOps = result.steps.filter(
+    (s): s is OpStep =>
+      s.kind === "op" && s.subjectKey === "deferred-stack-amplify",
+  );
+  assert(stackOps.length >= 1, "deferred stack amplify ran on Poison");
+}
+
+console.log("Part G — Layer A Poison + aftereffect combined then Increase");
+{
+  const awakener = makeAwakener({ id: 1, name: "MixedPoison" });
+  const manifests = [
+    makeManifestation({
+      id: 70,
+      tagId: poison.id,
+      tagName: poison.tagName,
+      valueScalar: 20,
+      targetType: "aoe",
+    }),
+    makeManifestation({
+      id: 71,
+      tagId: damage.id,
+      tagName: damage.tagName,
+      valueScalar: 100,
+      interactionOverrides: [
+        makeLocal({
+          id: 1,
+          mode: "aftereffect",
+          targetTagId: poison.id,
+          targetTagName: poison.tagName,
+          mathOperation: "multiply",
+          valueScalar: 0.5,
+        }),
+      ],
+    }),
+    makeManifestation({
+      id: 72,
+      tagId: poisonInc.id,
+      tagName: poisonInc.tagName,
+      valueScalar: 0.2,
+      targetType: "self",
+    }),
+  ];
+  const interactions = [
+    makeInteraction({
+      id: 1,
+      modifierTagId: poisonInc.id,
+      modifierTagName: poisonInc.tagName,
+      targetTagId: poison.id,
+      targetTagName: poison.tagName,
+      mathOperation: "multiply_one_plus",
+      defaultFactor: 1,
+    }),
+    makeInteraction({
+      id: 2,
+      modifierTagId: poison.id,
+      modifierTagName: poison.tagName,
+      targetTagId: poisonDamage.id,
+      targetTagName: poisonDamage.tagName,
+      mathOperation: "add_scaled",
+      defaultFactor: 1,
+      createsBase: true,
+      amplifiesSubject: false,
+    }),
+  ];
+  const result = applyInteractions({
+    manifestations: manifests,
+    appliedManifestations: manifests,
+    defaultInteractions: interactions,
+    tagsById: {
+      [damage.id]: damage,
+      [poison.id]: poison,
+      [poisonDamage.id]: poisonDamage,
+      [poisonInc.id]: poisonInc,
+    },
+    awakenersById: buildAwakenersById([awakener]),
+  });
+  // Layer A 20 + aftereffect 50 = 70; ×1.2 = 84.
+  assert(
+    (result.totalsByTagId.get(poison.id) ?? 0) === 84,
+    `combined Poison then Increase 84 (got ${result.totalsByTagId.get(poison.id)})`,
+  );
+  assert(
+    (result.totalsByTagId.get(poisonDamage.id) ?? 0) === 84,
+    `Poison Damage 84 (got ${result.totalsByTagId.get(poisonDamage.id)})`,
+  );
+}
+
+console.log("Part H — Increase self does not amplify other awakener aftereffect Poison");
+{
+  const a1 = makeAwakener({ id: 1, name: "HasInc" });
+  const a2 = makeAwakener({ id: 2, name: "HasAe" });
+  const manifests = [
+    makeManifestation({
+      id: 80,
+      awakenerId: 1,
+      slotIndex: 0,
+      tagId: poisonInc.id,
+      tagName: poisonInc.tagName,
+      valueScalar: 0.2,
+      targetType: "self",
+    }),
+    makeManifestation({
+      id: 81,
+      awakenerId: 2,
+      slotIndex: 1,
+      tagId: damage.id,
+      tagName: damage.tagName,
+      valueScalar: 100,
+      interactionOverrides: [
+        makeLocal({
+          id: 1,
+          mode: "aftereffect",
+          targetTagId: poison.id,
+          targetTagName: poison.tagName,
+          mathOperation: "multiply",
+          valueScalar: 0.5,
+        }),
+      ],
+    }),
+  ];
+  const interactions = [
+    makeInteraction({
+      id: 1,
+      modifierTagId: poisonInc.id,
+      modifierTagName: poisonInc.tagName,
+      targetTagId: poison.id,
+      targetTagName: poison.tagName,
+      mathOperation: "multiply_one_plus",
+      defaultFactor: 1,
+    }),
+  ];
+  const result = applyInteractions({
+    manifestations: manifests,
+    appliedManifestations: manifests,
+    defaultInteractions: interactions,
+    tagsById: {
+      [damage.id]: damage,
+      [poison.id]: poison,
+      [poisonInc.id]: poisonInc,
+    },
+    awakenersById: buildAwakenersById([a1, a2]),
+  });
+  assert(
+    (result.totalsByTagId.get(poison.id) ?? 0) === 50,
+    `cross-owner self Increase skipped (got ${result.totalsByTagId.get(poison.id)})`,
+  );
+}
+
+console.log("Part I — empty aftereffect Layer A Poison + Increase stays on subject path");
+{
+  const awakener = makeAwakener({ id: 1, name: "LayerAOnly" });
+  const manifests = [
+    makeManifestation({
+      id: 90,
+      tagId: poison.id,
+      tagName: poison.tagName,
+      valueScalar: 50,
+      targetType: "aoe",
+    }),
+    makeManifestation({
+      id: 91,
+      tagId: poisonInc.id,
+      tagName: poisonInc.tagName,
+      valueScalar: 0.2,
+      targetType: "self",
+    }),
+  ];
+  const interactions = [
+    makeInteraction({
+      id: 1,
+      modifierTagId: poisonInc.id,
+      modifierTagName: poisonInc.tagName,
+      targetTagId: poison.id,
+      targetTagName: poison.tagName,
+      mathOperation: "multiply_one_plus",
+      defaultFactor: 1,
+    }),
+  ];
+  const result = applyInteractions({
+    manifestations: manifests,
+    appliedManifestations: manifests,
+    defaultInteractions: interactions,
+    tagsById: {
+      [poison.id]: poison,
+      [poisonInc.id]: poisonInc,
+    },
+    awakenersById: buildAwakenersById([awakener]),
+  });
+  assert(
+    lookAheadStep(result.steps) == null,
+    "empty closure0 does not defer Increase",
+  );
+  assert(
+    (result.totalsByTagId.get(poison.id) ?? 0) === 60,
+    `3b subject-path Poison×Increase 60 (got ${result.totalsByTagId.get(poison.id)})`,
+  );
+  assert(
+    !result.steps.some(
+      (s) => s.kind === "op" && s.subjectKey === "deferred-stack-amplify",
+    ),
+    "no deferred stack amplify without aftereffect",
+  );
 }
 
 console.log("\nPhase 3c smoke passed.");

@@ -38,6 +38,7 @@ type TagMathGroup = {
 
 /** Matches apply-interactions Option A deferred subject keys. */
 const DEFERRED_CREATE_SUBJECT_KEY = "deferred-create";
+const DEFERRED_STACK_AMPLIFY_SUBJECT_KEY = "deferred-stack-amplify";
 const DEFERRED_AMPLIFY_SUBJECT_KEY = "deferred-amplify";
 
 function formatNum(value: number): string {
@@ -148,6 +149,8 @@ function subjectContribution(block: SubjectMathBlock): number | null {
 /**
  * Value committed into the tag total merge.
  * Deferred create is intermediate when amplify also ran (engine merges amplify after only).
+ * When deferred stack amplify ran, it replaced the combined stack — aftereffect /
+ * Layer A / other subject blocks for this tag are intermediate.
  */
 function committedContribution(
   block: SubjectMathBlock,
@@ -159,6 +162,12 @@ function committedContribution(
   ) {
     return null;
   }
+  if (
+    subjects.some((s) => s.subjectKey === DEFERRED_STACK_AMPLIFY_SUBJECT_KEY) &&
+    block.subjectKey !== DEFERRED_STACK_AMPLIFY_SUBJECT_KEY
+  ) {
+    return null;
+  }
   return subjectContribution(block);
 }
 
@@ -166,6 +175,23 @@ function mergeModeLabel(isAdditive: boolean, isPercent: boolean): string {
   if (isAdditive) return "sum, is_additive=true";
   if (isPercent) return "percent ×, is_additive=false";
   return "product, is_additive=false";
+}
+
+/** Display order matches Layer B flow: subjects → stack amplify → create → Trigger. */
+function subjectDisplayRank(subjectKey: string): number {
+  if (subjectKey === DEFERRED_STACK_AMPLIFY_SUBJECT_KEY) return 1;
+  if (subjectKey === DEFERRED_CREATE_SUBJECT_KEY) return 2;
+  if (subjectKey === DEFERRED_AMPLIFY_SUBJECT_KEY) return 3;
+  return 0;
+}
+
+function sortSubjectsForDisplay(
+  subjects: SubjectMathBlock[],
+): SubjectMathBlock[] {
+  return [...subjects].sort(
+    (a, b) =>
+      subjectDisplayRank(a.subjectKey) - subjectDisplayRank(b.subjectKey),
+  );
 }
 
 function formatSubjectHeader(
@@ -294,7 +320,7 @@ export function ReviewTagsMathDebug({
       .map((g) => ({
         tagId: g.tagId,
         tagName: g.tagName,
-        subjects: [...g.subjects.values()],
+        subjects: sortSubjectsForDisplay([...g.subjects.values()]),
         total: g.total,
         isAdditive: g.isAdditive,
         isPercent: g.isPercent,
@@ -429,7 +455,17 @@ export function ReviewTagsMathDebug({
                                 )}
                               <li className="pt-0.5 text-zinc-700">
                                 {intermediate
-                                  ? `contribution = ${formatNum(pipeline!)} (intermediate; merged via amplify)`
+                                  ? `contribution = ${formatNum(pipeline!)} (intermediate; merged via ${
+                                      group.subjects.some(
+                                        (s) =>
+                                          s.subjectKey ===
+                                          DEFERRED_STACK_AMPLIFY_SUBJECT_KEY,
+                                      ) &&
+                                      block.subjectKey !==
+                                        DEFERRED_STACK_AMPLIFY_SUBJECT_KEY
+                                        ? "stack amplify"
+                                        : "amplify"
+                                    })`
                                   : `contribution = ${
                                       committed != null
                                         ? formatNum(committed)
