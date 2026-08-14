@@ -168,10 +168,19 @@ export function EditableCell({
   }
 
   if (!isActive) {
+    const display = formatCellDisplayValue(field.name, value, fkLabels);
+    const copyProviderTitle =
+      field.name === "copy_provider_group_id" &&
+      value != null &&
+      value !== ""
+        ? display
+        : undefined;
+
     return (
       <button
         type="button"
         disabled={disabled || saving}
+        title={copyProviderTitle}
         onClick={handleDisplayClick}
         className={cn(
           "group -mx-1 flex w-full items-center gap-1 rounded px-1 py-0.5 text-left",
@@ -180,9 +189,7 @@ export function EditableCell({
           disabled && "cursor-default",
         )}
       >
-        <span className="min-w-0 flex-1 truncate">
-          {formatCellDisplayValue(field.name, value, fkLabels)}
-        </span>
+        <span className="min-w-0 flex-1 truncate">{display}</span>
         {saving && (
           <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-zinc-400" />
         )}
