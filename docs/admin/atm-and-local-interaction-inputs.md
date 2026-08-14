@@ -4,7 +4,7 @@ Quick lookup: how fields on **`awakener_tag_manifestation`** (ATM) and **`awaken
 
 **Scope:** ATM, local interactions, and **`copy_provider_group`** / members (not `tag_default_interaction`, realm rows, covenant/wheel/posse, or desire demands).
 
-**Engine status (as of Phase 3b.1):**
+**Engine status (as of Phase 3c):**
 
 | Feature | Status |
 | --- | --- |
@@ -12,9 +12,9 @@ Quick lookup: how fields on **`awakener_tag_manifestation`** (ATM) and **`awaken
 | ATM **`hitCount`** (`instance_count` × effective copies); Layer B on single-hit then × hitCount | Live (**3a.3**) |
 | Local row as **patch** of a matching `tag_default_interaction` | Live (`unique_scaling`) |
 | Local **`unique_scaling` invent** (tag-mod or base-stat null-mod) | Live (**3b**); invent Modifier Tag is **prefix** (**3b.1**) |
-| Local **`aftereffect`** emit / merge (× `hitCount` = instances × effective copies) | Phase **3c** |
+| Local **`aftereffect`** emit / merge (× `hitCount` = instances × effective copies) | Live (**3c**) |
 
-Formulas below for aftereffect are the **locked design** so you can enter data correctly ahead of engine work. Invent/patch/`unique_scaling` layer rules are live in Review Tags.
+Formulas below for aftereffect are **live in Review Tags** (Phase 3c). Invent/patch/`unique_scaling` layer rules are live.
 
 ---
 
@@ -63,7 +63,7 @@ Admin soft-warns (amber) when `instance_count ≤ 0` or `base_copies ≤ 0`; sav
 
 **Copy provider groups** (`copy_provider_group` + `copy_provider_group_member`): curated tag sets (e.g. Command Card Creates). One group per ATM. Manage under Awakeners → Copy Provider Groups (nested members).
 
-**Forward (Phase 3c):** aftereffect emit count = `hitCount = instance_count × effectiveCopies` (not once on a folded finished scalar).
+**Aftereffect (Phase 3c):** emit uses **`finishedOnce`** (single-hit); merge scales by **`hitCount = instance_count × effectiveCopies`**. Do not `op` the folded `finishedOnce × hitCount` total.
 
 #### `tag_id`
 
@@ -227,30 +227,38 @@ Let:
 
 ### 2.3 Mode: `aftereffect`
 
-**What it does (Phase 3c design)**
+**What it does (Phase 3c — live)**
 
-1. Source ATM finishes through `post_add` → **`finished(S)`**.  
-2. Build **factor** from `value_scalar` (+ `dependency_stat`).  
-3. **`contribution = op(finished(S), factor)`** — **`before` is not in the op**.  
-4. Merge contribution into **`target_tag_id`** with **`tag.is_additive`**.  
-5. Keep an **`isCreatedBase`** synthetic for that tag. Bleed kits usually target **`Attacker.Bleed`** (stack), not Bleed Damage; create hop + Trigger are scheduled separately.
+1. Source ATM finishes through `post_add` on the **single-hit** base → **`finishedOnce`**.
+2. Build **factor** from `value_scalar` (+ `dependency_stat` via `effectiveOverrideFactor` on the source ATM’s awakener).
+3. **`contribution = op(finishedOnce, factor)`** — **`before` is not in the op**. Do not `op(finishedOnce × hitCount, factor)`.
+4. Merge **`contribution × hitCount`** into **`target_tag_id`** under **`ownerKeyFor(source)`** (ATM → `awakener:{id}`) with **`tag.is_additive`**. Never Phase 1 `*team*` for this emit.
+5. Then merge the source’s own tag as **`finishedOnce × hitCount`**.
 
-**Ops (finished ↔ factor only):**
+`target_type` stamps the synthetic’s `targetType` only; it does not change write owner. If that owner already has the tag (Layer A Bleed), merge only — no parallel synthetic.
+
+Disabled aftereffect rows are skipped (and do not enter the look-ahead closure).
+
+**Ops (finishedOnce ↔ factor only):**
 
 | `math_operation` | `contribution` | In aftereffect dropdown? |
 | --- | --- | --- |
-| `multiply` (**default**) | `finished(S) × factor` | yes |
-| `add_scaled` | `finished(S) + factor` | yes |
+| `multiply` (**default**) | `finishedOnce × factor` | yes |
+| `add_scaled` | `finishedOnce + factor` | yes |
 | `multiply_one_plus` | — | **no** |
 | `presence_multiply` | — | **no** |
 
 Then:
 
 ```text
-newTotal = combineSameTagScalar(before, contribution, tag.is_additive, tag.is_percent)
+newTotal = combineSameTagScalar(before, contribution × hitCount, tag.is_additive, tag.is_percent)
 ```
 
-**Example:** finished Damage = 200, `multiply`, factor = 0.5 → contribution **100** into Bleed (merged with other writers via `is_additive`).
+**Example:** finishedOnce Damage = 10, `add_scaled`, factor = 5, hitCount = 3 → contribution **15**, Bleed merge **45** (not `op(30, 5) = 35`).
+
+**Scheduling (look-ahead Option A):** `closure0` = this team’s aftereffect `target_tag_id`s; expand via `creates_base` whose **modifier exact-matches** a tag in the closure. Those create edges and `amplifies_subject` rows whose target intersects the closure are **pulled** out of the per-subject loop. After all subjects: one thin `creates_base` from the **combined** stack (`is_additive` across owners; `hitCount = 1`; Phase 1–style `*team*` OK on this hop only) then one thin amplify (`leafContext` = synthetic `sourceType`, which is `null`). Empty aftereffect set: pull nothing; Layer A + Phase 1 create + Trigger stay as 3b.
+
+Bleed kits: aftereffect → **Bleed** (source owner) → combined stack → Bleed Damage create → Trigger amplifies Bleed Damage once (Trigger does not multiply the Bleed stack).
 
 ---
 
@@ -271,4 +279,4 @@ newTotal = combineSameTagScalar(before, contribution, tag.is_additive, tag.is_pe
 
 - Global Mod→target rules, `creates_base` / `amplifies_subject`, buff restriction: **`tag_default_interaction`**
 - Tag percent / additive combine: **`tag.is_percent`**, **`tag.is_additive`**, **`tag.layer`**
-- Full scheduling (closure look-ahead, deferred Trigger): Phase 3 plan in `.cursor/plans/simulator_phased_plan_7b0fcf95.plan.md`
+- Full scheduling (closure look-ahead, deferred Trigger): live in Review Tags (Phase 3c); design locks in `.cursor/plans/simulator_phased_plan_7b0fcf95.plan.md`

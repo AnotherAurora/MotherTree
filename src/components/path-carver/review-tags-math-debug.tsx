@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import type { ScalarMathStep } from "@/lib/path-carver/apply-interactions";
+import { formatSameTagScalarMerge } from "@/lib/path-carver/combine-same-tag-scalar";
 import type { Awakener } from "@/lib/team-data/types";
 
 type ReviewTagsMathDebugProps = {
@@ -12,13 +13,17 @@ type ReviewTagsMathDebugProps = {
 type BaseStep = Extract<ScalarMathStep, { kind: "base" }>;
 type OpStep = Extract<ScalarMathStep, { kind: "op" }>;
 type HitCountStep = Extract<ScalarMathStep, { kind: "hitCount" }>;
+type AftereffectStep = Extract<ScalarMathStep, { kind: "aftereffect" }>;
 type SpecialStep = Extract<ScalarMathStep, { kind: "special" }>;
 
 type SubjectMathBlock = {
   subjectKey: string;
   subjectLabel: string;
+  /** First non-empty manifestation metadata for this subject. */
+  metadata: string | null;
   bases: BaseStep[];
   ops: OpStep[];
+  aftereffects: AftereffectStep[];
   hitCounts: HitCountStep[];
 };
 
@@ -27,7 +32,13 @@ type TagMathGroup = {
   tagName: string;
   subjects: SubjectMathBlock[];
   total: number | null;
+  isAdditive: boolean;
+  isPercent: boolean;
 };
+
+/** Matches apply-interactions Option A deferred subject keys. */
+const DEFERRED_CREATE_SUBJECT_KEY = "deferred-create";
+const DEFERRED_AMPLIFY_SUBJECT_KEY = "deferred-amplify";
 
 function formatNum(value: number): string {
   if (Number.isInteger(value)) return String(value);
@@ -97,9 +108,33 @@ function formatOpLine(
   );
 }
 
+function formatAftereffectLine(
+  step: AftereffectStep,
+  nameById: Map<number, string>,
+): string {
+  const inventNote = step.invented ? " | invented" : "";
+  const layerNote = ` | layer=${step.layer ?? "null"}`;
+  const metadataNote =
+    step.metadata != null && step.metadata.trim() !== ""
+      ? ` ${step.metadata}`
+      : "";
+  return (
+    `aftereffect | ${step.op} | ${step.tagName} ← finishedOnce ${formatNum(step.finishedOnce)}` +
+    ` × factor ${formatNum(step.factor)} → contrib ${formatNum(step.contribution)}` +
+    ` × hitCount ${formatNum(step.hitCount)} = ${formatNum(step.merged)}` +
+    ` | ${formatOwner(step.owner, nameById)}` +
+    ` | ${formatNum(step.before)} → ${formatNum(step.after)}` +
+    `${layerNote} | targetType=${step.targetType}${inventNote}${metadataNote}`
+  );
+}
+
+/** Pipeline value for a subject block (create after, amplify after, etc.). */
 function subjectContribution(block: SubjectMathBlock): number | null {
   if (block.hitCounts.length > 0) {
     return block.hitCounts[block.hitCounts.length - 1]!.after;
+  }
+  if (block.aftereffects.length > 0) {
+    return block.aftereffects.reduce((sum, a) => sum + a.merged, 0);
   }
   if (block.ops.length > 0) {
     return block.ops[block.ops.length - 1]!.after;
@@ -108,6 +143,39 @@ function subjectContribution(block: SubjectMathBlock): number | null {
     return block.bases.reduce((sum, b) => sum + b.scalar, 0);
   }
   return null;
+}
+
+/**
+ * Value committed into the tag total merge.
+ * Deferred create is intermediate when amplify also ran (engine merges amplify after only).
+ */
+function committedContribution(
+  block: SubjectMathBlock,
+  subjects: readonly SubjectMathBlock[],
+): number | null {
+  if (
+    block.subjectKey === DEFERRED_CREATE_SUBJECT_KEY &&
+    subjects.some((s) => s.subjectKey === DEFERRED_AMPLIFY_SUBJECT_KEY)
+  ) {
+    return null;
+  }
+  return subjectContribution(block);
+}
+
+function mergeModeLabel(isAdditive: boolean, isPercent: boolean): string {
+  if (isAdditive) return "sum, is_additive=true";
+  if (isPercent) return "percent ×, is_additive=false";
+  return "product, is_additive=false";
+}
+
+function formatSubjectHeader(
+  subjectLabel: string,
+  metadata: string | null,
+  nameById: Map<number, string>,
+): string {
+  const label = formatSourceLabel(subjectLabel, nameById);
+  if (metadata == null || metadata.trim() === "") return label;
+  return `${label} ${metadata}`;
 }
 
 function ensureSubject(
@@ -122,8 +190,10 @@ function ensureSubject(
       subjectKey: key,
       subjectLabel:
         subjectLabel && subjectLabel.length > 0 ? subjectLabel : key,
+      metadata: null,
       bases: [],
       ops: [],
+      aftereffects: [],
       hitCounts: [],
     };
     subjects.set(key, block);
@@ -158,6 +228,8 @@ export function ReviewTagsMathDebug({
         tagName: string;
         subjects: Map<string, SubjectMathBlock>;
         total: number | null;
+        isAdditive: boolean;
+        isPercent: boolean;
       }
     >();
 
@@ -169,6 +241,8 @@ export function ReviewTagsMathDebug({
           tagName,
           subjects: new Map(),
           total: null,
+          isAdditive: true,
+          isPercent: false,
         };
         byTag.set(tagId, group);
       }
@@ -183,6 +257,8 @@ export function ReviewTagsMathDebug({
       if (step.kind === "total") {
         const group = ensureTag(step.tagId, step.tagName);
         group.total = step.total;
+        group.isAdditive = step.isAdditive;
+        group.isPercent = step.isPercent;
         continue;
       }
 
@@ -192,9 +268,26 @@ export function ReviewTagsMathDebug({
         step.subjectKey,
         step.subjectLabel,
       );
-      if (step.kind === "base") block.bases.push(step);
-      else if (step.kind === "op") block.ops.push(step);
-      else if (step.kind === "hitCount") block.hitCounts.push(step);
+      if (step.kind === "base") {
+        block.bases.push(step);
+        if (
+          block.metadata == null &&
+          step.metadata != null &&
+          step.metadata.trim() !== ""
+        ) {
+          block.metadata = step.metadata;
+        }
+      } else if (step.kind === "op") block.ops.push(step);
+      else if (step.kind === "aftereffect") {
+        block.aftereffects.push(step);
+        if (
+          block.metadata == null &&
+          step.metadata != null &&
+          step.metadata.trim() !== ""
+        ) {
+          block.metadata = step.metadata;
+        }
+      } else if (step.kind === "hitCount") block.hitCounts.push(step);
     }
 
     const groups: TagMathGroup[] = [...byTag.values()]
@@ -203,6 +296,8 @@ export function ReviewTagsMathDebug({
         tagName: g.tagName,
         subjects: [...g.subjects.values()],
         total: g.total,
+        isAdditive: g.isAdditive,
+        isPercent: g.isPercent,
       }))
       .sort((a, b) => a.tagName.localeCompare(b.tagName));
 
@@ -220,9 +315,13 @@ export function ReviewTagsMathDebug({
           Keyflare→Create.Posse → team Max HP → Base Tentacle Damage →
           interaction ops by modifier layer (pre_add → add → post_add;
           unique_scaling local layer wins; invent/patch/base_stat) →
+          aftereffect from finishedOnce (merge contribution × hitCount;
+          look-ahead defers creates_base + amplifies in the closure) →
           × hitCount (instances × copies) → special conversions → totals.
           Multiply ops ceil after each write. Restricted ops only appear when
           leaf matches. Base/op lines are single-hit; hitCount multiplies after.
+          Same-tag merge uses tag.is_additive / tag.is_percent (percent:
+          (1+a)(1+b)−1).
         </p>
       </div>
 
@@ -246,81 +345,121 @@ export function ReviewTagsMathDebug({
               </div>
             )}
 
-            {groups.map((group) => (
-              <div key={group.tagId} className="space-y-2">
-                <p className="text-sm font-medium text-zinc-700">
-                  {group.tagName}
-                </p>
+            {groups.map((group) => {
+              const parts = group.subjects
+                .map((block) => committedContribution(block, group.subjects))
+                .filter((v): v is number => v != null);
+              const merge = formatSameTagScalarMerge(
+                parts,
+                group.isAdditive,
+                group.isPercent,
+              );
 
-                {group.subjects.length === 0 ? (
-                  <ul className="space-y-0.5 border-l border-zinc-200 pl-2">
-                    <li className="text-zinc-400">
-                      (no base/op steps; total from special or pool only)
-                    </li>
-                  </ul>
-                ) : (
-                  <div className="space-y-3">
-                    {group.subjects.map((block) => {
-                      const contribution = subjectContribution(block);
-                      return (
-                        <div
-                          key={`${group.tagId}-${block.subjectKey}`}
-                          className="space-y-0.5 border-l border-zinc-200 pl-2"
-                        >
-                          <p className="font-medium text-zinc-700">
-                            {formatSourceLabel(block.subjectLabel, nameById)}
-                          </p>
-                          <ul className="space-y-0.5 pl-2">
-                            {block.bases.map((b, i) => (
-                              <li key={`base-${block.subjectKey}-${i}`}>
-                                base |{" "}
-                                {formatSourceLabel(b.sourceLabel, nameById)} | +
-                                {formatNum(b.scalar)}
-                                {b.rawScalar !== b.scalar
-                                  ? ` (raw ${formatNum(b.rawScalar)} → effective)`
-                                  : ""}
-                              </li>
-                            ))}
-                            {block.ops.map((op, i) => (
-                              <li key={`op-${block.subjectKey}-${i}`}>
-                                {formatOpLine(op, nameById)}
-                              </li>
-                            ))}
-                            {block.hitCounts.map((h, i) => (
-                              <li key={`hitCount-${block.subjectKey}-${i}`}>
-                                × hitCount {formatNum(h.hitCount)} ({h.detail}){" "}
-                                | {formatSourceLabel(h.sourceLabel, nameById)} |{" "}
-                                {formatNum(h.finishedOnce)} →{" "}
-                                {formatNum(h.after)}
-                              </li>
-                            ))}
-                            {block.bases.length === 0 &&
-                              block.ops.length === 0 &&
-                              block.hitCounts.length === 0 && (
-                                <li className="text-zinc-400">
-                                  (no base/op steps; total from special or pool
-                                  only)
-                                </li>
+              return (
+                <div key={group.tagId} className="space-y-2">
+                  <p className="text-sm font-medium text-zinc-700">
+                    {group.tagName}
+                  </p>
+
+                  {group.subjects.length === 0 ? (
+                    <ul className="space-y-0.5 border-l border-zinc-200 pl-2">
+                      <li className="text-zinc-400">
+                        (no base/op steps; total from special or pool only)
+                      </li>
+                    </ul>
+                  ) : (
+                    <div className="space-y-3">
+                      {group.subjects.map((block) => {
+                        const pipeline = subjectContribution(block);
+                        const committed = committedContribution(
+                          block,
+                          group.subjects,
+                        );
+                        const intermediate =
+                          committed == null && pipeline != null;
+                        return (
+                          <div
+                            key={`${group.tagId}-${block.subjectKey}`}
+                            className="space-y-0.5 border-l border-zinc-200 pl-2"
+                          >
+                            <p className="font-medium text-zinc-700">
+                              {formatSubjectHeader(
+                                block.subjectLabel,
+                                block.metadata,
+                                nameById,
                               )}
-                            <li className="pt-0.5 text-zinc-700">
-                              contribution ={" "}
-                              {contribution != null
-                                ? formatNum(contribution)
-                                : "—"}
-                            </li>
-                          </ul>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
+                            </p>
+                            <ul className="space-y-0.5 pl-2">
+                              {block.bases.map((b, i) => (
+                                <li key={`base-${block.subjectKey}-${i}`}>
+                                  base |{" "}
+                                  {formatSourceLabel(b.sourceLabel, nameById)} | +
+                                  {formatNum(b.scalar)}
+                                  {b.rawScalar !== b.scalar
+                                    ? ` (raw ${formatNum(b.rawScalar)} → effective)`
+                                    : ""}
+                                </li>
+                              ))}
+                              {block.ops.map((op, i) => (
+                                <li key={`op-${block.subjectKey}-${i}`}>
+                                  {formatOpLine(op, nameById)}
+                                </li>
+                              ))}
+                              {block.aftereffects.map((a, i) => (
+                                <li key={`aftereffect-${block.subjectKey}-${i}`}>
+                                  {formatAftereffectLine(a, nameById)}
+                                </li>
+                              ))}
+                              {block.hitCounts.map((h, i) => (
+                                <li key={`hitCount-${block.subjectKey}-${i}`}>
+                                  × hitCount {formatNum(h.hitCount)} ({h.detail}){" "}
+                                  | {formatSourceLabel(h.sourceLabel, nameById)} |{" "}
+                                  {formatNum(h.finishedOnce)} →{" "}
+                                  {formatNum(h.after)}
+                                </li>
+                              ))}
+                              {block.bases.length === 0 &&
+                                block.ops.length === 0 &&
+                                block.aftereffects.length === 0 &&
+                                block.hitCounts.length === 0 && (
+                                  <li className="text-zinc-400">
+                                    (no base/op steps; total from special or pool
+                                    only)
+                                  </li>
+                                )}
+                              <li className="pt-0.5 text-zinc-700">
+                                {intermediate
+                                  ? `contribution = ${formatNum(pipeline!)} (intermediate; merged via amplify)`
+                                  : `contribution = ${
+                                      committed != null
+                                        ? formatNum(committed)
+                                        : "—"
+                                    }`}
+                              </li>
+                            </ul>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
 
-                <p className="pt-0.5 font-medium text-zinc-800">
-                  Tag total ={" "}
-                  {group.total != null ? formatNum(group.total) : "—"}
-                </p>
-              </div>
-            ))}
+                  {merge != null && (
+                    <div className="space-y-0.5 pt-0.5 text-zinc-700">
+                      <p>
+                        merge ({mergeModeLabel(group.isAdditive, group.isPercent)}
+                        ):
+                      </p>
+                      <p>{merge.detail}</p>
+                    </div>
+                  )}
+
+                  <p className="pt-0.5 font-medium text-zinc-800">
+                    Tag total ={" "}
+                    {group.total != null ? formatNum(group.total) : "—"}
+                  </p>
+                </div>
+              );
+            })}
           </>
         )}
       </div>

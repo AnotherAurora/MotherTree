@@ -1,6 +1,6 @@
 ---
 name: Simulator Phased Plan
-overview: Path Carver–first roadmap. Phase 1–2c.1 + 3a + 3a.1 + 3a.2 + 3a.3 + 3b + 3b.1 done. Next is Phase 3c (aftereffect + Layer B closure look-ahead). Phase 4 ports math to desire_demand/radar/simulator, Calculation List layer breakdown, Corrosion/Embers Non-Active parent+descendants + name→id. Phase 5 smart recommend.
+overview: Path Carver–first roadmap. Phase 1–2c.1 + 3a + 3a.1 + 3a.2 + 3a.3 + 3b + 3b.1 + 3c done. Next is Phase 4 (desire_demand / radar / simulator, Calculation List layer breakdown, Corrosion/Embers Non-Active parent+descendants + name→id). Phase 5 smart recommend.
 todos:
   - id: seed-data
     content: Create scripts/seed-simulator-data.ts with 2-3 desires, demand rows, anchored awakeners; add npm script
@@ -64,7 +64,7 @@ todos:
     status: completed
   - id: phase-3c-aftereffect-layer-b
     content: Phase 3c — aftereffect emit/merge from finishedOnce (merge contribution × hitCount); own-tag merge finishedOnce × hitCount after aftereffect; restructure Layer B; closure look-ahead Option A; Bleed kit smoke; Special still last
-    status: pending
+    status: completed
   - id: layer-breakdown-ui
     content: Phase 4 — Wire Summary / Calculation List to show layer-by-layer breakdown
     status: pending
@@ -137,7 +137,7 @@ Path Carver’s **Review Tags** page is the primary surface for testing recommen
 | `buff_target_type_restriction` leaf-gating       | **Phase 2b done** — materialize-then-amplify + `creates_base` / `amplifies_subject`; Option B subject `source_type` context |
 | Pass-order damage layers                         | **Phase 2c done**                                                                                                           |
 | Remove leftover `layer.final` enum value         | **Phase 2c.1 done**                                                                                                         |
-| Manifestation-local unique_scaling / aftereffect | unique_scaling engine **3b** + invent modifier prefix **3b.1 done**; aftereffect + Layer B reshape deferred to **3c**       |
+| Manifestation-local unique_scaling / aftereffect | unique_scaling **3b** + invent prefix **3b.1**; aftereffect + Layer B reshape + closure look-ahead **3c done** |
 | Calculation List layer breakdown                 | Deferred to Phase 4                                                                                                         |
 | Simulator using Path Carver math                 | Port in Phase 4                                                                                                             |
 | Corrosion/Embers Non-Active + wiring             | Deferred to Phase 4 — parent+descendants capacity; rewire name→id                                                           |
@@ -1630,18 +1630,18 @@ poolContrib     = effectiveScalar × instance_count   # provider pool only
 
 **Acceptance:**
 
-- [ ] `aftereffect` emit: `op(finishedOnce, factor)` with default `multiply`; merge **`contribution × hitCount`** via `tag.is_additive`; factor from required `value_scalar` (default 1) + source ATM dep_stat
-- [ ] `aftereffect` runs after source `post_add` **and before** own-tag `finishedOnce × hitCount` merge; ordered by `layer`; write owner = `ownerKeyFor(source)`; `target_type` stamps synthetic `targetType`; `isCreatedBase` only if that owner lacked the tag
-- [ ] Aftereffect `op` uses `finishedOnce` (3a.3); merge scales by `hitCount = instance_count × effectiveCopies`; not `op(finishedOnce × hitCount, factor)`
-- [ ] Aftereffect synthetic owner: `ownerKeyFor(source)` (ATM → `awakener:{id}`); no `*team*` invent; `self` / `aoe` / `single` as locked; merge into existing owner tag (Layer A Bleed) via `is_additive` — no parallel synthetic
-- [ ] Look-ahead closure: `closure0` = aftereffect targets; expand via creates_base (exact modifier match); defer amplifies whose target intersects `closure`; defer those create edges even if Layer A Bleed exists; empty `closure0` → pull nothing (3b)
-- [ ] Layer A Bleed + aftereffect: Layer A Bleed is a normal subject; aftereffect merges into the same owner Bleed bucket; deferred create input = both sources (`is_additive`); one Bleed Damage rebuilt once; no Phase 1 Bleed Damage beside it; no second Trigger on Layer-A-only
-- [ ] Bleed kit path: aftereffect → Bleed → combined → thin `creates_base` Bleed Damage (`hitCount = 1`) → thin Trigger amplify once on Bleed Damage (Trigger does not multiply Bleed stack; not a subject loop; not a raw overwrite)
-- [ ] Deferred create/amplify: one create hop + one thin amplify pass as locked (decision 30); restricted creates that need command-card / exalt skip; Bleed Damage has no Layer A–style subject career
-- [ ] Layer B restructured: per subject finish single-hit → aftereffect from `finishedOnce` (`× hitCount` at merge) → own-tag `finishedOnce × hitCount`; shared aftereffect totals; Special still last inside Layer B
-- [ ] Subject order: `slotIndex` → `awakenerId` → `tagId` → `sourceKind` → `manifestation.id`; null `slotIndex` / `awakenerId` last; empty aftereffect set matches 3b on additive totals; 3b smokes still pass
-- [ ] Review Tags debug shows aftereffect steps + look-ahead closure
-- [ ] Smoke: two-subject Bleed + Trigger (Option A combined-before-trigger); aftereffect × hitCount; Layer A Bleed + aftereffect combined; empty aftereffect set matches 3b on additive totals; 3b smokes still pass
+- [x] `aftereffect` emit: `op(finishedOnce, factor)` with default `multiply`; merge **`contribution × hitCount`** via `tag.is_additive`; factor from required `value_scalar` (default 1) + source ATM dep_stat
+- [x] `aftereffect` runs after source `post_add` **and before** own-tag `finishedOnce × hitCount` merge; ordered by `layer`; write owner = `ownerKeyFor(source)`; `target_type` stamps synthetic `targetType`; `isCreatedBase` only if that owner lacked the tag
+- [x] Aftereffect `op` uses `finishedOnce` (3a.3); merge scales by `hitCount = instance_count × effectiveCopies`; not `op(finishedOnce × hitCount, factor)`
+- [x] Aftereffect synthetic owner: `ownerKeyFor(source)` (ATM → `awakener:{id}`); no `*team*` invent; `self` / `aoe` / `single` as locked; merge into existing owner tag (Layer A Bleed) via `is_additive` — no parallel synthetic
+- [x] Look-ahead closure: `closure0` = aftereffect targets; expand via creates_base (exact modifier match); defer amplifies whose target intersects `closure`; defer those create edges even if Layer A Bleed exists; empty `closure0` → pull nothing (3b)
+- [x] Layer A Bleed + aftereffect: Layer A Bleed is a normal subject; aftereffect merges into the same owner Bleed bucket; deferred create input = both sources (`is_additive`); one Bleed Damage rebuilt once; no Phase 1 Bleed Damage beside it; no second Trigger on Layer-A-only
+- [x] Bleed kit path: aftereffect → Bleed → combined → thin `creates_base` Bleed Damage (`hitCount = 1`) → thin Trigger amplify once on Bleed Damage (Trigger does not multiply Bleed stack; not a subject loop; not a raw overwrite)
+- [x] Deferred create/amplify: one create hop + one thin amplify pass as locked (decision 30); restricted creates that need command-card / exalt skip; Bleed Damage has no Layer A–style subject career
+- [x] Layer B restructured: per subject finish single-hit → aftereffect from `finishedOnce` (`× hitCount` at merge) → own-tag `finishedOnce × hitCount`; shared aftereffect totals; Special still last inside Layer B
+- [x] Subject order: `slotIndex` → `awakenerId` → `tagId` → `sourceKind` → `manifestation.id`; null `slotIndex` / `awakenerId` last; empty aftereffect set matches 3b on additive totals; 3b smokes still pass
+- [x] Review Tags debug shows aftereffect steps + look-ahead closure
+- [x] Smoke: two-subject Bleed + Trigger (Option A combined-before-trigger); aftereffect × hitCount; Layer A Bleed + aftereffect combined; empty aftereffect set matches 3b on additive totals; 3b smokes still pass
 
 ---
 
@@ -1723,6 +1723,6 @@ Path Carver upserts a single `desire_template` per `desire_id`.
 5. **Phase 3a.2** — disable-only admin UI hide unused fields (DONE)
 6. **Phase 3b** — `unique_scaling` patch/invent engine (tag-mod + base-stat) (DONE)
 7. **Phase 3b.1** — unique_scaling invent modifier prefix pool (DONE)
-8. **Phase 3c** — aftereffect + Layer B reshape + creates_base closure look-ahead deferred create/amplify
+8. **Phase 3c** — aftereffect + Layer B reshape + creates_base closure look-ahead deferred create/amplify (DONE)
 9. **Phase 4** — desire_demand / radar / simulator port + Calculation List layer breakdown + Corrosion/Embers Non-Active parent+descendants capacity + name→id wiring
 10. **Phase 5** — Smart recommend / search

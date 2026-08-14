@@ -59,6 +59,10 @@ export function requiresTargetBasePresence(
 
 const TEAM_POOL_OWNER = "*team*";
 const REALM_OWNER = "realm";
+const DEFERRED_CREATE_SUBJECT_KEY = "deferred-create";
+const DEFERRED_CREATE_SUBJECT_LABEL = "Deferred create (closure)";
+const DEFERRED_AMPLIFY_SUBJECT_KEY = "deferred-amplify";
+const DEFERRED_AMPLIFY_SUBJECT_LABEL = "Deferred amplify (closure)";
 
 const SPECIAL_CORROSION_CONVERSION = "Special.Corrosion Conversion";
 const SPECIAL_EMBERS_CONVERSION = "Special.Ancient Embers Conversion";
@@ -94,6 +98,8 @@ export type ScalarMathStep =
       subjectKey: string;
       /** Subject path display label for debug regrouping. */
       subjectLabel: string;
+      /** ATM / manifestation metadata for subject-header debug display. */
+      metadata: string | null;
     }
   | {
       kind: "op";
@@ -148,8 +154,42 @@ export type ScalarMathStep =
       /** Subject path display label for debug regrouping. */
       subjectLabel: string;
     }
+  | {
+      kind: "aftereffect";
+      /** Target tag receiving the emit. */
+      tagId: number;
+      tagName: string;
+      owner: string;
+      op: OperationType;
+      finishedOnce: number;
+      factor: number;
+      /** op(finishedOnce, factor) — not op(folded, factor). */
+      contribution: number;
+      hitCount: number;
+      /** contribution × hitCount, merged via is_additive. */
+      merged: number;
+      before: number;
+      after: number;
+      layer: Layer | null;
+      targetType: TargetType;
+      /** True when this write invented isCreatedBase on the owner. */
+      invented: boolean;
+      sourceLabel: string;
+      subjectKey: string;
+      subjectLabel: string;
+      /** Parent ATM metadata (source subject) for debug display. */
+      metadata: string | null;
+    }
   | { kind: "special"; label: string; detail: string }
-  | { kind: "total"; tagId: number; tagName: string; total: number };
+  | {
+      kind: "total";
+      tagId: number;
+      tagName: string;
+      total: number;
+      /** Same default as merge helpers: missing tag → additive. */
+      isAdditive: boolean;
+      isPercent: boolean;
+    };
 
 export type ApplyInteractionsInput = {
   manifestations: Manifestation[];
@@ -273,6 +313,189 @@ function layerRank(layer: Layer | null | undefined): number {
 
 function opTiebreak(op: OperationType): number {
   return op === "add_scaled" ? 0 : 1;
+}
+
+/** Null sorts after numbers (posse / realm / created-base often have both null). */
+function compareNullLast(
+  a: number | null | undefined,
+  b: number | null | undefined,
+): number {
+  if (a == null && b == null) return 0;
+  if (a == null) return 1;
+  if (b == null) return -1;
+  return a - b;
+}
+
+/**
+ * Phase 3c subject order: slotIndex → awakenerId → tagId → sourceKind → id.
+ * Null last on slotIndex / awakenerId.
+ */
+function compareSubjects(a: Manifestation, b: Manifestation): number {
+  const slot = compareNullLast(a.slotIndex, b.slotIndex);
+  if (slot !== 0) return slot;
+  const awakener = compareNullLast(a.awakenerId, b.awakenerId);
+  if (awakener !== 0) return awakener;
+  if (a.tagId !== b.tagId) return a.tagId - b.tagId;
+  if (a.sourceKind !== b.sourceKind) {
+    return a.sourceKind < b.sourceKind ? -1 : 1;
+  }
+  return a.id - b.id;
+}
+
+function isCreatesBaseEdge(interaction: DefaultInteraction): boolean {
+  return interaction.createsBase && !interaction.amplifiesSubject;
+}
+
+/** Aftereffect contribution: op(finishedOnce, factor). `before` is not in the op. */
+function aftereffectContribution(
+  finishedOnce: number,
+  factor: number,
+  op: OperationType,
+): number {
+  if (op === "add_scaled") return finishedOnce + factor;
+  return finishedOnce * factor;
+}
+
+function aftereffectRowsFor(
+  m: Manifestation,
+): AwakenerLocalManifestationInteraction[] {
+  return m.interactionOverrides
+    .filter(
+      (row) =>
+        row.mode === "aftereffect" &&
+        !row.isDisabled &&
+        row.targetTagId != null,
+    )
+    .sort(
+      (a, b) =>
+        layerRank(a.layer) - layerRank(b.layer) || a.id - b.id,
+    );
+}
+
+function collectClosure0(applied: Manifestation[]): Set<number> {
+  const closure0 = new Set<number>();
+  for (const m of applied) {
+    for (const row of aftereffectRowsFor(m)) {
+      if (row.targetTagId != null) closure0.add(row.targetTagId);
+    }
+  }
+  return closure0;
+}
+
+function amplifyTargetIntersectsClosure(
+  interaction: DefaultInteraction,
+  closure: ReadonlySet<number>,
+  tagsById: Record<number, Tag>,
+): boolean {
+  if (!interaction.targetTagName) return false;
+  for (const tag of matchingTargetTags(
+    tagsById,
+    interaction.targetTagName,
+    interaction.exclusionTagName,
+  )) {
+    if (closure.has(tag.id)) return true;
+  }
+  return false;
+}
+
+type AftereffectClosure = {
+  closure0: Set<number>;
+  closure: Set<number>;
+  deferredCreates: DefaultInteraction[];
+  deferredAmplifies: DefaultInteraction[];
+};
+
+/**
+ * Option A look-ahead: closure0 = aftereffect targets; expand via creates_base
+ * (exact modifier match); defer amplifies whose target intersects closure.
+ * Empty closure0 → pull nothing (3b path).
+ */
+function buildAftereffectClosure(
+  applied: Manifestation[],
+  defaultInteractions: DefaultInteraction[],
+  amplifyRows: DefaultInteraction[],
+  tagsById: Record<number, Tag>,
+): AftereffectClosure {
+  const closure0 = collectClosure0(applied);
+  if (closure0.size === 0) {
+    return {
+      closure0,
+      closure: new Set(),
+      deferredCreates: [],
+      deferredAmplifies: [],
+    };
+  }
+
+  const closure = new Set(closure0);
+  const deferredCreates: DefaultInteraction[] = [];
+  const deferredCreateIds = new Set<number>();
+  const createEdges = defaultInteractions.filter(isCreatesBaseEdge);
+
+  let grew = true;
+  while (grew) {
+    grew = false;
+    for (const interaction of createEdges) {
+      if (interaction.modifierTagId == null) continue;
+      if (!closure.has(interaction.modifierTagId)) continue;
+      if (!deferredCreateIds.has(interaction.id)) {
+        deferredCreateIds.add(interaction.id);
+        deferredCreates.push(interaction);
+        grew = true;
+      }
+      if (!interaction.targetTagName) continue;
+      for (const tag of matchingTargetTags(
+        tagsById,
+        interaction.targetTagName,
+        interaction.exclusionTagName,
+      )) {
+        if (!closure.has(tag.id)) {
+          closure.add(tag.id);
+          grew = true;
+        }
+      }
+    }
+  }
+
+  const deferredAmplifies = amplifyRows.filter((interaction) =>
+    amplifyTargetIntersectsClosure(interaction, closure, tagsById),
+  );
+
+  return { closure0, closure, deferredCreates, deferredAmplifies };
+}
+
+function tagNamesForIds(
+  ids: Iterable<number>,
+  tagsById: Record<number, Tag>,
+): string[] {
+  return [...ids]
+    .map((id) => tagsById[id]?.tagName ?? `#${id}`)
+    .sort((a, b) => a.localeCompare(b));
+}
+
+function ownerHasLayerATag(
+  applied: Manifestation[],
+  owner: OwnerKey,
+  tagId: number,
+): boolean {
+  for (const m of applied) {
+    if (m.isCreatedBase) continue;
+    if (ownerKeyFor(m) === owner && m.tagId === tagId) return true;
+  }
+  return false;
+}
+
+function snapshotCombinedModifier(
+  ownerValues: OwnerTotals,
+  tag: Tag,
+): Manifestation | null {
+  const combined = combineTagAcrossOwners(
+    ownerValues,
+    tag.id,
+    tag,
+    ownerValues.keys(),
+  );
+  if (combined === 0) return null;
+  return buildCreatedBaseManifestation(tag, combined);
 }
 
 function findTagIdByName(
@@ -568,7 +791,8 @@ function matchingTargetTags(
 
 /**
  * unique_scaling locals on ATM rows (target manifestation), keyed by
- * incoming modifier_tag_id. Aftereffect rows are ignored (Phase 3c).
+ * incoming modifier_tag_id. Aftereffect rows are skipped here (emitted after
+ * the source subject finishes post_add).
  * value_scalar overrides interaction default_factor.
  */
 function findTargetOverride(
@@ -1893,6 +2117,7 @@ function runInteractionsForLeafContext(
         sourceLabel,
         subjectKey: manifestationHitCountKey(m),
         subjectLabel: sourceLabel,
+        metadata: m.metadata,
       });
     }
   }
@@ -2079,20 +2304,26 @@ function collectInteractionTargetIds(
 }
 
 /**
- * Layer B — apply tag_default_interaction (+ overrides) and Special conversions.
+ * Layer B — apply tag_default_interaction (+ unique_scaling / aftereffect) and
+ * Special conversions.
  *
  * Matching: exact modifier, prefix target, exclusion = tag + descendants.
  * Self-scope: modifier target_type=self only updates same-owner tags.
  * Pass order (Phase 2c): modifier tag.layer — pre_add → add/null → post_add;
  * within rank add_scaled then other ops then id.
  *
- * Pipeline:
- * 1. Phase 1 — unrestricted creates_base: materialize into *team*, emit synthetics.
- *    Support created bases merge into totals (immune subjects); Attacker/Defender
- *    created bases become Phase 2 subjects.
- * 2. Phase 2 — per subject: restricted creates_base as scoped seed, then
- *    amplifies_subject only. leafContext = subject.sourceType.
- * 3. Special conversions once on merged totals (after all layer passes).
+ * Pipeline (Phase 3c):
+ * 0. Look-ahead: closure0 = aftereffect targets; expand via creates_base
+ *    (exact modifier); pull those creates + amplifies intersecting closure.
+ *    Empty closure0 → pull nothing (3b path).
+ * 1. Other unrestricted creates_base (excluding pulled closure edges).
+ * 2. Shared owner totals (aftereffect sinks + deferred create/amplify).
+ * 3. Each subject (slotIndex → awakenerId → tagId → sourceKind → id; null last):
+ *    finish single-hit → aftereffect from finishedOnce (merge × hitCount) →
+ *    own-tag finishedOnce × hitCount. unique_scaling stays in-band.
+ * 4. Deferred thin create (combined stack, *team* OK) + thin amplify
+ *    (leafContext = synthetic sourceType null). Not a subject loop.
+ * 5. Special conversions last inside Layer B.
  *
  * Phase 2b.1: isBaseStatTransfer / realm / Support isCreatedBase subjects contribute
  * absolute scalar only (no inbound ops) but remain in other subjects' cohorts as modifiers.
@@ -2128,6 +2359,7 @@ export function applyInteractions(
       sourceLabel,
       subjectKey: manifestationHitCountKey(m),
       subjectLabel: sourceLabel,
+      metadata: m.metadata,
     });
   }
 
@@ -2162,15 +2394,52 @@ export function applyInteractions(
           ...bothTrueAmplify.map((i) => ({ ...i, createsBase: false })),
         ];
 
+  const lookAhead = buildAftereffectClosure(
+    applied,
+    input.defaultInteractions,
+    amplifyRows,
+    input.tagsById,
+  );
+  const deferredCreateIds = new Set(
+    lookAhead.deferredCreates.map((i) => i.id),
+  );
+  const deferredAmplifyIds = new Set(
+    lookAhead.deferredAmplifies.map((i) => i.id),
+  );
+  const unrestrictedCreatesLive = unrestrictedCreates.filter(
+    (i) => !deferredCreateIds.has(i.id),
+  );
+  const restrictedCreatesLive = restrictedCreates.filter(
+    (i) => !deferredCreateIds.has(i.id),
+  );
+  const amplifyRowsLive = amplifyRows.filter(
+    (i) => !deferredAmplifyIds.has(i.id),
+  );
+
+  if (lookAhead.closure0.size > 0) {
+    const closure0Names = tagNamesForIds(
+      lookAhead.closure0,
+      input.tagsById,
+    );
+    const closureNames = tagNamesForIds(lookAhead.closure, input.tagsById);
+    steps.push({
+      kind: "special",
+      label: "look-ahead closure",
+      detail: `closure0={${closure0Names.join(", ")}}; closure={${closureNames.join(", ")}}`,
+    });
+  }
+
   const mergedOwnerValues: OwnerTotals = new Map();
   const opSteps: ScalarMathStep[] = [];
+  const aftereffectSteps: ScalarMathStep[] = [];
   const createdSynthetics: Manifestation[] = [];
 
-  // Phase 1 — unrestricted materialize into *team*, emit synthetics.
-  if (unrestrictedCreates.length > 0 && applied.length > 0) {
+  // Phase 1 — unrestricted materialize into *team*, emit synthetics
+  // (excluding creates_base edges pulled into the deferred hop).
+  if (unrestrictedCreatesLive.length > 0 && applied.length > 0) {
     const createResult = runInteractionsForLeafContext({
       appliedManifestations: applied,
-      defaultInteractions: unrestrictedCreates,
+      defaultInteractions: unrestrictedCreatesLive,
       tagsById: input.tagsById,
       awakenersById,
       leafContext: null,
@@ -2184,7 +2453,7 @@ export function applyInteractions(
     });
 
     const createTargetIds = collectInteractionTargetIds(
-      unrestrictedCreates,
+      unrestrictedCreatesLive,
       input.tagsById,
     );
 
@@ -2229,18 +2498,89 @@ export function applyInteractions(
 
   const phase2Applied = [...applied, ...createdSynthetics];
 
-  const subjects = phase2Applied.filter((m) => {
-    const scalar = effectiveManifestationScalar(
-      m,
-      awakenersById,
-      input.tagsById,
-      scalarOpts,
-    );
-    return scalar !== 0;
-  });
+  const subjects = phase2Applied
+    .filter((m) => {
+      const scalar = effectiveManifestationScalar(
+        m,
+        awakenersById,
+        input.tagsById,
+        scalarOpts,
+      );
+      return scalar !== 0;
+    })
+    .sort(compareSubjects);
 
   const hitCountByKey = input.hitCountByManifestationKey;
   const hitCountSteps: ScalarMathStep[] = [];
+
+  const emitAftereffects = (
+    subject: Manifestation,
+    finishedOnce: number,
+    hitCount: number,
+    sourceLabel: string,
+    subjectKey: string,
+  ) => {
+    const writeOwner = ownerKeyFor(subject);
+    const ownerAwakener =
+      subject.awakenerId != null
+        ? (awakenersById.get(subject.awakenerId) ?? null)
+        : null;
+
+    for (const row of aftereffectRowsFor(subject)) {
+      const targetId = row.targetTagId;
+      if (targetId == null) continue;
+      const target = input.tagsById[targetId];
+      if (!target) continue;
+
+      const factor = effectiveOverrideFactor(
+        row,
+        1,
+        ownerAwakener,
+        target.isPercent,
+        input.teamMaxHp,
+      );
+      const op = row.mathOperation ?? "multiply";
+      const contribution = aftereffectContribution(finishedOnce, factor, op);
+      const merged = contribution * hitCount;
+      if (merged === 0) continue;
+
+      const alreadyHas =
+        ownerHasTag(mergedOwnerValues, writeOwner, targetId) ||
+        ownerHasLayerATag(applied, writeOwner, targetId);
+      const invented = !alreadyHas;
+      const before = getOwnerValue(mergedOwnerValues, writeOwner, targetId);
+
+      mergeOwnerValue(
+        mergedOwnerValues,
+        writeOwner,
+        target,
+        targetId,
+        merged,
+      );
+
+      aftereffectSteps.push({
+        kind: "aftereffect",
+        tagId: targetId,
+        tagName: target.tagName,
+        owner: writeOwner,
+        op,
+        finishedOnce,
+        factor,
+        contribution,
+        hitCount,
+        merged,
+        before,
+        after: getOwnerValue(mergedOwnerValues, writeOwner, targetId),
+        layer: row.layer,
+        targetType: row.targetType,
+        invented,
+        sourceLabel,
+        subjectKey,
+        subjectLabel: sourceLabel,
+        metadata: subject.metadata,
+      });
+    }
+  };
 
   if (subjects.length > 0) {
     for (const subject of subjects) {
@@ -2277,6 +2617,7 @@ export function applyInteractions(
           input.tagsById,
           scalarOpts,
         );
+        emitAftereffects(subject, scalar, hitCount, sourceLabel, subjectKey);
         if (scalar !== 0) {
           mergeOwnerValue(
             mergedOwnerValues,
@@ -2291,7 +2632,10 @@ export function applyInteractions(
       }
 
       const cohort = cohortForSubject(phase2Applied, subject);
-      const subjectInteractions = [...restrictedCreates, ...amplifyRows];
+      const subjectInteractions = [
+        ...restrictedCreatesLive,
+        ...amplifyRowsLive,
+      ];
       const result = runInteractionsForLeafContext({
         appliedManifestations: cohort,
         defaultInteractions: subjectInteractions,
@@ -2308,17 +2652,11 @@ export function applyInteractions(
         teamRealms: input.teamRealms,
       });
 
-      const value = getOwnerValue(result.ownerValues, owner, subject.tagId);
-      if (value !== 0) {
-        mergeOwnerValue(
-          mergedOwnerValues,
-          owner,
-          tag,
-          subject.tagId,
-          value * hitCount,
-        );
-        pushHitCountStep(value);
-      }
+      const finishedOnce = getOwnerValue(
+        result.ownerValues,
+        owner,
+        subject.tagId,
+      );
 
       for (const step of result.steps) {
         if (step.kind !== "op") continue;
@@ -2333,16 +2671,174 @@ export function applyInteractions(
           });
         }
       }
+
+      emitAftereffects(
+        subject,
+        finishedOnce,
+        hitCount,
+        sourceLabel,
+        subjectKey,
+      );
+
+      if (finishedOnce !== 0) {
+        mergeOwnerValue(
+          mergedOwnerValues,
+          owner,
+          tag,
+          subject.tagId,
+          finishedOnce * hitCount,
+        );
+        pushHitCountStep(finishedOnce);
+      }
     }
   }
 
-  steps.push(...opSteps, ...hitCountSteps);
+  const deferredSynthetics: Manifestation[] = [];
+
+  // Deferred Option A — thin create from combined closure0 stacks, then thin amplify.
+  if (lookAhead.deferredCreates.length > 0) {
+    const modifierTagIds = new Set<number>();
+    for (const interaction of lookAhead.deferredCreates) {
+      if (interaction.modifierTagId != null) {
+        modifierTagIds.add(interaction.modifierTagId);
+      }
+    }
+    const snapshots: Manifestation[] = [];
+    for (const tagId of modifierTagIds) {
+      const tag = input.tagsById[tagId];
+      if (!tag) continue;
+      const snapshot = snapshotCombinedModifier(mergedOwnerValues, tag);
+      if (snapshot != null) snapshots.push(snapshot);
+    }
+
+    if (snapshots.length > 0) {
+      const createResult = runInteractionsForLeafContext({
+        appliedManifestations: snapshots,
+        defaultInteractions: lookAhead.deferredCreates,
+        tagsById: input.tagsById,
+        awakenersById,
+        leafContext: null,
+        awakenerNamesById: input.awakenerNamesById,
+        recordBaseSteps: false,
+        runSpecial: false,
+        applyUniqueScalingInvents: false,
+        teamMaxHp: input.teamMaxHp,
+        realmMasteryTotal: input.realmMasteryTotal,
+        teamRealms: input.teamRealms,
+      });
+
+      const createTargetIds = collectInteractionTargetIds(
+        lookAhead.deferredCreates,
+        input.tagsById,
+      );
+
+      for (const tagId of createTargetIds) {
+        const teamVal = getOwnerValue(
+          createResult.ownerValues,
+          TEAM_POOL_OWNER,
+          tagId,
+        );
+        if (teamVal === 0) continue;
+        const tag = input.tagsById[tagId];
+        if (!tag) continue;
+        deferredSynthetics.push(buildCreatedBaseManifestation(tag, teamVal));
+      }
+
+      for (const step of createResult.steps) {
+        if (step.kind !== "op") continue;
+        if (createTargetIds.has(step.tagId)) {
+          opSteps.push({
+            ...step,
+            subjectKey: DEFERRED_CREATE_SUBJECT_KEY,
+            subjectLabel: DEFERRED_CREATE_SUBJECT_LABEL,
+          });
+        }
+      }
+    }
+  }
+
+  if (
+    deferredSynthetics.length > 0 &&
+    lookAhead.deferredAmplifies.length > 0
+  ) {
+    const thinApplied = [
+      ...applied.filter((m) => !lookAhead.closure0.has(m.tagId)),
+      ...deferredSynthetics,
+    ];
+    const amplifyResult = runInteractionsForLeafContext({
+      appliedManifestations: thinApplied,
+      defaultInteractions: lookAhead.deferredAmplifies,
+      tagsById: input.tagsById,
+      awakenersById,
+      leafContext: null,
+      awakenerNamesById: input.awakenerNamesById,
+      recordBaseSteps: false,
+      runSpecial: false,
+      applyUniqueScalingInvents: false,
+      teamMaxHp: input.teamMaxHp,
+      realmMasteryTotal: input.realmMasteryTotal,
+      teamRealms: input.teamRealms,
+    });
+
+    const amplifyTargetIds = collectInteractionTargetIds(
+      lookAhead.deferredAmplifies,
+      input.tagsById,
+    );
+    for (const step of amplifyResult.steps) {
+      if (step.kind !== "op") continue;
+      if (amplifyTargetIds.has(step.tagId)) {
+        opSteps.push({
+          ...step,
+          subjectKey: DEFERRED_AMPLIFY_SUBJECT_KEY,
+          subjectLabel: DEFERRED_AMPLIFY_SUBJECT_LABEL,
+          leafContext: null,
+        });
+      }
+    }
+
+    for (const synthetic of deferredSynthetics) {
+      const tag = input.tagsById[synthetic.tagId];
+      const value = getOwnerValue(
+        amplifyResult.ownerValues,
+        ownerKeyFor(synthetic),
+        synthetic.tagId,
+      );
+      if (value === 0) continue;
+      mergeOwnerValue(
+        mergedOwnerValues,
+        ownerKeyFor(synthetic),
+        tag,
+        synthetic.tagId,
+        value,
+      );
+    }
+  } else {
+    for (const synthetic of deferredSynthetics) {
+      const tag = input.tagsById[synthetic.tagId];
+      const scalar = synthetic.valueScalar ?? 0;
+      if (scalar === 0) continue;
+      mergeOwnerValue(
+        mergedOwnerValues,
+        ownerKeyFor(synthetic),
+        tag,
+        synthetic.tagId,
+        scalar,
+      );
+    }
+  }
+
+  steps.push(...opSteps, ...aftereffectSteps, ...hitCountSteps);
+
+  const phase2AppliedForSpecial = [
+    ...phase2Applied,
+    ...deferredSynthetics,
+  ];
 
   // Special conversions once on merged totals (all applied + created for presence).
   applySpecialConversion(
     mergedOwnerValues,
     input.tagsById,
-    phase2Applied,
+    phase2AppliedForSpecial,
     SPECIAL_CORROSION_CONVERSION,
     DEBUFF_CORROSION,
     CORROSION_DAMAGE,
@@ -2351,7 +2847,7 @@ export function applyInteractions(
   applySpecialConversion(
     mergedOwnerValues,
     input.tagsById,
-    phase2Applied,
+    phase2AppliedForSpecial,
     SPECIAL_EMBERS_CONVERSION,
     DEBUFF_EMBERS,
     EMBERS_DAMAGE,
@@ -2370,6 +2866,8 @@ export function applyInteractions(
       tagId,
       tagName: tag?.tagName ?? `#${tagId}`,
       total,
+      isAdditive: tag?.isAdditive !== false,
+      isPercent: tag?.isPercent === true,
     });
   }
 

@@ -387,7 +387,7 @@ console.log("Part D — ATM 27 base-stat invent → 111");
   );
 }
 
-console.log("Part E — aftereffect local ignored in 3b");
+console.log("Part E — aftereffect does not patch source Damage (emit is 3c)");
 {
   const awakener = makeAwakener({ id: 1 });
   const bleed = makeTag(5, "Attacker.Bleed");
@@ -425,11 +425,7 @@ console.log("Part E — aftereffect local ignored in 3b");
   });
   assert(
     (result.totalsByTagId.get(damage.id) ?? 0) === 100,
-    "aftereffect does not change Damage in 3b",
-  );
-  assert(
-    (result.totalsByTagId.get(bleed.id) ?? 0) === 0,
-    "aftereffect does not invent Bleed in 3b",
+    "aftereffect does not change source Damage",
   );
 }
 
