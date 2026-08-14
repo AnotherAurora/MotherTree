@@ -248,9 +248,6 @@ export function SearchFilters({ options }: SearchFiltersProps) {
 
   function runSearch() {
     if (isSearchFilterEmpty(state)) return;
-    // TODO: Wire awakenerEnlightenment into search query logic — gate
-    // awakener_tag_manifestation rows by required_enlightenment <= assumed
-    // enlightenment (and apply manifestation replacements).
     setResults({ status: "loading" });
     startTransition(async () => {
       const result = await runPublicSearch({
@@ -262,6 +259,7 @@ export function SearchFilters({ options }: SearchFiltersProps) {
         everyTurn: state.everyTurn,
         triggerConditionTagId: state.triggerConditionTagId,
         requiredRealmId: state.requiredRealmId,
+        awakenerEnlightenment,
       });
       if (!result.success) {
         setResults({ status: "error", error: result.error });
@@ -320,43 +318,38 @@ export function SearchFilters({ options }: SearchFiltersProps) {
 
       <section
         aria-labelledby={`${baseId}-assumptions-heading`}
-        className="space-y-4 border-t border-[var(--mt-border)]/40 pt-6"
+        className="space-y-2"
       >
-        <div className="space-y-1">
-          <h2
-            id={`${baseId}-assumptions-heading`}
-            className="text-sm font-medium uppercase tracking-wide text-[var(--mt-ink-muted)]"
+        <h2
+          id={`${baseId}-assumptions-heading`}
+          className="text-sm font-medium uppercase tracking-wide text-[var(--mt-ink-muted)]"
+        >
+          Assumptions
+        </h2>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          <label
+            htmlFor={`${baseId}-awakener-enlightenment`}
+            className={secondaryLabelClassName}
           >
-            Assumptions
-          </h2>
-        </div>
-
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <div className="space-y-1">
-            <label
-              htmlFor={`${baseId}-awakener-enlightenment`}
-              className={secondaryLabelClassName}
-            >
-              Awakener Enlightenment
-            </label>
-            <select
-              id={`${baseId}-awakener-enlightenment`}
-              className={selectClassName}
-              value={awakenerEnlightenment}
-              onChange={(e) => {
-                const n = Number(e.target.value);
-                if (isSearchAwakenerEnlightenmentValue(n)) {
-                  setAwakenerEnlightenment(n);
-                }
-              }}
-            >
-              {SEARCH_AWAKENER_ENLIGHTENMENT_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-          </div>
+            Awakener Enlightenment
+          </label>
+          <select
+            id={`${baseId}-awakener-enlightenment`}
+            className={cn(selectClassName, "w-auto min-w-[4.5rem]")}
+            value={awakenerEnlightenment}
+            onChange={(e) => {
+              const n = Number(e.target.value);
+              if (isSearchAwakenerEnlightenmentValue(n)) {
+                setAwakenerEnlightenment(n);
+              }
+            }}
+          >
+            {SEARCH_AWAKENER_ENLIGHTENMENT_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
         </div>
       </section>
 
