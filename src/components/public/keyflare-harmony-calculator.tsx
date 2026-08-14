@@ -24,7 +24,7 @@ type SlotInputs = {
   b: string;
 };
 
-const EMPTY_SLOT: SlotInputs = { a: "0", b: "0" };
+const EMPTY_SLOT: SlotInputs = { a: "15", b: "0" };
 
 function emptySlots(): SlotInputs[] {
   return Array.from({ length: TEAM_SLOT_COUNT }, () => ({ ...EMPTY_SLOT }));

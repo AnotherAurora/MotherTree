@@ -22,6 +22,8 @@ export type DiminishingReturnConfig = {
   rawAxisLabel: string;
   inputALabel: string;
   inputBLabel: string;
+  /** Initial value for the left raw input when nothing is stored. */
+  defaultA: string;
 };
 
 /** Keyflare: f(x)=15+144(x-15)/(x+129), cap 159. */
@@ -52,6 +54,7 @@ export const KEYFLARE_DR_CONFIG: DiminishingReturnConfig = {
   rawAxisLabel: "Raw Keyflare",
   inputALabel: "Keyflare source A",
   inputBLabel: "Keyflare source B",
+  defaultA: "15",
 };
 
 export const ALIEMUS_DR_CONFIG: DiminishingReturnConfig = {
@@ -66,4 +69,5 @@ export const ALIEMUS_DR_CONFIG: DiminishingReturnConfig = {
   rawAxisLabel: "Raw Aliemus",
   inputALabel: "Aliemus source A",
   inputBLabel: "Aliemus source B",
+  defaultA: "0",
 };
