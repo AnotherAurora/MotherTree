@@ -1,6 +1,6 @@
 ---
 name: Simulator Phased Plan
-overview: Path Carver–first roadmap. Phase 1–2c.1 + 3a + 3a.1 + 3a.2 + 3a.3 done. Next is Phase 3b→3c (unique_scaling engine → aftereffect + Layer B closure look-ahead). Phase 4 ports math to desire_demand/radar/simulator, Calculation List layer breakdown, Corrosion/Embers Non-Active parent+descendants + name→id. Phase 5 smart recommend.
+overview: Path Carver–first roadmap. Phase 1–2c.1 + 3a + 3a.1 + 3a.2 + 3a.3 + 3b + 3b.1 done. Next is Phase 3c (aftereffect + Layer B closure look-ahead). Phase 4 ports math to desire_demand/radar/simulator, Calculation List layer breakdown, Corrosion/Embers Non-Active parent+descendants + name→id. Phase 5 smart recommend.
 todos:
   - id: seed-data
     content: Create scripts/seed-simulator-data.ts with 2-3 desires, demand rows, anchored awakeners; add npm script
@@ -58,7 +58,10 @@ todos:
     status: completed
   - id: phase-3b-unique-scaling
     content: Phase 3b — unique_scaling patch/invent in subject path (tag-mod + base-stat null-mod); local layer wins; modifier aggregation; defaults value_scalar=1 op=multiply_one_plus; smokes invent/patch/disable/ATM27
-    status: pending
+    status: completed
+  - id: phase-3b1-unique-scaling-modifier-prefix
+    content: Phase 3b.1 — unique_scaling invent modifier pool prefix (Defender.Shield includes Defender.Shield.*); patch/inference stay exact; smoke + admin manual + plan lock
+    status: completed
   - id: phase-3c-aftereffect-layer-b
     content: Phase 3c — aftereffect emit/merge math (× hitCount = instances × effective copies); restructure Layer B; creates_base closure look-ahead deferred create/amplify Option A; Bleed kit smoke; Special still last
     status: pending
@@ -89,7 +92,7 @@ isProject: false
 
 Path Carver’s **Review Tags** page is the primary surface for testing recommendation math. Simulator Start / Recommend / radar / `desire_demand` fulfillment come **after** Path Carver math stabilizes (Phase 4); the simulator will copy Path Carver logic.
 
-| Focus now (3a.2 → 3b→3c)                                                                | Later (Phase 4+)                               |
+| Focus now (3b.1 → 3c)                                                                | Later (Phase 4+)                               |
 | --------------------------------------------------------------------------------------- | ---------------------------------------------- |
 | Path Carver Review Tags apply + aggregation + interactions                              | Simulator radar / fulfillment UI               |
 | Pass-order layers + `awakener_local_manifestation_interaction` rename (2c)              | Full `desire_demand` scoring / curves          |
@@ -134,7 +137,7 @@ Path Carver’s **Review Tags** page is the primary surface for testing recommen
 | `buff_target_type_restriction` leaf-gating       | **Phase 2b done** — materialize-then-amplify + `creates_base` / `amplifies_subject`; Option B subject `source_type` context |
 | Pass-order damage layers                         | **Phase 2c done**                                                                                                           |
 | Remove leftover `layer.final` enum value         | **Phase 2c.1 done**                                                                                                         |
-| Manifestation-local unique_scaling / aftereffect | Admin 3a–3a.2 done; engine deferred to Phase 3b→3c                                                                          |
+| Manifestation-local unique_scaling / aftereffect | unique_scaling engine **3b** + invent modifier prefix **3b.1 done**; aftereffect + Layer B reshape deferred to **3c** |
 | Calculation List layer breakdown                 | Deferred to Phase 4                                                                                                         |
 | Simulator using Path Carver math                 | Port in Phase 4                                                                                                             |
 | Corrosion/Embers Non-Active + wiring             | Deferred to Phase 4 — parent+descendants capacity; rewire name→id                                                           |
@@ -957,7 +960,8 @@ Pass letters alone do not solve invent-without-default, create-from-final-value,
 | **3a.1** | 3a         | Base-stat unique_scaling admin/contract — null `modifier_tag_id` + required `dependency_stat`; check constraint; Stat Scaling datapatch; plan/manual — **no engine invent math** |
 | **3a.2** | 3a.1       | Disable-only admin UI — hide layer / op / value_scalar / target_type when `is_disabled`; docs — **no schema/engine change**                                                      |
 | **3b**   | 3a.1       | `unique_scaling` patch/invent in existing subject path (tag-mod + base-stat null-mod; local layer, modifier aggregation, defaults)                                               |
-| **3c**   | 3b         | Aftereffect emit/merge + **restructure Layer B** + closure look-ahead deferred create/amplify (Option A)                                                                         |
+| **3b.1** | 3b         | Invent modifier pool prefix (`Defender.Shield` → `Defender.Shield.*`); patch/inference stay exact                                                                                 |
+| **3c**   | 3b.1       | Aftereffect emit/merge + **restructure Layer B** + closure look-ahead deferred create/amplify (Option A)                                                                         |
 
 Shared design locks below apply to all three; each subphase has its own scope and acceptance.
 
@@ -1082,10 +1086,11 @@ Local attachment narrows **which target row** receives the op — **not** which 
 
 For invent or patch with a **tag** modifier (e.g. Shield → that Active Damage manifestation):
 
-| Side         | Rule                                                                                                                                                                                                       |
-| ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Target**   | Only the attached manifestation (its owner + tag). Narrower than `target_type = self` on a global rule.                                                                                                    |
-| **Modifier** | Reuse global interaction rules: `collectModifierManifestations(Mod)` + self / non-self split via each modifier manifestation’s effective `target_type` + `combineTagAcrossOwners` / **`tag.is_additive`**. |
+| Side         | Rule                                                                                                                                                                                                                                                                                          |
+| ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Target**   | Only the attached manifestation (its owner + tag). Narrower than `target_type = self` on a global rule.                                                                                                                                                                                       |
+| **Modifier (invent — 3b.1)** | Prefix under the chosen Modifier Tag (`matchesDemandTag`): `Defender.Shield` includes `Defender.Shield` + all `Defender.Shield.*`. Self / non-self split + fold via `combineTagAcrossOwners` / **`tag.is_additive`** (across sibling tags use the **root** modifier tag’s additive/percent). |
+| **Modifier (patch)** | Unchanged: matching `tag_default_interaction` still uses **exact** modifier id; local only overrides op / factor / layer / disable / `target_type`.                                                                                                                                           |
 
 Do **not** invent a “only this awakener’s Shield” rule unless a Shield manifestation is itself `target_type = self`. Local row `target_type` (required; default `aoe`) constrains **write scope on the target**, not which modifier totals contribute.
 
@@ -1139,7 +1144,7 @@ Even if `Defender.Shield`’s tag layer is `pre_add`, local `add` wins for **whe
 | 16  | **Aftereffect factor:** `value_scalar` required (admin default **1**); scaled by source ATM awakener `dependency_stat` via `effectiveOverrideFactor`.                                                                                                                                                                                                 |
 | 17  | **Aftereffect merge:** always `combineSameTagScalar` / **`tag.is_additive`** (unchanged). No aftereffect-specific combine; no invent-0-vs-skip branch.                                                                                                                                                                                                |
 | 18  | **Aftereffect op dropdown:** only `multiply` and `add_scaled`. Remove `multiply_one_plus` and `presence_multiply` for this mode.                                                                                                                                                                                                                      |
-| 19  | **unique_scaling modifier aggregation:** target scope = attached manifestation only; tag-mod totals reuse global Shield/self/`combineTagAcrossOwners` rules. Local `target_type` does not shrink the modifier pool. Null-mod: awakener `dependency_stat` only.                                                                                        |
+| 19  | **unique_scaling modifier aggregation:** target scope = attached manifestation only; **invent** tag-mod pool = prefix under Modifier Tag (`Shield` → `Shield.*`) + self/non-self + `combineTagAcrossOwners` / root `is_additive`; **patch** stays exact via TDI. Local `target_type` does not shrink the modifier pool. Null-mod: awakener `dependency_stat` only. |
 | 20  | **Look-ahead closure (not bare target_tag_id):** `S0` = this team’s aftereffect `target_tag_id`s; expand via `creates_base` defaults whose **modifier exact-matches** a tag in S; deferred amplifies = `amplifies_subject` whose target matches any tag in S.                                                                                         |
 | 21  | **Restructure Layer B:** shared aftereffect/deferred state + sequential subjects (see below). No new stage after Layer B — Special stays end of Layer B; aggregate pipeline still ends at `applyInteractions`.                                                                                                                                        |
 | 22  | **Local `target_type`:** NOT NULL; admin required; DB/admin default **`aoe`**. Backfill existing nulls → `aoe`. No null write-scope branch.                                                                                                                                                                                                           |
@@ -1275,7 +1280,7 @@ Then Special
 
 ### Worked examples (acceptance narrative)
 
-1. **`unique_scaling` invent (Shield → Damage):** row on a specific **Active Damage** manifestation; `modifier_tag_id` = Defender.Shield; `target_tag_id` null; no matching default → invent onto **that** damage row only. Modifier value = team Shield combined via existing self/non-self + `is_additive` rules (not “owner’s Shield only” unless Shield rows are `self`). Local `layer = add` fires in Damage’s add band using already-increased Shield (e.g. 10→20), not a unique_scaling pass that grows Shield.
+1. **`unique_scaling` invent (Shield → Damage):** row on a specific **Active Damage** manifestation; `modifier_tag_id` = Defender.Shield; `target_tag_id` null; no matching default → invent onto **that** damage row only. Modifier value = **prefix pool** `Defender.Shield` + `Defender.Shield.*` combined via existing self/non-self + `is_additive` rules (not “owner’s Shield only” unless Shield rows are `self`). Local `layer = add` fires in Damage’s add band using already-increased Shield (e.g. 10→20), not a unique_scaling pass that grows Shield.
 2. **`unique_scaling` patch:** same shape; matching default exists → local fields replace the default for that manifestation only.
 3. **`unique_scaling` base-stat invent (ATM 27):** Shield.Fixed base `ceil(0.8×136)=109`; `modifier_tag_id` null; `dependency_stat=sigil_yield`; `value_scalar=0.005`; `multiply_one_plus` → modifierValue `3.6` (percent points); factor raw `0.005` → `109×1.018→111`. Always invent.
 4. **`aftereffect` Bleed:** row on Active Damage; `mode = aftereffect`; `target_tag_id` = `Attacker.Bleed` (not Bleed Damage); `modifier_tag_id` null; default `multiply`; after Damage finishes `post_add`, `contribution = finished(S) * factor`, merge into Bleed via `tag.is_additive`; look-ahead pulls Bleed → Bleed Damage create and Bleed Trigger into the deferred bucket.
@@ -1419,18 +1424,41 @@ poolContrib     = effectiveScalar × instance_count   # provider pool only
 
 **Acceptance:**
 
-- [ ] `unique_scaling` invents when no matching default exists; patches (local wins) when one does — including `is_disabled`
-- [ ] `unique_scaling` affects only the attached target manifestation; tag-mod aggregation reuses global self/non-self + `combineTagAcrossOwners`
-- [ ] Null-mod base-stat invent: percent-points + raw factor; ATM 27 → 111
-- [ ] unique_scaling local `layer` wins for target-path timing; null → modifier tag `layer` or `add` (null-mod); does not grow Mod
-- [ ] Review Tags debug shows unique_scaling steps (inferred patch vs invent / base-stat)
-- [ ] Smoke fixtures for invent / patch / disable / base-stat
+- [x] `unique_scaling` invents when no matching default exists; patches (local wins) when one does — including `is_disabled`
+- [x] `unique_scaling` affects only the attached target manifestation; tag-mod aggregation reuses global self/non-self + `combineTagAcrossOwners`
+- [x] Null-mod base-stat invent: percent-points + raw factor; ATM 27 → 111
+- [x] unique_scaling local `layer` wins for target-path timing; null → modifier tag `layer` or `add` (null-mod); does not grow Mod
+- [x] Review Tags debug shows unique_scaling steps (inferred patch vs invent / base-stat)
+- [x] Smoke fixtures for invent / patch / disable / base-stat
+
+---
+
+### Phase 3b.1 — unique_scaling invent modifier prefix
+
+**Depends on:** 3b.
+
+**Goal:** For **`unique_scaling` invent** (tag-mod), treat local Modifier Tag as a **prefix root** (same `matchesDemandTag` helper as TDI targets): `Defender.Shield` aggregates `Defender.Shield` + all `Defender.Shield.*` into `modifierValue`. Patch inference and patch aggregation stay **exact** via `tag_default_interaction`.
+
+**Scope:**
+
+- Helpers in [`apply-interactions.ts`](src/lib/path-carver/apply-interactions.ts): prefix collect / matching tag ids / combine across sibling tags (root `is_additive`)
+- Wire invent path only; base-stat / aftereffect / invent-vs-patch inference unchanged
+- Admin manual + smoke: Fixed-only under Shield; Shield+Fixed combine; 3b regressions
+- Out of scope: schema/admin UI; patch exact-modifier; Phase 3c
+
+**Acceptance:**
+
+- [x] Invent with modifier=`Defender.Shield` and only `Defender.Shield.Fixed` present uses Fixed’s value
+- [x] Invent with both Shield + Shield.Fixed combines via `is_additive` into one invent op
+- [x] Patch / invent-vs-patch inference remain exact-modifier; aftereffect still ignored
+- [x] Admin manual documents invent prefix vs patch exact
+- [x] Smoke fixtures in `scripts/smoke-phase-3b.ts` (Parts F–G)
 
 ---
 
 ### Phase 3c — aftereffect + Layer B reshape + deferred amplify
 
-**Depends on:** 3b.
+**Depends on:** 3b.1.
 
 **Goal:** Aftereffect emit/merge math; restructure Layer B for shared aftereffect state + sequential subjects; **creates_base closure look-ahead** deferred create then amplify (Option A). Special stays last inside Layer B. Aftereffect emit count per source ATM = **`hitCount = instance_count × effectiveCopies`** (Phase 3a.3 forward contract) — not once on an already-multiplied finished scalar.
 
@@ -1536,7 +1564,8 @@ Path Carver upserts a single `desire_template` per `desire_id`.
 3. **Phase 3a** — local interaction schema + admin + backfill (no engine math change) (DONE)
 4. **Phase 3a.1** — base-stat unique_scaling admin/contract + datapatch (DONE)
 5. **Phase 3a.2** — disable-only admin UI hide unused fields (DONE)
-6. **Phase 3b** — `unique_scaling` patch/invent engine (tag-mod + base-stat)
-7. **Phase 3c** — aftereffect + Layer B reshape + creates_base closure look-ahead deferred create/amplify
-8. **Phase 4** — desire_demand / radar / simulator port + Calculation List layer breakdown + Corrosion/Embers Non-Active parent+descendants capacity + name→id wiring
-9. **Phase 5** — Smart recommend / search
+6. **Phase 3b** — `unique_scaling` patch/invent engine (tag-mod + base-stat) (DONE)
+7. **Phase 3b.1** — unique_scaling invent modifier prefix pool (DONE)
+8. **Phase 3c** — aftereffect + Layer B reshape + creates_base closure look-ahead deferred create/amplify
+9. **Phase 4** — desire_demand / radar / simulator port + Calculation List layer breakdown + Corrosion/Embers Non-Active parent+descendants capacity + name→id wiring
+10. **Phase 5** — Smart recommend / search

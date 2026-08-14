@@ -85,11 +85,15 @@ function formatOpLine(
       : "";
 
   const layerNote = ` | layer=${step.layer ?? "null"}`;
+  const uniqueScalingNote =
+    step.uniqueScaling != null
+      ? ` | unique_scaling=${step.uniqueScaling}`
+      : "";
 
   return (
     `pass ${step.pass} | ${step.op} | ${step.tagName} ← ${step.modifierTagName}` +
     ` × ${formatNum(step.factor)} (mod ${formatNum(step.modifierValue)})` +
-    ` | ${ownerLabel} | ${valueChange}${layerNote}${restrictionNote}${leafNote}`
+    ` | ${ownerLabel} | ${valueChange}${layerNote}${uniqueScalingNote}${restrictionNote}${leafNote}`
   );
 }
 
@@ -215,8 +219,8 @@ export function ReviewTagsMathDebug({
           Layer A base (dependency-scaled) → Keyflare Harmony →
           Keyflare→Create.Posse → team Max HP → Base Tentacle Damage →
           interaction ops by modifier layer (pre_add → add → post_add;
-          leaf-gated buff restriction) → × hitCount (instances × copies) →
-          special conversions → totals.
+          unique_scaling local layer wins; invent/patch/base_stat) →
+          × hitCount (instances × copies) → special conversions → totals.
           Multiply ops ceil after each write. Restricted ops only appear when
           leaf matches. Base/op lines are single-hit; hitCount multiplies after.
         </p>

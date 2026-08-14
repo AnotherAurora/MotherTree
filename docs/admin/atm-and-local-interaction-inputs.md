@@ -4,17 +4,17 @@ Quick lookup: how fields on **`awakener_tag_manifestation`** (ATM) and **`awaken
 
 **Scope:** ATM, local interactions, and **`copy_provider_group`** / members (not `tag_default_interaction`, realm rows, covenant/wheel/posse, or desire demands).
 
-**Engine status (as of Phase 3a.3):**
+**Engine status (as of Phase 3b.1):**
 
 | Feature | Status |
 | --- | --- |
 | ATM base scalar + apply gates | Live |
 | ATM **`hitCount`** (`instance_count` × effective copies); Layer B on single-hit then × hitCount | Live (**3a.3**) |
-| Local row as **patch** of a matching `tag_default_interaction` | Live (`unique_scaling` / legacy override) |
-| Local **`unique_scaling` invent** (tag-mod or base-stat null-mod) | Phase **3b** (admin/contract live in **3a.1**) |
+| Local row as **patch** of a matching `tag_default_interaction` | Live (`unique_scaling`) |
+| Local **`unique_scaling` invent** (tag-mod or base-stat null-mod) | Live (**3b**); invent Modifier Tag is **prefix** (**3b.1**) |
 | Local **`aftereffect`** emit / merge (× `hitCount` = instances × effective copies) | Phase **3c** |
 
-Formulas below for invent / aftereffect are the **locked design** so you can enter data correctly ahead of engine work.
+Formulas below for aftereffect are the **locked design** so you can enter data correctly ahead of engine work. Invent/patch/`unique_scaling` layer rules are live in Review Tags.
 
 ---
 
@@ -198,7 +198,9 @@ See per-mode sections. Defaults differ by mode.
 - **Tag modifier** (`modifier_tag_id` set): if a `tag_default_interaction` exists for **exact** `modifier_tag_id` → parent ATM’s tag (prefix/exclusion rules as usual): **PATCH** that link for this manifestation only (local wins: op, factor, disable, target_type, layer, …). Else: **INVENT** Mod → this manifestation only (Phase 3b).
 - **Base-stat** (`modifier_tag_id` null + `dependency_stat` set): always **INVENT** (no default match). Engine in Phase 3b.
 
-**Modifier pool (tag-mod):** global rules (all matching Shield rows, self/non-self, `tag.is_additive`). Local attachment only narrows **which target row** receives the op — not “only this awakener’s Shield” unless Shield rows themselves are `self`.
+**Modifier pool (tag-mod invent — Phase 3b.1):** Modifier Tag is a **prefix root** (same as `tag_default_interaction` target matching): `Defender.Shield` includes `Defender.Shield` and all `Defender.Shield.*`. Self/non-self + `tag.is_additive` still apply across that pool. Local attachment only narrows **which target row** receives the op — not “only this awakener’s Shield” unless Shield rows themselves are `self`.
+
+**Modifier pool (tag-mod patch):** unchanged — matching `tag_default_interaction` still uses **exact** modifier id; local only overrides op / factor / layer / disable / `target_type`.
 
 **Modifier value (base-stat):** parent ATM awakener’s `dependency_stat`. If percent-like dep → percentage points (`×100`). Factor = raw `value_scalar`.
 
