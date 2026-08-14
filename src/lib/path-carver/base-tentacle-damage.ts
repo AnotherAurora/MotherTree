@@ -71,6 +71,13 @@ export function baseTentacleDamageManifestationId(): number {
   return -(DERIVED_ID_OFFSET + SUPPORT_TENTACLE_DAMAGE_UP_TAG_ID);
 }
 
+/** True for the Base Tentacle Damage realm synthetic (inbound amplify allowed). */
+export function isBaseTentacleDamageManifestation(
+  m: Pick<Manifestation, "id">,
+): boolean {
+  return m.id === baseTentacleDamageManifestationId();
+}
+
 /** Prefer benthos when both could appear; else aequor; else null. */
 export function resolveBaseTentacleMode(
   effectiveRealmIds: ReadonlySet<number>,
@@ -175,7 +182,8 @@ export function computeBaseTentacleDamage(
 }
 
 /**
- * Realm synthetic Support.Tentacle Damage Up (interaction-immune as subject).
+ * Realm synthetic Support.Tentacle Damage Up.
+ * Realm-sourced but not interaction-immune as subject (inbound amplify allowed).
  */
 export function buildBaseTentacleDamageManifestation(
   breakdown: BaseTentacleDamageBreakdown,

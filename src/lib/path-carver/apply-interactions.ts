@@ -2327,6 +2327,7 @@ function collectInteractionTargetIds(
  *
  * Phase 2b.1: isBaseStatTransfer / realm / Support isCreatedBase subjects contribute
  * absolute scalar only (no inbound ops) but remain in other subjects' cohorts as modifiers.
+ * Exception: Base Tentacle Damage synthetic (realm-sourced) receives inbound amplify.
  * is_additive: Layer A same-tag seed + in-pass modifier collapse, and post-pass
  * subject merge (sum vs multiply; percent multiplicative uses (1+v) fold-back).
  */
