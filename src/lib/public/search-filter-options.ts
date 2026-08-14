@@ -35,6 +35,21 @@ export const SEARCH_FROM_OPTIONS = [
 
 export type SearchFromValue = (typeof SEARCH_FROM_OPTIONS)[number]["value"];
 
+/** Assumed awakener enlightenment for Search (maps to required_enlightenment). */
+export const SEARCH_AWAKENER_ENLIGHTENMENT_OPTIONS = [
+  { value: 0, label: "E0" },
+  { value: 1, label: "E1" },
+  { value: 2, label: "E2" },
+  { value: 3, label: "E3" },
+  { value: 7, label: "OE" },
+  { value: 15, label: "AA" },
+] as const;
+
+export type SearchAwakenerEnlightenmentValue =
+  (typeof SEARCH_AWAKENER_ENLIGHTENMENT_OPTIONS)[number]["value"];
+
+export const SEARCH_DEFAULT_AWAKENER_ENLIGHTENMENT: SearchAwakenerEnlightenmentValue = 3;
+
 /** Exact dotted segments dropped from Search display labels. */
 export const SEARCH_TAG_LABEL_DROPPED_SEGMENTS = new Set([
   "Attacker",

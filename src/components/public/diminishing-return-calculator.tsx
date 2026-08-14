@@ -56,7 +56,7 @@ type DiminishingReturnCalculatorProps = {
 export function DiminishingReturnCalculator({
   config,
 }: DiminishingReturnCalculatorProps) {
-  const [a, setA] = useState("0");
+  const [a, setA] = useState(config.defaultA);
   const [b, setB] = useState("0");
   const [hydrated, setHydrated] = useState(false);
   const aId = useId();

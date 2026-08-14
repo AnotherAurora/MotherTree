@@ -1,5 +1,6 @@
 "use client";
 
+import { toast } from "sonner";
 import { AssetIcon } from "@/lib/assets/asset-icon";
 import { resolveSkeydbAssetUrl } from "@/lib/assets/resolve-asset-url";
 import { resolveSkeydbPageUrl } from "@/lib/assets/skeydb-page-url";
@@ -25,6 +26,10 @@ type SearchResultsTableProps = {
   rows: SearchResultRow[];
   truncated: boolean;
 };
+
+function isCoarsePointer(): boolean {
+  return window.matchMedia("(pointer: coarse)").matches;
+}
 
 function NameCell({ row }: { row: SearchResultRow }) {
   const src =
@@ -73,6 +78,7 @@ function NameCell({ row }: { row: SearchResultRow }) {
       href={pageUrl}
       target="_blank"
       rel="noopener noreferrer"
+      onClick={(e) => e.stopPropagation()}
       className={cn(
         "inline-flex items-center gap-2 text-[var(--mt-ember)]",
         "underline-offset-4 hover:underline hover:text-[var(--mt-ember-deep)]",
@@ -114,25 +120,42 @@ export function SearchResultsTable({
             </tr>
           </thead>
           <tbody>
-            {rows.map((row) => (
-              <tr
-                key={row.id}
-                className="border-b border-[var(--mt-border)]/50 odd:bg-[rgb(255_245_235_/_0.25)] hover:bg-[rgb(255_245_235_/_0.4)] last:border-b-0"
-              >
-                {COLUMNS.map((col) => (
-                  <td
-                    key={col.key}
-                    className="whitespace-nowrap px-3 py-2 align-middle text-[var(--mt-ink)]"
-                  >
-                    {col.key === "name" ? (
-                      <NameCell row={row} />
-                    ) : (
-                      row[col.key]
-                    )}
-                  </td>
-                ))}
-              </tr>
-            ))}
+            {rows.map((row) => {
+              const metadata = row.metadata;
+              const hasMetadata = metadata != null;
+              return (
+                <tr
+                  key={row.id}
+                  title={hasMetadata ? metadata : undefined}
+                  onClick={
+                    hasMetadata
+                      ? () => {
+                          if (isCoarsePointer()) {
+                            toast.message(metadata);
+                          }
+                        }
+                      : undefined
+                  }
+                  className={cn(
+                    "border-b border-[var(--mt-border)]/50 odd:bg-[rgb(255_245_235_/_0.25)] hover:bg-[rgb(255_245_235_/_0.4)] last:border-b-0",
+                    hasMetadata && "cursor-help",
+                  )}
+                >
+                  {COLUMNS.map((col) => (
+                    <td
+                      key={col.key}
+                      className="whitespace-nowrap px-3 py-2 align-middle text-[var(--mt-ink)]"
+                    >
+                      {col.key === "name" ? (
+                        <NameCell row={row} />
+                      ) : (
+                        row[col.key]
+                      )}
+                    </td>
+                  ))}
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

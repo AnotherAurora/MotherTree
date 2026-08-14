@@ -15,6 +15,7 @@ import {
   type SearchRequiredRealmId,
 } from "@/lib/public/search-filter-options";
 import { matchesDemandTag } from "@/lib/simulator/tag-matching";
+import { applyManifestationReplacements } from "@/lib/team-data/resolve-manifestations";
 import type { AllStats, Awakener } from "@/lib/team-data/types";
 
 const EMPTY_DISPLAY = "—";
@@ -28,6 +29,8 @@ export type SearchQueryFilters = {
   everyTurn: boolean | null;
   triggerConditionTagId: number | null;
   requiredRealmId: SearchRequiredRealmId | null;
+  /** Assumed awakener enlightenment (Path Carver load/resolve gate). */
+  awakenerEnlightenment: number;
 };
 
 export type SearchResultRow = {
@@ -45,6 +48,8 @@ export type SearchResultRow = {
   everyTurn: string;
   triggerCondition: string;
   requiredRealm: string;
+  /** Awakener manifestation notes only; null for other sources / empty. */
+  metadata: string | null;
 };
 
 export type SearchResultsInput = {
@@ -236,6 +241,11 @@ function passesCommonFilters(
   return true;
 }
 
+function formatMetadata(raw: string | null | undefined): string | null {
+  const trimmed = raw?.trim();
+  return trimmed && trimmed.length > 0 ? trimmed : null;
+}
+
 function sortAndCap(rows: SearchResultRow[]): SearchResultsOutput {
   // Negative Value is a penalty/debuff; omit it from Search results.
   const visible = rows.filter((row) => row.value == null || row.value >= 0);
@@ -290,7 +300,20 @@ export function buildSearchResults(
   const rows: SearchResultRow[] = [];
 
   if (sources.includes("awakener")) {
-    for (const m of input.awakenerManifestations) {
+    // Mirror Path Carver load/resolve: enlightenment gate, then replacements,
+    // then Search filters on survivors.
+    const enlightenmentGated = input.awakenerManifestations.filter(
+      (m) =>
+        (m.required_enlightenment ?? 0) <= filters.awakenerEnlightenment,
+    );
+    const resolvedAwakenerManifestations = applyManifestationReplacements(
+      enlightenmentGated.map((row) => ({
+        ...row,
+        replacesManifestationId: row.replaces_manifestation_id,
+      })),
+    );
+
+    for (const m of resolvedAwakenerManifestations) {
       if (
         !passesCommonFilters(
           {
@@ -360,6 +383,7 @@ export function buildSearchResults(
           m.required_realm,
           realmsById,
         ),
+        metadata: formatMetadata(m.metadata),
       });
     }
   }
@@ -429,6 +453,7 @@ export function buildSearchResults(
           m.required_realm,
           realmsById,
         ),
+        metadata: null,
       });
     }
   }
@@ -491,6 +516,7 @@ export function buildSearchResults(
             m.required_realm,
             realmsById,
           ),
+          metadata: null,
         });
       }
     }
@@ -562,6 +588,7 @@ export function buildSearchResults(
           m.required_realm2,
           realmsById,
         ),
+        metadata: null,
       });
     }
   }

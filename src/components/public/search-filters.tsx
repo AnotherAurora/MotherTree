@@ -7,11 +7,14 @@ import { SearchResultsTable } from "@/components/public/search-results-table";
 import { runPublicSearch } from "@/lib/actions/public-search";
 import type {
   AttackerLayerBucket,
+  SearchAwakenerEnlightenmentValue,
   SearchFilterOptions,
   SearchFromValue,
   SearchRequiredRealmId,
 } from "@/lib/public/search-filter-options";
 import {
+  SEARCH_AWAKENER_ENLIGHTENMENT_OPTIONS,
+  SEARCH_DEFAULT_AWAKENER_ENLIGHTENMENT,
   formatSearchBuffRestrictionLabel,
   formatSearchDependencyStatLabel,
   formatSearchRealmLabel,
@@ -84,6 +87,21 @@ function parseOptionalNumber(value: string): number | null {
   if (!value) return null;
   const n = Number(value);
   return Number.isFinite(n) ? n : null;
+}
+
+function isSearchAwakenerEnlightenmentValue(
+  value: number,
+): value is SearchAwakenerEnlightenmentValue {
+  return SEARCH_AWAKENER_ENLIGHTENMENT_OPTIONS.some((o) => o.value === value);
+}
+
+function formatAwakenerEnlightenmentLabel(
+  value: SearchAwakenerEnlightenmentValue,
+): string {
+  return (
+    SEARCH_AWAKENER_ENLIGHTENMENT_OPTIONS.find((o) => o.value === value)
+      ?.label ?? String(value)
+  );
 }
 
 function findTagLabel(
@@ -195,12 +213,21 @@ type SearchResultsState =
 export function SearchFilters({ options }: SearchFiltersProps) {
   const baseId = useId();
   const [state, setState] = useState<SearchFilterState>(EMPTY_STATE);
+  // Separate from Clear Filters / empty-filter gating — always-on assumption.
+  const [awakenerEnlightenment, setAwakenerEnlightenment] =
+    useState<SearchAwakenerEnlightenmentValue>(
+      SEARCH_DEFAULT_AWAKENER_ENLIGHTENMENT,
+    );
   const [results, setResults] = useState<SearchResultsState>({
     status: "idle",
   });
   const [isPending, startTransition] = useTransition();
   const empty = isSearchFilterEmpty(state);
-  const summary = empty ? "" : summarizeSearchFilters(state, options);
+  const enlightenmentSummary = `Awakener Enlightenment: ${formatAwakenerEnlightenmentLabel(awakenerEnlightenment)}`;
+  const filterSummary = empty ? "" : summarizeSearchFilters(state, options);
+  const summary = empty
+    ? `No filters applied. · ${enlightenmentSummary}`
+    : `${filterSummary} · ${enlightenmentSummary}`;
   const loading = isPending || results.status === "loading";
   const canClear =
     !empty || results.status === "success" || results.status === "error";
@@ -216,6 +243,7 @@ export function SearchFilters({ options }: SearchFiltersProps) {
   function clearFilters() {
     setState(EMPTY_STATE);
     setResults({ status: "idle" });
+    // Intentionally leave awakenerEnlightenment unchanged.
   }
 
   function runSearch() {
@@ -231,6 +259,7 @@ export function SearchFilters({ options }: SearchFiltersProps) {
         everyTurn: state.everyTurn,
         triggerConditionTagId: state.triggerConditionTagId,
         requiredRealmId: state.requiredRealmId,
+        awakenerEnlightenment,
       });
       if (!result.success) {
         setResults({ status: "error", error: result.error });
@@ -267,7 +296,7 @@ export function SearchFilters({ options }: SearchFiltersProps) {
           className="min-w-0 flex-1 text-sm text-[var(--mt-ink-muted)]"
           aria-live="polite"
         >
-          {summary || "No filters applied."}
+          {summary}
         </p>
         <button
           type="button"
@@ -286,6 +315,43 @@ export function SearchFilters({ options }: SearchFiltersProps) {
           Clear Filters
         </button>
       </div>
+
+      <section
+        aria-labelledby={`${baseId}-assumptions-heading`}
+        className="space-y-2"
+      >
+        <h2
+          id={`${baseId}-assumptions-heading`}
+          className="text-sm font-medium uppercase tracking-wide text-[var(--mt-ink-muted)]"
+        >
+          Assumptions
+        </h2>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          <label
+            htmlFor={`${baseId}-awakener-enlightenment`}
+            className={secondaryLabelClassName}
+          >
+            Awakener Enlightenment
+          </label>
+          <select
+            id={`${baseId}-awakener-enlightenment`}
+            className={cn(selectClassName, "w-auto min-w-[4.5rem]")}
+            value={awakenerEnlightenment}
+            onChange={(e) => {
+              const n = Number(e.target.value);
+              if (isSearchAwakenerEnlightenmentValue(n)) {
+                setAwakenerEnlightenment(n);
+              }
+            }}
+          >
+            {SEARCH_AWAKENER_ENLIGHTENMENT_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      </section>
 
       <section
         aria-labelledby={`${baseId}-tags-heading`}
