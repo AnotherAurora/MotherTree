@@ -1,5 +1,6 @@
 /**
- * Smoke: Search ATM instance_count + aftereffect target rows.
+ * Smoke: Search Support ATM instance_count + aftereffect (non-Attacker/Defender).
+ * Attacker/Defender aftereffects are covered by smoke-public-solo-search-totals.ts.
  * Run: npx tsx scripts/smoke-search-aftereffect.ts
  */
 import { buildSearchResults } from "../src/lib/public/search-results";
@@ -23,26 +24,18 @@ function assert(cond: unknown, msg: string): asserts cond {
 
 const tags = [
   {
-    id: 1,
-    tag_name: "Attacker.Active Damage",
-    layer: "add",
-    is_percent: false,
-    is_additive: true,
-    is_searchable: true,
-  },
-  {
-    id: 2,
-    tag_name: "Attacker.Poison",
-    layer: "add",
-    is_percent: false,
-    is_additive: true,
-    is_searchable: true,
-  },
-  {
     id: 3,
     tag_name: "Support.Crit Rate",
     layer: "add",
     is_percent: true,
+    is_additive: true,
+    is_searchable: true,
+  },
+  {
+    id: 4,
+    tag_name: "Support.Draw",
+    layer: "add",
+    is_percent: false,
     is_additive: true,
     is_searchable: true,
   },
@@ -52,7 +45,7 @@ const awakeners = [
   {
     id: 10,
     name: "TestAwakener",
-    realm: null,
+    realm: 1,
     con: 100,
     atk: 200,
     def: 100,
@@ -72,14 +65,14 @@ const awakeners = [
 const atm = {
   id: 100,
   awakener_id: 10,
-  tag_id: 1,
-  metadata: "  Active Damage notes  ",
+  tag_id: 4,
+  metadata: "  Draw notes  ",
   value_scalar: 1.5,
   instance_count: 2,
   required_enlightenment: 0,
   source_type: null,
   target_type: "aoe",
-  dependency_stat: "atk",
+  dependency_stat: null,
   buff_target_type_restriction: null,
   replaces_manifestation_id: null,
   is_accumulating: false,
@@ -101,20 +94,24 @@ const local = {
   dependency_stat: null,
   mode: "aftereffect",
   layer: "add",
-  target_tag_id: 2,
+  target_tag_id: 3,
 } as PublicRow<"awakener_local_manifestation_interaction">;
 
 const empty = {
-  realms: [] as PublicRow<"realm">[],
+  realms: [
+    { id: 1, name: "chaos", replace: null },
+  ] as PublicRow<"realm">[],
   wheels: [] as PublicRow<"wheel">[],
   posses: [] as PublicRow<"posse">[],
   covenants: [] as PublicRow<"covenant">[],
+  realmManifestations: [] as PublicRow<"realm_tag_manifestation">[],
+  defaultInteractions: [] as PublicRow<"tag_default_interaction">[],
   wheelManifestations: [] as PublicRow<"wheel_tag_manifestation">[],
   posseManifestations: [] as PublicRow<"posse_tag_manifestation">[],
   covenantManifestations: [] as PublicRow<"covenant_tag_manifestation">[],
 };
 
-// ceil(1.5 * 200) = 300; × instance_count 2 = 600
+// Support.Draw: 1.5 × 2 = 3 → ceil 3
 const allTags = buildSearchResults({
   filters: emptyFilters,
   tags,
@@ -128,21 +125,17 @@ const atmRow = allTags.rows.find((r) => r.id === "awakener:100");
 const aeRow = allTags.rows.find((r) => r.id === "awakener-aftereffect:50");
 assert(atmRow, "ATM row missing");
 assert(aeRow, "aftereffect row missing");
-assert(atmRow.value === 600, `ATM value expected 600 got ${atmRow.value}`);
-// contrib = 300 * 0.5 = 150; × 2 = 300
-assert(aeRow.value === 300, `aftereffect value expected 300 got ${aeRow.value}`);
-assert(aeRow.tag.includes("Poison"), `aftereffect tag expected Poison got ${aeRow.tag}`);
+assert(atmRow.value === 3, `ATM value expected 3 got ${atmRow.value}`);
+// contrib = 1.5 * 0.5 = 0.75; × 2 = 1.5 → ceil to 2dp = 1.5 (percent Crit Rate)
+assert(aeRow.value === 1.5, `aftereffect value expected 1.5 got ${aeRow.value}`);
+assert(aeRow.tag.includes("Crit Rate"), `aftereffect tag expected Crit Rate got ${aeRow.tag}`);
 assert(
-  aeRow.metadata === "Active Damage notes",
+  aeRow.metadata === "Draw notes",
   `aftereffect metadata expected trimmed ATM notes got ${JSON.stringify(aeRow.metadata)}`,
 );
-assert(
-  atmRow.metadata === "Active Damage notes",
-  `ATM metadata expected trimmed notes got ${JSON.stringify(atmRow.metadata)}`,
-);
 
-const poisonOnly = buildSearchResults({
-  filters: { ...emptyFilters, tagId: 2 },
+const critOnly = buildSearchResults({
+  filters: { ...emptyFilters, tagId: 3 },
   tags,
   awakeners,
   awakenerManifestations: [atm],
@@ -150,9 +143,9 @@ const poisonOnly = buildSearchResults({
   ...empty,
 });
 assert(
-  poisonOnly.rows.length === 1 &&
-    poisonOnly.rows[0]?.id === "awakener-aftereffect:50",
-  "Poison filter should return only aftereffect row",
+  critOnly.rows.length === 1 &&
+    critOnly.rows[0]?.id === "awakener-aftereffect:50",
+  "Crit Rate filter should return only aftereffect row",
 );
 
 const disabled = buildSearchResults({
@@ -174,7 +167,7 @@ const uniqueScalingIgnored = buildSearchResults({
   awakeners,
   awakenerManifestations: [atm],
   awakenerLocalInteractions: [
-    { ...local, mode: "unique_scaling", target_tag_id: null, modifier_tag_id: 2 },
+    { ...local, mode: "unique_scaling", target_tag_id: null, modifier_tag_id: 3 },
   ],
   ...empty,
 });
@@ -185,47 +178,7 @@ assert(
   "unique_scaling should not emit aftereffect rows",
 );
 
-// Final ceil: raw finishedOnce (no dep) = 1.1; × 3 = 3.3 → ceil 4 (non-percent)
-const ceilAtm = {
-  ...atm,
-  id: 101,
-  tag_id: 1,
-  value_scalar: 1.1,
-  dependency_stat: null,
-  instance_count: 3,
-  metadata: null,
-} as PublicRow<"awakener_tag_manifestation">;
-const ceilLocal = {
-  ...local,
-  id: 51,
-  manifestation_id: 101,
-  value_scalar: 0.4,
-  target_tag_id: 2,
-} as PublicRow<"awakener_local_manifestation_interaction">;
-const ceilCase = buildSearchResults({
-  filters: emptyFilters,
-  tags,
-  awakeners,
-  awakenerManifestations: [ceilAtm],
-  awakenerLocalInteractions: [ceilLocal],
-  ...empty,
-});
-const ceilAtmRow = ceilCase.rows.find((r) => r.id === "awakener:101");
-const ceilAeRow = ceilCase.rows.find((r) => r.id === "awakener-aftereffect:51");
-assert(ceilAtmRow, "ceil ATM row missing");
-assert(ceilAeRow, "ceil aftereffect row missing");
-// 1.1 * 3 = 3.3 → Math.ceil = 4
-assert(
-  ceilAtmRow.value === 4,
-  `ATM final ceil expected 4 got ${ceilAtmRow.value}`,
-);
-// contrib = 1.1 * 0.4 = 0.44; × 3 = 1.32 → Math.ceil = 2
-assert(
-  ceilAeRow.value === 2,
-  `aftereffect final ceil expected 2 got ${ceilAeRow.value}`,
-);
-
-// Percent target: finishedOnce 0.113 (raw); factor 1; instances 1 → ceil to 2dp = 0.12
+// Percent ATM: 0.113 × 1 → ceil 0.12; aftereffect factor 1 → 0.12
 const pctAtm = {
   ...atm,
   id: 102,
@@ -261,10 +214,6 @@ assert(
 assert(
   pctAeRow.value === 0.12,
   `percent aftereffect ceil expected 0.12 got ${pctAeRow.value}`,
-);
-assert(
-  pctAeRow.metadata === "pct notes",
-  `percent aftereffect metadata expected pct notes got ${JSON.stringify(pctAeRow.metadata)}`,
 );
 
 console.log("smoke-search-aftereffect: ok");

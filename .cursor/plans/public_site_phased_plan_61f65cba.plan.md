@@ -1,6 +1,6 @@
 ---
 name: Public Site Phased Plan
-overview: "Public Mother Tree (root version): homepage hub + Search + Calculator + Manual + About are public; other routes stay private admin. Phase 0–6 done."
+overview: "Public Mother Tree (root version): homepage hub + Search + Calculator + Manual + About are public; other routes stay private admin. Phase 0–7 done."
 todos:
   - id: phase-0-scope
     content: Phase 0 — Scope locked (Search naming, calculator catalog, table allowlist, localStorage)
@@ -34,6 +34,9 @@ todos:
     status: completed
   - id: phase-6-caching
     content: Phase 6 — In-process 5m TTL cache around fetchPublicTable; smoke 2nd read; rate limit still counts hits
+    status: completed
+  - id: phase-7-solo-kit-search
+    content: Phase 7 — Solo-kit Search totals for Attacker/Defender (ATM+locals+RTM; 24 multi-realm; Support stays raw)
     status: completed
 isProject: false
 ---
@@ -77,6 +80,7 @@ flowchart TD
   P4[Phase4_Search]
   P5[Phase5_PublicRelease]
   P6[Phase6_Caching]
+  P7[Phase7_SoloKitTotals]
   P0 --> P1 --> P1_1 --> P1_2
   P1 --> P2
   P2 --> P3
@@ -85,9 +89,11 @@ flowchart TD
   P3 --> P5
   P4 --> P5
   P5 --> P6
+  P4 --> P7
+  P6 --> P7
 ```
 
-Phase 3 and 4 both need Phase 2. Prefer finishing **calculator (3)** before deep search work; search can start after Phase 2 if you want parallel work later. Phase 1.1 / 1.2 (theme + hub) do not block Phase 2+. Phase 3.1 (Covenant placeholder) and Phase 3.2 (Covenant calculator body) follow Phase 3 and do not block Phase 5 release.
+Phase 3 and 4 both need Phase 2. Prefer finishing **calculator (3)** before deep search work; search can start after Phase 2 if you want parallel work later. Phase 1.1 / 1.2 (theme + hub) do not block Phase 2+. Phase 3.1 (Covenant placeholder) and Phase 3.2 (Covenant calculator body) follow Phase 3 and do not block Phase 5 release. Phase 7 needs Phase 4 functionally; prefer after Phase 6 so RTM/TDI catalog reads are cached.
 
 ---
 
@@ -547,6 +553,40 @@ Cache allowlisted public catalog/read data used by Search (and any other `fetchP
 
 ---
 
+## Phase 7 — Solo-kit Search totals (Attacker / Defender)
+
+_Awakener Values for `Attacker.*` / `Defender.*` become solo Path Carver Review Tags totals (kit + realm). Support and other sources stay on Phase 4 per-row path._
+
+### Locks
+
+| Lock | Choice |
+| --- | --- |
+| Result grain | **Totals rows** for awakener contributions to **`Attacker.*` / `Defender.*` only** |
+| Other awakener tags | Keep Phase 4 **per-ATM / aftereffect** raw-scaled rows (`Support.*`, etc.) |
+| Kit | ATM + locals + **realm RTMs**; **no** wheel / posse / covenant |
+| Empty slots | Accept Path Carver **4-slot dilution** (empty slots = 0) |
+| Emit rule | Emit only when `tagId` appears in `totalsByTagId` after apply (no missing→0) |
+| `"24"` | Expand across `SEARCH_REQUIRED_REALM_IDS` `[1,2,4,6]` when Required Realm unset; when set, that realm only. Identify by `awakener.name === "24"` |
+| Damage dealer | Solo sim always marks the single awakener as damage dealer |
+| Math | `computeReviewTagTotals` / `createManifestationApplyContext` — no formula fork |
+| Fidelity gap | No public `copy_provider_*` tables — ATM `instance_count` / `base_copies` only |
+| Metadata filters | Apply to raw manifestation rows only; solo-total rows show `—` for ATM-level columns |
+
+### Implementation touchpoints
+
+- Adapter: [`src/lib/public/solo-awakener-totals.ts`](src/lib/public/solo-awakener-totals.ts)
+- Wire: [`src/lib/public/search-results.ts`](src/lib/public/search-results.ts), [`src/lib/actions/public-search.ts`](src/lib/actions/public-search.ts)
+- Manual: [`src/app/(public)/manual/search/page.tsx`](src/app/(public)/manual/search/page.tsx)
+- Smoke: `scripts/smoke-public-solo-search-totals.ts`
+
+### Out of scope
+
+- Solo-mode undiluted slot math; signature wheel/gear; public `copy_provider_*`; shareable URLs / entity pickers; simulator/recommend
+
+**Exit:** Attacker/Defender awakener Search Values match solo-kit Review Tags totals (incl. `"24"` multi-realm emit-if-present); Support stays raw; no ATM+total double rows.
+
+---
+
 ## Remaining detail slots (without reordering phases)
 
 | Slot                                              | Status                                                                          | Where it lands          |
@@ -568,6 +608,7 @@ Cache allowlisted public catalog/read data used by Search (and any other `fetchP
 | Column-level public trimming                      | Done: hide `created_at`, `updated_at`, `deleted_at`                             | Phase 2                 |
 | Public read caps                                  | Done: 500 rows/query; ~60 req/min/IP **in-memory**                              | Phase 2 + 5             |
 | Public read caching                               | Done: in-process **5m** TTL around `fetchPublicTable`; no invalidation; rate limit counts hits; smoke 2nd read | Phase 6                 |
+| Search solo-kit Attacker/Defender totals          | Locked: Phase 7 (ATM+locals+RTM; `"24"` multi-realm; Support raw)               | Phase 7                 |
 | Admin runtime                                     | Done: local-only; prod 404; no service role on Vercel; no login                 | Phase 5                 |
 | Vercel production URL                             | Done: **mothertree.vercel.app**; README Live site link                          | Phase 5                 |
 
@@ -581,7 +622,7 @@ Cache allowlisted public catalog/read data used by Search (and any other `fetchP
 - Production admin login / password / Supabase Auth (admin is local-only)
 - Service role key on Vercel (Production or Preview)
 - Monetization (conflicts with SKeyDB NC license unless separately cleared)
-- Search v2 / shareable URLs / richer joins / entity pickers (deferred; not Phase 6)
+- Search v2 / shareable URLs / richer joins / entity pickers (deferred; beyond Phase 7 solo totals)
 - Extra public calculator tools beyond the shipped catalog
 - Postgres secondary indexes for public Search (not needed with current bulk-fetch pattern)
 - Edge/WAF or Redis rate limiting (only if abuse appears)

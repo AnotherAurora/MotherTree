@@ -66,6 +66,8 @@ export async function runPublicSearch(
 
   const emptyLocal: PublicRow<"awakener_local_manifestation_interaction">[] =
     [];
+  const emptyRtm: PublicRow<"realm_tag_manifestation">[] = [];
+  const emptyTdi: PublicRow<"tag_default_interaction">[] = [];
 
   const [
     tagsResult,
@@ -76,6 +78,8 @@ export async function runPublicSearch(
     covenantsResult,
     atmResult,
     localResult,
+    rtmResult,
+    tdiResult,
     wtmResult,
     ptmResult,
     ctmResult,
@@ -124,6 +128,20 @@ export async function runPublicSearch(
           data: emptyLocal,
           truncated: false,
         }),
+    needAwakener
+      ? fetchPublicTable("realm_tag_manifestation")
+      : Promise.resolve({
+          success: true as const,
+          data: emptyRtm,
+          truncated: false,
+        }),
+    needAwakener
+      ? fetchPublicTable("tag_default_interaction")
+      : Promise.resolve({
+          success: true as const,
+          data: emptyTdi,
+          truncated: false,
+        }),
     needWheel
       ? fetchPublicTable("wheel_tag_manifestation")
       : Promise.resolve({
@@ -156,6 +174,8 @@ export async function runPublicSearch(
     covenantsResult,
     atmResult,
     localResult,
+    rtmResult,
+    tdiResult,
     wtmResult,
     ptmResult,
     ctmResult,
@@ -174,6 +194,8 @@ export async function runPublicSearch(
     !covenantsResult.success ||
     !atmResult.success ||
     !localResult.success ||
+    !rtmResult.success ||
+    !tdiResult.success ||
     !wtmResult.success ||
     !ptmResult.success ||
     !ctmResult.success
@@ -190,6 +212,8 @@ export async function runPublicSearch(
     covenantsResult.truncated ||
     atmResult.truncated ||
     localResult.truncated ||
+    rtmResult.truncated ||
+    tdiResult.truncated ||
     wtmResult.truncated ||
     ptmResult.truncated ||
     ctmResult.truncated;
@@ -204,6 +228,8 @@ export async function runPublicSearch(
     covenants: covenantsResult.data,
     awakenerManifestations: atmResult.data,
     awakenerLocalInteractions: localResult.data,
+    realmManifestations: rtmResult.data,
+    defaultInteractions: tdiResult.data,
     wheelManifestations: wtmResult.data,
     posseManifestations: ptmResult.data,
     covenantManifestations: ctmResult.data,

@@ -229,6 +229,7 @@ export function SearchFilters({ options }: SearchFiltersProps) {
     ? `No filters applied. · ${enlightenmentSummary}`
     : `${filterSummary} · ${enlightenmentSummary}`;
   const loading = isPending || results.status === "loading";
+  const searchDisabled = empty || loading;
   const canClear =
     !empty || results.status === "success" || results.status === "error";
 
@@ -658,14 +659,17 @@ export function SearchFilters({ options }: SearchFiltersProps) {
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
         <button
           type="button"
-          onClick={runSearch}
-          disabled={empty || loading}
+          onClick={() => {
+            if (searchDisabled) return;
+            runSearch();
+          }}
+          aria-disabled={searchDisabled ? true : undefined}
           className={cn(
             "inline-flex h-10 w-full items-center justify-center rounded-md px-5 text-sm font-medium sm:w-auto",
             "bg-[var(--mt-ember)] text-[rgb(255_248_240)]",
             "hover:bg-[var(--mt-ember-deep)]",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mt-ember)]",
-            "disabled:cursor-not-allowed disabled:opacity-60",
+            searchDisabled && "cursor-not-allowed opacity-60",
           )}
         >
           {loading ? "Searching…" : "Search"}

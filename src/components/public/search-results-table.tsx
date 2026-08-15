@@ -32,11 +32,12 @@ function isCoarsePointer(): boolean {
 }
 
 function NameCell({ row }: { row: SearchResultRow }) {
+  const resolveName = row.assetName ?? row.name;
   const src =
-    row.name !== EMPTY_DISPLAY
-      ? resolveSkeydbAssetUrl(row.assetKind, row.name)
+    resolveName !== EMPTY_DISPLAY
+      ? resolveSkeydbAssetUrl(row.assetKind, resolveName)
       : undefined;
-  const pageUrl = resolveSkeydbPageUrl(row.assetKind, row.name);
+  const pageUrl = resolveSkeydbPageUrl(row.assetKind, resolveName);
 
   const icon =
     row.assetKind === "covenant" ? (
