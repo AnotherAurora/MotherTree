@@ -247,17 +247,8 @@ export default function ManualSearchPage() {
             <div id="value" className="scroll-mt-24 space-y-1">
               <dt className={fieldDtClass}>Value</dt>
               <dd className={manualBodyClass}>
-                Magnitude of the tag. If there is no Dependency Stat, this is
-                the raw magnitude. If Dependency Stat is set, awakener rows show
-                the scaled result using the{" "}
-                <Link
-                  href="#investment-assumptions"
-                  className={manualLinkClass}
-                >
-                  investment assumptions
-                </Link>
-                . For Wheel, Covenant, and Posse it shows the coefficient as a %
-                of that dependency stat. Rows with a negative Value are omitted.
+                Magnitude of the tag. If Dependency Stat is set, it shows the coefficient as a %
+                of that dependency stat. For awakener 
               </dd>
             </div>
           </dl>

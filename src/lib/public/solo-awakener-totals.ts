@@ -564,7 +564,7 @@ export function collectSoloTagDisplayFields(input: {
   for (const m of resolved) {
     if (!atmAppliesInRealmSim(m, realmSim, enlightenment)) continue;
     if (m.tag_id !== tagId) continue;
-    if (m.target_type != null && m.target_type !== "") {
+    if (m.target_type != null) {
       targetTypes.push(m.target_type);
     }
     if (m.metadata != null) metadatas.push(m.metadata);
@@ -581,9 +581,7 @@ export function collectSoloTagDisplayFields(input: {
     }
     const m = resolvedById.get(local.manifestation_id);
     if (!m || !atmAppliesInRealmSim(m, realmSim, enlightenment)) continue;
-    if (local.target_type != null && local.target_type !== "") {
-      targetTypes.push(local.target_type);
-    }
+    targetTypes.push(local.target_type);
     if (m.metadata != null) metadatas.push(m.metadata);
   }
 
