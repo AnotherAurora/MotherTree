@@ -4,10 +4,12 @@
  */
 import { buildSearchResults } from "../src/lib/public/search-results";
 import {
+  REALM_GIMMICK_METADATA,
   computeSoloAwakenerTotals,
   isAttackerOrDefenderTagName,
   isMultiRealmSearchAwakener,
   realmSimsForAwakener,
+  type SoloTotalsCache,
 } from "../src/lib/public/solo-awakener-totals";
 import type { PublicRow } from "../src/lib/public-read/allowlist";
 import { AEQUOR_REALM_ID, CHAOS_REALM_ID } from "../src/lib/team-data/realm";
@@ -191,6 +193,23 @@ const supportAtm = {
   copy_provider_group_id: null,
 } as PublicRow<"awakener_tag_manifestation">;
 
+/** Aequor present-mode RTM — applies in aequor solo sim, not chaos. */
+const aequorRealmRtm = {
+  id: 900,
+  realm_id: AEQUOR_REALM_ID,
+  tag_id: 16,
+  metadata: null,
+  value_scalar: 0.05,
+  is_accumulating: false,
+  is_permanent: false,
+  required_realm_mode: "present",
+  dependency_stat: null,
+  trigger_condition: null,
+  dependency_rate: null,
+  pure_bonus_target: "none",
+  dependency_rate_stat: null,
+} as PublicRow<"realm_tag_manifestation">;
+
 const emptyGear = {
   wheels: [] as PublicRow<"wheel">[],
   posses: [] as PublicRow<"posse">[],
@@ -257,10 +276,14 @@ const chaosTotals = computeSoloAwakenerTotals(
   3,
   catalog,
 );
-assert(aequorTotals.has(1), "aequor has Active Damage in totals");
-assert(aequorTotals.has(2), "aequor has Poison in totals (aftereffect)");
-assert(!chaosTotals.has(1), "chaos has no Active Damage (realm-gated ATM)");
-assert(!chaosTotals.has(2), "chaos has no Poison");
+assert(aequorTotals.totalsByTagId.has(1), "aequor has Active Damage in totals");
+assert(aequorTotals.totalsByTagId.has(2), "aequor has Poison in totals (aftereffect)");
+assert(
+  !aequorTotals.hasAppliedRealmManifestation,
+  "no catalog RTM → hasAppliedRealmManifestation false",
+);
+assert(!chaosTotals.totalsByTagId.has(1), "chaos has no Active Damage (realm-gated ATM)");
+assert(!chaosTotals.totalsByTagId.has(2), "chaos has no Poison");
 
 console.log("buildSearchResults — Poison filter for 24");
 const poisonSearch = buildSearchResults({
@@ -361,7 +384,7 @@ assert(
 );
 
 console.log("cache — same sim reused");
-const cache = new Map<string, Map<number, number>>();
+const cache: SoloTotalsCache = new Map();
 const first = computeSoloAwakenerTotals(
   awakener24,
   AEQUOR_REALM_ID,
@@ -376,7 +399,7 @@ const second = computeSoloAwakenerTotals(
   catalog,
   cache,
 );
-assert(first === second, "in-request cache returns same Map instance");
+assert(first === second, "in-request cache returns same result instance");
 assert(cache.size === 1, "one cache entry for awakener+realm+enlightenment");
 
 console.log("helpers");
@@ -491,6 +514,115 @@ assert(mixedOrderRow, "mixed target-type solo row");
 assert(
   mixedOrderRow.targetType === "Self + Single + AoE",
   `target types sorted self→single→aoe (got ${mixedOrderRow.targetType})`,
+);
+
+console.log("realm gimmick — RTM applied vs not");
+const gimmickCatalog = {
+  ...catalog,
+  realmManifestations: [aequorRealmRtm],
+};
+const aequorWithRtm = computeSoloAwakenerTotals(
+  awakener24,
+  AEQUOR_REALM_ID,
+  3,
+  gimmickCatalog,
+);
+const chaosWithRtm = computeSoloAwakenerTotals(
+  awakener24,
+  CHAOS_REALM_ID,
+  3,
+  gimmickCatalog,
+);
+assert(
+  aequorWithRtm.hasAppliedRealmManifestation,
+  "aequor present RTM sets hasAppliedRealmManifestation",
+);
+assert(
+  !chaosWithRtm.hasAppliedRealmManifestation,
+  "chaos sim does not apply aequor RTM",
+);
+
+const gimmickPoisonSearch = buildSearchResults({
+  filters: { ...filtersBase, tagId: 2 },
+  tags,
+  realms,
+  awakeners: [awakener24],
+  awakenerManifestations: [aequorDamageAtm],
+  awakenerLocalInteractions: [poisonAftereffect],
+  ...emptyGear,
+  realmManifestations: [aequorRealmRtm],
+});
+const gimmickPoisonRow = gimmickPoisonSearch.rows.find(
+  (r) => r.id === `awakener-solo:24:2:${AEQUOR_REALM_ID}`,
+);
+assert(gimmickPoisonRow, "Poison solo row with applying RTM");
+assert(
+  gimmickPoisonRow.metadata ===
+    `Aequor exalt notes +\n${REALM_GIMMICK_METADATA}`,
+  `Poison metadata appends Realm gimmick (got ${JSON.stringify(gimmickPoisonRow.metadata)})`,
+);
+
+const chaosGimmickDamage = gimmickPoisonSearch.rows.find(
+  (r) => r.id === `awakener-solo:24:2:${CHAOS_REALM_ID}`,
+);
+assert(!chaosGimmickDamage, "no Poison solo row in chaos (ATM gated)");
+
+const noRtmPoisonSearch = buildSearchResults({
+  filters: { ...filtersBase, tagId: 2 },
+  tags,
+  realms,
+  awakeners: [awakener24],
+  awakenerManifestations: [aequorDamageAtm],
+  awakenerLocalInteractions: [poisonAftereffect],
+  ...emptyGear,
+});
+const noRtmPoisonRow = noRtmPoisonSearch.rows.find(
+  (r) => r.id === `awakener-solo:24:2:${AEQUOR_REALM_ID}`,
+);
+assert(noRtmPoisonRow, "Poison solo row without RTM");
+assert(
+  noRtmPoisonRow.metadata === "Aequor exalt notes",
+  `no RTM → no Realm gimmick (got ${JSON.stringify(noRtmPoisonRow.metadata)})`,
+);
+
+console.log("realm gimmick — uniqueness with existing notes");
+const dualWithGimmickSearch = buildSearchResults({
+  filters: { ...filtersBase, tagId: 1 },
+  tags,
+  realms,
+  awakeners: [awakener24],
+  awakenerManifestations: dualAtms,
+  awakenerLocalInteractions: [],
+  ...emptyGear,
+  realmManifestations: [aequorRealmRtm],
+});
+const dualWithGimmickRow = dualWithGimmickSearch.rows.find(
+  (r) => r.id === `awakener-solo:24:1:${AEQUOR_REALM_ID}`,
+);
+assert(dualWithGimmickRow, "dual ATM Active Damage with RTM");
+assert(
+  dualWithGimmickRow.metadata ===
+    `noteA +\nnoteB +\n${REALM_GIMMICK_METADATA}`,
+  `notes then Realm gimmick once (got ${JSON.stringify(dualWithGimmickRow.metadata)})`,
+);
+
+const blankMetaWithGimmickSearch = buildSearchResults({
+  filters: { ...filtersBase, tagId: 1 },
+  tags,
+  realms,
+  awakeners: [awakener24],
+  awakenerManifestations: [emptyMetaAtm],
+  awakenerLocalInteractions: [],
+  ...emptyGear,
+  realmManifestations: [aequorRealmRtm],
+});
+const blankMetaWithGimmickRow = blankMetaWithGimmickSearch.rows.find(
+  (r) => r.id === `awakener-solo:24:1:${AEQUOR_REALM_ID}`,
+);
+assert(blankMetaWithGimmickRow, "blank ATM metadata with RTM");
+assert(
+  blankMetaWithGimmickRow.metadata === REALM_GIMMICK_METADATA,
+  `gimmick alone when notes empty (got ${JSON.stringify(blankMetaWithGimmickRow.metadata)})`,
 );
 
 console.log("smoke-public-solo-search-totals: ok");

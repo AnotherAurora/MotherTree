@@ -4,7 +4,10 @@
  */
 import { computeReviewTagTotals } from "@/lib/path-carver/aggregate-tag-scalars";
 import { REQUIRED_BASE_STAT_TAG_IDS } from "@/lib/path-carver/awakener-base-stats";
-import { createManifestationApplyContext } from "@/lib/path-carver/manifestation-apply";
+import {
+  createManifestationApplyContext,
+  isManifestationApplied,
+} from "@/lib/path-carver/manifestation-apply";
 import { ENUM_VALUES } from "@/lib/database.types";
 import type { PublicRow } from "@/lib/public-read/allowlist";
 import {
@@ -24,6 +27,9 @@ import {
   type Tag,
   type TeamData,
 } from "@/lib/team-data/types";
+
+/** Appended once to solo Attacker/Defender metadata when any catalog RTM applied. */
+export const REALM_GIMMICK_METADATA = "Realm gimmick";
 
 const TARGET_TYPE_ORDER = new Map(
   ENUM_VALUES.target_type.map((value, index) => [value, index]),
@@ -80,7 +86,12 @@ export type SoloAwakenerCatalog = {
   awakenerLocalInteractions: readonly PublicRow<"awakener_local_manifestation_interaction">[];
 };
 
-export type SoloTotalsCache = Map<string, Map<number, number>>;
+export type SoloAwakenerTotalsResult = {
+  totalsByTagId: Map<number, number>;
+  hasAppliedRealmManifestation: boolean;
+};
+
+export type SoloTotalsCache = Map<string, SoloAwakenerTotalsResult>;
 
 function cacheKey(
   awakenerId: number,
@@ -88,6 +99,17 @@ function cacheKey(
   enlightenment: number,
 ): string {
   return `${awakenerId}:${realmId}:${enlightenment}`;
+}
+
+function hasAppliedCatalogRealmManifestation(
+  manifestations: readonly Manifestation[],
+  applyContext: ReturnType<typeof createManifestationApplyContext>,
+): boolean {
+  for (const m of manifestations) {
+    if (m.sourceKind !== "realm") continue;
+    if (isManifestationApplied(m, applyContext)) return true;
+  }
+  return false;
 }
 
 function toTag(row: PublicRow<"tag">): Tag {
@@ -398,7 +420,7 @@ export function computeSoloAwakenerTotals(
   enlightenment: number,
   catalog: SoloAwakenerCatalog,
   cache?: SoloTotalsCache,
-): Map<number, number> {
+): SoloAwakenerTotalsResult {
   const key = cacheKey(awakenerRow.id, simulatedRealmId, enlightenment);
   if (cache?.has(key)) {
     return cache.get(key)!;
@@ -417,9 +439,17 @@ export function computeSoloAwakenerTotals(
     teamData.realms,
     teamData.manifestations,
   );
+  const hasAppliedRealmManifestation = hasAppliedCatalogRealmManifestation(
+    teamData.manifestations,
+    applyContext,
+  );
   const { totalsByTagId } = computeReviewTagTotals(teamData, applyContext);
-  cache?.set(key, totalsByTagId);
-  return totalsByTagId;
+  const result: SoloAwakenerTotalsResult = {
+    totalsByTagId,
+    hasAppliedRealmManifestation,
+  };
+  cache?.set(key, result);
+  return result;
 }
 
 /** True when Search should run solo sims (Attacker/Defender tag filter or no tag filter). */
@@ -504,6 +534,7 @@ export function collectSoloTagDisplayFields(input: {
   awakenerManifestations: readonly PublicRow<"awakener_tag_manifestation">[];
   awakenerLocalInteractions: readonly PublicRow<"awakener_local_manifestation_interaction">[];
   formatTargetType: (targetType: string) => string;
+  hasAppliedRealmManifestation?: boolean;
 }): SoloTagDisplayFields {
   const {
     awakenerId,
@@ -511,6 +542,7 @@ export function collectSoloTagDisplayFields(input: {
     realmSim,
     enlightenment,
     formatTargetType,
+    hasAppliedRealmManifestation = false,
   } = input;
 
   const enlightenmentGated = input.awakenerManifestations.filter(
@@ -553,6 +585,10 @@ export function collectSoloTagDisplayFields(input: {
       targetTypes.push(local.target_type);
     }
     if (m.metadata != null) metadatas.push(m.metadata);
+  }
+
+  if (hasAppliedRealmManifestation) {
+    metadatas.push(REALM_GIMMICK_METADATA);
   }
 
   return {

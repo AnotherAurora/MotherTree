@@ -366,14 +366,15 @@ export function buildSearchResults(
         const multiRealm =
           isMultiRealmSearchAwakener(awakener) && realmSims.length > 1;
         for (const realmSim of realmSims) {
-          const totals = computeSoloAwakenerTotals(
-            awakener,
-            realmSim,
-            filters.awakenerEnlightenment,
-            soloCatalog,
-            soloCache,
-          );
-          for (const [tagId, total] of totals) {
+          const { totalsByTagId, hasAppliedRealmManifestation } =
+            computeSoloAwakenerTotals(
+              awakener,
+              realmSim,
+              filters.awakenerEnlightenment,
+              soloCatalog,
+              soloCache,
+            );
+          for (const [tagId, total] of totalsByTagId) {
             const tag = tagsById.get(tagId);
             if (!tag || !isAttackerOrDefenderTagName(tag.tag_name)) continue;
             if (matchingTagIds != null && !matchingTagIds.has(tagId)) continue;
@@ -402,6 +403,7 @@ export function buildSearchResults(
               awakenerManifestations: input.awakenerManifestations,
               awakenerLocalInteractions: input.awakenerLocalInteractions,
               formatTargetType: formatSearchTargetTypeLabel,
+              hasAppliedRealmManifestation,
             });
 
             rows.push({
