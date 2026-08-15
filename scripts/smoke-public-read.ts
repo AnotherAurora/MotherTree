@@ -1,14 +1,16 @@
 /**
- * Phase 2 public read smoke — anon SELECT allowlist, writes blocked, caps/trim.
+ * Phase 2 + Phase 6 public read smoke — anon SELECT allowlist, writes blocked,
+ * caps/trim, in-process 5m TTL cache (2nd read within TTL skips Supabase).
  * Run: npx tsx --env-file=.env.local scripts/smoke-public-read.ts
  */
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import {
   PUBLIC_READ_TABLES,
   PUBLIC_ROW_LIMIT,
   PUBLIC_TABLE_COLUMNS,
   type PublicReadTable,
 } from "../src/lib/public-read/allowlist";
+import { resetPublicReadCacheForTests } from "../src/lib/public-read/cache";
 import { fetchPublicTable } from "../src/lib/public-read/fetch";
 import {
   checkPublicRateLimit,
@@ -32,14 +34,35 @@ function createAnon() {
   });
 }
 
+/** Counts `.from()` calls so cache hits are observable without network sniffing. */
+function withFromCounter(client: SupabaseClient<Database>): {
+  client: SupabaseClient<Database>;
+  fromCount: () => number;
+} {
+  let count = 0;
+  const proxied = new Proxy(client, {
+    get(target, prop, receiver) {
+      if (prop === "from") {
+        return (...args: Parameters<SupabaseClient<Database>["from"]>) => {
+          count += 1;
+          return target.from(...args);
+        };
+      }
+      return Reflect.get(target, prop, receiver);
+    },
+  }) as SupabaseClient<Database>;
+  return { client: proxied, fromCount: () => count };
+}
+
 function hasHiddenColumns(row: Record<string, unknown>): string[] {
   return ["created_at", "updated_at", "deleted_at"].filter((k) => k in row);
 }
 
 async function main() {
-  console.log("Phase 2 public read smoke\n");
+  console.log("Phase 2 + Phase 6 public read smoke\n");
 
   const anon = createAnon();
+  resetPublicReadCacheForTests();
 
   console.log("1) Allowlisted SELECT succeeds (projected columns, no timestamps)");
   for (const table of PUBLIC_READ_TABLES) {
@@ -155,7 +178,41 @@ async function main() {
     resetPublicRateLimitForTests();
   }
 
-  console.log("\nAll Phase 2 public-read smoke checks passed.");
+  console.log("\n7) Phase 6 — second fetch within TTL does not hit Supabase");
+  {
+    resetPublicReadCacheForTests();
+    const { client, fromCount } = withFromCounter(anon);
+    const first = await fetchPublicTable("realm", { client, limit: 3 });
+    assert(first.success, "realm cold fetch succeeded");
+    assert(fromCount() === 1, `cold fetch called .from once (got ${fromCount()})`);
+
+    const second = await fetchPublicTable("realm", { client, limit: 3 });
+    assert(second.success, "realm warm fetch succeeded");
+    assert(fromCount() === 1, `warm fetch did not call .from again (got ${fromCount()})`);
+    if (first.success && second.success) {
+      assert(
+        first.data.length === second.data.length,
+        "warm fetch returns same row count as cold",
+      );
+      assert(
+        first.truncated === second.truncated,
+        "warm fetch returns same truncated flag",
+      );
+    }
+
+    const differentLimit = await fetchPublicTable("realm", {
+      client,
+      limit: 4,
+    });
+    assert(differentLimit.success, "realm fetch with different limit succeeded");
+    assert(
+      fromCount() === 2,
+      `different limit is a cache miss (got ${fromCount()} .from calls)`,
+    );
+    resetPublicReadCacheForTests();
+  }
+
+  console.log("\nAll Phase 2 + Phase 6 public-read smoke checks passed.");
 }
 
 main().catch((err) => {

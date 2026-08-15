@@ -1,6 +1,6 @@
 ---
 name: Public Site Phased Plan
-overview: "Public Mother Tree (root version): homepage hub + Search + Calculator + Manual + About are public; other routes stay private admin. Phase 0–4 done; Phase 5 Vercel release next."
+overview: "Public Mother Tree (root version): homepage hub + Search + Calculator + Manual + About are public; other routes stay private admin. Phase 0–6 done."
 todos:
   - id: phase-0-scope
     content: Phase 0 — Scope locked (Search naming, calculator catalog, table allowlist, localStorage)
@@ -31,10 +31,10 @@ todos:
     status: completed
   - id: phase-5-release
     content: Phase 5 — Local-only admin (prod 404, no service role on Vercel), mothertree.vercel.app, README live link
-    status: in_progress
-  - id: phase-6-expand
-    content: Phase 6 — More calculator sub-tools, Search v2, caching/WAF as needed
-    status: pending
+    status: completed
+  - id: phase-6-caching
+    content: Phase 6 — In-process 5m TTL cache around fetchPublicTable; smoke 2nd read; rate limit still counts hits
+    status: completed
 isProject: false
 ---
 
@@ -76,7 +76,7 @@ flowchart TD
   P3_2[Phase3_2_Covenant]
   P4[Phase4_Search]
   P5[Phase5_PublicRelease]
-  P6[Phase6_Expand]
+  P6[Phase6_Caching]
   P0 --> P1 --> P1_1 --> P1_2
   P1 --> P2
   P2 --> P3
@@ -430,18 +430,20 @@ _Query UI on Phase 2 read layer (product name: Search)._
 - Awakener Value uses Path Carver `scaleValueScalar`; wheel / posse / covenant show raw `value_scalar`
 - Sort by Value desc; 500-row cap; loading / empty / error states; Search button (no shareable URLs yet)
 
-### Deferred (Phase 6)
+### Deferred (not Phase 6)
 
 - Shareable filter URLs
 - Entity pickers beyond the rows above
+
+These stay out of the phased plan until product need is clear. Phase 6 is caching only.
 
 **Exit (full Phase 4):** Useful read-only Search with options **and** results against allowlisted tables.
 
 ---
 
-## Phase 5 — Public release gate
+## Phase 5 — Public release gate (done)
 
-_Locks below are decided; implement against them. Do not expand into Phase 6._
+_Shipped. Locks below remain the production contract. Phase 6 public-read caching also shipped._
 
 ### Public route allowlist (access control)
 
@@ -477,36 +479,71 @@ RLS SELECT-only for anon remains the database backstop.
 
 ### Content freeze
 
-**Manual** and **About** are finished and ready for public. Ship current copy as-is; do not rewrite, stub, or defer those pages.
+**Manual** and **About** shipped as frozen public copy.
 
 ### Rate limit
 
-Keep the Phase 2 **in-memory** ~60 req/min/IP limiter. Do not add Redis, Upstash, or WAF in this phase.
+Phase 2 **in-memory** ~60 req/min/IP limiter kept. No Redis, Upstash, or WAF.
 
 ### Hosting and README
 
 - Vercel Hobby; production hostname **`mothertree.vercel.app`**
 - Vercel project / slug name **`mothertree`** — no “admin” in the URL or project name
-- After the live URL exists, add a **Live site** link in [README.md](README.md) pointing at it
+- [README.md](README.md) **Live site** link points at that URL
 
-### What to implement
+### What was done
 
 - Production hard-disable for admin pages **and** write Server Actions (404 / refuse; no login page)
-- `createAdminClient` refuses the Vercel runtime; document `ADMIN_ENABLED` in [`.env.example`](.env.example) if used
+- `createAdminClient` refuses the Vercel runtime; `ADMIN_ENABLED` documented in [`.env.example`](.env.example)
 - Public allowlisted routes live with Mother Tree / root version chrome only
-- Env review: Vercel gets publishable/anon only; service role never on Vercel
-- Deploy to Vercel; confirm anon SELECT + anon write-fail (RLS) in production
+- Vercel gets publishable/anon only; service role never on Vercel
+- Deployed to Vercel; live URL linked from README
 
 **Exit:** Public Calculator + Search + Manual + About via homepage hub; no public DB writes; admin exists only locally; live URL is `mothertree.vercel.app` and linked from README.
 
 ---
 
-## Phase 6 — Expand (backlog)
+## Phase 6 — Public read caching (done)
 
-- Additional calculator sub-tools beyond the Phase 0 catalog
-- Search v2 (shareable URLs, richer joins, indexes/caching)
-- Edge/WAF (Cloudflare) only if traffic/abuse needs it
+_Shipped. Reduce repeat Supabase hits and Free-tier egress on public reads. Do not expand Search features, add indexes, WAF, or more calculator tools._
+
+### Goal
+
+Cache allowlisted public catalog/read data used by Search (and any other `fetchPublicTable` / public-read call sites that benefit), so repeat page loads and searches do not re-fetch cold from Supabase every time.
+
+### Locks (implementation)
+
+| Decision | Locked choice |
+| --- | --- |
+| Mechanism | **In-process TTL cache** around [`fetchPublicTable`](src/lib/public-read/fetch.ts) (module-level Map / equivalent). No Next `"use cache"`, no `unstable_cache`, no Redis, no enabling `cacheComponents` |
+| Freshness | **5-minute TTL** (not deploy-only). Stale-until-TTL is accepted after admin data edits |
+| Invalidation | **None** — no `revalidateTag`, no admin bust-cache hook; entries expire only by TTL |
+| Rate limit | **Count every Server Action call**, including when the underlying table read is a cache hit. Caching does not bypass or soften the Phase 2 ~60 req/min/IP limiter in [`listPublicTable`](src/lib/actions/public-read.ts) / [`runPublicSearch`](src/lib/actions/public-search.ts) |
+| Placement | Cache inside / immediately around `fetchPublicTable` so Search options SSR and Search results both benefit |
+
+### What was done
+
+- In-process cache module [`src/lib/public-read/cache.ts`](src/lib/public-read/cache.ts) (`PUBLIC_READ_CACHE_TTL_MS` = 5m; key = table + limit)
+- [`fetchPublicTable`](src/lib/public-read/fetch.ts) serves successful reads from cache; errors are not cached
+- Rate limit unchanged (still applied in Server Actions before fetch)
+- Smoke extended in [`scripts/smoke-public-read.ts`](scripts/smoke-public-read.ts): 2nd identical read within TTL does not call Supabase `.from`; different limit is a miss
+
+### Out of scope (explicit)
+
+- Search v2 (shareable URLs, richer joins, entity pickers)
+- New Postgres secondary indexes (current bulk-fetch + JS filter does not need them)
+- Extra calculator sub-tools beyond the shipped catalog
+- Edge/WAF (Cloudflare), Redis/Upstash
+- Next Cache Components / `"use cache"` / `unstable_cache`
+- Explicit invalidation after admin writes
 - User-facing docs / feedback
+
+### Exit criteria
+
+1. **Smoke:** second `fetchPublicTable` (same table/limit) within TTL does **not** hit Supabase — verified
+2. **UX / caps unchanged:** Search options + results behave as today; 500-row cap and ~60 req/min/IP still apply (including on cache hits)
+
+**Exit:** Criteria above met; public reads pay egress only on cold / post-TTL misses.
 
 ---
 
@@ -525,13 +562,14 @@ Keep the Phase 2 **in-memory** ~60 req/min/IP limiter. Do not add Redis, Upstash
 | Public brand spelling                             | Locked: Mother Tree (space)                                                     | Phase 1.1               |
 | Homepage hub                                      | Done in Phase 1.2 — four rows + locked copy                                     | Phase 1.2               |
 | Public `/manual` + `/about`                       | Body finished; freeze for public (Phase 5)                                      | Phase 1.2 + content     |
-| Public route allowlist                            | `/`, `/search`, `/calculators/*`, `/manual/*`, `/about`                         | Phase 5                 |
+| Public route allowlist                            | Done: `/`, `/search`, `/calculators/*`, `/manual/*`, `/about`                   | Phase 5                 |
 | No Path Carver naming on public pages             | Locked in Phase 1.1                                                             | Public copy             |
 | Search UX specifics                               | Done: options + results (tag-tree, columns, Value scaling)                      | Phase 4                 |
 | Column-level public trimming                      | Done: hide `created_at`, `updated_at`, `deleted_at`                             | Phase 2                 |
-| Public read caps                                  | Done: 500 rows/query; ~60 req/min/IP **in-memory** (keep for Phase 5)           | Phase 2 + 5             |
-| Admin runtime                                     | Locked: local-only; prod 404; no service role on Vercel; no login               | Phase 5                 |
-| Vercel production URL                             | Locked: **mothertree.vercel.app** (no “admin” in slug); README Live site link   | Phase 5                 |
+| Public read caps                                  | Done: 500 rows/query; ~60 req/min/IP **in-memory**                              | Phase 2 + 5             |
+| Public read caching                               | Done: in-process **5m** TTL around `fetchPublicTable`; no invalidation; rate limit counts hits; smoke 2nd read | Phase 6                 |
+| Admin runtime                                     | Done: local-only; prod 404; no service role on Vercel; no login                 | Phase 5                 |
+| Vercel production URL                             | Done: **mothertree.vercel.app**; README Live site link                          | Phase 5                 |
 
 ---
 
@@ -543,3 +581,9 @@ Keep the Phase 2 **in-memory** ~60 req/min/IP limiter. Do not add Redis, Upstash
 - Production admin login / password / Supabase Auth (admin is local-only)
 - Service role key on Vercel (Production or Preview)
 - Monetization (conflicts with SKeyDB NC license unless separately cleared)
+- Search v2 / shareable URLs / richer joins / entity pickers (deferred; not Phase 6)
+- Extra public calculator tools beyond the shipped catalog
+- Postgres secondary indexes for public Search (not needed with current bulk-fetch pattern)
+- Edge/WAF or Redis rate limiting (only if abuse appears)
+- Next Cache Components / `"use cache"` / `unstable_cache` for public reads (Phase 6 uses in-process TTL only)
+- Explicit public-read cache invalidation after admin writes (TTL expiry only)

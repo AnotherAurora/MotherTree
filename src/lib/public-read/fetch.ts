@@ -7,7 +7,15 @@ import {
   type PublicReadTable,
   type PublicRow,
 } from "@/lib/public-read/allowlist";
+import {
+  PUBLIC_READ_CACHE_TTL_MS,
+  getPublicReadCacheEntry,
+  publicReadCacheKey,
+  setPublicReadCacheEntry,
+} from "@/lib/public-read/cache";
 import { createAnonClient } from "@/lib/supabase/anon";
+
+export { PUBLIC_READ_CACHE_TTL_MS };
 
 export type PublicReadResult<T extends PublicReadTable> =
   | { success: true; data: PublicRow<T>[]; truncated: boolean }
@@ -23,6 +31,7 @@ export type PublicReadOptions = {
 /**
  * Allowlisted SELECT via anon + RLS. Projects non-timestamp columns only.
  * Soft-deleted rows are excluded by RLS (`deleted_at IS NULL`).
+ * Successful reads are cached in-process for 5 minutes (`PUBLIC_READ_CACHE_TTL_MS`).
  */
 export async function fetchPublicTable<T extends PublicReadTable>(
   table: T,
@@ -37,6 +46,16 @@ export async function fetchPublicTable<T extends PublicReadTable>(
     return { success: false, error: "limit must be a positive number" };
   }
   const limit = Math.min(Math.floor(requested), PUBLIC_ROW_LIMIT);
+  const key = publicReadCacheKey(table, limit);
+
+  const cached = getPublicReadCacheEntry(key);
+  if (cached) {
+    return {
+      success: true,
+      data: cached.data as PublicRow<T>[],
+      truncated: cached.truncated,
+    };
+  }
 
   const supabase = options.client ?? createAnonClient();
   const select = publicSelectClause(table);
@@ -53,9 +72,16 @@ export async function fetchPublicTable<T extends PublicReadTable>(
 
   const rows = (data ?? []) as unknown as PublicRow<T>[];
   const truncated = rows.length > limit;
-  return {
-    success: true,
+  const result = {
+    success: true as const,
     data: truncated ? rows.slice(0, limit) : rows,
     truncated,
   };
+
+  setPublicReadCacheEntry(key, {
+    data: result.data,
+    truncated: result.truncated,
+  });
+
+  return result;
 }
