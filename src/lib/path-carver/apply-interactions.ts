@@ -1,8 +1,10 @@
 import {
+  awakenerStatForDependency,
   buildAwakenersById,
   effectiveManifestationScalar,
   effectiveOverrideFactor,
   isInteractionImmuneSubject,
+  isPercentDependencyStat,
   sumTeamRealmMastery,
   type EffectiveScalarOptions,
 } from "@/lib/path-carver/effective-value-scalar";
@@ -57,6 +59,13 @@ export function requiresTargetBasePresence(
 
 const TEAM_POOL_OWNER = "*team*";
 const REALM_OWNER = "realm";
+const DEFERRED_CREATE_SUBJECT_KEY = "deferred-create";
+const DEFERRED_CREATE_SUBJECT_LABEL = "Deferred create (closure)";
+const DEFERRED_STACK_AMPLIFY_SUBJECT_KEY = "deferred-stack-amplify";
+const DEFERRED_STACK_AMPLIFY_SUBJECT_LABEL =
+  "Deferred stack amplify (closure0)";
+const DEFERRED_AMPLIFY_SUBJECT_KEY = "deferred-amplify";
+const DEFERRED_AMPLIFY_SUBJECT_LABEL = "Deferred amplify (closure)";
 
 const SPECIAL_CORROSION_CONVERSION = "Special.Corrosion Conversion";
 const SPECIAL_EMBERS_CONVERSION = "Special.Ancient Embers Conversion";
@@ -92,6 +101,8 @@ export type ScalarMathStep =
       subjectKey: string;
       /** Subject path display label for debug regrouping. */
       subjectLabel: string;
+      /** ATM / manifestation metadata for subject-header debug display. */
+      metadata: string | null;
     }
   | {
       kind: "op";
@@ -116,8 +127,13 @@ export type ScalarMathStep =
       buffRestrictionMet?: SourceType;
       /** Leaf source_type context for the run that produced this op. */
       leafContext?: SourceType | null;
-      /** Modifier tag layer that drove pass order (Phase 2c). */
+      /** Effective layer band for this op (local unique_scaling layer wins when set). */
       layer: Layer | null;
+      /**
+       * Phase 3b — unique_scaling provenance for Review Tags debug.
+       * Absent for plain tag_default_interaction ops.
+       */
+      uniqueScaling?: "patch" | "invent" | "base_stat";
       /** Subject path key (sourceKind:id or phase1-create) for debug regrouping. */
       subjectKey: string;
       /** Subject path display label for debug regrouping. */
@@ -141,8 +157,42 @@ export type ScalarMathStep =
       /** Subject path display label for debug regrouping. */
       subjectLabel: string;
     }
+  | {
+      kind: "aftereffect";
+      /** Target tag receiving the emit. */
+      tagId: number;
+      tagName: string;
+      owner: string;
+      op: OperationType;
+      finishedOnce: number;
+      factor: number;
+      /** op(finishedOnce, factor) — not op(folded, factor). */
+      contribution: number;
+      hitCount: number;
+      /** contribution × hitCount, merged via is_additive. */
+      merged: number;
+      before: number;
+      after: number;
+      layer: Layer | null;
+      targetType: TargetType;
+      /** True when this write invented isCreatedBase on the owner. */
+      invented: boolean;
+      sourceLabel: string;
+      subjectKey: string;
+      subjectLabel: string;
+      /** Parent ATM metadata (source subject) for debug display. */
+      metadata: string | null;
+    }
   | { kind: "special"; label: string; detail: string }
-  | { kind: "total"; tagId: number; tagName: string; total: number };
+  | {
+      kind: "total";
+      tagId: number;
+      tagName: string;
+      total: number;
+      /** Same default as merge helpers: missing tag → additive. */
+      isAdditive: boolean;
+      isPercent: boolean;
+    };
 
 export type ApplyInteractionsInput = {
   manifestations: Manifestation[];
@@ -268,31 +318,234 @@ function opTiebreak(op: OperationType): number {
   return op === "add_scaled" ? 0 : 1;
 }
 
+/** Null sorts after numbers (posse / realm / created-base often have both null). */
+function compareNullLast(
+  a: number | null | undefined,
+  b: number | null | undefined,
+): number {
+  if (a == null && b == null) return 0;
+  if (a == null) return 1;
+  if (b == null) return -1;
+  return a - b;
+}
+
 /**
- * Sort by modifier tag layer, then add_scaled before other ops, then id.
- * Override math_operation does not affect this order (uses default row op).
+ * Phase 3c subject order: slotIndex → awakenerId → tagId → sourceKind → id.
+ * Null last on slotIndex / awakenerId.
  */
-function orderInteractionsByModifierLayer(
-  interactions: DefaultInteraction[],
+function compareSubjects(a: Manifestation, b: Manifestation): number {
+  const slot = compareNullLast(a.slotIndex, b.slotIndex);
+  if (slot !== 0) return slot;
+  const awakener = compareNullLast(a.awakenerId, b.awakenerId);
+  if (awakener !== 0) return awakener;
+  if (a.tagId !== b.tagId) return a.tagId - b.tagId;
+  if (a.sourceKind !== b.sourceKind) {
+    return a.sourceKind < b.sourceKind ? -1 : 1;
+  }
+  return a.id - b.id;
+}
+
+function isCreatesBaseEdge(interaction: DefaultInteraction): boolean {
+  return interaction.createsBase && !interaction.amplifiesSubject;
+}
+
+/** Aftereffect contribution: op(finishedOnce, factor). `before` is not in the op. */
+function aftereffectContribution(
+  finishedOnce: number,
+  factor: number,
+  op: OperationType,
+): number {
+  if (op === "add_scaled") return finishedOnce + factor;
+  return finishedOnce * factor;
+}
+
+function aftereffectRowsFor(
+  m: Manifestation,
+): AwakenerLocalManifestationInteraction[] {
+  return m.interactionOverrides
+    .filter(
+      (row) =>
+        row.mode === "aftereffect" &&
+        !row.isDisabled &&
+        row.targetTagId != null,
+    )
+    .sort(
+      (a, b) =>
+        layerRank(a.layer) - layerRank(b.layer) || a.id - b.id,
+    );
+}
+
+function collectClosure0(applied: Manifestation[]): Set<number> {
+  const closure0 = new Set<number>();
+  for (const m of applied) {
+    for (const row of aftereffectRowsFor(m)) {
+      if (row.targetTagId != null) closure0.add(row.targetTagId);
+    }
+  }
+  return closure0;
+}
+
+function amplifyTargetIntersectsClosure(
+  interaction: DefaultInteraction,
+  closure: ReadonlySet<number>,
   tagsById: Record<number, Tag>,
-): DefaultInteraction[] {
-  return [...interactions]
-    .filter((interaction) => interaction.modifierTagId != null)
-    .sort((a, b) => {
-      const layerA =
-        a.modifierTagId != null
-          ? (tagsById[a.modifierTagId]?.layer ?? null)
-          : null;
-      const layerB =
-        b.modifierTagId != null
-          ? (tagsById[b.modifierTagId]?.layer ?? null)
-          : null;
-      return (
-        layerRank(layerA) - layerRank(layerB) ||
-        opTiebreak(a.mathOperation) - opTiebreak(b.mathOperation) ||
-        a.id - b.id
-      );
-    });
+): boolean {
+  if (!interaction.targetTagName) return false;
+  for (const tag of matchingTargetTags(
+    tagsById,
+    interaction.targetTagName,
+    interaction.exclusionTagName,
+  )) {
+    if (closure.has(tag.id)) return true;
+  }
+  return false;
+}
+
+type AftereffectClosure = {
+  closure0: Set<number>;
+  closure: Set<number>;
+  deferredCreates: DefaultInteraction[];
+  /** Amplifies targeting aftereffect sinks (Increase → Poison/Bleed). */
+  deferredStackAmplifies: DefaultInteraction[];
+  /** Amplifies targeting created bases (Trigger → Damage). */
+  deferredCreateAmplifies: DefaultInteraction[];
+};
+
+/**
+ * Option A look-ahead: closure0 = aftereffect targets; expand via creates_base
+ * (exact modifier match). Split amplifies:
+ * - stack: target intersects closure0 (run on combined stack before create)
+ * - create: target intersects closure\closure0 (thin hop on Damage synthetics)
+ * Empty closure0 → pull nothing (3b path).
+ */
+function buildAftereffectClosure(
+  applied: Manifestation[],
+  defaultInteractions: DefaultInteraction[],
+  amplifyRows: DefaultInteraction[],
+  tagsById: Record<number, Tag>,
+): AftereffectClosure {
+  const closure0 = collectClosure0(applied);
+  if (closure0.size === 0) {
+    return {
+      closure0,
+      closure: new Set(),
+      deferredCreates: [],
+      deferredStackAmplifies: [],
+      deferredCreateAmplifies: [],
+    };
+  }
+
+  const closure = new Set(closure0);
+  const deferredCreates: DefaultInteraction[] = [];
+  const deferredCreateIds = new Set<number>();
+  const createEdges = defaultInteractions.filter(isCreatesBaseEdge);
+
+  let grew = true;
+  while (grew) {
+    grew = false;
+    for (const interaction of createEdges) {
+      if (interaction.modifierTagId == null) continue;
+      if (!closure.has(interaction.modifierTagId)) continue;
+      if (!deferredCreateIds.has(interaction.id)) {
+        deferredCreateIds.add(interaction.id);
+        deferredCreates.push(interaction);
+        grew = true;
+      }
+      if (!interaction.targetTagName) continue;
+      for (const tag of matchingTargetTags(
+        tagsById,
+        interaction.targetTagName,
+        interaction.exclusionTagName,
+      )) {
+        if (!closure.has(tag.id)) {
+          closure.add(tag.id);
+          grew = true;
+        }
+      }
+    }
+  }
+
+  const closureCreated = new Set(
+    [...closure].filter((id) => !closure0.has(id)),
+  );
+  const deferredStackAmplifies = amplifyRows.filter((interaction) =>
+    amplifyTargetIntersectsClosure(interaction, closure0, tagsById),
+  );
+  const deferredCreateAmplifies = amplifyRows.filter((interaction) =>
+    amplifyTargetIntersectsClosure(interaction, closureCreated, tagsById),
+  );
+
+  return {
+    closure0,
+    closure,
+    deferredCreates,
+    deferredStackAmplifies,
+    deferredCreateAmplifies,
+  };
+}
+
+function tagNamesForIds(
+  ids: Iterable<number>,
+  tagsById: Record<number, Tag>,
+): string[] {
+  return [...ids]
+    .map((id) => tagsById[id]?.tagName ?? `#${id}`)
+    .sort((a, b) => a.localeCompare(b));
+}
+
+function ownerHasLayerATag(
+  applied: Manifestation[],
+  owner: OwnerKey,
+  tagId: number,
+): boolean {
+  for (const m of applied) {
+    if (m.isCreatedBase) continue;
+    if (ownerKeyFor(m) === owner && m.tagId === tagId) return true;
+  }
+  return false;
+}
+
+function snapshotCombinedModifier(
+  ownerValues: OwnerTotals,
+  tag: Tag,
+): Manifestation | null {
+  const combined = combineTagAcrossOwners(
+    ownerValues,
+    tag.id,
+    tag,
+    ownerValues.keys(),
+  );
+  if (combined === 0) return null;
+  return buildCreatedBaseManifestation(tag, combined);
+}
+
+/**
+ * Per-owner closure0 stack snapshot for deferred stack amplify.
+ * Preserves awakener ownership so target_type=self modifiers apply.
+ */
+function buildOwnerStackSnapshot(
+  tag: Tag,
+  owner: OwnerKey,
+  value: number,
+): Manifestation | null {
+  if (value === 0) return null;
+  const awakenerId = awakenerIdFromOwnerKey(owner);
+  const base = buildCreatedBaseManifestation(tag, value);
+  if (awakenerId != null) {
+    return {
+      ...base,
+      sourceKind: "awakener",
+      awakenerId,
+      sourceName: "(aftereffect stack)",
+    };
+  }
+  if (owner === "posse") {
+    return { ...base, sourceKind: "posse", sourceName: "(aftereffect stack)" };
+  }
+  if (owner === REALM_OWNER) {
+    return { ...base, sourceKind: "realm", sourceName: "(aftereffect stack)" };
+  }
+  return { ...base, sourceName: "(aftereffect stack)" };
 }
 
 function findTagIdByName(
@@ -518,10 +771,14 @@ function applyOpAndRecord(
   modifierLayer: Layer | null,
   buffRestrictionMet?: SourceType,
   leafContext?: SourceType | null,
+  uniqueScaling?: "patch" | "invent" | "base_stat",
+  presenceBandRank?: number,
 ): void {
   if (op === "presence_multiply" && modifierTagId != null) {
-    // Once per (modifier, target tag) this pass — not per owner bucket.
-    const key = `${modifierTagId}:${target.id}`;
+    // Once per (modifier, target tag[, band]) this pass — not per owner bucket.
+    const bandSuffix =
+      presenceBandRank != null ? `:band${presenceBandRank}` : "";
+    const key = `${modifierTagId}:${target.id}${bandSuffix}`;
     if (presenceApplied.has(key)) return;
     presenceApplied.add(key);
   }
@@ -556,6 +813,7 @@ function applyOpAndRecord(
     subjectLabel: UNSET_SUBJECT_LABEL,
     ...(buffRestrictionMet != null ? { buffRestrictionMet } : {}),
     ...(leafContext !== undefined ? { leafContext } : {}),
+    ...(uniqueScaling != null ? { uniqueScaling } : {}),
   });
 }
 
@@ -582,8 +840,10 @@ function matchingTargetTags(
 }
 
 /**
- * Overrides live on ATM rows (typically the target manifestation), keyed by
- * incoming modifier_tag_id. value_scalar overrides interaction default_factor.
+ * unique_scaling locals on ATM rows (target manifestation), keyed by
+ * incoming modifier_tag_id. Aftereffect rows are skipped here (emitted after
+ * the source subject finishes post_add).
+ * value_scalar overrides interaction default_factor.
  */
 function findTargetOverride(
   appliedManifestations: Manifestation[],
@@ -596,12 +856,75 @@ function findTargetOverride(
     if (ownerKeyFor(m) !== owner) continue;
     if (m.tagId !== targetTagId) continue;
     for (const override of m.interactionOverrides) {
+      if (override.mode !== "unique_scaling") continue;
       if (override.modifierTagId !== modifierTagId) continue;
       if (override.isDisabled) return override;
       found = override;
     }
   }
   return found;
+}
+
+/** Local layer wins; null local → modifier tag layer; null-mod base-stat → add. */
+function effectiveUniqueScalingLayer(
+  local: AwakenerLocalManifestationInteraction,
+  tagsById: Record<number, Tag>,
+): Layer | null {
+  if (local.layer != null) return local.layer;
+  if (local.modifierTagId == null) return "add";
+  return tagsById[local.modifierTagId]?.layer ?? null;
+}
+
+function effectiveInteractionLayerForOwner(
+  override: AwakenerLocalManifestationInteraction | null,
+  modifierTagLayer: Layer | null,
+): Layer | null {
+  if (override != null && override.mode === "unique_scaling") {
+    if (override.layer != null) return override.layer;
+  }
+  return modifierTagLayer;
+}
+
+function ownerMatchesInteractionBand(
+  override: AwakenerLocalManifestationInteraction | null,
+  modifierTagLayer: Layer | null,
+  bandRank: number,
+): boolean {
+  return (
+    layerRank(effectiveInteractionLayerForOwner(override, modifierTagLayer)) ===
+    bandRank
+  );
+}
+
+function hasMatchingDefaultForUniqueScaling(
+  modifierTagId: number,
+  targetTagName: string,
+  interactions: DefaultInteraction[],
+): boolean {
+  for (const interaction of interactions) {
+    if (interaction.modifierTagId !== modifierTagId) continue;
+    if (!interaction.targetTagName) continue;
+    if (!matchesDemandTag(targetTagName, interaction.targetTagName)) continue;
+    if (isExcluded(targetTagName, interaction.exclusionTagName)) continue;
+    return true;
+  }
+  return false;
+}
+
+/** Awakener base-stat as unique_scaling modifierValue (percent deps → percentage points). */
+function baseStatUniqueScalingModifierValue(
+  awakener: Awakener | null,
+  dependencyStat: NonNullable<AwakenerLocalManifestationInteraction["dependencyStat"]>,
+): number {
+  const raw =
+    awakener != null
+      ? (awakenerStatForDependency(awakener, dependencyStat) ?? 0)
+      : 0;
+  if (isPercentDependencyStat(dependencyStat)) {
+    // Percentage points; scrub binary float (0.036*100 → 3.5999… → 3.6).
+    return Number((raw * 100).toFixed(10));
+  }
+  return raw;
 }
 
 function awakenerIdFromOwnerKey(owner: OwnerKey): number | null {
@@ -655,6 +978,68 @@ function collectModifierManifestations(
   return appliedManifestations.filter((m) => m.tagId === modifierTagId);
 }
 
+/** Phase 3b.1 — unique_scaling invent: Modifier Tag matches exact + descendants. */
+function collectModifierManifestationsByPrefix(
+  appliedManifestations: Manifestation[],
+  modifierTagName: string,
+): Manifestation[] {
+  return appliedManifestations.filter((m) =>
+    matchesDemandTag(m.tagName, modifierTagName),
+  );
+}
+
+function matchingModifierTagIds(
+  tagsById: Record<number, Tag>,
+  modifierTagName: string,
+): number[] {
+  const ids: number[] = [];
+  for (const tag of Object.values(tagsById)) {
+    if (matchesDemandTag(tag.tagName, modifierTagName)) ids.push(tag.id);
+  }
+  return ids;
+}
+
+function sumTeamTagPrefix(
+  ownerValues: OwnerTotals,
+  tagIds: readonly number[],
+): number {
+  let total = 0;
+  for (const tagId of tagIds) {
+    total += sumTeamTag(ownerValues, tagId);
+  }
+  return total;
+}
+
+/**
+ * Fold prefix-matched modifier tag totals for the given owners.
+ * Per-tag combine uses each tag’s additive/percent; across tags uses root flags.
+ */
+function combinePrefixModifierValue(
+  ownerValues: OwnerTotals,
+  matchingTagIds: readonly number[],
+  tagsById: Record<number, Tag>,
+  rootModifierTag: Tag | undefined,
+  owners: Iterable<OwnerKey>,
+): number {
+  let combined: number | undefined;
+  for (const tagId of matchingTagIds) {
+    const partial = combineTagAcrossOwners(
+      ownerValues,
+      tagId,
+      tagsById[tagId],
+      owners,
+    );
+    if (partial === 0) continue;
+    combined = combineSameTagScalar(
+      combined,
+      partial,
+      rootModifierTag?.isAdditive !== false,
+      rootModifierTag?.isPercent === true,
+    );
+  }
+  return combined ?? 0;
+}
+
 function collectOwnersWithTarget(
   current: OwnerTotals,
   next: OwnerTotals,
@@ -699,10 +1084,11 @@ function applyPresenceMultiplyOnce(
   modifierLayer: Layer | null,
   buffRestrictionMet: SourceType | undefined,
   leafContext: SourceType | null | undefined,
+  bandRank: number,
   teamMaxHp?: number | null,
 ): void {
   for (const target of targets) {
-    const presenceKey = `${modifierTagId}:${target.id}`;
+    const presenceKey = `${modifierTagId}:${target.id}:band${bandRank}`;
     if (presenceApplied.has(presenceKey)) continue;
 
     const requireBase = requiresTargetBasePresence(
@@ -713,28 +1099,47 @@ function applyPresenceMultiplyOnce(
       ? collectBasePresentOwners(base, target.id)
       : collectOwnersWithTarget(current, next, target.id);
 
-    if (requireBase && ownersWithTarget.size === 0) continue;
+    const ownersInBand = new Set<OwnerKey>();
+    for (const owner of ownersWithTarget) {
+      const override = findTargetOverride(
+        appliedManifestations,
+        owner,
+        target.id,
+        modifierTagId,
+      );
+      if (!ownerMatchesInteractionBand(override, modifierLayer, bandRank)) {
+        continue;
+      }
+      ownersInBand.add(owner);
+    }
+
+    if (requireBase && ownersInBand.size === 0) continue;
 
     const teamHasTarget =
       !requireBase &&
       (getOwnerValue(next, TEAM_POOL_OWNER, target.id) !== 0 ||
         getOwnerValue(current, TEAM_POOL_OWNER, target.id) !== 0);
 
+    // *team* residual uses modifier tag layer (no local row).
+    const teamMatchesBand =
+      layerRank(modifierLayer) === bandRank && teamHasTarget;
+
     if (
       !requireBase &&
-      ownersWithTarget.size === 0 &&
-      !teamHasTarget
+      ownersInBand.size === 0 &&
+      !teamMatchesBand
     ) {
       continue;
     }
 
     let factor = interaction.defaultFactor ?? 0;
-    let allDisabled = ownersWithTarget.size > 0;
+    let allDisabled = ownersInBand.size > 0;
+    let patchKind: "patch" | undefined;
 
-    if (ownersWithTarget.size === 0) {
+    if (ownersInBand.size === 0) {
       allDisabled = false;
     } else {
-      for (const owner of ownersWithTarget) {
+      for (const owner of ownersInBand) {
         const override = findTargetOverride(
           appliedManifestations,
           owner,
@@ -743,6 +1148,7 @@ function applyPresenceMultiplyOnce(
         );
         if (override?.isDisabled) continue;
         allDisabled = false;
+        if (override != null) patchKind = "patch";
         const ownerAwakenerId = awakenerIdFromOwnerKey(owner);
         const ownerAwakener =
           ownerAwakenerId != null
@@ -766,14 +1172,20 @@ function applyPresenceMultiplyOnce(
 
     const bucketOwners: OwnerKey[] = [];
     if (requireBase) {
-      for (const owner of ownersWithTarget) {
+      for (const owner of ownersInBand) {
         const value = getOwnerValue(next, owner, target.id);
         if (value !== 0) bucketOwners.push(owner);
       }
     } else {
-      for (const [owner, map] of next) {
-        const value = map.get(target.id);
+      for (const owner of ownersInBand) {
+        const value = getOwnerValue(next, owner, target.id);
         if (value != null && value !== 0) bucketOwners.push(owner);
+      }
+      if (
+        teamMatchesBand &&
+        getOwnerValue(next, TEAM_POOL_OWNER, target.id) !== 0
+      ) {
+        bucketOwners.push(TEAM_POOL_OWNER);
       }
     }
     if (bucketOwners.length === 0) continue;
@@ -806,6 +1218,19 @@ function applyPresenceMultiplyOnce(
 
     if (combinedAfter === combinedBefore) continue;
 
+    const stepLayer =
+      patchKind != null
+        ? effectiveInteractionLayerForOwner(
+            findTargetOverride(
+              appliedManifestations,
+              bucketOwners[0]!,
+              target.id,
+              modifierTagId,
+            ),
+            modifierLayer,
+          )
+        : modifierLayer;
+
     steps.push({
       kind: "op",
       tagId: target.id,
@@ -821,11 +1246,12 @@ function applyPresenceMultiplyOnce(
       rounded,
       pass,
       effectSources,
-      layer: modifierLayer,
+      layer: stepLayer,
       subjectKey: UNSET_SUBJECT_KEY,
       subjectLabel: UNSET_SUBJECT_LABEL,
       ...(buffRestrictionMet != null ? { buffRestrictionMet } : {}),
       ...(leafContext !== undefined ? { leafContext } : {}),
+      ...(patchKind != null ? { uniqueScaling: patchKind } : {}),
     });
   }
 }
@@ -877,6 +1303,7 @@ function applyInteractionOnto(
   presenceApplied: Set<string>,
   awakenersById: ReadonlyMap<number, Awakener>,
   leafContext: SourceType | null | undefined,
+  bandRank: number,
   awakenerNamesById?: ReadonlyMap<number, string>,
   teamMaxHp?: number | null,
 ): void {
@@ -941,6 +1368,7 @@ function applyInteractionOnto(
       modifierLayer,
       buffRestrictionMet,
       leafContext,
+      bandRank,
       teamMaxHp,
     );
     return;
@@ -991,6 +1419,9 @@ function applyInteractionOnto(
         target.id,
         modifierTagId,
       );
+      if (!ownerMatchesInteractionBand(override, modifierLayer, bandRank)) {
+        continue;
+      }
       const resolved = resolveOpAndFactor(
         interaction,
         override,
@@ -1004,6 +1435,10 @@ function applyInteractionOnto(
         if (!(modValue !== 0 || ownerHasModifier)) continue;
       }
 
+      const applyLayer = effectiveInteractionLayerForOwner(
+        override,
+        modifierLayer,
+      );
       applyOpAndRecord(
         next,
         owner,
@@ -1017,9 +1452,11 @@ function applyInteractionOnto(
         modifierTagId,
         presenceApplied,
         effectSources,
-        modifierLayer,
+        applyLayer,
         buffRestrictionMet,
         leafContext,
+        override != null ? "patch" : undefined,
+        bandRank,
       );
     }
   }
@@ -1050,16 +1487,32 @@ function applyInteractionOnto(
       ? collectBasePresentOwners(base, target.id)
       : collectOwnersWithTarget(current, next, target.id);
 
-    if (requireBase && ownersWithTarget.size === 0) continue;
+    const ownersInBand = new Set<OwnerKey>();
+    for (const owner of ownersWithTarget) {
+      const override = findTargetOverride(
+        appliedManifestations,
+        owner,
+        target.id,
+        modifierTagId,
+      );
+      if (!ownerMatchesInteractionBand(override, modifierLayer, bandRank)) {
+        continue;
+      }
+      ownersInBand.add(owner);
+    }
+
+    const teamMatchesBand = layerRank(modifierLayer) === bandRank;
+
+    if (requireBase && ownersInBand.size === 0) continue;
 
     let defaultOp: OperationType = interaction.mathOperation;
     let defaultFactor = interaction.defaultFactor ?? 0;
-    let allDisabled = ownersWithTarget.size > 0;
+    let allDisabled = ownersInBand.size > 0;
 
-    if (ownersWithTarget.size === 0) {
+    if (ownersInBand.size === 0) {
       allDisabled = false;
     } else {
-      for (const owner of ownersWithTarget) {
+      for (const owner of ownersInBand) {
         const override = findTargetOverride(
           appliedManifestations,
           owner,
@@ -1098,6 +1551,7 @@ function applyInteractionOnto(
     if (defaultOp === "presence_multiply") {
       if (!present) continue;
       if (writeToTeamPool) {
+        if (!teamMatchesBand) continue;
         applyOpAndRecord(
           next,
           TEAM_POOL_OWNER,
@@ -1114,10 +1568,12 @@ function applyInteractionOnto(
           modifierLayer,
           buffRestrictionMet,
           leafContext,
+          undefined,
+          bandRank,
         );
         continue;
       }
-      for (const owner of ownersWithTarget) {
+      for (const owner of ownersInBand) {
         const override = findTargetOverride(
           appliedManifestations,
           owner,
@@ -1150,13 +1606,16 @@ function applyInteractionOnto(
           modifierTagId,
           presenceApplied,
           effectSources,
-          modifierLayer,
+          effectiveInteractionLayerForOwner(override, modifierLayer),
           buffRestrictionMet,
           leafContext,
+          override != null ? "patch" : undefined,
+          bandRank,
         );
       }
       if (
         !requireBase &&
+        teamMatchesBand &&
         getOwnerValue(next, TEAM_POOL_OWNER, target.id) !== 0
       ) {
         applyOpAndRecord(
@@ -1175,6 +1634,8 @@ function applyInteractionOnto(
           modifierLayer,
           buffRestrictionMet,
           leafContext,
+          undefined,
+          bandRank,
         );
       }
       continue;
@@ -1182,6 +1643,7 @@ function applyInteractionOnto(
 
     if (defaultOp === "add_scaled") {
       if (writeToTeamPool) {
+        if (!teamMatchesBand) continue;
         applyOpAndRecord(
           next,
           TEAM_POOL_OWNER,
@@ -1199,8 +1661,8 @@ function applyInteractionOnto(
           buffRestrictionMet,
           leafContext,
         );
-      } else if (ownersWithTarget.size > 0) {
-        for (const owner of ownersWithTarget) {
+      } else if (ownersInBand.size > 0) {
+        for (const owner of ownersInBand) {
           const override = findTargetOverride(
             appliedManifestations,
             owner,
@@ -1233,12 +1695,13 @@ function applyInteractionOnto(
             modifierTagId,
             presenceApplied,
             effectSources,
-            modifierLayer,
+            effectiveInteractionLayerForOwner(override, modifierLayer),
             buffRestrictionMet,
             leafContext,
+            override != null ? "patch" : undefined,
           );
         }
-      } else if (!requireBase) {
+      } else if (!requireBase && teamMatchesBand) {
         // Substitute with no base: synthesize once into *team*.
         applyOpAndRecord(
           next,
@@ -1263,6 +1726,7 @@ function applyInteractionOnto(
 
     // multiply_one_plus / multiply
     if (writeToTeamPool) {
+      if (!teamMatchesBand) continue;
       applyOpAndRecord(
         next,
         TEAM_POOL_OWNER,
@@ -1280,8 +1744,8 @@ function applyInteractionOnto(
         buffRestrictionMet,
         leafContext,
       );
-    } else if (ownersWithTarget.size > 0) {
-      for (const owner of ownersWithTarget) {
+    } else if (ownersInBand.size > 0) {
+      for (const owner of ownersInBand) {
         const override = findTargetOverride(
           appliedManifestations,
           owner,
@@ -1314,13 +1778,15 @@ function applyInteractionOnto(
           modifierTagId,
           presenceApplied,
           effectSources,
-          modifierLayer,
+          effectiveInteractionLayerForOwner(override, modifierLayer),
           buffRestrictionMet,
           leafContext,
+          override != null ? "patch" : undefined,
         );
       }
       if (
         !requireBase &&
+        teamMatchesBand &&
         getOwnerValue(next, TEAM_POOL_OWNER, target.id) !== 0
       ) {
         applyOpAndRecord(
@@ -1341,7 +1807,7 @@ function applyInteractionOnto(
           leafContext,
         );
       }
-    } else if (!requireBase) {
+    } else if (!requireBase && teamMatchesBand) {
       applyOpAndRecord(
         next,
         TEAM_POOL_OWNER,
@@ -1425,6 +1891,16 @@ type RunInteractionsOptions = {
   recordBaseSteps: boolean;
   /** When false, skip Special conversions (caller runs once after merge). */
   runSpecial: boolean;
+  /**
+   * Phase 3b — invent unique_scaling with no matching default (subject path).
+   * Off for Phase 1 unrestricted creates.
+   */
+  applyUniqueScalingInvents: boolean;
+  /**
+   * Defaults used to infer invent vs patch (full rulebook when set).
+   * Defaults to `defaultInteractions`.
+   */
+  uniqueScalingMatchInteractions?: DefaultInteraction[];
   teamMaxHp?: number | null;
   realmMasteryTotal?: number;
   teamRealms?: TeamRealmResolution;
@@ -1434,6 +1910,196 @@ type RunInteractionsResult = {
   ownerValues: OwnerTotals;
   steps: ScalarMathStep[];
 };
+
+const LAYER_BANDS: Array<Layer | null> = ["pre_add", "add", "post_add"];
+
+/**
+ * Phase 3b — invent unique_scaling when no matching tag_default_interaction.
+ * Tag-mod and base-stat (null modifier) paths. Aftereffect ignored.
+ * Target scope = attached manifestation only.
+ */
+function applyUniqueScalingInvents(
+  appliedManifestations: Manifestation[],
+  defaultInteractions: DefaultInteraction[],
+  base: OwnerTotals,
+  current: OwnerTotals,
+  next: OwnerTotals,
+  tagsById: Record<number, Tag>,
+  steps: ScalarMathStep[],
+  pass: number,
+  presenceApplied: Set<string>,
+  awakenersById: ReadonlyMap<number, Awakener>,
+  leafContext: SourceType | null | undefined,
+  bandRank: number,
+  awakenerNamesById?: ReadonlyMap<number, string>,
+  teamMaxHp?: number | null,
+): void {
+  for (const m of appliedManifestations) {
+    if (m.interactionOverrides.length === 0) continue;
+    const owner = ownerKeyFor(m);
+    const target = tagsById[m.tagId];
+    if (!target) continue;
+    if (!isBasePresent(base, owner, m.tagId)) continue;
+
+    const ownerAwakener =
+      m.awakenerId != null
+        ? (awakenersById.get(m.awakenerId) ?? null)
+        : null;
+
+    for (const local of m.interactionOverrides) {
+      if (local.mode !== "unique_scaling") continue;
+
+      const applyLayer = effectiveUniqueScalingLayer(local, tagsById);
+      if (layerRank(applyLayer) !== bandRank) continue;
+
+      // Base-stat invent (null modifier_tag_id)
+      if (local.modifierTagId == null) {
+        if (local.dependencyStat == null) continue;
+        if (local.isDisabled) continue; // no default → no-op
+
+        const modValue = baseStatUniqueScalingModifierValue(
+          ownerAwakener,
+          local.dependencyStat,
+        );
+        const factor = local.valueScalar ?? 1;
+        const op = local.mathOperation ?? "multiply_one_plus";
+        const modLabel = `base_stat:${local.dependencyStat}`;
+
+        applyOpAndRecord(
+          next,
+          owner,
+          target,
+          modLabel,
+          modValue,
+          factor,
+          op,
+          steps,
+          pass,
+          null,
+          presenceApplied,
+          [sourceLabelFor(m, awakenerNamesById)],
+          applyLayer,
+          undefined,
+          leafContext,
+          "base_stat",
+          bandRank,
+        );
+        continue;
+      }
+
+      // Tag-mod: invent only when no matching default (else patch path).
+      if (
+        hasMatchingDefaultForUniqueScaling(
+          local.modifierTagId,
+          m.tagName,
+          defaultInteractions,
+        )
+      ) {
+        continue;
+      }
+      if (local.isDisabled) continue; // no default + disabled → no-op
+
+      const modifierTagId = local.modifierTagId;
+      const modifierTag = tagsById[modifierTagId];
+      const modifierTagName =
+        modifierTag?.tagName ?? local.modifierTagName ?? `#${modifierTagId}`;
+      const modifierTagIsPercent = modifierTag?.isPercent === true;
+
+      const matchingTagIds = matchingModifierTagIds(
+        tagsById,
+        modifierTagName,
+      );
+      const modifierManifests = collectModifierManifestationsByPrefix(
+        appliedManifestations,
+        modifierTagName,
+      );
+      const synthesizedModifierValue = sumTeamTagPrefix(
+        current,
+        matchingTagIds,
+      );
+      if (modifierManifests.length === 0 && synthesizedModifierValue === 0) {
+        continue;
+      }
+
+      const effectSources =
+        modifierManifests.length > 0
+          ? effectSourcesFromManifests(modifierManifests, awakenerNamesById)
+          : ["(synthesized)"];
+
+      const selfOwners = new Set<OwnerKey>();
+      let hasNonSelfModifier = false;
+      for (const modM of modifierManifests) {
+        // Per-row tag id so modifier-ATM overrides key off that manifestation’s tag.
+        const targetType = effectiveModifierTargetType(modM, modM.tagId);
+        if (targetType === "self") {
+          selfOwners.add(ownerKeyFor(modM));
+        } else {
+          hasNonSelfModifier = true;
+        }
+      }
+      if (modifierManifests.length === 0 && synthesizedModifierValue !== 0) {
+        hasNonSelfModifier = true;
+      }
+
+      let modValue = 0;
+      if (selfOwners.has(owner)) {
+        modValue = combinePrefixModifierValue(
+          current,
+          matchingTagIds,
+          tagsById,
+          modifierTag,
+          [owner, TEAM_POOL_OWNER],
+        );
+      } else if (hasNonSelfModifier) {
+        const nonSelfOwners = new Set<OwnerKey>();
+        for (const modM of modifierManifests) {
+          if (effectiveModifierTargetType(modM, modM.tagId) === "self") {
+            continue;
+          }
+          nonSelfOwners.add(ownerKeyFor(modM));
+        }
+        modValue = combinePrefixModifierValue(
+          current,
+          matchingTagIds,
+          tagsById,
+          modifierTag,
+          [...nonSelfOwners, TEAM_POOL_OWNER],
+        );
+      } else {
+        continue;
+      }
+
+      const op = local.mathOperation ?? "multiply_one_plus";
+      const factor = effectiveOverrideFactor(
+        local,
+        1,
+        ownerAwakener,
+        modifierTagIsPercent,
+        teamMaxHp,
+      );
+
+      applyOpAndRecord(
+        next,
+        owner,
+        target,
+        modifierTagName,
+        op === "presence_multiply" ? 1 : modValue,
+        factor,
+        op,
+        steps,
+        pass,
+        modifierTagId,
+        presenceApplied,
+        effectSources,
+        applyLayer,
+        undefined,
+        leafContext,
+        "invent",
+        bandRank,
+      );
+    }
+  }
+}
 
 function scalarOptionsFrom(
   partial: Pick<
@@ -1501,14 +2167,18 @@ function runInteractionsForLeafContext(
         sourceLabel,
         subjectKey: manifestationHitCountKey(m),
         subjectLabel: sourceLabel,
+        metadata: m.metadata,
       });
     }
   }
 
-  const orderedInteractions = orderInteractionsByModifierLayer(
-    options.defaultInteractions,
-    options.tagsById,
-  );
+  const interactionsInIdOpOrder = [...options.defaultInteractions]
+    .filter((interaction) => interaction.modifierTagId != null)
+    .sort(
+      (a, b) =>
+        opTiebreak(a.mathOperation) - opTiebreak(b.mathOperation) ||
+        a.id - b.id,
+    );
 
   let current = cloneOwnerTotals(base);
   let lastPassOpSteps: ScalarMathStep[] = [];
@@ -1518,22 +2188,45 @@ function runInteractionsForLeafContext(
     const passOpSteps: ScalarMathStep[] = [];
     const presenceApplied = new Set<string>();
 
-    for (const interaction of orderedInteractions) {
-      applyInteractionOnto(
-        interaction,
-        options.appliedManifestations,
-        base,
-        current,
-        next,
-        options.tagsById,
-        passOpSteps,
-        pass,
-        presenceApplied,
-        options.awakenersById,
-        options.leafContext,
-        options.awakenerNamesById,
-        options.teamMaxHp,
-      );
+    for (const band of LAYER_BANDS) {
+      const bandRank = layerRank(band);
+      for (const interaction of interactionsInIdOpOrder) {
+        applyInteractionOnto(
+          interaction,
+          options.appliedManifestations,
+          base,
+          current,
+          next,
+          options.tagsById,
+          passOpSteps,
+          pass,
+          presenceApplied,
+          options.awakenersById,
+          options.leafContext,
+          bandRank,
+          options.awakenerNamesById,
+          options.teamMaxHp,
+        );
+      }
+      if (options.applyUniqueScalingInvents) {
+        applyUniqueScalingInvents(
+          options.appliedManifestations,
+          options.uniqueScalingMatchInteractions ??
+            options.defaultInteractions,
+          base,
+          current,
+          next,
+          options.tagsById,
+          passOpSteps,
+          pass,
+          presenceApplied,
+          options.awakenersById,
+          options.leafContext,
+          bandRank,
+          options.awakenerNamesById,
+          options.teamMaxHp,
+        );
+      }
     }
 
     lastPassOpSteps = passOpSteps;
@@ -1661,23 +2354,34 @@ function collectInteractionTargetIds(
 }
 
 /**
- * Layer B — apply tag_default_interaction (+ overrides) and Special conversions.
+ * Layer B — apply tag_default_interaction (+ unique_scaling / aftereffect) and
+ * Special conversions.
  *
  * Matching: exact modifier, prefix target, exclusion = tag + descendants.
  * Self-scope: modifier target_type=self only updates same-owner tags.
  * Pass order (Phase 2c): modifier tag.layer — pre_add → add/null → post_add;
  * within rank add_scaled then other ops then id.
  *
- * Pipeline:
- * 1. Phase 1 — unrestricted creates_base: materialize into *team*, emit synthetics.
- *    Support created bases merge into totals (immune subjects); Attacker/Defender
- *    created bases become Phase 2 subjects.
- * 2. Phase 2 — per subject: restricted creates_base as scoped seed, then
- *    amplifies_subject only. leafContext = subject.sourceType.
- * 3. Special conversions once on merged totals (after all layer passes).
+ * Pipeline (Phase 3c + stack amplify):
+ * 0. Look-ahead: closure0 = aftereffect targets; expand via creates_base
+ *    (exact modifier); pull those creates; split amplifies into
+ *    closure0 (stack) vs closure\\closure0 (create/Trigger).
+ *    Empty closure0 → pull nothing (3b path).
+ * 1. Other unrestricted creates_base (excluding pulled closure edges).
+ * 2. Shared owner totals (aftereffect sinks + deferred create/amplify).
+ * 3. Each subject (slotIndex → awakenerId → tagId → sourceKind → id; null last):
+ *    finish single-hit → aftereffect from finishedOnce (merge × hitCount) →
+ *    own-tag finishedOnce × hitCount. unique_scaling stays in-band.
+ * 4a. Deferred stack amplify on combined per-owner closure0 totals
+ *    (Increase → Poison/Bleed); replace owner totals.
+ * 4b. Deferred thin create (combined stack, *team* OK).
+ * 4c. Deferred thin amplify on created synthetics (Trigger → Damage;
+ *    leafContext = synthetic sourceType null). Not a subject loop.
+ * 5. Special conversions last inside Layer B.
  *
  * Phase 2b.1: isBaseStatTransfer / realm / Support isCreatedBase subjects contribute
  * absolute scalar only (no inbound ops) but remain in other subjects' cohorts as modifiers.
+ * Exception: Base Tentacle Damage synthetic (realm-sourced) receives inbound amplify.
  * is_additive: Layer A same-tag seed + in-pass modifier collapse, and post-pass
  * subject merge (sum vs multiply; percent multiplicative uses (1+v) fold-back).
  */
@@ -1710,6 +2414,7 @@ export function applyInteractions(
       sourceLabel,
       subjectKey: manifestationHitCountKey(m),
       subjectLabel: sourceLabel,
+      metadata: m.metadata,
     });
   }
 
@@ -1744,28 +2449,67 @@ export function applyInteractions(
           ...bothTrueAmplify.map((i) => ({ ...i, createsBase: false })),
         ];
 
+  const lookAhead = buildAftereffectClosure(
+    applied,
+    input.defaultInteractions,
+    amplifyRows,
+    input.tagsById,
+  );
+  const deferredCreateIds = new Set(
+    lookAhead.deferredCreates.map((i) => i.id),
+  );
+  const deferredAmplifyIds = new Set([
+    ...lookAhead.deferredStackAmplifies.map((i) => i.id),
+    ...lookAhead.deferredCreateAmplifies.map((i) => i.id),
+  ]);
+  const unrestrictedCreatesLive = unrestrictedCreates.filter(
+    (i) => !deferredCreateIds.has(i.id),
+  );
+  const restrictedCreatesLive = restrictedCreates.filter(
+    (i) => !deferredCreateIds.has(i.id),
+  );
+  const amplifyRowsLive = amplifyRows.filter(
+    (i) => !deferredAmplifyIds.has(i.id),
+  );
+
+  if (lookAhead.closure0.size > 0) {
+    const closure0Names = tagNamesForIds(
+      lookAhead.closure0,
+      input.tagsById,
+    );
+    const closureNames = tagNamesForIds(lookAhead.closure, input.tagsById);
+    steps.push({
+      kind: "special",
+      label: "look-ahead closure",
+      detail: `closure0={${closure0Names.join(", ")}}; closure={${closureNames.join(", ")}}`,
+    });
+  }
+
   const mergedOwnerValues: OwnerTotals = new Map();
   const opSteps: ScalarMathStep[] = [];
+  const aftereffectSteps: ScalarMathStep[] = [];
   const createdSynthetics: Manifestation[] = [];
 
-  // Phase 1 — unrestricted materialize into *team*, emit synthetics.
-  if (unrestrictedCreates.length > 0 && applied.length > 0) {
+  // Phase 1 — unrestricted materialize into *team*, emit synthetics
+  // (excluding creates_base edges pulled into the deferred hop).
+  if (unrestrictedCreatesLive.length > 0 && applied.length > 0) {
     const createResult = runInteractionsForLeafContext({
       appliedManifestations: applied,
-      defaultInteractions: unrestrictedCreates,
+      defaultInteractions: unrestrictedCreatesLive,
       tagsById: input.tagsById,
       awakenersById,
       leafContext: null,
       awakenerNamesById: input.awakenerNamesById,
       recordBaseSteps: false,
       runSpecial: false,
+      applyUniqueScalingInvents: false,
       teamMaxHp: input.teamMaxHp,
       realmMasteryTotal: input.realmMasteryTotal,
       teamRealms: input.teamRealms,
     });
 
     const createTargetIds = collectInteractionTargetIds(
-      unrestrictedCreates,
+      unrestrictedCreatesLive,
       input.tagsById,
     );
 
@@ -1810,18 +2554,89 @@ export function applyInteractions(
 
   const phase2Applied = [...applied, ...createdSynthetics];
 
-  const subjects = phase2Applied.filter((m) => {
-    const scalar = effectiveManifestationScalar(
-      m,
-      awakenersById,
-      input.tagsById,
-      scalarOpts,
-    );
-    return scalar !== 0;
-  });
+  const subjects = phase2Applied
+    .filter((m) => {
+      const scalar = effectiveManifestationScalar(
+        m,
+        awakenersById,
+        input.tagsById,
+        scalarOpts,
+      );
+      return scalar !== 0;
+    })
+    .sort(compareSubjects);
 
   const hitCountByKey = input.hitCountByManifestationKey;
   const hitCountSteps: ScalarMathStep[] = [];
+
+  const emitAftereffects = (
+    subject: Manifestation,
+    finishedOnce: number,
+    hitCount: number,
+    sourceLabel: string,
+    subjectKey: string,
+  ) => {
+    const writeOwner = ownerKeyFor(subject);
+    const ownerAwakener =
+      subject.awakenerId != null
+        ? (awakenersById.get(subject.awakenerId) ?? null)
+        : null;
+
+    for (const row of aftereffectRowsFor(subject)) {
+      const targetId = row.targetTagId;
+      if (targetId == null) continue;
+      const target = input.tagsById[targetId];
+      if (!target) continue;
+
+      const factor = effectiveOverrideFactor(
+        row,
+        1,
+        ownerAwakener,
+        target.isPercent,
+        input.teamMaxHp,
+      );
+      const op = row.mathOperation ?? "multiply";
+      const contribution = aftereffectContribution(finishedOnce, factor, op);
+      const merged = contribution * hitCount;
+      if (merged === 0) continue;
+
+      const alreadyHas =
+        ownerHasTag(mergedOwnerValues, writeOwner, targetId) ||
+        ownerHasLayerATag(applied, writeOwner, targetId);
+      const invented = !alreadyHas;
+      const before = getOwnerValue(mergedOwnerValues, writeOwner, targetId);
+
+      mergeOwnerValue(
+        mergedOwnerValues,
+        writeOwner,
+        target,
+        targetId,
+        merged,
+      );
+
+      aftereffectSteps.push({
+        kind: "aftereffect",
+        tagId: targetId,
+        tagName: target.tagName,
+        owner: writeOwner,
+        op,
+        finishedOnce,
+        factor,
+        contribution,
+        hitCount,
+        merged,
+        before,
+        after: getOwnerValue(mergedOwnerValues, writeOwner, targetId),
+        layer: row.layer,
+        targetType: row.targetType,
+        invented,
+        sourceLabel,
+        subjectKey,
+        subjectLabel: sourceLabel,
+        metadata: subject.metadata,
+      });
+    }
+  };
 
   if (subjects.length > 0) {
     for (const subject of subjects) {
@@ -1858,6 +2673,7 @@ export function applyInteractions(
           input.tagsById,
           scalarOpts,
         );
+        emitAftereffects(subject, scalar, hitCount, sourceLabel, subjectKey);
         if (scalar !== 0) {
           mergeOwnerValue(
             mergedOwnerValues,
@@ -1872,7 +2688,10 @@ export function applyInteractions(
       }
 
       const cohort = cohortForSubject(phase2Applied, subject);
-      const subjectInteractions = [...restrictedCreates, ...amplifyRows];
+      const subjectInteractions = [
+        ...restrictedCreatesLive,
+        ...amplifyRowsLive,
+      ];
       const result = runInteractionsForLeafContext({
         appliedManifestations: cohort,
         defaultInteractions: subjectInteractions,
@@ -1882,22 +2701,18 @@ export function applyInteractions(
         awakenerNamesById: input.awakenerNamesById,
         recordBaseSteps: false,
         runSpecial: false,
+        applyUniqueScalingInvents: true,
+        uniqueScalingMatchInteractions: input.defaultInteractions,
         teamMaxHp: input.teamMaxHp,
         realmMasteryTotal: input.realmMasteryTotal,
         teamRealms: input.teamRealms,
       });
 
-      const value = getOwnerValue(result.ownerValues, owner, subject.tagId);
-      if (value !== 0) {
-        mergeOwnerValue(
-          mergedOwnerValues,
-          owner,
-          tag,
-          subject.tagId,
-          value * hitCount,
-        );
-        pushHitCountStep(value);
-      }
+      const finishedOnce = getOwnerValue(
+        result.ownerValues,
+        owner,
+        subject.tagId,
+      );
 
       for (const step of result.steps) {
         if (step.kind !== "op") continue;
@@ -1912,16 +2727,240 @@ export function applyInteractions(
           });
         }
       }
+
+      emitAftereffects(
+        subject,
+        finishedOnce,
+        hitCount,
+        sourceLabel,
+        subjectKey,
+      );
+
+      if (finishedOnce !== 0) {
+        mergeOwnerValue(
+          mergedOwnerValues,
+          owner,
+          tag,
+          subject.tagId,
+          finishedOnce * hitCount,
+        );
+        pushHitCountStep(finishedOnce);
+      }
     }
   }
 
-  steps.push(...opSteps, ...hitCountSteps);
+  const deferredSynthetics: Manifestation[] = [];
+
+  // 4a — Deferred stack amplify on combined per-owner closure0 totals
+  // (Increase → Poison/Bleed) before create snapshots the stack.
+  if (lookAhead.deferredStackAmplifies.length > 0) {
+    const stackSnapshots: Manifestation[] = [];
+    const snapshotKeys: Array<{ owner: OwnerKey; tagId: number }> = [];
+    for (const [owner, tagMap] of mergedOwnerValues) {
+      for (const tagId of lookAhead.closure0) {
+        const value = tagMap.get(tagId) ?? 0;
+        if (value === 0) continue;
+        const tag = input.tagsById[tagId];
+        if (!tag) continue;
+        const snapshot = buildOwnerStackSnapshot(tag, owner, value);
+        if (snapshot == null) continue;
+        stackSnapshots.push(snapshot);
+        snapshotKeys.push({ owner, tagId });
+      }
+    }
+
+    if (stackSnapshots.length > 0) {
+      const thinApplied = [
+        ...applied.filter((m) => !lookAhead.closure0.has(m.tagId)),
+        ...stackSnapshots,
+      ];
+      const amplifyResult = runInteractionsForLeafContext({
+        appliedManifestations: thinApplied,
+        defaultInteractions: lookAhead.deferredStackAmplifies,
+        tagsById: input.tagsById,
+        awakenersById,
+        leafContext: null,
+        awakenerNamesById: input.awakenerNamesById,
+        recordBaseSteps: false,
+        runSpecial: false,
+        applyUniqueScalingInvents: false,
+        teamMaxHp: input.teamMaxHp,
+        realmMasteryTotal: input.realmMasteryTotal,
+        teamRealms: input.teamRealms,
+      });
+
+      const amplifyTargetIds = collectInteractionTargetIds(
+        lookAhead.deferredStackAmplifies,
+        input.tagsById,
+      );
+      for (const step of amplifyResult.steps) {
+        if (step.kind !== "op") continue;
+        if (amplifyTargetIds.has(step.tagId)) {
+          opSteps.push({
+            ...step,
+            subjectKey: DEFERRED_STACK_AMPLIFY_SUBJECT_KEY,
+            subjectLabel: DEFERRED_STACK_AMPLIFY_SUBJECT_LABEL,
+            leafContext: null,
+          });
+        }
+      }
+
+      for (const { owner, tagId } of snapshotKeys) {
+        setOwnerValue(
+          mergedOwnerValues,
+          owner,
+          tagId,
+          getOwnerValue(amplifyResult.ownerValues, owner, tagId),
+        );
+      }
+    }
+  }
+
+  // 4b — Deferred Option A thin create from (amplified) combined closure0 stacks.
+  if (lookAhead.deferredCreates.length > 0) {
+    const modifierTagIds = new Set<number>();
+    for (const interaction of lookAhead.deferredCreates) {
+      if (interaction.modifierTagId != null) {
+        modifierTagIds.add(interaction.modifierTagId);
+      }
+    }
+    const snapshots: Manifestation[] = [];
+    for (const tagId of modifierTagIds) {
+      const tag = input.tagsById[tagId];
+      if (!tag) continue;
+      const snapshot = snapshotCombinedModifier(mergedOwnerValues, tag);
+      if (snapshot != null) snapshots.push(snapshot);
+    }
+
+    if (snapshots.length > 0) {
+      const createResult = runInteractionsForLeafContext({
+        appliedManifestations: snapshots,
+        defaultInteractions: lookAhead.deferredCreates,
+        tagsById: input.tagsById,
+        awakenersById,
+        leafContext: null,
+        awakenerNamesById: input.awakenerNamesById,
+        recordBaseSteps: false,
+        runSpecial: false,
+        applyUniqueScalingInvents: false,
+        teamMaxHp: input.teamMaxHp,
+        realmMasteryTotal: input.realmMasteryTotal,
+        teamRealms: input.teamRealms,
+      });
+
+      const createTargetIds = collectInteractionTargetIds(
+        lookAhead.deferredCreates,
+        input.tagsById,
+      );
+
+      for (const tagId of createTargetIds) {
+        const teamVal = getOwnerValue(
+          createResult.ownerValues,
+          TEAM_POOL_OWNER,
+          tagId,
+        );
+        if (teamVal === 0) continue;
+        const tag = input.tagsById[tagId];
+        if (!tag) continue;
+        deferredSynthetics.push(buildCreatedBaseManifestation(tag, teamVal));
+      }
+
+      for (const step of createResult.steps) {
+        if (step.kind !== "op") continue;
+        if (createTargetIds.has(step.tagId)) {
+          opSteps.push({
+            ...step,
+            subjectKey: DEFERRED_CREATE_SUBJECT_KEY,
+            subjectLabel: DEFERRED_CREATE_SUBJECT_LABEL,
+          });
+        }
+      }
+    }
+  }
+
+  // 4c — Deferred thin amplify on created synthetics (Trigger → Damage).
+  if (
+    deferredSynthetics.length > 0 &&
+    lookAhead.deferredCreateAmplifies.length > 0
+  ) {
+    const thinApplied = [
+      ...applied.filter((m) => !lookAhead.closure0.has(m.tagId)),
+      ...deferredSynthetics,
+    ];
+    const amplifyResult = runInteractionsForLeafContext({
+      appliedManifestations: thinApplied,
+      defaultInteractions: lookAhead.deferredCreateAmplifies,
+      tagsById: input.tagsById,
+      awakenersById,
+      leafContext: null,
+      awakenerNamesById: input.awakenerNamesById,
+      recordBaseSteps: false,
+      runSpecial: false,
+      applyUniqueScalingInvents: false,
+      teamMaxHp: input.teamMaxHp,
+      realmMasteryTotal: input.realmMasteryTotal,
+      teamRealms: input.teamRealms,
+    });
+
+    const amplifyTargetIds = collectInteractionTargetIds(
+      lookAhead.deferredCreateAmplifies,
+      input.tagsById,
+    );
+    for (const step of amplifyResult.steps) {
+      if (step.kind !== "op") continue;
+      if (amplifyTargetIds.has(step.tagId)) {
+        opSteps.push({
+          ...step,
+          subjectKey: DEFERRED_AMPLIFY_SUBJECT_KEY,
+          subjectLabel: DEFERRED_AMPLIFY_SUBJECT_LABEL,
+          leafContext: null,
+        });
+      }
+    }
+
+    for (const synthetic of deferredSynthetics) {
+      const tag = input.tagsById[synthetic.tagId];
+      const value = getOwnerValue(
+        amplifyResult.ownerValues,
+        ownerKeyFor(synthetic),
+        synthetic.tagId,
+      );
+      if (value === 0) continue;
+      mergeOwnerValue(
+        mergedOwnerValues,
+        ownerKeyFor(synthetic),
+        tag,
+        synthetic.tagId,
+        value,
+      );
+    }
+  } else {
+    for (const synthetic of deferredSynthetics) {
+      const tag = input.tagsById[synthetic.tagId];
+      const scalar = synthetic.valueScalar ?? 0;
+      if (scalar === 0) continue;
+      mergeOwnerValue(
+        mergedOwnerValues,
+        ownerKeyFor(synthetic),
+        tag,
+        synthetic.tagId,
+        scalar,
+      );
+    }
+  }
+
+  steps.push(...opSteps, ...aftereffectSteps, ...hitCountSteps);
+
+  const phase2AppliedForSpecial = [
+    ...phase2Applied,
+    ...deferredSynthetics,
+  ];
 
   // Special conversions once on merged totals (all applied + created for presence).
   applySpecialConversion(
     mergedOwnerValues,
     input.tagsById,
-    phase2Applied,
+    phase2AppliedForSpecial,
     SPECIAL_CORROSION_CONVERSION,
     DEBUFF_CORROSION,
     CORROSION_DAMAGE,
@@ -1930,7 +2969,7 @@ export function applyInteractions(
   applySpecialConversion(
     mergedOwnerValues,
     input.tagsById,
-    phase2Applied,
+    phase2AppliedForSpecial,
     SPECIAL_EMBERS_CONVERSION,
     DEBUFF_EMBERS,
     EMBERS_DAMAGE,
@@ -1949,6 +2988,8 @@ export function applyInteractions(
       tagId,
       tagName: tag?.tagName ?? `#${tagId}`,
       total,
+      isAdditive: tag?.isAdditive !== false,
+      isPercent: tag?.isPercent === true,
     });
   }
 

@@ -17,6 +17,7 @@ const TOC_ITEMS = [
   { href: "#investment-assumptions", label: "Investment Assumptions" },
   { href: "#how-effects-are-cataloged", label: "How Effects are Cataloged" },
   { href: "#how-search-works", label: "How Search Works" },
+  { href: "#burst-turn-simulation", label: "Burst Turn Simulation" },
   { href: "#search-options", label: "Search Options and Results" },
 ] as const;
 
@@ -89,8 +90,8 @@ export default function ManualSearchPage() {
         <h1 className={manualPageHeadingClass}>Search</h1>
         <p className={manualBodyClass}>
           Investment assumptions used for Value scaling, how effects are
-          cataloged, how filters behave, and what each search option and result
-          column means.
+          cataloged, how burst turns are simulated, how filters behave, and
+          what each search option and result column means.
         </p>
         <p className={manualBodyClass}>
           <Link href="/search" className={manualLinkClass}>
@@ -168,8 +169,15 @@ export default function ManualSearchPage() {
             <div className="space-y-1">
               <dt className={fieldDtClass}>Awakener</dt>
               <dd className={manualBodyClass}>
-                Ideal burst turn is recorded. Xu&apos;s poison trigger uses full
-                Spellbound.
+                Effects related to their ideal burst turn within reason are
+                cataloged. See{" "}
+                <Link
+                  href="#burst-turn-simulation"
+                  className={manualLinkClass}
+                >
+                  Burst Turn Simulation
+                </Link>{" "}
+                for more details.
               </dd>
             </div>
           </dl>
@@ -195,6 +203,44 @@ export default function ManualSearchPage() {
               Final Damage for Strike
             </span>
             .
+          </li>
+          <li>
+            For Attacker and Defender tags on Awakener results, Search uses the
+            burst-turn value when one can be calculated. See{" "}
+            <Link href="#burst-turn-simulation" className={manualLinkClass}>
+              Burst Turn Simulation
+            </Link>{" "}
+            for more details.
+          </li>
+        </ul>
+      </section>
+
+      <section
+        id="burst-turn-simulation"
+        className="scroll-mt-24 space-y-4 border-t border-[var(--mt-border)] pt-8"
+      >
+        <h2 className={manualSectionHeadingClass}>Burst Turn Simulation</h2>
+        <ul className={listClass}>
+          <li>
+            All meaningful effects from the Awakener and their realm are
+            applied.
+            <ul className="mt-1.5 list-disc space-y-1.5 pl-5">
+              <li>
+                Most Awakeners do not rely on basic strike and defense, so those
+                are not cataloged and are not part of the burst turn. For
+                Awakeners who do, basic strike and defense are cataloged and
+                calculated.
+              </li>
+            </ul>
+          </li>
+          <li>
+            All Awakener conditions are set to optimal within reason.
+            <ul className="mt-1.5 list-disc space-y-1.5 pl-5">
+              <li>
+                Xu has full Spellbound stacks. Doresain is not bursting against
+                an enemy with 1 HP.
+              </li>
+            </ul>
           </li>
         </ul>
       </section>
@@ -247,17 +293,10 @@ export default function ManualSearchPage() {
             <div id="value" className="scroll-mt-24 space-y-1">
               <dt className={fieldDtClass}>Value</dt>
               <dd className={manualBodyClass}>
-                Magnitude of the tag. If there is no Dependency Stat, this is
-                the raw magnitude. If Dependency Stat is set, awakener rows show
-                the scaled result using the{" "}
-                <Link
-                  href="#investment-assumptions"
-                  className={manualLinkClass}
-                >
-                  investment assumptions
-                </Link>
-                . For Wheel, Covenant, and Posse it shows the coefficient as a %
-                of that dependency stat. Rows with a negative Value are omitted.
+                Magnitude of the tag. If Dependency Stat is set, it shows the
+                coefficient as a % of that dependency stat. For Attacker and
+                Defender tags on Awakener results, the burst-turn value is used
+                when one exists.
               </dd>
             </div>
           </dl>

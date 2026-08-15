@@ -3,15 +3,22 @@
  * Run: npx tsx scripts/smoke-base-tentacle-damage.ts
  */
 import { computeReviewTagTotals } from "../src/lib/path-carver/aggregate-tag-scalars";
+import { applyInteractions } from "../src/lib/path-carver/apply-interactions";
 import {
   REALM_TAG_MANIFESTATION_AEQUOR_FIXED_HP_ID,
   REALM_TAG_MANIFESTATION_BENTHOS_BASE_TDU_ID,
   SUPPORT_DAMAGE_AMP_TAG_ID,
   SUPPORT_TENTACLE_DAMAGE_UP_TAG_ID,
   baseTentacleDamageManifestationId,
+  buildBaseTentacleDamageManifestation,
   computeBaseTentacleDamage,
+  isBaseTentacleDamageManifestation,
   resolveBaseTentacleMode,
 } from "../src/lib/path-carver/base-tentacle-damage";
+import {
+  buildAwakenersById,
+  isInteractionImmuneSubject,
+} from "../src/lib/path-carver/effective-value-scalar";
 import { createManifestationApplyContext } from "../src/lib/path-carver/manifestation-apply";
 import { oceanDamageMultiplierForLevel } from "../src/lib/path-carver/ocean-damage-multipliers";
 import {
@@ -21,12 +28,18 @@ import {
 } from "../src/lib/team-data/realm";
 import type {
   Awakener,
+  DefaultInteraction,
   Manifestation,
   RealmLookupRow,
   Tag,
   TeamData,
 } from "../src/lib/team-data/types";
 import { createEmptyTeamData } from "../src/lib/team-data/types";
+
+/** Support.Multiply Tentacle Damage */
+const SUPPORT_MULTIPLY_TENTACLE_DAMAGE_TAG_ID = 150;
+/** Special.Hit = Tentacle Attack */
+const SPECIAL_HIT_TENTACLE_ATTACK_TAG_ID = 151;
 
 const CARO = 2;
 
@@ -123,6 +136,7 @@ function makeTeam(
   awakeners: Awakener[],
   manifestations: Manifestation[],
   tagsById: Record<number, Tag>,
+  defaultInteractions: DefaultInteraction[] = [],
 ): TeamData {
   const base = createEmptyTeamData();
   return {
@@ -131,10 +145,12 @@ function makeTeam(
     manifestations,
     tagsById,
     realms: REALMS,
+    defaultInteractions,
     summary: {
       ...base.summary,
       awakenerCount: awakeners.length,
       manifestationCount: manifestations.length,
+      defaultInteractionCount: defaultInteractions.length,
     },
   };
 }
@@ -373,6 +389,251 @@ console.log("\nIntegration — neither ocean realm → no synthetic");
   assert(
     (result.totalsByTagId.get(SUPPORT_TENTACLE_DAMAGE_UP_TAG_ID) ?? 0) === 0,
     "tag 29 stays 0",
+  );
+}
+
+console.log("\nisInteractionImmuneSubject — Base Tentacle carve-out");
+{
+  const tagsById: Record<number, Tag> = {
+    [SUPPORT_TENTACLE_DAMAGE_UP_TAG_ID]: makeTag(
+      SUPPORT_TENTACLE_DAMAGE_UP_TAG_ID,
+      "Support.Tentacle Damage Up",
+    ),
+  };
+  const synth = buildBaseTentacleDamageManifestation(
+    {
+      mode: "aequor",
+      realmId: AEQUOR_REALM_ID,
+      sumAtk: 0,
+      avgAtk: 0,
+      ocean: 0,
+      rawAtk: 0,
+      hpShare: 0,
+      chaosShare: 0,
+      hpTerm: 0,
+      baseAmount: 116,
+      damageAmpTotal: 0,
+      valueScalar: 116,
+    },
+    tagsById,
+  );
+  assert(synth != null, "synth built");
+  assert(isBaseTentacleDamageManifestation(synth!), "helper matches synth id");
+  assert(
+    !isInteractionImmuneSubject(synth!),
+    "Base Tentacle synthetic is not immune",
+  );
+  const otherRealm = makeManifestation({
+    id: 29,
+    realmId: AEQUOR_REALM_ID,
+    tagId: SPECIAL_HIT_TENTACLE_ATTACK_TAG_ID,
+    tagName: "Special.Hit = Tentacle Attack",
+    valueScalar: 0.5,
+  });
+  assert(
+    isInteractionImmuneSubject(otherRealm),
+    "other realm subject stays immune",
+  );
+}
+
+console.log("\nCarve-out — Multiply Tentacle Damage amplifies Base Tentacle (116→145)");
+{
+  const tagsById: Record<number, Tag> = {
+    [SUPPORT_TENTACLE_DAMAGE_UP_TAG_ID]: makeTag(
+      SUPPORT_TENTACLE_DAMAGE_UP_TAG_ID,
+      "Support.Tentacle Damage Up",
+    ),
+    [SUPPORT_MULTIPLY_TENTACLE_DAMAGE_TAG_ID]: makeTag(
+      SUPPORT_MULTIPLY_TENTACLE_DAMAGE_TAG_ID,
+      "Support.Multiply Tentacle Damage",
+      true,
+      false,
+    ),
+  };
+  const synth = buildBaseTentacleDamageManifestation(
+    {
+      mode: "aequor",
+      realmId: AEQUOR_REALM_ID,
+      sumAtk: 0,
+      avgAtk: 0,
+      ocean: 0,
+      rawAtk: 0,
+      hpShare: 0,
+      chaosShare: 0,
+      hpTerm: 0,
+      baseAmount: 116,
+      damageAmpTotal: 0,
+      valueScalar: 116,
+    },
+    tagsById,
+  )!;
+  const multiply = makeManifestation({
+    id: 28,
+    realmId: AEQUOR_REALM_ID,
+    tagId: SUPPORT_MULTIPLY_TENTACLE_DAMAGE_TAG_ID,
+    tagName: "Support.Multiply Tentacle Damage",
+    valueScalar: 1.25,
+  });
+  const tdi90: DefaultInteraction = {
+    id: 90,
+    modifierTagId: SUPPORT_MULTIPLY_TENTACLE_DAMAGE_TAG_ID,
+    modifierTagName: "Support.Multiply Tentacle Damage",
+    targetTagId: SUPPORT_TENTACLE_DAMAGE_UP_TAG_ID,
+    targetTagName: "Support.Tentacle Damage Up",
+    exclusionTagId: null,
+    exclusionTagName: null,
+    mathOperation: "multiply",
+    defaultFactor: 1,
+    buffTargetTypeRestriction: null,
+    createsBase: false,
+    amplifiesSubject: true,
+  };
+  const result = applyInteractions({
+    manifestations: [synth, multiply],
+    appliedManifestations: [synth, multiply],
+    defaultInteractions: [tdi90],
+    tagsById,
+    awakenersById: buildAwakenersById([]),
+  });
+  assert(
+    (result.totalsByTagId.get(SUPPORT_TENTACLE_DAMAGE_UP_TAG_ID) ?? 0) === 145,
+    `tag 29 after Multiply = 145 (got ${result.totalsByTagId.get(SUPPORT_TENTACLE_DAMAGE_UP_TAG_ID)})`,
+  );
+}
+
+console.log("\nIntegration — Multiply amplifies tentacle via computeReviewTagTotals");
+{
+  const tagsById: Record<number, Tag> = {
+    [SUPPORT_TENTACLE_DAMAGE_UP_TAG_ID]: makeTag(
+      SUPPORT_TENTACLE_DAMAGE_UP_TAG_ID,
+      "Support.Tentacle Damage Up",
+    ),
+    [SUPPORT_DAMAGE_AMP_TAG_ID]: makeTag(
+      SUPPORT_DAMAGE_AMP_TAG_ID,
+      "Support.Damage AMP",
+      true,
+    ),
+    [SUPPORT_MULTIPLY_TENTACLE_DAMAGE_TAG_ID]: makeTag(
+      SUPPORT_MULTIPLY_TENTACLE_DAMAGE_TAG_ID,
+      "Support.Multiply Tentacle Damage",
+      true,
+      false,
+    ),
+  };
+  const awakeners = [
+    makeAwakener({ id: 1, realmId: AEQUOR_REALM_ID, atk: 135, con: 200 }),
+    makeAwakener({ id: 2, realmId: CHAOS_REALM_ID, atk: 182, con: 200 }),
+    makeAwakener({ id: 3, realmId: CHAOS_REALM_ID, atk: 190, con: 200 }),
+    makeAwakener({ id: 4, realmId: CHAOS_REALM_ID, atk: 145, con: 200 }),
+  ];
+  const multiply = makeManifestation({
+    id: 28,
+    realmId: AEQUOR_REALM_ID,
+    tagId: SUPPORT_MULTIPLY_TENTACLE_DAMAGE_TAG_ID,
+    tagName: "Support.Multiply Tentacle Damage",
+    valueScalar: 1.25,
+  });
+  const tdi90: DefaultInteraction = {
+    id: 90,
+    modifierTagId: SUPPORT_MULTIPLY_TENTACLE_DAMAGE_TAG_ID,
+    modifierTagName: "Support.Multiply Tentacle Damage",
+    targetTagId: SUPPORT_TENTACLE_DAMAGE_UP_TAG_ID,
+    targetTagName: "Support.Tentacle Damage Up",
+    exclusionTagId: null,
+    exclusionTagName: null,
+    mathOperation: "multiply",
+    defaultFactor: 1,
+    buffTargetTypeRestriction: null,
+    createsBase: false,
+    amplifiesSubject: true,
+  };
+  const ctx = createManifestationApplyContext(awakeners, [], new Map(), REALMS);
+  const without = computeReviewTagTotals(
+    makeTeam(awakeners, [], tagsById),
+    ctx,
+  );
+  const withMult = computeReviewTagTotals(
+    makeTeam(awakeners, [multiply], tagsById, [tdi90]),
+    ctx,
+  );
+  const baseTotal =
+    without.totalsByTagId.get(SUPPORT_TENTACLE_DAMAGE_UP_TAG_ID) ?? 0;
+  const amplified =
+    withMult.totalsByTagId.get(SUPPORT_TENTACLE_DAMAGE_UP_TAG_ID) ?? 0;
+  const expected = Math.ceil(baseTotal * 1.25);
+  assert(baseTotal > 0, `base tentacle > 0 (got ${baseTotal})`);
+  assert(
+    amplified === expected,
+    `Multiply → ceil(${baseTotal}×1.25)=${expected} (got ${amplified})`,
+  );
+}
+
+console.log("\nIntegration — other realm subjects stay immune");
+{
+  const tagsById: Record<number, Tag> = {
+    [SUPPORT_TENTACLE_DAMAGE_UP_TAG_ID]: makeTag(
+      SUPPORT_TENTACLE_DAMAGE_UP_TAG_ID,
+      "Support.Tentacle Damage Up",
+    ),
+    [SUPPORT_DAMAGE_AMP_TAG_ID]: makeTag(
+      SUPPORT_DAMAGE_AMP_TAG_ID,
+      "Support.Damage AMP",
+      true,
+    ),
+    [SPECIAL_HIT_TENTACLE_ATTACK_TAG_ID]: makeTag(
+      SPECIAL_HIT_TENTACLE_ATTACK_TAG_ID,
+      "Special.Hit = Tentacle Attack",
+      true,
+    ),
+    999: makeTag(999, "Support.Bogus Amplify Hit", true),
+  };
+  const awakeners = [
+    makeAwakener({ id: 1, realmId: AEQUOR_REALM_ID, atk: 135, con: 200 }),
+    makeAwakener({ id: 2, realmId: CHAOS_REALM_ID, atk: 182, con: 200 }),
+    makeAwakener({ id: 3, realmId: CHAOS_REALM_ID, atk: 190, con: 200 }),
+    makeAwakener({ id: 4, realmId: CHAOS_REALM_ID, atk: 145, con: 200 }),
+  ];
+  const hit = makeManifestation({
+    id: 29,
+    realmId: AEQUOR_REALM_ID,
+    tagId: SPECIAL_HIT_TENTACLE_ATTACK_TAG_ID,
+    tagName: "Special.Hit = Tentacle Attack",
+    valueScalar: 0.5,
+  });
+  const bogusMod = makeManifestation({
+    id: 9001,
+    sourceKind: "awakener",
+    awakenerId: 1,
+    slotIndex: 0,
+    realmId: null,
+    requiredRealmMode: null,
+    pureBonusTarget: null,
+    tagId: 999,
+    tagName: "Support.Bogus Amplify Hit",
+    valueScalar: 2,
+  });
+  const bogusTdi: DefaultInteraction = {
+    id: 900,
+    modifierTagId: 999,
+    modifierTagName: "Support.Bogus Amplify Hit",
+    targetTagId: SPECIAL_HIT_TENTACLE_ATTACK_TAG_ID,
+    targetTagName: "Special.Hit = Tentacle Attack",
+    exclusionTagId: null,
+    exclusionTagName: null,
+    mathOperation: "multiply",
+    defaultFactor: 1,
+    buffTargetTypeRestriction: null,
+    createsBase: false,
+    amplifiesSubject: true,
+  };
+  const ctx = createManifestationApplyContext(awakeners, [], new Map(), REALMS);
+  const result = computeReviewTagTotals(
+    makeTeam(awakeners, [hit, bogusMod], tagsById, [bogusTdi]),
+    ctx,
+  );
+  assert(
+    (result.totalsByTagId.get(SPECIAL_HIT_TENTACLE_ATTACK_TAG_ID) ?? 0) === 0.5,
+    `realm Hit stays 0.5 (got ${result.totalsByTagId.get(SPECIAL_HIT_TENTACLE_ATTACK_TAG_ID)})`,
   );
 }
 

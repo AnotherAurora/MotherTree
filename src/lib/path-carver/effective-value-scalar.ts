@@ -1,3 +1,4 @@
+import { isBaseTentacleDamageManifestation } from "@/lib/path-carver/base-tentacle-damage";
 import type {
   AllStats,
   Awakener,
@@ -354,6 +355,8 @@ export function buildAwakenersById(
 
 /** True when the subject contributes absolute scalar only (no inbound ops). */
 export function isInteractionImmuneSubject(m: Manifestation): boolean {
+  // Base Tentacle synthetic is realm-sourced but receives inbound amplify (TDI 90 / 8).
+  if (isBaseTentacleDamageManifestation(m)) return false;
   if (m.isBaseStatTransfer || m.sourceKind === "realm") return true;
   // Support created bases: absolute merge only; Attacker/Defender created bases are subjects.
   if (

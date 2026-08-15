@@ -531,7 +531,11 @@ export function TableManager({
                       return (
                         <th
                           key={field.name}
-                          className="px-4 py-3 text-left font-medium text-zinc-600"
+                          className={cn(
+                            "px-4 py-3 text-left font-medium text-zinc-600",
+                            field.name === "copy_provider_group_id" &&
+                              "max-w-[10rem]",
+                          )}
                         >
                           <div className="flex items-center gap-1">
                             <span>{field.label}</span>
@@ -603,7 +607,14 @@ export function TableManager({
                         }}
                       >
                         {listFields.map((field) => (
-                          <td key={field.name} className="px-4 py-3 align-top">
+                          <td
+                            key={field.name}
+                            className={cn(
+                              "px-4 py-3 align-top",
+                              field.name === "copy_provider_group_id" &&
+                                "max-w-[10rem] overflow-hidden",
+                            )}
+                          >
                             {field.inlineEditable && !showDeletedOnly && !isDeleted ? (
                               <EditableCell
                                 tableName={config.name}

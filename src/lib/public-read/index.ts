@@ -7,8 +7,9 @@ export {
   isPublicReadTable,
   publicSelectClause,
 } from "@/lib/public-read/allowlist";
-export { fetchPublicTable } from "@/lib/public-read/fetch";
+export { fetchPublicTable, PUBLIC_READ_CACHE_TTL_MS } from "@/lib/public-read/fetch";
 export type { PublicReadResult, PublicReadOptions } from "@/lib/public-read/fetch";
+export { resetPublicReadCacheForTests } from "@/lib/public-read/cache";
 export {
   checkPublicRateLimit,
   resetPublicRateLimitForTests,

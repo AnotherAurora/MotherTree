@@ -1,6 +1,6 @@
 ---
 name: Simulator Phased Plan
-overview: Path Carver–first roadmap. Phase 1–2c.1 + 3a + 3a.1 + 3a.2 + 3a.3 done. Next is Phase 3b→3c (unique_scaling engine → aftereffect + Layer B closure look-ahead). Phase 4 ports math to desire_demand/radar/simulator, Calculation List layer breakdown, Corrosion/Embers Non-Active parent+descendants + name→id. Phase 5 smart recommend.
+overview: Path Carver–first roadmap. Phase 1–2c.1 + 3a + 3a.1 + 3a.2 + 3a.3 + 3b + 3b.1 + 3c + 3c.1 (aftereffect stack amplify) done. Next is Phase 4 (desire_demand / radar / simulator, Calculation List layer breakdown, Corrosion/Embers Non-Active parent+descendants + name→id). Phase 5 smart recommend.
 todos:
   - id: seed-data
     content: Create scripts/seed-simulator-data.ts with 2-3 desires, demand rows, anchored awakeners; add npm script
@@ -58,10 +58,16 @@ todos:
     status: completed
   - id: phase-3b-unique-scaling
     content: Phase 3b — unique_scaling patch/invent in subject path (tag-mod + base-stat null-mod); local layer wins; modifier aggregation; defaults value_scalar=1 op=multiply_one_plus; smokes invent/patch/disable/ATM27
-    status: pending
+    status: completed
+  - id: phase-3b1-unique-scaling-modifier-prefix
+    content: Phase 3b.1 — unique_scaling invent modifier pool prefix (Defender.Shield includes Defender.Shield.*); patch/inference stay exact; smoke + admin manual + plan lock
+    status: completed
   - id: phase-3c-aftereffect-layer-b
-    content: Phase 3c — aftereffect emit/merge math (× hitCount = instances × effective copies); restructure Layer B; creates_base closure look-ahead deferred create/amplify Option A; Bleed kit smoke; Special still last
-    status: pending
+    content: Phase 3c — aftereffect emit/merge from finishedOnce (merge contribution × hitCount); own-tag merge finishedOnce × hitCount after aftereffect; restructure Layer B; closure look-ahead Option A; Bleed kit smoke; Special still last
+    status: completed
+  - id: phase-3c1-aftereffect-stack-amplify
+    content: Phase 3c.1 — Split look-ahead amplifies (closure0 stack vs created-base); deferred stack amplify on combined per-owner aftereffect sinks before create (Increase→Poison/Bleed); Sunfall-shaped smokes
+    status: completed
   - id: layer-breakdown-ui
     content: Phase 4 — Wire Summary / Calculation List to show layer-by-layer breakdown
     status: pending
@@ -89,7 +95,7 @@ isProject: false
 
 Path Carver’s **Review Tags** page is the primary surface for testing recommendation math. Simulator Start / Recommend / radar / `desire_demand` fulfillment come **after** Path Carver math stabilizes (Phase 4); the simulator will copy Path Carver logic.
 
-| Focus now (3a.2 → 3b→3c)                                                                | Later (Phase 4+)                               |
+| Focus now (3b.1 → 3c.1)                                                                 | Later (Phase 4+)                               |
 | --------------------------------------------------------------------------------------- | ---------------------------------------------- |
 | Path Carver Review Tags apply + aggregation + interactions                              | Simulator radar / fulfillment UI               |
 | Pass-order layers + `awakener_local_manifestation_interaction` rename (2c)              | Full `desire_demand` scoring / curves          |
@@ -126,18 +132,18 @@ Path Carver’s **Review Tags** page is the primary surface for testing recommen
 
 ### Not done (next work)
 
-| Area                                             | Status                                                                                                                      |
-| ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------- |
-| `target_type` apply rules                        | Loaded and shown in debug; **not applied** in aggregation                                                                   |
-| Interaction application                          | `tag_default_interaction` + overrides loaded in `TeamData` but **not applied**                                              |
-| `dependency_stat` → `value_scalar`               | **Phase 2b done** — ATM/covenant/wheel/override scaled; posse + team/enemy max HP ignored                                   |
-| `buff_target_type_restriction` leaf-gating       | **Phase 2b done** — materialize-then-amplify + `creates_base` / `amplifies_subject`; Option B subject `source_type` context |
-| Pass-order damage layers                         | **Phase 2c done**                                                                                                           |
-| Remove leftover `layer.final` enum value         | **Phase 2c.1 done**                                                                                                         |
-| Manifestation-local unique_scaling / aftereffect | Admin 3a–3a.2 done; engine deferred to Phase 3b→3c                                                                          |
-| Calculation List layer breakdown                 | Deferred to Phase 4                                                                                                         |
-| Simulator using Path Carver math                 | Port in Phase 4                                                                                                             |
-| Corrosion/Embers Non-Active + wiring             | Deferred to Phase 4 — parent+descendants capacity; rewire name→id                                                           |
+| Area                                             | Status                                                                                                                                               |
+| ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `target_type` apply rules                        | Loaded and shown in debug; **not applied** in aggregation                                                                                            |
+| Interaction application                          | `tag_default_interaction` + overrides loaded in `TeamData` but **not applied**                                                                       |
+| `dependency_stat` → `value_scalar`               | **Phase 2b done** — ATM/covenant/wheel/override scaled; posse + team/enemy max HP ignored                                                            |
+| `buff_target_type_restriction` leaf-gating       | **Phase 2b done** — materialize-then-amplify + `creates_base` / `amplifies_subject`; Option B subject `source_type` context                          |
+| Pass-order damage layers                         | **Phase 2c done**                                                                                                                                    |
+| Remove leftover `layer.final` enum value         | **Phase 2c.1 done**                                                                                                                                  |
+| Manifestation-local unique_scaling / aftereffect | unique_scaling **3b** + invent prefix **3b.1**; aftereffect + Layer B reshape + closure look-ahead **3c**; stack amplify Increase→sink **3c.1 done** |
+| Calculation List layer breakdown                 | Deferred to Phase 4                                                                                                                                  |
+| Simulator using Path Carver math                 | Port in Phase 4                                                                                                                                      |
+| Corrosion/Embers Non-Active + wiring             | Deferred to Phase 4 — parent+descendants capacity; rewire name→id                                                                                    |
 
 ---
 
@@ -795,7 +801,7 @@ Verified (HP 1560, chaos 3, amp 1.0 from RTM 31 pure): **250**.
 
 - `atk_per = 0`; `accountLevel = DEFAULT_ACCOUNT_LEVEL` (60)
 - Ocean step table: 1–25→1.00 … 60–69→1.80 … 70+→1.90
-- Hardcoded AMP (no TDI); realm synthetic is interaction-immune as subject
+- Hardcoded AMP (no TDI); realm synthetic receives inbound amplify (TDI Multiply / Increase Gain); other RTMs stay interaction-immune as subjects
 
 ### Primary files
 
@@ -943,7 +949,7 @@ Run the migration in **one transaction**. Do **not** truncate or recreate `tag` 
 
 ### Goal
 
-Expand `awakener_local_manifestation_interaction` beyond patch-only behavior: **`unique_scaling`** covers both inventing a local modifier→target link and patching an existing `tag_default_interaction` (engine infers which), and **`aftereffect`** emits `op(finished(S), factor)` into another tag and merges via `tag.is_additive` — with clear attachment scope, precedence, and scheduling.
+Expand `awakener_local_manifestation_interaction` beyond patch-only behavior: **`unique_scaling`** covers both inventing a local modifier→target link and patching an existing `tag_default_interaction` (engine infers which), and **`aftereffect`** emits `op(finishedOnce, factor)` into another tag and merges **`contribution × hitCount`** via `tag.is_additive` — with clear attachment scope, precedence, and scheduling.
 
 ### Why this is a separate phase
 
@@ -957,7 +963,8 @@ Pass letters alone do not solve invent-without-default, create-from-final-value,
 | **3a.1** | 3a         | Base-stat unique_scaling admin/contract — null `modifier_tag_id` + required `dependency_stat`; check constraint; Stat Scaling datapatch; plan/manual — **no engine invent math** |
 | **3a.2** | 3a.1       | Disable-only admin UI — hide layer / op / value_scalar / target_type when `is_disabled`; docs — **no schema/engine change**                                                      |
 | **3b**   | 3a.1       | `unique_scaling` patch/invent in existing subject path (tag-mod + base-stat null-mod; local layer, modifier aggregation, defaults)                                               |
-| **3c**   | 3b         | Aftereffect emit/merge + **restructure Layer B** + closure look-ahead deferred create/amplify (Option A)                                                                         |
+| **3b.1** | 3b         | Invent modifier pool prefix (`Defender.Shield` → `Defender.Shield.*`); patch/inference stay exact                                                                                |
+| **3c**   | 3b.1       | Aftereffect emit/merge + **restructure Layer B** + closure look-ahead deferred create/amplify (Option A)                                                                         |
 
 Shared design locks below apply to all three; each subphase has its own scope and acceptance.
 
@@ -989,38 +996,58 @@ Add / use (names may refine in migration):
 **Modes:**
 
 1. **`unique_scaling`** — row attached to the **target** manifestation (`manifestation_id`). Apply target = parent manifestation’s tag. `modifier_tag_id` = modifier tag **or null** when `dependency_stat` supplies an awakener base-stat modifier; `target_tag_id` null. Fires in the row’s `layer` band while resolving that target subject.
-2. **`aftereffect`** — row attached to the **source** subject manifestation. Finished subject value (after that subject completes through `post_add`) is the **source finished value** for emit math. `target_tag_id` = apply target tag (required); `modifier_tag_id` null. Emit + merge math is **not** the same as `tag_default_interaction`’s `applyMathOp(before, …)` — see **Aftereffect math** below. Write scope follows row **`target_type`** (required; default **`aoe`** — not null). Typical Bleed kits write to **`Attacker.Bleed`** (stack); `creates_base` Bleed → Bleed Damage and Bleed Trigger are scheduled via **closure look-ahead** (below) so Trigger amplifies Bleed Damage, not the Bleed stack. Contributions merge via `tag.is_additive` with **`isCreatedBase` synthetics** for tags in the closure. Among a subject’s aftereffect rows, order by `layer` (`pre_add` → `add` → `post_add`).
+2. **`aftereffect`** — row attached to the **source** subject manifestation. **`finishedOnce`** (single-hit value after that subject completes through `post_add`, including in-band unique_scaling) is the **source finished value** for emit math — not `finishedOnce × hitCount`. `target_tag_id` = apply target tag (required); `modifier_tag_id` null. Emit + merge math is **not** the same as `tag_default_interaction`’s `applyMathOp(before, …)` — see **Aftereffect math** below. **Write owner** is always `ownerKeyFor(source subject)` (ATM → `awakener:{id}`); row **`target_type`** stamps the synthetic’s `targetType` (`self` vs `aoe`/`single`) — it does **not** invent a second `*team*` bucket. Typical Bleed kits write to **`Attacker.Bleed`** (stack); `creates_base` Bleed → Bleed Damage and Bleed Trigger are scheduled via **closure look-ahead** (below) so Trigger amplifies Bleed Damage, not the Bleed stack. Contributions merge via `tag.is_additive` with **`isCreatedBase` synthetics** for tags in the closure. Among a subject’s aftereffect rows, order by `layer` (`pre_add` → `add` → `post_add`).
 
 ### Aftereffect math (locked)
 
 Aftereffect does **not** use `applyMathOp(before, modifierValue, factor, op)`. `before` (the target tag’s current total) never enters the op. Merge with any existing total uses **`tag.is_additive` only** — aftereffect does not change `is_additive` and does not branch on “was there already a base for this tag?”
 
-**Two steps:**
+**Two steps** (`finishedOnce` = single-hit finished value; **not** the folded subject total):
 
 ```text
 factor = effectiveOverrideFactor(local row)
   // value_scalar required in admin; default 1
   // dependency_stat scales against the source ATM’s awakener
 
-contribution = op(finished(S), factor)   // op does not see before
+contribution = op(finishedOnce, factor)   // op does not see before
+  // do NOT use op(finishedOnce × hitCount, factor)
 
 newTotal = combineSameTagScalar(
-  before, contribution, tag.is_additive, tag.is_percent
+  before,
+  contribution × hitCount,   // scale at merge (3a.3); hitCount = instances × effective copies
+  tag.is_additive,
+  tag.is_percent
 )
 ```
 
-**Ops (finished ↔ factor only):**
+**Ops (`finishedOnce` ↔ factor only):**
 
-| `math_operation`         | contribution           | Aftereffect dropdown |
-| ------------------------ | ---------------------- | -------------------- |
-| `multiply` (**default**) | `finished(S) * factor` | yes                  |
-| `add_scaled`             | `finished(S) + factor` | yes                  |
-| `multiply_one_plus`      | —                      | **removed**          |
-| `presence_multiply`      | —                      | **removed**          |
+| `math_operation`         | contribution            | Aftereffect dropdown |
+| ------------------------ | ----------------------- | -------------------- |
+| `multiply` (**default**) | `finishedOnce * factor` | yes                  |
+| `add_scaled`             | `finishedOnce + factor` | yes                  |
+| `multiply_one_plus`      | —                       | **removed**          |
+| `presence_multiply`      | —                       | **removed**          |
 
 **Admin:** `value_scalar` required for aftereffect; default **1**. Op dropdown for aftereffect mode only lists `multiply` and `add_scaled`.
 
 **Not aftereffect math:** multi-writer / multi-base combine policy stays on **`tag.is_additive`**. Do not invent an aftereffect-specific “absent base vs skip” path.
+
+**Aftereffect synthetic owner (locked — 3c):**
+
+```text
+Invent/update the aftereffect target under ownerKeyFor(source subject)
+  (ATM → awakener:{id}).
+
+self:          that owner only; synthetic targetType = self
+aoe / single:  same write owner; synthetic targetType as the row;
+               later reads use existing non-self modifier pooling
+               (no second *team* invent)
+
+Do not reuse Phase 1 *team* create for aftereffect emits.
+If that owner already has the tag (e.g. Layer A Bleed):
+  merge via is_additive — do not invent a parallel synthetic.
+```
 
 ### Admin UI: single tag dropdown + label-swap (locked)
 
@@ -1082,10 +1109,11 @@ Local attachment narrows **which target row** receives the op — **not** which 
 
 For invent or patch with a **tag** modifier (e.g. Shield → that Active Damage manifestation):
 
-| Side         | Rule                                                                                                                                                                                                       |
-| ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Target**   | Only the attached manifestation (its owner + tag). Narrower than `target_type = self` on a global rule.                                                                                                    |
-| **Modifier** | Reuse global interaction rules: `collectModifierManifestations(Mod)` + self / non-self split via each modifier manifestation’s effective `target_type` + `combineTagAcrossOwners` / **`tag.is_additive`**. |
+| Side                         | Rule                                                                                                                                                                                                                                                                                         |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Target**                   | Only the attached manifestation (its owner + tag). Narrower than `target_type = self` on a global rule.                                                                                                                                                                                      |
+| **Modifier (invent — 3b.1)** | Prefix under the chosen Modifier Tag (`matchesDemandTag`): `Defender.Shield` includes `Defender.Shield` + all `Defender.Shield.*`. Self / non-self split + fold via `combineTagAcrossOwners` / **`tag.is_additive`** (across sibling tags use the **root** modifier tag’s additive/percent). |
+| **Modifier (patch)**         | Unchanged: matching `tag_default_interaction` still uses **exact** modifier id; local only overrides op / factor / layer / disable / `target_type`.                                                                                                                                          |
 
 Do **not** invent a “only this awakener’s Shield” rule unless a Shield manifestation is itself `target_type = self`. Local row `target_type` (required; default `aoe`) constrains **write scope on the target**, not which modifier totals contribute.
 
@@ -1119,37 +1147,42 @@ Even if `Defender.Shield`’s tag layer is `pre_add`, local `add` wins for **whe
 
 ### Locked decisions
 
-| #   | Decision                                                                                                                                                                                                                                                                                                                                              |
-| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | **Modes are only `unique_scaling` and `aftereffect`.** Patch vs invent for scaling is inferred from whether `tag_default_interaction` exists.                                                                                                                                                                                                         |
-| 2   | **`target_tag_id` exists for aftereffect only.** unique_scaling apply-target is always the parent manifestation’s tag (`target_tag_id` null).                                                                                                                                                                                                         |
-| 3   | **No `creates_base` / `amplifies_subject` on local rows** — mode is enough.                                                                                                                                                                                                                                                                           |
-| 4   | **Both modes use `layer`.** unique_scaling: local `layer` sets the target-path band (null → modifier tag `layer`, or **`add`** if null-mod base-stat); aftereffects run after source `post_add`, ordered by their `layer`.                                                                                                                            |
-| 5   | **`unique_scaling` attachment = target manifestation.** Sole target row scaled (narrower than `target_type = self`). `modifier_tag_id` = modifier tag **or null** for base-stat (`dependency_stat` required).                                                                                                                                         |
-| 6   | **`aftereffect`:** `target_tag_id` = apply target (Bleed kits: prefer **Bleed** stack, not Bleed Damage); finished parent = source finished value; `modifier_tag_id` null; required `target_type` (default `aoe`); merge via `is_additive` + `isCreatedBase` synthetics; Trigger via closure look-ahead.                                              |
-| 7   | **UI label-swap** as above — one dropdown, mode-dependent label, writes to different columns.                                                                                                                                                                                                                                                         |
-| 8   | **Local always wins** when a matching default exists. When no default exists, invent from the local row.                                                                                                                                                                                                                                              |
-| 9   | **Deferred scheduling (Option A — implement):** look-ahead closure from aftereffect targets through `creates_base` edges; hold amplifies (and deferred creates along those edges) until aftereffects have written; then create hop(s) then amplifies once on combined bases. Before Special. Approximation — see below.                               |
-| 10  | **Local binding:** aftereffect on A uses **A’s** finished value at emit time.                                                                                                                                                                                                                                                                         |
-| 11  | **Subject order:** deterministic — `slotIndex` → `awakenerId` → `tagId` → `manifestation.id`. Out of scope: combinatorial max-damage order.                                                                                                                                                                                                           |
-| 12  | Special Corrosion / Embers stay hardcoded post-pass (Phase 4).                                                                                                                                                                                                                                                                                        |
-| 13  | `buff_target_type_restriction` on local rows remains optional/later.                                                                                                                                                                                                                                                                                  |
-| 14  | **No `final` layer** — only `pre_add` / `add` / `post_add`.                                                                                                                                                                                                                                                                                           |
-| 15  | **Aftereffect emit:** `contribution = op(finished(S), factor)`; `before` is not in the op. Default op `multiply` → `finished * factor`; `add_scaled` → `finished + factor`.                                                                                                                                                                           |
-| 16  | **Aftereffect factor:** `value_scalar` required (admin default **1**); scaled by source ATM awakener `dependency_stat` via `effectiveOverrideFactor`.                                                                                                                                                                                                 |
-| 17  | **Aftereffect merge:** always `combineSameTagScalar` / **`tag.is_additive`** (unchanged). No aftereffect-specific combine; no invent-0-vs-skip branch.                                                                                                                                                                                                |
-| 18  | **Aftereffect op dropdown:** only `multiply` and `add_scaled`. Remove `multiply_one_plus` and `presence_multiply` for this mode.                                                                                                                                                                                                                      |
-| 19  | **unique_scaling modifier aggregation:** target scope = attached manifestation only; tag-mod totals reuse global Shield/self/`combineTagAcrossOwners` rules. Local `target_type` does not shrink the modifier pool. Null-mod: awakener `dependency_stat` only.                                                                                        |
-| 20  | **Look-ahead closure (not bare target_tag_id):** `S0` = this team’s aftereffect `target_tag_id`s; expand via `creates_base` defaults whose **modifier exact-matches** a tag in S; deferred amplifies = `amplifies_subject` whose target matches any tag in S.                                                                                         |
-| 21  | **Restructure Layer B:** shared aftereffect/deferred state + sequential subjects (see below). No new stage after Layer B — Special stays end of Layer B; aggregate pipeline still ends at `applyInteractions`.                                                                                                                                        |
-| 22  | **Local `target_type`:** NOT NULL; admin required; DB/admin default **`aoe`**. Backfill existing nulls → `aoe`. No null write-scope branch.                                                                                                                                                                                                           |
-| 23  | **unique_scaling layer:** local `layer` wins for target-path timing; null → modifier tag `layer` (tag-mod) or **`add`** (base-stat null-mod). Does **not** grow Mod — reads current Mod total when the band runs (e.g. Shield 10→20 via increase, then add-band unique_scaling adds 20 to Damage). Supersedes 2c override pass timing for local rows. |
-| 24  | **Synthetics + create hop:** aftereffects merge into direct targets via `is_additive` + `isCreatedBase`; then deferred **`creates_base`** along closure edges (Bleed → Bleed Damage) on combined stacks; then deferred amplifies run against those synthetics like normal subjects. Bleed Trigger does not multiply the Bleed stack.                  |
-| 25  | **unique_scaling defaults:** `value_scalar` default **1**; `math_operation` default **`multiply_one_plus`**. (Aftereffect keeps default op **`multiply`** and excludes `multiply_one_plus` / `presence_multiply` from its dropdown.)                                                                                                                  |
-| 26  | **Combined before Trigger:** all aftereffect contributions that feed a closure sink are merged (`is_additive`) before deferred create/amplify — Bleed Damage totals sum before Bleed Trigger hits once (Option A).                                                                                                                                    |
-| 27  | **unique_scaling base-stat (null mod):** `modifier_tag_id` null + `dependency_stat` required; modifierValue from parent ATM awakener; percent deps via `isPercentDependencyStat` → ×100 points; factor = raw `value_scalar` (no second dep-scale); always invent. Example ATM 27 → 111.                                                               |
+| #   | Decision                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1   | **Modes are only `unique_scaling` and `aftereffect`.** Patch vs invent for scaling is inferred from whether `tag_default_interaction` exists.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| 2   | **`target_tag_id` exists for aftereffect only.** unique_scaling apply-target is always the parent manifestation’s tag (`target_tag_id` null).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| 3   | **No `creates_base` / `amplifies_subject` on local rows** — mode is enough.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| 4   | **Both modes use `layer`.** unique_scaling: local `layer` sets the target-path band (null → modifier tag `layer`, or **`add`** if null-mod base-stat); aftereffects run after source `post_add`, ordered by their `layer`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| 5   | **`unique_scaling` attachment = target manifestation.** Sole target row scaled (narrower than `target_type = self`). `modifier_tag_id` = modifier tag **or null** for base-stat (`dependency_stat` required).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| 6   | **`aftereffect`:** `target_tag_id` = apply target (Bleed kits: prefer **Bleed** stack, not Bleed Damage); source = **`finishedOnce`** (not folded); `modifier_tag_id` null; required `target_type` (default `aoe`); write owner = `ownerKeyFor(source)` (not `*team*`); merge via `is_additive` + `isCreatedBase` synthetics; Trigger via closure look-ahead.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| 7   | **UI label-swap** as above — one dropdown, mode-dependent label, writes to different columns.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| 8   | **Local always wins** when a matching default exists. When no default exists, invent from the local row.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| 9   | **Deferred scheduling (Option A — implement):** look-ahead closure from aftereffect targets through `creates_base` edges; hold amplifies (and deferred creates along those edges) until aftereffects have written; then **one thin create hop + one thin amplify pass** on combined bases (not a full subject loop). Before Special. Approximation — see below.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| 10  | **Local binding:** aftereffect on A uses **A’s `finishedOnce`** at emit time (single-hit; before own-tag `× hitCount`).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| 11  | **Subject order (3c):** deterministic — `slotIndex` → `awakenerId` → `tagId` → `sourceKind` → `manifestation.id`. **Null last** on `slotIndex` / `awakenerId` (posse, realm, created-base). Empty aftereffect set matches 3b on **additive** totals; keep 3b smokes as 3c regressions. Out of scope: combinatorial max-damage order.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| 12  | Special Corrosion / Embers stay hardcoded post-pass (Phase 4).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| 13  | `buff_target_type_restriction` on local rows remains optional/later.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| 14  | **No `final` layer** — only `pre_add` / `add` / `post_add`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| 15  | **Aftereffect emit:** `contribution = op(finishedOnce, factor)`; `before` is not in the op. Default op `multiply` → `finishedOnce * factor`; `add_scaled` → `finishedOnce + factor`. Merge scales by **`hitCount`** (`contribution × hitCount`); do not `op` the folded total.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| 16  | **Aftereffect factor:** `value_scalar` required (admin default **1**); scaled by source ATM awakener `dependency_stat` via `effectiveOverrideFactor`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| 17  | **Aftereffect merge:** always `combineSameTagScalar` / **`tag.is_additive`** (unchanged). No aftereffect-specific combine; no invent-0-vs-skip branch.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| 18  | **Aftereffect op dropdown:** only `multiply` and `add_scaled`. Remove `multiply_one_plus` and `presence_multiply` for this mode.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| 19  | **unique_scaling modifier aggregation:** target scope = attached manifestation only; **invent** tag-mod pool = prefix under Modifier Tag (`Shield` → `Shield.*`) + self/non-self + `combineTagAcrossOwners` / root `is_additive`; **patch** stays exact via TDI. Local `target_type` does not shrink the modifier pool. Null-mod: awakener `dependency_stat` only.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| 20  | **Look-ahead closure (not bare target_tag_id):** `closure0` = this team’s aftereffect `target_tag_id`s; expand via `creates_base` defaults whose **modifier exact-matches** a tag in `closure`. **Split amplifies (3c.1):** stack = target intersects `closure0`; create = target intersects `closure \ closure0`. Empty `closure0` → pull nothing (3b path). If Bleed is in `closure`, pull Bleed → Bleed Damage and Trigger → Bleed Damage even when Layer A Bleed exists. **Naming:** loop variable = `subject`; start set = `closure0`; expanded tag set = `closure` — do not reuse `S` for both.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| 21  | **Restructure Layer B:** shared aftereffect/deferred state + sequential subjects (see below). Per subject: finish single-hit → aftereffect from `finishedOnce` (merge `× hitCount`) → merge own tag `finishedOnce × hitCount`. No new stage after Layer B — Special stays end of Layer B; aggregate pipeline still ends at `applyInteractions`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| 22  | **Local `target_type`:** NOT NULL; admin required; DB/admin default **`aoe`**. Backfill existing nulls → `aoe`. No null write-scope branch. Aftereffect: `target_type` stamps the synthetic’s `targetType`; it does **not** change write owner (always source owner).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| 23  | **unique_scaling layer:** local `layer` wins for target-path timing; null → modifier tag `layer` (tag-mod) or **`add`** (base-stat null-mod). Does **not** grow Mod — reads current Mod total when the band runs (e.g. Shield 10→20 via increase, then add-band unique_scaling adds 20 to Damage). Supersedes 2c override pass timing for local rows.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| 24  | **Synthetics + create hop:** aftereffects invent/update the **direct** target under the source owner (`isCreatedBase` only if that owner lacked the tag). Deferred **`creates_base`** (once) Bleed → Bleed Damage from the combined Bleed stack (`is_additive` across owners; one `isCreatedBase`; `hitCount = 1`; Phase 1–style `*team*` OK on this hop only). Deferred amplifies = **thin** TDI pass on that synthetic (existing amplify helper; `leafContext` = synthetic `sourceType` which is `null`). Trigger does not multiply the Bleed stack. Not a full isolated subject loop; not a raw totals overwrite.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| 25  | **unique_scaling defaults:** `value_scalar` default **1**; `math_operation` default **`multiply_one_plus`**. (Aftereffect keeps default op **`multiply`** and excludes `multiply_one_plus` / `presence_multiply` from its dropdown.)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| 26  | **Combined before Trigger:** deferred create input = **finished Layer A Bleed subjects + aftereffect Bleed writes**, combined `is_additive` (across owners). One Bleed Damage rebuilt once from that stack; Trigger hits that synthetic once (Option A). Not Layer A only, not aftereffect only.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| 27  | **unique_scaling base-stat (null mod):** `modifier_tag_id` null + `dependency_stat` required; modifierValue from parent ATM awakener; percent deps via `isPercentDependencyStat` → ×100 points; factor = raw `value_scalar` (no second dep-scale); always invent. Example ATM 27 → 111.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| 28  | **Per-subject `finishedOnce` vs `hitCount` (3c):** (1) finish `subject` on the single-hit base (`pre_add` → `add` → `post_add`, unique_scaling in-band) → `finishedOnce`; (2) aftereffect `contribution = op(finishedOnce, factor)`, merge `contribution × hitCount` into the target (e.g. Bleed); (3) merge `subject`’s own tag as `finishedOnce × hitCount`. Never `op` the folded total.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| 29  | **Aftereffect synthetic owner (3c):** invent/update the target under `ownerKeyFor(source subject)` (ATM → `awakener:{id}`). `self` → that owner only, synthetic `targetType = self`. `aoe` / `single` → same write owner, synthetic `targetType` as the row; later reads use existing non-self modifier pooling. No second `*team*` invent. Do not reuse Phase 1 `*team*` create for aftereffect emits. If that owner already has the tag (Layer A Bleed), merge via `is_additive` — do not invent a parallel synthetic.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| 30  | **Deferred create/amplify (3c — thin, not a subject):** Deferred **create** (once): one `creates_base` Bleed → Bleed Damage from the combined Bleed stack (`is_additive` across owners); keep/update one `isCreatedBase`; `hitCount = 1`. This hop **may** use Phase 1–style combined/`*team*` ownership — that ban applies to aftereffect emits (Bleed stays on `ownerKeyFor(subject)`), not to this create. Trigger must not multiply the Bleed stack. Deferred **amplify** (once): run only the deferred TDI rows (Trigger → Bleed Damage) in modifier `tag.layer` order on that synthetic, via the existing amplify helper; `leafContext` = synthetic `sourceType` (`null` — do not invent a `sourceType`). Restricted creates that need command-card / exalt / etc. skip. **Not** a full isolated subject loop (no cohort, no unique_scaling on the synthetic in 3c, no leftover amplifies, no second `hitCount` from the source ATM). Bleed Damage is not another ATM — no Layer A–style subject career. **Not** a raw totals overwrite: do not set `BleedDamage = f(Bleed, Trigger)` on the final tag map; go through create + amplify helpers. |
+| 31  | **Layer A Bleed + aftereffect Bleed (3c):** Look-ahead still defers when Layer A Bleed exists — do not skip because Phase 1 “would already create.” Pull Bleed → Bleed Damage and Trigger → Bleed Damage whenever Bleed is in the aftereffect closure. Combined stack = finished Layer A Bleed subjects + aftereffect Bleed writes (`is_additive` across owners). One Bleed Damage, rebuilt once from that stack — no Phase 1 Bleed Damage beside a deferred one; no second Trigger on the Layer-A-only value. Layer A Bleed is still a normal subject (isolated path, unique_scaling, `hitCount`, own-tag merge); it is not an aftereffect emit — aftereffect only adds to the same owner Bleed bucket. Empty aftereffect set: do not pull these edges; Layer A Bleed + Phase 1 create + Trigger stay as 3b.                                                                                                                                                                                                                                                                                                                                          |
+| 32  | **Aftereffect stack amplify (3c.1):** Split deferred amplifies. **`deferredStackAmplifies`** = `amplifies_subject` whose target intersects **`closure0`** (e.g. Increase Gain.Poison → Poison). **`deferredCreateAmplifies`** = target intersects **`closure \ closure0`** (e.g. Trigger → Poison Damage). After the subject/aftereffect loop and **before** deferred create: run stack amplifies once on **combined per-owner** closure0 totals (Layer A sink + aftereffect writes); snapshot with correct `awakenerId` so `target_type=self` works; **replace** owner totals (do not re-merge). Then deferred create snapshots the amplified stack; thin Trigger amplify stays on Damage synthetics only. Empty `closure0` → neither pull (3b subject-path Increase unchanged). Example: aftereffect Poison 50 + Sunfall Increase 0.2 → Poison 60 → Poison Damage 60.                                                                                                                                                                                                                                                                                |
 
-### Layer B pipeline reshape (locked — implement in **3c**)
+### Layer B pipeline reshape (locked — implement in **3c**; stack amplify in **3c.1**)
 
 Today Layer B (`applyInteractions`) is: unrestricted creates → **isolated per-subject** cohort runs (merge finished subject values only) → Special. Aftereffects need **shared write state**, so Phase 3 explicitly restructures Layer B (not a new outer layer).
 
@@ -1158,37 +1191,81 @@ Today Layer B (`applyInteractions`) is: unrestricted creates → **isolated per-
 **Restructured Layer B:**
 
 ```text
-0. Look-ahead: build closure set S from this team’s aftereffect target_tag_ids
-   + creates_base edges (exact modifier match) — see below
-   Pull amplifies_subject targeting any tag in S out of the per-subject loop
+0. Look-ahead: build closure0 from this team’s aftereffect target_tag_ids
+   + creates_base edges (exact modifier match) → closure
+   If closure0 is empty: pull nothing (Layer A Bleed + Phase 1 create + Trigger stay as 3b)
+   If Bleed ∈ closure: pull Bleed → Bleed Damage and Trigger → Bleed Damage
+     even if Layer A Bleed exists — do not skip because Phase 1 “would already create”
+   Split amplifies_subject:
+     deferredStackAmplifies = target intersects closure0 (Increase → stack)
+     deferredCreateAmplifies = target intersects closure\closure0 (Trigger → Damage)
+   Pull both out of the per-subject loop
    Pull creates_base edges used in the closure out of the early unrestricted/subject create path
-   when they are needed for aftereffect sinks (Bleed → Bleed Damage)
+   (no Phase 1 Bleed Damage beside the deferred hop)
 
-1. Other unrestricted creates_base (unchanged) → synthetics / *team* merge as today
+1. Other unrestricted creates_base (unchanged; excluding pulled closure edges)
+   → synthetics / *team* merge as today
 
 2. Shared owner totals (aftereffect sinks + deferred create/amplify live here)
 
-3. For each subject S in deterministic order
-   (slotIndex → awakenerId → tagId → manifestation.id):
-     run S’s path: pre_add → add → post_add
-       defaults + unique_scaling on S (local layer wins; null → modifier tag layer; read current Mod — do not grow Mod)
-       do NOT run amplifies whose target is in S
-     subject isolation still applies to S’s own finished value (cohort as needed)
-     after S finished post_add:
-       run S’s aftereffect rows (by layer) → write into shared totals via is_additive
-       keep/update isCreatedBase synthetic for the direct aftereffect target
+3. For each subject in deterministic order
+   (slotIndex → awakenerId → tagId → sourceKind → manifestation.id;
+    null slotIndex / awakenerId last):
+     // 1. Finish subject on the single-hit base → finishedOnce
+     run subject’s path: pre_add → add → post_add
+       defaults + unique_scaling on subject (local layer wins; null → modifier tag layer; read current Mod — do not grow Mod)
+       do NOT run amplifies whose target is in closure (stack or created)
+     subject isolation still applies to subject’s own finishedOnce (cohort as needed)
 
-4. Deferred Option A (closure):
-   a. deferred creates_base along closure edges on combined stacks
-      (e.g. Bleed → Bleed Damage synthetic)
-   b. deferred amplifies_subject targeting tags in S once
-      against those synthetics (modifier tag.layer order)
-      e.g. Bleed Trigger → Bleed Damage — not onto Bleed stack
+     // 2. Aftereffect uses finishedOnce, not the folded total
+     after subject finished post_add:
+       contribution = op(finishedOnce, factor)   // not op(finishedOnce × hitCount, factor)
+       writeOwner = ownerKeyFor(subject)         // ATM → awakener:{id}; never *team*
+       merge contribution × hitCount into (writeOwner, target_tag_id) via is_additive
+       if that owner already has the tag: merge only — do not invent a parallel synthetic
+       else invent isCreatedBase synthetic on writeOwner
+         targetType = row target_type (self → self; aoe/single as the row)
+       aftereffect rows ordered by layer
+
+     // 3. Then merge subject’s own tag (e.g. Active Damage)
+     merge finishedOnce × hitCount into shared totals for subject’s tag
+
+4. Deferred Option A (closure) — thin hops, not a subject loop:
+   a. deferred stack amplify (3c.1): Increase → closure0 stack
+      per-owner snapshots of combined Layer A + aftereffect totals
+      (preserve awakenerId for target_type=self); replace owner totals
+   b. deferred create (once): creates_base Bleed → Bleed Damage
+      from amplified combined stack = finished Layer A Bleed subjects
+        + aftereffect Bleed writes (+ stack Increase) (is_additive across owners)
+      rebuild/update that same one isCreatedBase; hitCount = 1
+      no Phase 1 Bleed Damage beside this hop; no second Trigger on Layer-A-only
+      Phase 1–style *team* ownership OK on this hop only
+      (aftereffect Bleed stays on ownerKeyFor(subject))
+   c. deferred amplify (once, thin): only deferredCreateAmplifies
+      (Trigger → Bleed Damage) in modifier tag.layer order
+      existing amplify helper; leafContext = synthetic sourceType (null)
+      restricted creates that need command-card / exalt / etc. skip
+      no cohort / unique_scaling / leftover amplifies / second hitCount
+   Trigger must not multiply the Bleed stack
+   Do not set BleedDamage = f(Bleed, Trigger) on the final tag map
 
 5. Special Corrosion / Ancient Embers (still last inside Layer B)
 ```
 
-Subject path stays per-subject for finishing S; aftereffect + deferred create/amplify use **shared** totals across subjects. Max-damage subject-order search remains out of scope (Phase 5).
+**Per-subject order (locked — 3a.3 / 3c):** finish single-hit → aftereffect from `finishedOnce` (scale `× hitCount` at Bleed merge) → merge own tag `finishedOnce × hitCount`. Do not run aftereffect on the already-multiplied subject total. **Layer A Bleed** is a normal subject on this path (not an aftereffect emit); aftereffect writes only add to the same owner Bleed bucket. Subject path stays per-subject for finishing each subject; aftereffect + deferred create/amplify use **shared** totals across subjects. Max-damage subject-order search remains out of scope (Phase 5).
+
+**Subject sort (locked — 3c):**
+
+```text
+slotIndex → awakenerId → tagId → sourceKind → manifestation.id
+  null last on slotIndex / awakenerId
+    (posse, realm, isCreatedBase often have both null)
+  then sourceKind before id
+
+Empty aftereffect set matches 3b on additive totals.
+Keep 3b smokes as 3c regressions.
+(Non-additive same-tag merge can be order-sensitive; not a 3c gate.)
+```
 
 ### Deferred amplify — closure look-ahead (locked — Option A; implement in **3c**)
 
@@ -1197,54 +1274,132 @@ Subject path stays per-subject for finishing S; aftereffect + deferred create/am
 **Look-ahead scan (before / at start of Layer B subject loop):**
 
 ```text
-S0 = { target_tag_id of every aftereffect on applied manifestations this team }
+closure0 = { target_tag_id of every aftereffect on applied manifestations this team }
 
-S = S0
+If closure0 is empty:
+  do not pull any creates/amplifies
+  Layer A Bleed + Phase 1 create + Trigger stay as 3b
+
+closure = closure0
 repeat until fixpoint:
   for each creates_base tag_default_interaction
-    whose modifier_tag_id exact-matches some tag in S:
-      add that interaction’s target tag id(s) to S
+    whose modifier_tag_id exact-matches some tag in closure:
+      add that interaction’s target tag id(s) to closure
       // e.g. Attacker.Bleed → Attacker.Non-Active Damage.Bleed Damage
 
 Deferred amplifies = amplifies_subject whose target match set
-  intersects S (exact modifier / prefix target / exclusion as today)
+  intersects closure (exact modifier / prefix target / exclusion as today)
 
-Deferred creates = the creates_base edges used to expand S0 → S
+Deferred creates = the creates_base edges used to expand closure0 → closure
+  // If Bleed ∈ closure, pull Bleed → Bleed Damage and Trigger → Bleed Damage
+  // even when Layer A Bleed exists. Do not skip because Phase 1
+  // “would already create.”
 ```
 
 **Example (Bleed):**
 
 ```text
 Aftereffect target_tag_id = Attacker.Bleed
-S0 = { Bleed }
-creates_base: Bleed → Bleed Damage  →  S = { Bleed, Bleed Damage }
+closure0 = { Bleed }
+creates_base: Bleed → Bleed Damage  →  closure = { Bleed, Bleed Damage }
 Deferred amplifies include Bleed Trigger → Bleed Damage
 (Bleed Trigger is NOT deferred merely because it “sounds related” —
- it is deferred because Bleed Damage ∈ S)
+ it is deferred because Bleed Damage ∈ closure)
 ```
 
-**Synthetics:** Aftereffect contributions merge into the **direct** target (Bleed) via `tag.is_additive` + `isCreatedBase`. Deferred `creates_base` then builds/updates the **Bleed Damage** synthetic from the **combined** Bleed stack. Deferred amplifies run against those synthetics **like normal subjects** — not a one-off raw-totals write.
+**Synthetics:** Aftereffect contributions invent/update the **direct** target (Bleed) under **`ownerKeyFor(source subject)`** via `tag.is_additive`. Invent `isCreatedBase` only when that owner lacks the tag; if Layer A already has it, merge only — no parallel synthetic, no Phase 1 `*team*` create. Synthetic `targetType` follows the aftereffect row (`self` vs `aoe`/`single`); `aoe`/`single` still write to the source owner and use existing non-self modifier pooling on later reads.
+
+**Deferred create / amplify (locked — thin; not “like a normal subject”):**
+
+```text
+Deferred create (once)
+  One creates_base Bleed → Bleed Damage from the combined Bleed stack
+    (is_additive across owners).
+  Keep/update one isCreatedBase synthetic. hitCount = 1.
+  This hop may use Phase 1–style combined/*team* ownership.
+  That *team* ban applies to aftereffect emits (Bleed stays on ownerKeyFor(subject)),
+  not to this create.
+  Trigger must not multiply the Bleed stack.
+
+Deferred amplify (once, thin)
+  Run only the deferred TDI rows (Trigger → Bleed Damage), once,
+  in modifier tag.layer order, on that synthetic.
+  Use the existing amplify helper.
+  leafContext = synthetic sourceType (null). Do not invent a sourceType.
+  Restricted creates that need command-card / exalt / etc. skip.
+
+Not a full isolated subject loop
+  No cohort, no unique_scaling on the synthetic in 3c, no leftover amplifies,
+  no second hitCount multiply from the source ATM.
+  Bleed Damage is not another ATM; do not give it a Layer A–style subject career.
+
+Not a raw totals overwrite
+  Do not set BleedDamage = f(Bleed, Trigger) on the final tag map.
+  Go through create + amplify helpers.
+```
+
+**Layer A Bleed mixed with aftereffect Bleed (locked):**
+
+```text
+Look-ahead still defers, even if Layer A Bleed exists.
+  Do not skip deferral because Phase 1 “would already create.”
+  Pull Bleed → Bleed Damage and Trigger → Bleed Damage
+  whenever Bleed is in the aftereffect closure.
+
+Combined stack is both sources.
+  Deferred create input = finished Layer A Bleed subjects
+    + aftereffect Bleed writes,
+    combined with is_additive (across owners as already locked).
+  Not Layer A only, not aftereffect only.
+
+One Bleed Damage, rebuilt once.
+  Deferred create rebuilds/updates that same synthetic from the combined stack.
+  No Phase 1 Bleed Damage beside a deferred one.
+  No second Trigger on the Layer-A-only value.
+
+Layer A Bleed is still a normal subject.
+  It finishes its own isolated path (unique_scaling, hitCount, own-tag merge).
+  It is not an aftereffect emit.
+  Aftereffect only adds to the same owner Bleed bucket.
+
+Empty aftereffect set is unchanged.
+  No aftereffects ⇒ do not pull these edges;
+  Layer A Bleed + Phase 1 create + Trigger stay as 3b.
+```
 
 **Implement (Option A — approximation):**
 
 ```text
-Look-ahead → S, deferred amplifies, deferred creates
+Look-ahead → closure, deferred amplifies, deferred creates
 
-For each subject S (deterministic order):
-  finish S through post_add (+ unique_scaling; no amplifies targeting tags in S)
-  run S’s aftereffect rows (by layer)
-    → merge into aftereffect target via is_additive + synthetic
+For each subject (deterministic order:
+  slotIndex → awakenerId → tagId → sourceKind → id; null last):
+  finish subject through post_add on the single-hit base
+    (+ unique_scaling; no amplifies targeting tags in closure)
+    → finishedOnce
+  run subject’s aftereffect rows (by layer)
+    contribution = op(finishedOnce, factor)
+    merge contribution × hitCount into (ownerKeyFor(subject), target) via is_additive
+    invent isCreatedBase on that owner only if the tag is absent there
+    (no *team* invent; no parallel synthetic beside Layer A Bleed)
+  merge subject’s own tag as finishedOnce × hitCount
   do NOT run Bleed Trigger (or other deferred amplifies) here
 
-After all aftereffects into S0 tags are done:
-  run deferred creates_base along closure edges on combined stacks
-    (Bleed → Bleed Damage once from summed Bleed)
-  run deferred amplifies targeting tags in S once
-    (modifier tag.layer order; e.g. Trigger on combined Bleed Damage)
+After all aftereffects into closure0 tags are done:
+  deferred create (once): Bleed → Bleed Damage from combined Bleed
+    (Layer A Bleed subjects + aftereffect writes, is_additive across owners;
+     one isCreatedBase; hitCount = 1;
+     Phase 1–style *team* OK on this hop;
+     no Phase 1 Bleed Damage beside this hop)
+  deferred amplify (once, thin): Trigger → Bleed Damage via amplify helper
+    leafContext = synthetic sourceType (null); modifier tag.layer order
+    no cohort / unique_scaling / leftover amplifies / second hitCount
+  do NOT set BleedDamage = f(Bleed, Trigger) on the final tag map
+  Trigger must not multiply the Bleed stack
 Then Special Corrosion / Embers
 ```
 
-**Combined before Trigger:** all aftereffect Bleed contributions merge first; one Bleed → Bleed Damage create from that stack; Bleed Trigger hits **once** on that Bleed Damage total. Trigger never multiplies the Bleed stack itself.
+**Combined before Trigger:** deferred create input = finished Layer A Bleed subjects **plus** aftereffect Bleed writes (`is_additive` across owners); one thin Bleed → Bleed Damage create from that combined stack; Bleed Trigger amplifies that Bleed Damage **once** via the amplify helper (not a subject career, not a raw overwrite, not a second Trigger on Layer-A-only). Trigger never multiplies the Bleed stack itself. Empty aftereffect set: do not pull; 3b path unchanged.
 
 Accepted tradeoff: can **overstate** vs true sequential per-subject trigger. Good enough for Phase 3 / recommend ranking for now.
 
@@ -1258,28 +1413,40 @@ Effects attached to a tag fire **immediately in sequence** after that tag finish
 Look-ahead: aftereffect → Bleed; creates_base Bleed → Bleed Damage;
   defer amplifies of {Bleed, Bleed Damage} (incl. Bleed Trigger → Bleed Damage)
 
-For each damage subject S (deterministic order):
-  run S through pre_add → add → post_add
-    applying unique_scaling rows whose target manifestation is S (by each row’s layer)
-  after S finished post_add:
-    run S’s aftereffect rows ordered by layer
-      contribution = op(finished(S), factor) → merge into Bleed via tag.is_additive
-      honor target_type; keep/update Bleed isCreatedBase synthetic
+For each damage subject (deterministic order:
+  slotIndex → awakenerId → tagId → sourceKind → id; null last):
+  1. Finish subject on the single-hit base
+     (pre_add → add → post_add, unique_scaling in-band)
+     → finishedOnce
+  2. Aftereffect uses finishedOnce, not the folded total
+     contribution = op(finishedOnce, factor)
+     then scale by hitCount when merging into Bleed
+     writeOwner = ownerKeyFor(subject); synthetic targetType = row target_type
+     if owner already has Bleed: merge via is_additive (no parallel synthetic)
+     else invent isCreatedBase on writeOwner (not *team*)
+  3. Merge subject’s own tag (e.g. Active Damage) as
+     finishedOnce × hitCount
   do not run Bleed Trigger here
 
 After all subjects’ aftereffects into Bleed:
-  creates_base Bleed → Bleed Damage from combined Bleed
-  Bleed Trigger amplifies Bleed Damage synthetic once
+  deferred create (once): Bleed → Bleed Damage from combined Bleed
+    (finished Layer A Bleed subjects + aftereffect writes;
+     is_additive across owners; one isCreatedBase; hitCount = 1;
+     no Phase 1 Bleed Damage beside this hop)
+  deferred amplify (once, thin): Trigger → Bleed Damage
+    amplify helper; leafContext = null; no subject loop
+    (no second Trigger on Layer-A-only value)
 Then Special
 ```
 
 ### Worked examples (acceptance narrative)
 
-1. **`unique_scaling` invent (Shield → Damage):** row on a specific **Active Damage** manifestation; `modifier_tag_id` = Defender.Shield; `target_tag_id` null; no matching default → invent onto **that** damage row only. Modifier value = team Shield combined via existing self/non-self + `is_additive` rules (not “owner’s Shield only” unless Shield rows are `self`). Local `layer = add` fires in Damage’s add band using already-increased Shield (e.g. 10→20), not a unique_scaling pass that grows Shield.
+1. **`unique_scaling` invent (Shield → Damage):** row on a specific **Active Damage** manifestation; `modifier_tag_id` = Defender.Shield; `target_tag_id` null; no matching default → invent onto **that** damage row only. Modifier value = **prefix pool** `Defender.Shield` + `Defender.Shield.*` combined via existing self/non-self + `is_additive` rules (not “owner’s Shield only” unless Shield rows are `self`). Local `layer = add` fires in Damage’s add band using already-increased Shield (e.g. 10→20), not a unique_scaling pass that grows Shield.
 2. **`unique_scaling` patch:** same shape; matching default exists → local fields replace the default for that manifestation only.
 3. **`unique_scaling` base-stat invent (ATM 27):** Shield.Fixed base `ceil(0.8×136)=109`; `modifier_tag_id` null; `dependency_stat=sigil_yield`; `value_scalar=0.005`; `multiply_one_plus` → modifierValue `3.6` (percent points); factor raw `0.005` → `109×1.018→111`. Always invent.
-4. **`aftereffect` Bleed:** row on Active Damage; `mode = aftereffect`; `target_tag_id` = `Attacker.Bleed` (not Bleed Damage); `modifier_tag_id` null; default `multiply`; after Damage finishes `post_add`, `contribution = finished(S) * factor`, merge into Bleed via `tag.is_additive`; look-ahead pulls Bleed → Bleed Damage create and Bleed Trigger into the deferred bucket.
-5. **Two damage subjects + trigger (Option A):** each aftereffect merges into Bleed via `is_additive`; then one Bleed → Bleed Damage from the **combined** Bleed stack; Bleed Trigger amplifies that Bleed Damage **once** (approximation — not per-subject sequential trigger). Trigger does not multiply the Bleed stack.
+4. **`aftereffect` Bleed:** row on Active Damage; `mode = aftereffect`; `target_tag_id` = `Attacker.Bleed` (not Bleed Damage); `modifier_tag_id` null; default `multiply`; after Damage finishes `post_add`, `contribution = finishedOnce * factor`, merge **`contribution × hitCount`** into Bleed on **`ownerKeyFor(Damage ATM)`** via `tag.is_additive` (not `op(finishedOnce × hitCount, factor)`, not `*team*`); invent `isCreatedBase` only if that owner has no Bleed (else merge into Layer A Bleed); synthetic `targetType` = row `target_type`; then merge Active Damage as `finishedOnce × hitCount`; look-ahead pulls Bleed → Bleed Damage create and Bleed Trigger into the deferred bucket.
+5. **Two damage subjects + trigger (Option A):** each aftereffect merges into Bleed via `is_additive` on its source owner; then **one** deferred `creates_base` Bleed → Bleed Damage from the **combined** stack (`is_additive` across owners, one `isCreatedBase`, `hitCount = 1`, Phase 1–style `*team*` OK); then **thin** Trigger amplify once on that synthetic (`leafContext` null — not a subject loop, not `BleedDamage = f(Bleed, Trigger)` on the tag map). Approximation — not per-subject sequential trigger. Trigger does not multiply the Bleed stack.
+6. **Layer A Bleed + aftereffect Bleed:** Layer A Bleed ATM finishes as a normal subject (isolated path, unique_scaling, `hitCount`, own-tag merge) — not an aftereffect emit. Aftereffect writes merge into the **same owner Bleed bucket**. Look-ahead still pulls Bleed → Bleed Damage and Trigger even though Layer A Bleed exists. Deferred create input = finished Layer A Bleed + aftereffect writes (`is_additive`); one Bleed Damage rebuilt once; one Trigger on that combined synthetic — no Phase 1 Bleed Damage beside it, no second Trigger on Layer-A-only. **No aftereffects on the team** → do not pull; Layer A Bleed + Phase 1 create + Trigger stay as 3b.
 
 ### Phase 3a — Schema + admin + backfill
 
@@ -1379,14 +1546,14 @@ poolContrib     = effectiveScalar × instance_count   # provider pool only
 - One `copy_provider_group` per ATM (null FK = no provider bonus)
 - Provider pool uses poolContrib only (no copy multiply — no recursion)
 - Do **not** bake hitCount into `value_scalar` before Layer B
-- **Forward → Phase 3c:** aftereffect emit count = `hitCount` (not once on folded finished value)
+- **Forward → Phase 3c:** aftereffect `op` uses **`finishedOnce`**; scale **`contribution × hitCount`** at merge (not `op` on the folded `finishedOnce × hitCount` total). Own-tag merge remains `finishedOnce × hitCount` after aftereffect.
 
 **Scope:**
 
 - Migration + types; schema-config; Copy Provider Groups nested members admin; loaders resolve members
 - Review Tags: Layer B on single-hit base, × hitCount at merge; Layer A–only paths × hitCount; debug + Tag total math special lines
 - Docs: admin manual + this plan
-- Out of scope: multi-group FKs; auto-match Create.\* by `source_type`; aftereffect emit loops (3c); unique_scaling invent (3b)
+- Out of scope: multi-group FKs; auto-match Create.\* by `source_type`; aftereffect emit (3c); unique_scaling invent (3b)
 
 **Acceptance:**
 
@@ -1419,50 +1586,103 @@ poolContrib     = effectiveScalar × instance_count   # provider pool only
 
 **Acceptance:**
 
-- [ ] `unique_scaling` invents when no matching default exists; patches (local wins) when one does — including `is_disabled`
-- [ ] `unique_scaling` affects only the attached target manifestation; tag-mod aggregation reuses global self/non-self + `combineTagAcrossOwners`
-- [ ] Null-mod base-stat invent: percent-points + raw factor; ATM 27 → 111
-- [ ] unique_scaling local `layer` wins for target-path timing; null → modifier tag `layer` or `add` (null-mod); does not grow Mod
-- [ ] Review Tags debug shows unique_scaling steps (inferred patch vs invent / base-stat)
-- [ ] Smoke fixtures for invent / patch / disable / base-stat
+- [x] `unique_scaling` invents when no matching default exists; patches (local wins) when one does — including `is_disabled`
+- [x] `unique_scaling` affects only the attached target manifestation; tag-mod aggregation reuses global self/non-self + `combineTagAcrossOwners`
+- [x] Null-mod base-stat invent: percent-points + raw factor; ATM 27 → 111
+- [x] unique_scaling local `layer` wins for target-path timing; null → modifier tag `layer` or `add` (null-mod); does not grow Mod
+- [x] Review Tags debug shows unique_scaling steps (inferred patch vs invent / base-stat)
+- [x] Smoke fixtures for invent / patch / disable / base-stat
+
+---
+
+### Phase 3b.1 — unique_scaling invent modifier prefix
+
+**Depends on:** 3b.
+
+**Goal:** For **`unique_scaling` invent** (tag-mod), treat local Modifier Tag as a **prefix root** (same `matchesDemandTag` helper as TDI targets): `Defender.Shield` aggregates `Defender.Shield` + all `Defender.Shield.*` into `modifierValue`. Patch inference and patch aggregation stay **exact** via `tag_default_interaction`.
+
+**Scope:**
+
+- Helpers in [`apply-interactions.ts`](src/lib/path-carver/apply-interactions.ts): prefix collect / matching tag ids / combine across sibling tags (root `is_additive`)
+- Wire invent path only; base-stat / aftereffect / invent-vs-patch inference unchanged
+- Admin manual + smoke: Fixed-only under Shield; Shield+Fixed combine; 3b regressions
+- Out of scope: schema/admin UI; patch exact-modifier; Phase 3c
+
+**Acceptance:**
+
+- [x] Invent with modifier=`Defender.Shield` and only `Defender.Shield.Fixed` present uses Fixed’s value
+- [x] Invent with both Shield + Shield.Fixed combines via `is_additive` into one invent op
+- [x] Patch / invent-vs-patch inference remain exact-modifier; aftereffect still ignored
+- [x] Admin manual documents invent prefix vs patch exact
+- [x] Smoke fixtures in `scripts/smoke-phase-3b.ts` (Parts F–G)
 
 ---
 
 ### Phase 3c — aftereffect + Layer B reshape + deferred amplify
 
-**Depends on:** 3b.
+**Depends on:** 3b.1.
 
-**Goal:** Aftereffect emit/merge math; restructure Layer B for shared aftereffect state + sequential subjects; **creates_base closure look-ahead** deferred create then amplify (Option A). Special stays last inside Layer B. Aftereffect emit count per source ATM = **`hitCount = instance_count × effectiveCopies`** (Phase 3a.3 forward contract) — not once on an already-multiplied finished scalar.
+**Goal:** Aftereffect emit/merge math; restructure Layer B for shared aftereffect state + sequential subjects; **creates_base closure look-ahead** deferred create then amplify (Option A). Special stays last inside Layer B. Per subject (locked): finish single-hit → aftereffect from **`finishedOnce`** (merge `contribution × hitCount`) → merge own tag **`finishedOnce × hitCount`**. Do not `op` an already-multiplied finished scalar (Phase 3a.3).
 
 **Scope:**
 
-- Aftereffect: `op(finished, factor)` then `tag.is_additive`; factor via source ATM `effectiveOverrideFactor`; required `target_type`
-- Emit / apply aftereffect rows **`hitCount` times** per source ATM (`hitCount = instance_count × effectiveCopies` from 3a.3)
-- `isCreatedBase` synthetics for aftereffect targets; deferred creates along closure edges; deferred amplifies against synthetics
-- Look-ahead: S0 = aftereffect targets → expand via `creates_base` (exact modifier match) → defer amplifies intersecting S + those create edges
-- Bleed kit: aftereffect → Bleed → combined → Bleed Damage create → Trigger once on Bleed Damage
-- Subject order: `slotIndex` → `awakenerId` → `tagId` → `manifestation.id`
+- Aftereffect: `op(finishedOnce, factor)` then merge **`contribution × hitCount`** via `tag.is_additive` under **`ownerKeyFor(source)`**; factor via source ATM `effectiveOverrideFactor`; required `target_type` stamps synthetic `targetType` (does not change write owner)
+- Per subject order: (1) finish single-hit path → `finishedOnce`; (2) aftereffect from `finishedOnce`, scale `× hitCount` at Bleed merge; (3) merge own tag `finishedOnce × hitCount`. `hitCount = instance_count × effectiveCopies` (3a.3)
+- Aftereffect synthetics: invent/update on source owner only; `self` vs `aoe`/`single` as above; no Phase 1 `*team*` invent; merge into existing owner tag if present
+- Deferred create (once): Bleed → Bleed Damage from **combined** stack = finished Layer A Bleed subjects + aftereffect Bleed writes (`is_additive` across owners; one `isCreatedBase`; `hitCount = 1`; Phase 1–style `*team*` OK on this hop only). Look-ahead still pulls these edges when Layer A Bleed exists; empty aftereffect set does not pull (3b path)
+- Deferred amplify (once, thin): deferred TDI only (Trigger → Bleed Damage) via existing amplify helper; `leafContext` = synthetic `sourceType` (`null`); no cohort / unique_scaling / leftover amplifies / second `hitCount`; not a raw tag-map overwrite; no second Trigger on Layer-A-only
+- Look-ahead: `closure0` = aftereffect targets → expand via `creates_base` (exact modifier match) → defer amplifies intersecting `closure` + those create edges
+- Bleed kit: aftereffect → Bleed (source owner) → combined → thin Bleed Damage create (`hitCount = 1`) → thin Trigger amplify once
+- Subject order: `slotIndex` → `awakenerId` → `tagId` → `sourceKind` → `manifestation.id`; **null last** on `slotIndex` / `awakenerId`; empty aftereffect set matches 3b on additive totals; keep 3b smokes
 - Debug: aftereffect contributions, look-ahead closure set
-- Smokes: one-subject aftereffect; two-subject Bleed + Trigger (Option A); aftereffect × hitCount
-- Out of scope: desire_demand / radar / Calculation List; Corrosion/Embers rewire; max-damage subject search; **per-subject sequential trigger (record only above)**
+- Smokes: one-subject aftereffect; two-subject Bleed + Trigger (Option A); aftereffect × hitCount; Layer A Bleed + aftereffect combined stack; empty aftereffect = 3b additive totals; **3b smokes still pass**
+- Out of scope: desire_demand / radar / Calculation List; Corrosion/Embers rewire; max-damage subject search; **per-subject sequential trigger (record only above)**; unique_scaling / cohort / invented `sourceType` on the Bleed Damage synthetic
 
 **Acceptance:**
 
-- [ ] `aftereffect` emit: `op(finished(S), factor)` with default `multiply`; merge via `tag.is_additive`; factor from required `value_scalar` (default 1) + source ATM dep_stat
-- [ ] `aftereffect` runs after source `post_add`, ordered by `layer`; required `target_type` honored; `isCreatedBase` synthetics for aftereffect targets
-- [ ] Aftereffect emit/apply count = `hitCount = instance_count × effectiveCopies` (3a.3); not one emit on folded finished value
-- [ ] Look-ahead closure: S0 = aftereffect targets; expand via creates_base (exact modifier match); defer amplifies whose target intersects S; defer those create edges
-- [ ] Bleed kit path: aftereffect → Bleed → combined → creates_base Bleed Damage → Bleed Trigger once on Bleed Damage (Trigger does not multiply Bleed stack)
-- [ ] Layer B restructured: shared aftereffect totals; subjects sequential by documented order; Special still last inside Layer B
-- [ ] Subject order deterministic and documented (`slotIndex` → `awakenerId` → `tagId` → `manifestation.id`)
-- [ ] Review Tags debug shows aftereffect steps + look-ahead closure
-- [ ] Smoke: two-subject Bleed + Trigger (Option A combined-before-trigger); aftereffect × hitCount
+- [x] `aftereffect` emit: `op(finishedOnce, factor)` with default `multiply`; merge **`contribution × hitCount`** via `tag.is_additive`; factor from required `value_scalar` (default 1) + source ATM dep_stat
+- [x] `aftereffect` runs after source `post_add` **and before** own-tag `finishedOnce × hitCount` merge; ordered by `layer`; write owner = `ownerKeyFor(source)`; `target_type` stamps synthetic `targetType`; `isCreatedBase` only if that owner lacked the tag
+- [x] Aftereffect `op` uses `finishedOnce` (3a.3); merge scales by `hitCount = instance_count × effectiveCopies`; not `op(finishedOnce × hitCount, factor)`
+- [x] Aftereffect synthetic owner: `ownerKeyFor(source)` (ATM → `awakener:{id}`); no `*team*` invent; `self` / `aoe` / `single` as locked; merge into existing owner tag (Layer A Bleed) via `is_additive` — no parallel synthetic
+- [x] Look-ahead closure: `closure0` = aftereffect targets; expand via creates_base (exact modifier match); defer amplifies whose target intersects `closure`; defer those create edges even if Layer A Bleed exists; empty `closure0` → pull nothing (3b)
+- [x] Layer A Bleed + aftereffect: Layer A Bleed is a normal subject; aftereffect merges into the same owner Bleed bucket; deferred create input = both sources (`is_additive`); one Bleed Damage rebuilt once; no Phase 1 Bleed Damage beside it; no second Trigger on Layer-A-only
+- [x] Bleed kit path: aftereffect → Bleed → combined → thin `creates_base` Bleed Damage (`hitCount = 1`) → thin Trigger amplify once on Bleed Damage (Trigger does not multiply Bleed stack; not a subject loop; not a raw overwrite)
+- [x] Deferred create/amplify: one create hop + one thin amplify pass as locked (decision 30); restricted creates that need command-card / exalt skip; Bleed Damage has no Layer A–style subject career
+- [x] Layer B restructured: per subject finish single-hit → aftereffect from `finishedOnce` (`× hitCount` at merge) → own-tag `finishedOnce × hitCount`; shared aftereffect totals; Special still last inside Layer B
+- [x] Subject order: `slotIndex` → `awakenerId` → `tagId` → `sourceKind` → `manifestation.id`; null `slotIndex` / `awakenerId` last; empty aftereffect set matches 3b on additive totals; 3b smokes still pass
+- [x] Review Tags debug shows aftereffect steps + look-ahead closure
+- [x] Smoke: two-subject Bleed + Trigger (Option A combined-before-trigger); aftereffect × hitCount; Layer A Bleed + aftereffect combined; empty aftereffect set matches 3b on additive totals; 3b smokes still pass
+
+---
+
+### Phase 3c.1 — aftereffect stack amplify (Increase → sink)
+
+**Depends on:** 3c.
+
+**Goal:** Apply `amplifies_subject` rules that target aftereffect sinks (e.g. Sunfall `Support.Increase Gain.Poison` → `Attacker.Poison`) to the **combined** per-owner stack **before** deferred create / Trigger amplify. Fixes the 3c gap where look-ahead deferred all closure amplifies into the Damage-only thin hop, leaving Increase → stack as a no-op.
+
+**Scope:**
+
+- Split look-ahead: `deferredStackAmplifies` (target ∩ `closure0`) vs `deferredCreateAmplifies` (target ∩ `closure \ closure0`)
+- After subject/aftereffect loop: per-owner closure0 snapshots (preserve `awakenerId` for `target_type=self`); thin amplify; **replace** owner totals
+- Deferred create then uses the amplified stack; Trigger hop unchanged
+- Smokes: aftereffect Poison + Increase → 60; Layer A + aftereffect + Increase → 84; cross-owner self skip; empty aftereffect 3b regression
+- Out of scope: aftereffect emit math changes; unique_scaling on synthetics; Phase 4
+
+**Acceptance:**
+
+- [x] Look-ahead splits stack vs create amplifies; both pulled from subject live path when `closure0` non-empty
+- [x] Stack amplify hop before deferred create; replace per-owner closure0 totals; self-scope preserved
+- [x] Deferred create snapshots amplified stack; Trigger stays on `deferredCreateAmplifies` / Damage synthetics
+- [x] Review Tags math debug subject key `deferred-stack-amplify`
+- [x] Smokes in `scripts/smoke-phase-3c.ts` Parts F–I; existing Bleed Option A parts still pass
+- [x] Locked decision 32 + Layer B pipeline text updated
 
 ---
 
 ## Phase 4 — desire_demand, radar, simulator port
 
-**Depends on:** Stable Path Carver math (through Phase **3c** preferably; through 2c minimum).
+**Depends on:** Stable Path Carver math (through Phase **3c.1** preferably; through 2c minimum).
 
 ### Goal
 
@@ -1536,7 +1756,9 @@ Path Carver upserts a single `desire_template` per `desire_id`.
 3. **Phase 3a** — local interaction schema + admin + backfill (no engine math change) (DONE)
 4. **Phase 3a.1** — base-stat unique_scaling admin/contract + datapatch (DONE)
 5. **Phase 3a.2** — disable-only admin UI hide unused fields (DONE)
-6. **Phase 3b** — `unique_scaling` patch/invent engine (tag-mod + base-stat)
-7. **Phase 3c** — aftereffect + Layer B reshape + creates_base closure look-ahead deferred create/amplify
-8. **Phase 4** — desire_demand / radar / simulator port + Calculation List layer breakdown + Corrosion/Embers Non-Active parent+descendants capacity + name→id wiring
-9. **Phase 5** — Smart recommend / search
+6. **Phase 3b** — `unique_scaling` patch/invent engine (tag-mod + base-stat) (DONE)
+7. **Phase 3b.1** — unique_scaling invent modifier prefix pool (DONE)
+8. **Phase 3c** — aftereffect + Layer B reshape + creates_base closure look-ahead deferred create/amplify (DONE)
+9. **Phase 3c.1** — aftereffect stack amplify (Increase → closure0 before create) (DONE)
+10. **Phase 4** — desire_demand / radar / simulator port + Calculation List layer breakdown + Corrosion/Embers Non-Active parent+descendants capacity + name→id wiring
+11. **Phase 5** — Smart recommend / search

@@ -14,6 +14,16 @@ import {
   type SearchFromValue,
   type SearchRequiredRealmId,
 } from "@/lib/public/search-filter-options";
+import {
+  collectSoloTagDisplayFields,
+  computeSoloAwakenerTotals,
+  isAttackerOrDefenderTagName,
+  isMultiRealmSearchAwakener,
+  normalizeAwakenerSearchName,
+  realmSimsForAwakener,
+  shouldRunSoloAwakenerTotals,
+  type SoloTotalsCache,
+} from "@/lib/public/solo-awakener-totals";
 import { matchesDemandTag } from "@/lib/simulator/tag-matching";
 import { applyManifestationReplacements } from "@/lib/team-data/resolve-manifestations";
 import type { AllStats, Awakener } from "@/lib/team-data/types";
@@ -38,6 +48,12 @@ export type SearchResultRow = {
   assetKind: SearchFromValue;
   from: string;
   name: string;
+  /**
+   * Bare entity name for SKeyDB icon/page resolution when `name` includes a
+   * display suffix (e.g. multi-realm `24 · Aequor` → assetName `24`).
+   * When omitted, resolvers use `name`.
+   */
+  assetName?: string;
   tag: string;
   targetType: string;
   dependencyStat: string;
@@ -61,6 +77,9 @@ export type SearchResultsInput = {
   posses: PublicRow<"posse">[];
   covenants: PublicRow<"covenant">[];
   awakenerManifestations: PublicRow<"awakener_tag_manifestation">[];
+  awakenerLocalInteractions: PublicRow<"awakener_local_manifestation_interaction">[];
+  realmManifestations?: PublicRow<"realm_tag_manifestation">[];
+  defaultInteractions?: PublicRow<"tag_default_interaction">[];
   wheelManifestations: PublicRow<"wheel_tag_manifestation">[];
   posseManifestations: PublicRow<"posse_tag_manifestation">[];
   covenantManifestations: PublicRow<"covenant_tag_manifestation">[];
@@ -200,6 +219,32 @@ function computeAwakenerValue(
   );
 }
 
+/** ATM instance_count (NOT NULL default 1); treat null/missing as 1. */
+function instanceCount(
+  raw: number | null | undefined,
+): number {
+  return raw == null ? 1 : raw;
+}
+
+/** Final Search value ceil: percent → 2 dp; else whole number. */
+function ceilSearchValue(value: number, tagIsPercent: boolean): number {
+  if (tagIsPercent) return Math.ceil(value * 100) / 100;
+  return Math.ceil(value);
+}
+
+/**
+ * Aftereffect contribution: op(finishedOnce, factor). `before` is not in the op.
+ * Search only supports multiply / add_scaled (default multiply).
+ */
+function aftereffectContribution(
+  finishedOnce: number,
+  factor: number,
+  mathOperation: Enums<"operation_type"> | null,
+): number {
+  if (mathOperation === "add_scaled") return finishedOnce + factor;
+  return finishedOnce * factor;
+}
+
 function computeRawValue(raw: number | null): number | null {
   return raw == null ? null : raw;
 }
@@ -300,8 +345,91 @@ export function buildSearchResults(
   const rows: SearchResultRow[] = [];
 
   if (sources.includes("awakener")) {
+    const runSolo = shouldRunSoloAwakenerTotals(matchingTagIds, tagsById);
+    const soloCache: SoloTotalsCache = new Map();
+    const soloCatalog = {
+      tags: input.tags,
+      realms: input.realms,
+      realmManifestations: input.realmManifestations ?? [],
+      defaultInteractions: input.defaultInteractions ?? [],
+      awakenerManifestations: input.awakenerManifestations,
+      awakenerLocalInteractions: input.awakenerLocalInteractions,
+    };
+
+    // Phase 7: Attacker/Defender Values from solo-kit Review Tags totals.
+    if (runSolo) {
+      for (const awakener of input.awakeners) {
+        const realmSims = realmSimsForAwakener(
+          awakener,
+          filters.requiredRealmId,
+        );
+        const multiRealm =
+          isMultiRealmSearchAwakener(awakener) && realmSims.length > 1;
+        for (const realmSim of realmSims) {
+          const { totalsByTagId, hasAppliedRealmManifestation } =
+            computeSoloAwakenerTotals(
+              awakener,
+              realmSim,
+              filters.awakenerEnlightenment,
+              soloCatalog,
+              soloCache,
+            );
+          for (const [tagId, total] of totalsByTagId) {
+            const tag = tagsById.get(tagId);
+            if (!tag || !isAttackerOrDefenderTagName(tag.tag_name)) continue;
+            if (matchingTagIds != null && !matchingTagIds.has(tagId)) continue;
+            if (
+              filters.requiredRealmId != null &&
+              realmSim !== filters.requiredRealmId
+            ) {
+              continue;
+            }
+
+            const isPercent = tag.is_percent === true;
+            const value = ceilSearchValue(total, isPercent);
+            const realmLabel = formatRequiredRealmSingle(realmSim, realmsById);
+            const normalizedName = normalizeAwakenerSearchName(awakener.name);
+            const baseName =
+              normalizedName.length > 0 ? normalizedName : EMPTY_DISPLAY;
+            const name =
+              multiRealm && realmLabel !== EMPTY_DISPLAY
+                ? `${baseName} · ${realmLabel}`
+                : baseName;
+            const display = collectSoloTagDisplayFields({
+              awakenerId: awakener.id,
+              tagId,
+              realmSim,
+              enlightenment: filters.awakenerEnlightenment,
+              awakenerManifestations: input.awakenerManifestations,
+              awakenerLocalInteractions: input.awakenerLocalInteractions,
+              formatTargetType: formatSearchTargetTypeLabel,
+              hasAppliedRealmManifestation,
+            });
+
+            rows.push({
+              id: `awakener-solo:${awakener.id}:${tagId}:${realmSim}`,
+              assetKind: "awakener",
+              from: fromLabel("awakener"),
+              name,
+              assetName: baseName !== EMPTY_DISPLAY ? baseName : undefined,
+              tag: formatSearchTagLabel(tag.tag_name),
+              targetType: display.targetType ?? EMPTY_DISPLAY,
+              dependencyStat: EMPTY_DISPLAY,
+              value,
+              valueDisplay: formatValueDisplay(value, isPercent),
+              buffRestriction: EMPTY_DISPLAY,
+              everyTurn: EMPTY_DISPLAY,
+              triggerCondition: EMPTY_DISPLAY,
+              requiredRealm: realmLabel,
+              metadata: display.metadata,
+            });
+          }
+        }
+      }
+    }
+
     // Mirror Path Carver load/resolve: enlightenment gate, then replacements,
-    // then Search filters on survivors.
+    // then Search filters on survivors. Skip Attacker/Defender when solo ran.
     const enlightenmentGated = input.awakenerManifestations.filter(
       (m) =>
         (m.required_enlightenment ?? 0) <= filters.awakenerEnlightenment,
@@ -312,8 +440,19 @@ export function buildSearchResults(
         replacesManifestationId: row.replaces_manifestation_id,
       })),
     );
+    const resolvedAtmById = new Map(
+      resolvedAwakenerManifestations.map((m) => [m.id, m]),
+    );
 
     for (const m of resolvedAwakenerManifestations) {
+      const tag = tagsById.get(m.tag_id);
+      if (
+        runSolo &&
+        tag != null &&
+        isAttackerOrDefenderTagName(tag.tag_name)
+      ) {
+        continue;
+      }
       if (
         !passesCommonFilters(
           {
@@ -342,17 +481,23 @@ export function buildSearchResults(
         continue;
       }
 
-      const tag = tagsById.get(m.tag_id);
       const awakenerRow = awakenersById.get(m.awakener_id);
       const scalingAwakener = awakenerRow
         ? publicAwakenerToScalingAwakener(awakenerRow)
         : null;
-      const value = computeAwakenerValue(
+      const finishedOnce = computeAwakenerValue(
         m.value_scalar,
         m.dependency_stat,
         scalingAwakener,
         tag?.is_percent === true,
       );
+      const value =
+        finishedOnce == null
+          ? null
+          : ceilSearchValue(
+              finishedOnce * instanceCount(m.instance_count),
+              tag?.is_percent === true,
+            );
 
       rows.push({
         id: `awakener:${m.id}`,
@@ -370,6 +515,128 @@ export function buildSearchResults(
         ),
         value,
         valueDisplay: formatValueDisplay(value, tag?.is_percent === true),
+        buffRestriction: formatOptionalEnum(
+          m.buff_target_type_restriction,
+          formatSearchBuffRestrictionLabel,
+        ),
+        everyTurn: formatEveryTurn(m.is_accumulating),
+        triggerCondition: formatTriggerCondition(
+          m.trigger_condition,
+          tagsById,
+        ),
+        requiredRealm: formatRequiredRealmSingle(
+          m.required_realm,
+          realmsById,
+        ),
+        metadata: formatMetadata(m.metadata),
+      });
+    }
+
+    // Aftereffect rows: Support/non-AD targets only when solo covers AD.
+    for (const local of input.awakenerLocalInteractions) {
+      if (
+        local.mode !== "aftereffect" ||
+        local.is_disabled ||
+        local.target_tag_id == null ||
+        local.manifestation_id == null
+      ) {
+        continue;
+      }
+      const m = resolvedAtmById.get(local.manifestation_id);
+      if (!m) continue;
+
+      const targetTag = tagsById.get(local.target_tag_id);
+      if (
+        runSolo &&
+        targetTag != null &&
+        isAttackerOrDefenderTagName(targetTag.tag_name)
+      ) {
+        continue;
+      }
+
+      if (
+        !passesCommonFilters(
+          {
+            tagId: local.target_tag_id,
+            targetType: local.target_type,
+            dependencyStat: m.dependency_stat,
+            buffRestriction: m.buff_target_type_restriction,
+            isAccumulating: m.is_accumulating,
+          },
+          filters,
+          matchingTagIds,
+        )
+      ) {
+        continue;
+      }
+      if (
+        filters.triggerConditionTagId != null &&
+        m.trigger_condition !== filters.triggerConditionTagId
+      ) {
+        continue;
+      }
+      if (
+        filters.requiredRealmId != null &&
+        m.required_realm !== filters.requiredRealmId
+      ) {
+        continue;
+      }
+
+      const atmTag = tagsById.get(m.tag_id);
+      const awakenerRow = awakenersById.get(m.awakener_id);
+      const scalingAwakener = awakenerRow
+        ? publicAwakenerToScalingAwakener(awakenerRow)
+        : null;
+      const finishedOnce = computeAwakenerValue(
+        m.value_scalar,
+        m.dependency_stat,
+        scalingAwakener,
+        atmTag?.is_percent === true,
+      );
+      if (finishedOnce == null) continue;
+
+      const factorRaw = local.value_scalar;
+      const factor =
+        factorRaw == null
+          ? 1
+          : scaleValueScalar(
+              factorRaw,
+              local.dependency_stat as AllStats | null,
+              scalingAwakener,
+              "awakener",
+              targetTag?.is_percent === true,
+            );
+      const contrib = aftereffectContribution(
+        finishedOnce,
+        factor,
+        local.math_operation,
+      );
+      const value = ceilSearchValue(
+        contrib * instanceCount(m.instance_count),
+        targetTag?.is_percent === true,
+      );
+
+      rows.push({
+        id: `awakener-aftereffect:${local.id}`,
+        assetKind: "awakener",
+        from: fromLabel("awakener"),
+        name: parentName(awakenersById, m.awakener_id),
+        tag: targetTag
+          ? formatSearchTagLabel(targetTag.tag_name)
+          : EMPTY_DISPLAY,
+        targetType: formatOptionalEnum(
+          local.target_type,
+          formatSearchTargetTypeLabel,
+        ),
+        dependencyStat: formatOptionalEnum(
+          m.dependency_stat,
+          formatSearchDependencyStatLabel,
+        ),
+        value,
+        valueDisplay: formatValueDisplay(
+          value,
+          targetTag?.is_percent === true,
+        ),
         buffRestriction: formatOptionalEnum(
           m.buff_target_type_restriction,
           formatSearchBuffRestrictionLabel,
