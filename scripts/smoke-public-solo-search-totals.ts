@@ -625,4 +625,102 @@ assert(
   `gimmick alone when notes empty (got ${JSON.stringify(blankMetaWithGimmickRow.metadata)})`,
 );
 
+console.log("creates_base invent — modifier ATM metadata on solo Heal");
+const CARO_REALM_ID = 2;
+const tagsWithHeal = [
+  ...tags,
+  {
+    id: 8,
+    tag_name: "Defender.Heal",
+    layer: "add",
+    is_percent: false,
+    is_additive: true,
+    is_searchable: true,
+  },
+  {
+    id: 61,
+    tag_name: "Support.Crimson Furnace",
+    layer: "add",
+    is_percent: false,
+    is_additive: true,
+    is_searchable: true,
+  },
+] as PublicRow<"tag">[];
+
+const crimsonFurnaceAtm = {
+  ...aequorDamageAtm,
+  id: 43,
+  tag_id: 61,
+  metadata: "Caro exalt crimson furnace",
+  value_scalar: 1.6,
+  dependency_stat: null,
+  required_realm: CARO_REALM_ID,
+  target_type: "aoe",
+} as PublicRow<"awakener_tag_manifestation">;
+
+const crimsonCreatesHealTdi = {
+  id: 88,
+  modifier_tag_id: 61,
+  target_tag_id: 8,
+  math_operation: "add_scaled",
+  default_factor: 1,
+  exclusion_suffix: null,
+  buff_target_type_restriction: null,
+  creates_base: true,
+  amplifies_subject: false,
+} as PublicRow<"tag_default_interaction">;
+
+const healCreatesBaseSearch = buildSearchResults({
+  filters: { ...filtersBase, tagId: 8 },
+  tags: tagsWithHeal,
+  realms,
+  awakeners: [awakener24],
+  awakenerManifestations: [crimsonFurnaceAtm],
+  awakenerLocalInteractions: [],
+  ...emptyGear,
+  defaultInteractions: [crimsonCreatesHealTdi],
+});
+const healCaroRow = healCreatesBaseSearch.rows.find(
+  (r) => r.id === `awakener-solo:24:8:${CARO_REALM_ID}`,
+);
+assert(healCaroRow, "Heal solo row for 24 Caro from creates_base");
+assert(
+  healCaroRow.metadata === "Caro exalt crimson furnace",
+  `creates_base modifier ATM metadata (got ${JSON.stringify(healCaroRow.metadata)})`,
+);
+assert(
+  healCaroRow.value != null && healCaroRow.value > 0,
+  `Heal value includes creates_base invent (got ${healCaroRow.value})`,
+);
+
+const healWithRtmSearch = buildSearchResults({
+  filters: { ...filtersBase, tagId: 8 },
+  tags: tagsWithHeal,
+  realms,
+  awakeners: [awakener24],
+  awakenerManifestations: [crimsonFurnaceAtm],
+  awakenerLocalInteractions: [],
+  ...emptyGear,
+  defaultInteractions: [crimsonCreatesHealTdi],
+  realmManifestations: [
+    {
+      ...aequorRealmRtm,
+      id: 901,
+      realm_id: CARO_REALM_ID,
+      tag_id: 61,
+      metadata: "RTM notes must not surface",
+      required_realm_mode: "present",
+    } as PublicRow<"realm_tag_manifestation">,
+  ],
+});
+const healCaroWithRtm = healWithRtmSearch.rows.find(
+  (r) => r.id === `awakener-solo:24:8:${CARO_REALM_ID}`,
+);
+assert(healCaroWithRtm, "Heal solo row with Caro RTM");
+assert(
+  healCaroWithRtm.metadata ===
+    `Caro exalt crimson furnace +\n${REALM_GIMMICK_METADATA}`,
+  `ATM notes + Realm gimmick stub only (got ${JSON.stringify(healCaroWithRtm.metadata)})`,
+);
+
 console.log("smoke-public-solo-search-totals: ok");
