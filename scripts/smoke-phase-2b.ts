@@ -1363,11 +1363,11 @@ console.log("creates_base exact target — no prefix fan-out to Heal.Fixed");
     (s) => s.kind === "op" && s.subjectKey === "phase1-create",
   );
   assert(
-    createOps.some((s) => s.tagId === heal.id),
+    createOps.some((s) => s.kind === "op" && s.tagId === heal.id),
     "Phase 1 create op writes Heal",
   );
   assert(
-    createOps.every((s) => s.tagId !== healFixed.id),
+    createOps.every((s) => s.kind !== "op" || s.tagId !== healFixed.id),
     "Phase 1 create op does not write Heal.Fixed",
   );
 }
