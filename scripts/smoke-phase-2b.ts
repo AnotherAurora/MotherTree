@@ -1292,4 +1292,84 @@ console.log("creates_base focused — Tentacle invent + unrestricted Fiamma");
   }
 }
 
+console.log("creates_base exact target — no prefix fan-out to Heal.Fixed");
+{
+  const awakener = makeAwakener({ id: 1, con: 100 });
+  const awakenersById = buildAwakenersById([awakener]);
+
+  const furnace = makeTag(61, "Support.Crimson Furnace");
+  const heal = makeTag(8, "Defender.Heal");
+  const healFixed = makeTag(70, "Defender.Heal.Fixed");
+  // Loaded because another TDI names it — need not apply.
+  const gainFixed = makeTag(115, "Support.Increase Gain.Heal.Fixed", true);
+
+  const tagsById: Record<number, Tag> = {
+    [furnace.id]: furnace,
+    [heal.id]: heal,
+    [healFixed.id]: healFixed,
+    [gainFixed.id]: gainFixed,
+  };
+
+  const manifests = [
+    makeManifestation({
+      id: 1,
+      tagId: furnace.id,
+      tagName: furnace.tagName,
+      valueScalar: 50,
+      targetType: "aoe",
+    }),
+  ];
+
+  const result = applyInteractions({
+    manifestations: manifests,
+    appliedManifestations: manifests,
+    defaultInteractions: [
+      makeInteraction({
+        id: 88,
+        modifierTagId: furnace.id,
+        modifierTagName: furnace.tagName,
+        targetTagId: heal.id,
+        targetTagName: heal.tagName,
+        mathOperation: "add_scaled",
+        defaultFactor: 1,
+        createsBase: true,
+        amplifiesSubject: false,
+      }),
+      makeInteraction({
+        id: 63,
+        modifierTagId: gainFixed.id,
+        modifierTagName: gainFixed.tagName,
+        targetTagId: healFixed.id,
+        targetTagName: healFixed.tagName,
+        mathOperation: "multiply_one_plus",
+        defaultFactor: 1,
+        createsBase: false,
+        amplifiesSubject: true,
+      }),
+    ],
+    tagsById,
+    awakenersById,
+  });
+
+  assert(
+    (result.totalsByTagId.get(heal.id) ?? 0) === 50,
+    `creates_base invents exact Heal (${result.totalsByTagId.get(heal.id)})`,
+  );
+  assert(
+    (result.totalsByTagId.get(healFixed.id) ?? 0) === 0,
+    `creates_base does not invent Heal.Fixed (${result.totalsByTagId.get(healFixed.id)})`,
+  );
+  const createOps = result.steps.filter(
+    (s) => s.kind === "op" && s.subjectKey === "phase1-create",
+  );
+  assert(
+    createOps.some((s) => s.tagId === heal.id),
+    "Phase 1 create op writes Heal",
+  );
+  assert(
+    createOps.every((s) => s.tagId !== healFixed.id),
+    "Phase 1 create op does not write Heal.Fixed",
+  );
+}
+
 console.log("\nAll Phase 2b smoke checks passed.");

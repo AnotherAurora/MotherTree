@@ -278,5 +278,8 @@ Bleed kits: aftereffect → **Bleed** (source owner) → combined stack → Blee
 ## 4. Related (out of scope here)
 
 - Global Mod→target rules, `creates_base` / `amplifies_subject`, buff restriction: **`tag_default_interaction`**
+  - **`creates_base` invent:** exact **`target_tag_id` only** (no prefix fan-out to descendants loaded in `tagsById`).
+  - **`amplifies_subject`:** prefix target + exclusion (tag + descendants), unchanged.
+  - Local **`aftereffect`:** already exact `target_tag_id` only.
 - Tag percent / additive combine: **`tag.is_percent`**, **`tag.is_additive`**, **`tag.layer`**
 - Full scheduling (closure look-ahead, deferred Trigger): live in Review Tags (Phase 3c); design locks in `.cursor/plans/simulator_phased_plan_7b0fcf95.plan.md`

@@ -349,6 +349,35 @@ function isCreatesBaseEdge(interaction: DefaultInteraction): boolean {
   return interaction.createsBase && !interaction.amplifiesSubject;
 }
 
+/** Invent edges write only the exact target_tag_id (no prefix fan-out). */
+function exactCreateTargetTag(
+  interaction: DefaultInteraction,
+  tagsById: Record<number, Tag>,
+): Tag | null {
+  if (interaction.targetTagId == null) return null;
+  return tagsById[interaction.targetTagId] ?? null;
+}
+
+/**
+ * Create (invent) → exact target_tag_id.
+ * Amplify / other → prefix target + exclusion (tag + descendants).
+ */
+function targetsForInteraction(
+  interaction: DefaultInteraction,
+  tagsById: Record<number, Tag>,
+): Tag[] {
+  if (isCreatesBaseEdge(interaction)) {
+    const tag = exactCreateTargetTag(interaction, tagsById);
+    return tag ? [tag] : [];
+  }
+  if (!interaction.targetTagName) return [];
+  return matchingTargetTags(
+    tagsById,
+    interaction.targetTagName,
+    interaction.exclusionTagName,
+  );
+}
+
 /** Aftereffect contribution: op(finishedOnce, factor). `before` is not in the op. */
 function aftereffectContribution(
   finishedOnce: number,
@@ -413,7 +442,7 @@ type AftereffectClosure = {
 
 /**
  * Option A look-ahead: closure0 = aftereffect targets; expand via creates_base
- * (exact modifier match). Split amplifies:
+ * (exact modifier match; invent target = exact target_tag_id). Split amplifies:
  * - stack: target intersects closure0 (run on combined stack before create)
  * - create: target intersects closure\closure0 (thin hop on Damage synthetics)
  * Empty closure0 → pull nothing (3b path).
@@ -451,17 +480,11 @@ function buildAftereffectClosure(
         deferredCreates.push(interaction);
         grew = true;
       }
-      if (!interaction.targetTagName) continue;
-      for (const tag of matchingTargetTags(
-        tagsById,
-        interaction.targetTagName,
-        interaction.exclusionTagName,
-      )) {
-        if (!closure.has(tag.id)) {
-          closure.add(tag.id);
-          grew = true;
-        }
-      }
+      const createTargetId = interaction.targetTagId;
+      if (createTargetId == null || closure.has(createTargetId)) continue;
+      if (tagsById[createTargetId] == null) continue;
+      closure.add(createTargetId);
+      grew = true;
     }
   }
 
@@ -1308,8 +1331,10 @@ function applyInteractionOnto(
   teamMaxHp?: number | null,
 ): void {
   const modifierTagId = interaction.modifierTagId;
-  const targetTagName = interaction.targetTagName;
-  if (modifierTagId == null || !targetTagName) return;
+  if (modifierTagId == null) return;
+
+  const targets = targetsForInteraction(interaction, tagsById);
+  if (targets.length === 0) return;
 
   const restriction = interaction.buffTargetTypeRestriction;
   if (restriction != null) {
@@ -1339,13 +1364,6 @@ function applyInteractionOnto(
     modifierManifests.length > 0
       ? effectSourcesFromManifests(modifierManifests, awakenerNamesById)
       : ["(synthesized)"];
-
-  const targets = matchingTargetTags(
-    tagsById,
-    targetTagName,
-    interaction.exclusionTagName,
-  );
-  if (targets.length === 0) return;
 
   // Boolean presence: one unified pass, never self+non-self double multiply.
   if (interaction.mathOperation === "presence_multiply") {
@@ -2331,7 +2349,19 @@ function buildCreatedBaseManifestation(
   };
 }
 
-function collectInteractionTargetIds(
+/** Exact target_tag_id set for creates_base materialization (no prefix). */
+function collectExactCreateTargetIds(
+  interactions: DefaultInteraction[],
+): Set<number> {
+  const ids = new Set<number>();
+  for (const interaction of interactions) {
+    if (interaction.targetTagId != null) ids.add(interaction.targetTagId);
+  }
+  return ids;
+}
+
+/** Prefix-expanded targets for amplify bookkeeping. */
+function collectAmplifyTargetIds(
   interactions: DefaultInteraction[],
   tagsById: Record<number, Tag>,
 ): Set<number> {
@@ -2357,14 +2387,15 @@ function collectInteractionTargetIds(
  * Layer B — apply tag_default_interaction (+ unique_scaling / aftereffect) and
  * Special conversions.
  *
- * Matching: exact modifier, prefix target, exclusion = tag + descendants.
+ * Matching: exact modifier; creates_base invent = exact target_tag_id;
+ * amplifies_subject = prefix target + exclusion (tag + descendants).
  * Self-scope: modifier target_type=self only updates same-owner tags.
  * Pass order (Phase 2c): modifier tag.layer — pre_add → add/null → post_add;
  * within rank add_scaled then other ops then id.
  *
  * Pipeline (Phase 3c + stack amplify):
  * 0. Look-ahead: closure0 = aftereffect targets; expand via creates_base
- *    (exact modifier); pull those creates; split amplifies into
+ *    (exact modifier; invent exact target_tag_id); pull those creates; split amplifies into
  *    closure0 (stack) vs closure\\closure0 (create/Trigger).
  *    Empty closure0 → pull nothing (3b path).
  * 1. Other unrestricted creates_base (excluding pulled closure edges).
@@ -2508,9 +2539,8 @@ export function applyInteractions(
       teamRealms: input.teamRealms,
     });
 
-    const createTargetIds = collectInteractionTargetIds(
+    const createTargetIds = collectExactCreateTargetIds(
       unrestrictedCreatesLive,
-      input.tagsById,
     );
 
     for (const tagId of createTargetIds) {
@@ -2789,7 +2819,7 @@ export function applyInteractions(
         teamRealms: input.teamRealms,
       });
 
-      const amplifyTargetIds = collectInteractionTargetIds(
+      const amplifyTargetIds = collectAmplifyTargetIds(
         lookAhead.deferredStackAmplifies,
         input.tagsById,
       );
@@ -2848,9 +2878,8 @@ export function applyInteractions(
         teamRealms: input.teamRealms,
       });
 
-      const createTargetIds = collectInteractionTargetIds(
+      const createTargetIds = collectExactCreateTargetIds(
         lookAhead.deferredCreates,
-        input.tagsById,
       );
 
       for (const tagId of createTargetIds) {
@@ -2902,7 +2931,7 @@ export function applyInteractions(
       teamRealms: input.teamRealms,
     });
 
-    const amplifyTargetIds = collectInteractionTargetIds(
+    const amplifyTargetIds = collectAmplifyTargetIds(
       lookAhead.deferredCreateAmplifies,
       input.tagsById,
     );
