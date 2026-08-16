@@ -524,7 +524,9 @@ export type SoloTagDisplayFields = {
 
 /**
  * Aggregate Target Type + Metadata for a solo Search tag row from catalog ATMs
- * (and aftereffects into that tag) that pass enlightenment + realm gates.
+ * (direct tag, aftereffects into that tag, and creates_base invent modifiers)
+ * that pass enlightenment + realm gates. Realm contributions stay as
+ * {@link REALM_GIMMICK_METADATA} only.
  */
 export function collectSoloTagDisplayFields(input: {
   awakenerId: number;
@@ -533,6 +535,7 @@ export function collectSoloTagDisplayFields(input: {
   enlightenment: number;
   awakenerManifestations: readonly PublicRow<"awakener_tag_manifestation">[];
   awakenerLocalInteractions: readonly PublicRow<"awakener_local_manifestation_interaction">[];
+  defaultInteractions?: readonly PublicRow<"tag_default_interaction">[];
   formatTargetType: (targetType: string) => string;
   hasAppliedRealmManifestation?: boolean;
 }): SoloTagDisplayFields {
@@ -544,6 +547,7 @@ export function collectSoloTagDisplayFields(input: {
     formatTargetType,
     hasAppliedRealmManifestation = false,
   } = input;
+  const defaultInteractions = input.defaultInteractions ?? [];
 
   const enlightenmentGated = input.awakenerManifestations.filter(
     (m) =>
@@ -582,6 +586,24 @@ export function collectSoloTagDisplayFields(input: {
     const m = resolvedById.get(local.manifestation_id);
     if (!m || !atmAppliesInRealmSim(m, realmSim, enlightenment)) continue;
     targetTypes.push(local.target_type);
+    if (m.metadata != null) metadatas.push(m.metadata);
+  }
+
+  // Catalog invent edges (creates_base && !amplifies_subject): exact target only.
+  const inventModifierTagIds = new Set<number>();
+  for (const d of defaultInteractions) {
+    if (
+      d.creates_base === true &&
+      d.amplifies_subject === false &&
+      d.target_tag_id === tagId &&
+      d.modifier_tag_id != null
+    ) {
+      inventModifierTagIds.add(d.modifier_tag_id);
+    }
+  }
+  for (const m of resolved) {
+    if (!atmAppliesInRealmSim(m, realmSim, enlightenment)) continue;
+    if (!inventModifierTagIds.has(m.tag_id)) continue;
     if (m.metadata != null) metadatas.push(m.metadata);
   }
 

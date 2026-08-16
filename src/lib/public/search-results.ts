@@ -402,6 +402,7 @@ export function buildSearchResults(
               enlightenment: filters.awakenerEnlightenment,
               awakenerManifestations: input.awakenerManifestations,
               awakenerLocalInteractions: input.awakenerLocalInteractions,
+              defaultInteractions: input.defaultInteractions ?? [],
               formatTargetType: formatSearchTargetTypeLabel,
               hasAppliedRealmManifestation,
             });
