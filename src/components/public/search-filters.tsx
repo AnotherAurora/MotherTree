@@ -15,11 +15,13 @@ import type {
 import {
   SEARCH_AWAKENER_ENLIGHTENMENT_OPTIONS,
   SEARCH_DEFAULT_AWAKENER_ENLIGHTENMENT,
+  formatAwakenerEnlightenmentLabel,
   formatSearchBuffRestrictionLabel,
   formatSearchDependencyStatLabel,
   formatSearchRealmLabel,
   formatSearchTagLabel,
   formatSearchTargetTypeLabel,
+  isAwakenerEnlightenmentValue,
 } from "@/lib/public/search-filter-options";
 import type { SearchResultRow } from "@/lib/public/search-results";
 import { cn } from "@/lib/utils";
@@ -87,21 +89,6 @@ function parseOptionalNumber(value: string): number | null {
   if (!value) return null;
   const n = Number(value);
   return Number.isFinite(n) ? n : null;
-}
-
-function isSearchAwakenerEnlightenmentValue(
-  value: number,
-): value is SearchAwakenerEnlightenmentValue {
-  return SEARCH_AWAKENER_ENLIGHTENMENT_OPTIONS.some((o) => o.value === value);
-}
-
-function formatAwakenerEnlightenmentLabel(
-  value: SearchAwakenerEnlightenmentValue,
-): string {
-  return (
-    SEARCH_AWAKENER_ENLIGHTENMENT_OPTIONS.find((o) => o.value === value)
-      ?.label ?? String(value)
-  );
 }
 
 function findTagLabel(
@@ -340,7 +327,7 @@ export function SearchFilters({ options }: SearchFiltersProps) {
             value={awakenerEnlightenment}
             onChange={(e) => {
               const n = Number(e.target.value);
-              if (isSearchAwakenerEnlightenmentValue(n)) {
+              if (isAwakenerEnlightenmentValue(n)) {
                 setAwakenerEnlightenment(n);
               }
             }}

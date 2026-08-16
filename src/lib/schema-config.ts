@@ -1,4 +1,5 @@
 import type { EnumName, TableName } from "@/lib/database.types";
+import { AWAKENER_ENLIGHTENMENT_OPTIONS } from "@/lib/enlightenment-options";
 import { formatLabel } from "@/lib/utils";
 
 export type FieldType =
@@ -41,6 +42,8 @@ export type FieldConfig = {
   inlineEditable?: boolean;
   /** Form layout width; consecutive "half" fields render side-by-side */
   formWidth?: "full" | "half";
+  /** When set on a number field, render a labeled select instead of a free number input */
+  numberSelectOptions?: readonly { value: number; label: string }[];
 };
 
 export type ChildTableConfig = {
@@ -516,6 +519,7 @@ export const TABLE_CONFIGS: TableConfig[] = [
         type: "number",
         defaultValue: 0,
         inlineEditable: true,
+        numberSelectOptions: AWAKENER_ENLIGHTENMENT_OPTIONS,
       },
       {
         name: "required_realm",

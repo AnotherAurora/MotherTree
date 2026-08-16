@@ -5,9 +5,14 @@ import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { EnumSelect } from "@/components/admin/enum-select";
 import { ForeignKeyCombobox } from "@/components/admin/foreign-key-combobox";
+import {
+  NumberSelect,
+  withOrphanNumberSelectOption,
+} from "@/components/admin/number-select";
 import { Input } from "@/components/ui/input";
 import { updateRecord, type ForeignKeyOption } from "@/lib/actions/crud";
 import { ENUM_VALUES } from "@/lib/database.types";
+import { formatAwakenerEnlightenmentLabel } from "@/lib/enlightenment-options";
 import type { FieldConfig } from "@/lib/schema-config";
 import { cn } from "@/lib/utils";
 
@@ -36,6 +41,9 @@ export function formatCellDisplayValue(
   if (fkLabel) return fkLabel;
 
   if (typeof value === "boolean") return value ? "Yes" : "No";
+  if (fieldName === "required_enlightenment" && typeof value === "number") {
+    return formatAwakenerEnlightenmentLabel(value);
+  }
   if (typeof value === "number") return value.toString();
   return String(value);
 }
@@ -239,6 +247,31 @@ export function EditableCell({
   }
 
   if (field.type === "number") {
+    if (field.numberSelectOptions) {
+      const n =
+        draft === "" || draft == null ? null : Number(draft);
+      return (
+        <div className="min-w-24" onClick={(event) => event.stopPropagation()}>
+          <NumberSelect
+            value={n != null && !Number.isNaN(n) ? n : null}
+            onChange={(next) => {
+              setDraft(next);
+              void save(next);
+            }}
+            options={withOrphanNumberSelectOption(
+              field.numberSelectOptions,
+              draft,
+            )}
+            allowEmpty={!field.required && field.defaultValue == null}
+            disabled={saving}
+            className="h-8"
+          />
+          {saving && (
+            <Loader2 className="mt-1 h-3.5 w-3.5 animate-spin text-zinc-400" />
+          )}
+        </div>
+      );
+    }
     return (
       <div className="min-w-20" onClick={(event) => event.stopPropagation()}>
         <Input

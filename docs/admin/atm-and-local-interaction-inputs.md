@@ -78,7 +78,7 @@ If a gate fails, the row is **not applied** (Review Tags shows Applied = no). It
 | Field | Effect |
 | --- | --- |
 | `required_realm` | Team must satisfy that realm (Chaos = exclusive chaos-lineage). |
-| `required_enlightenment` | Stored / shown; Path Carver apply path does not currently gate on it the same way as realm (treat as data for game rules / future). |
+| `required_enlightenment` | Admin enters **E0 / E1 / E2 / E3 / OE / AA** (stored as `0 / 1 / 2 / 3 / 7 / 15`, same breakpoints as Search Awakener Enlightenment). Path Carver load/resolve and Search gate with `required_enlightenment <=` assumed enlightenment; Review Tags apply path does not currently gate on it the same way as realm. |
 | `trigger_condition` | FK to a **When.\*** tag. Null = always eligible on the null-trigger pass. Set = applied only after Cause→When counts, scaled ×N times. |
 | `target_type` | **`self`:** this Support/Defender-style contribution is scoped to the owner (and Attacker.\* still needs damage-dealer). Used for interaction self-scoping when this row is a **modifier**. |
 | `source_type` | Leaf type (`command` / `exalt` / …). Used as **subject context** when this ATM is the interaction subject so `tag_default_interaction.buff_target_type_restriction` can match. |

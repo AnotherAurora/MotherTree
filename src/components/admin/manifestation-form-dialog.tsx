@@ -6,6 +6,10 @@ import { toast } from "sonner";
 import { DotSeparatedInput } from "@/components/admin/dot-separated-input";
 import { EnumSelect } from "@/components/admin/enum-select";
 import { ForeignKeyCombobox } from "@/components/admin/foreign-key-combobox";
+import {
+  NumberSelect,
+  withOrphanNumberSelectOption,
+} from "@/components/admin/number-select";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -421,6 +425,21 @@ export function ManifestationFormDialog({
     }
 
     if (field.type === "number") {
+      if (field.numberSelectOptions) {
+        const n =
+          value === "" || value == null ? null : Number(value);
+        return (
+          <NumberSelect
+            value={n != null && !Number.isNaN(n) ? n : null}
+            onChange={(next) => updateValue(field.name, next)}
+            options={withOrphanNumberSelectOption(
+              field.numberSelectOptions,
+              value,
+            )}
+            allowEmpty={!field.required && field.defaultValue == null}
+          />
+        );
+      }
       return (
         <Input
           type="number"

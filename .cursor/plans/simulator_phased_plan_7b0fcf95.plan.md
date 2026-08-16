@@ -166,10 +166,10 @@ Interactions **can chain** across **multiple passes** (e.g. Increase Gain → Su
 
 ### Existence gate + `creates_base` / `amplifies_subject`
 
-| Flag / target                                                | Rule                                                                                                                                                                                                                                                              |
-| ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Flag / target                                                | Rule                                                                                                                                                                                                                                                                                                                                                                    |
+| ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **`creates_base = true`** (with `amplifies_subject = false`) | Modifier **materializes** the exact **`target_tag_id`** as a synthetic base (Phase 1) — **no prefix fan-out**. May invent Support **and** Attacker/Defender targets. Writes into a synthetic channel (`*team*`), never into existing subject owner buckets. Example: Fiamma → Final Damage; Generate → Tentacle; Crimson Furnace → Defender.Heal only (not Heal.Fixed). |
-| **`amplifies_subject = true`** (with `creates_base = false`) | Apply once per matching **existing** subject (Phase 2). Target match = **prefix + exclusion**. Target must be Layer A or created-base present. Example: STR Up → each Active Damage; Increase Gain must not invent STR Up.                                                                               |
+| **`amplifies_subject = true`** (with `creates_base = false`) | Apply once per matching **existing** subject (Phase 2). Target match = **prefix + exclusion**. Target must be Layer A or created-base present. Example: STR Up → each Active Damage; Increase Gain must not invent STR Up.                                                                                                                                              |
 
 Intended pairs only (XOR). Same polarity is soft-warned in admin. Defaults: `creates_base=false`, `amplifies_subject=true`.
 
@@ -277,20 +277,20 @@ Primary files: [`manifestation-apply.ts`](src/lib/path-carver/manifestation-appl
 
 ### Locked decisions
 
-| #   | Decision                                                                                                                            |
-| --- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | Work only on Path Carver Review Tags math; simulator copies later (Phase 4)                                                         |
-| 2   | For **non-Attacker** tags: implement **`self` scoping** this phase; `single` / `aoe` keep applying if realm rules pass              |
-| 3   | Two layers: (A) filter which manifestations enter **team tag totals**; (B) apply **interactions** with self-scoping                 |
-| 4   | Attacker gate: tag name **starts with `Attacker.`**                                                                                 |
-| 5   | **Attacker.\* never applies unless owner is `is_damage_dealer`** — for **all** `target_type` values (`self`, `single`, `aoe`, null) |
-| 6   | No damage dealers marked → **no** Attacker.\* contributions (any target_type)                                                       |
-| 7   | **Posse:** skip both `target_type` and damage-dealer gates (realm only); column kept for future behavior                            |
-| 8   | All filtered-out manifestations **remain visible** in Review Tags debug with **Applied = no** (+ reason). Never hide filtered rows  |
-| 9   | **`dependency_stat` scaling + leaf-gated `buff_target_type_restriction` → Phase 2b** (not in 2a)                                    |
-| 10  | Interaction matching: **exact modifier**; **creates_base invent = exact target_tag_id**; **amplify = prefix target + exclusion**; **multi-pass chain**                |
-| 11  | Temporary op order: `add_scaled` then `presence_multiply` / `multiply_one_plus` (replaced in 2c)                                    |
-| 12  | Implement locked `math_operation` formulas + `tag.is_percent` branch; Special Corrosion/Embers conversions by tag name              |
+| #   | Decision                                                                                                                                               |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1   | Work only on Path Carver Review Tags math; simulator copies later (Phase 4)                                                                            |
+| 2   | For **non-Attacker** tags: implement **`self` scoping** this phase; `single` / `aoe` keep applying if realm rules pass                                 |
+| 3   | Two layers: (A) filter which manifestations enter **team tag totals**; (B) apply **interactions** with self-scoping                                    |
+| 4   | Attacker gate: tag name **starts with `Attacker.`**                                                                                                    |
+| 5   | **Attacker.\* never applies unless owner is `is_damage_dealer`** — for **all** `target_type` values (`self`, `single`, `aoe`, null)                    |
+| 6   | No damage dealers marked → **no** Attacker.\* contributions (any target_type)                                                                          |
+| 7   | **Posse:** skip both `target_type` and damage-dealer gates (realm only); column kept for future behavior                                               |
+| 8   | All filtered-out manifestations **remain visible** in Review Tags debug with **Applied = no** (+ reason). Never hide filtered rows                     |
+| 9   | **`dependency_stat` scaling + leaf-gated `buff_target_type_restriction` → Phase 2b** (not in 2a)                                                       |
+| 10  | Interaction matching: **exact modifier**; **creates_base invent = exact target_tag_id**; **amplify = prefix target + exclusion**; **multi-pass chain** |
+| 11  | Temporary op order: `add_scaled` then `presence_multiply` / `multiply_one_plus` (replaced in 2c)                                                       |
+| 12  | Implement locked `math_operation` formulas + `tag.is_percent` branch; Special Corrosion/Embers conversions by tag name                                 |
 
 ### Apply context extensions
 
