@@ -25,7 +25,7 @@ const TAG_FILTER_ITEMS = [
   {
     id: "attacker",
     label: "Attacker",
-    body: "Damage-related tags, ordered to match the damage formula and the UI layer order.",
+    body: "Damage-related tags, listed in damage-formula order.",
   },
   {
     id: "defender",
@@ -127,6 +127,13 @@ export default function ManualSearchPage() {
           <li>
             Gnostic Potential lv0, except limited awakeners who are lv5
           </li>
+          <li>
+            Awakener Enlightenment defaults to E3 (adjustable in Search). See{" "}
+            <Link href="#awakener-enlightenment" className={manualLinkClass}>
+              Awakener Enlightenment
+            </Link>
+            .
+          </li>
         </ul>
       </section>
 
@@ -140,8 +147,14 @@ export default function ManualSearchPage() {
           <h3 className={manualStepHeadingClass}>What&apos;s left out</h3>
           <ul className={listClass}>
             <li>
-              Enemy scaling is out of scope: those effects are either omitted
-              from the catalog, or listed without an enemy-based Value.
+              Enemy-based scaling is out of scope: those effects are omitted, or
+              listed without a Value from that scaling.
+              <ul className="mt-1.5 list-disc space-y-1.5 pl-5">
+                <li>
+                  For example, Lotan: Cetarchon&apos;s damage increase from
+                  enemy Attack is not cataloged.
+                </li>
+              </ul>
             </li>
             <li>
               Exploration effects (for example shop) are not cataloged.
@@ -162,15 +175,16 @@ export default function ManualSearchPage() {
             <div className="space-y-1">
               <dt className={fieldDtClass}>Posse</dt>
               <dd className={manualBodyClass}>
-                Values are balanced across Posses. Ryker&apos;s Posse is the
-                average of all 6 rolls so it does not read as a stronger Voice Posse.
+                Values are balanced across Posses. For example, Ryker&apos;s
+                Posse is the average of all 6 rolls so it does not read as a
+                stronger Voice Posse.
               </dd>
             </div>
             <div className="space-y-1">
               <dt className={fieldDtClass}>Awakener</dt>
               <dd className={manualBodyClass}>
-                Effects related to their ideal burst turn within reason are
-                cataloged. See{" "}
+                Awakener effects are cataloged for their ideal burst turn,
+                within reason. See{" "}
                 <Link
                   href="#burst-turn-simulation"
                   className={manualLinkClass}
@@ -205,8 +219,8 @@ export default function ManualSearchPage() {
             .
           </li>
           <li>
-            For Attacker and Defender tags on Awakener results, Search uses the
-            burst-turn value when one can be calculated. See{" "}
+            For damage / heal / shield tags on Awakener results, Search uses the
+            burst-turn value. See{" "}
             <Link href="#burst-turn-simulation" className={manualLinkClass}>
               Burst Turn Simulation
             </Link>{" "}
@@ -226,10 +240,8 @@ export default function ManualSearchPage() {
             applied.
             <ul className="mt-1.5 list-disc space-y-1.5 pl-5">
               <li>
-                Most Awakeners do not rely on basic strike and defense, so those
-                are not cataloged and are not part of the burst turn. For
-                Awakeners who do, basic strike and defense are cataloged and
-                calculated.
+                For example, basic strike and defense are included only for
+                Awakeners who rely on them.
               </li>
             </ul>
           </li>
@@ -237,8 +249,31 @@ export default function ManualSearchPage() {
             All Awakener conditions are set to optimal within reason.
             <ul className="mt-1.5 list-disc space-y-1.5 pl-5">
               <li>
-                Xu has full Spellbound stacks. Doresain is not bursting against
-                an enemy with 1 HP.
+                For example, Xu has full Spellbound stacks. Doresain is not
+                bursting against an enemy with 1 HP.
+              </li>
+            </ul>
+          </li>
+          <li>
+            Burst-turn Values are approximations, not exact in-game totals.
+            <ul className="mt-1.5 list-disc space-y-1.5 pl-5">
+              <li>
+                They can diverge because{" "}
+                <span className="text-[var(--mt-ink)]">Base Damage</span>,{" "}
+                <span className="text-[var(--mt-ink)]">Final Damage</span>, and{" "}
+                <span className="text-[var(--mt-ink)]">Increase Gain</span> mix
+                multiplicative and additive stacking in-game. Simulation treats
+                those tags as fully multiplicative.
+              </li>
+              <li>
+                Awakeners whose burst damage ramps with each card played are
+                simplified to their peak damage for the whole sequence.
+                <ul className="mt-1.5 list-disc space-y-1.5 pl-5">
+                  <li>
+                    For example, Mouchette is assumed to have her full Rouse
+                    damage buff from the start of the burst sequence.
+                  </li>
+                </ul>
               </li>
             </ul>
           </li>
@@ -252,6 +287,28 @@ export default function ManualSearchPage() {
         <h2 className={manualSectionHeadingClass}>
           Search Options and Results
         </h2>
+
+        <section
+          id="assumptions"
+          className="scroll-mt-24 space-y-4"
+          aria-labelledby="assumptions-heading"
+        >
+          <h3 id="assumptions-heading" className={manualStepHeadingClass}>
+            Assumptions
+          </h3>
+          <dl className="max-w-3xl space-y-4">
+            <div
+              id="awakener-enlightenment"
+              className="scroll-mt-24 space-y-1"
+            >
+              <dt className={fieldDtClass}>Awakener Enlightenment</dt>
+              <dd className={manualBodyClass}>
+                Assumed Awakener enlightenment for which effects appear.
+                Effects that require higher enlightenment are excluded.
+              </dd>
+            </div>
+          </dl>
+        </section>
 
         <section
           id="tags-and-filters"
@@ -293,10 +350,9 @@ export default function ManualSearchPage() {
             <div id="value" className="scroll-mt-24 space-y-1">
               <dt className={fieldDtClass}>Value</dt>
               <dd className={manualBodyClass}>
-                Magnitude of the tag. If Dependency Stat is set, it shows the
-                coefficient as a % of that dependency stat. For Attacker and
-                Defender tags on Awakener results, the burst-turn value is used
-                when one exists.
+                Magnitude of the tag, or a % of Dependency Stat when that is
+                set. For damage / heal / shield tags on Awakener results, the
+                burst-turn value is used.
               </dd>
             </div>
           </dl>
