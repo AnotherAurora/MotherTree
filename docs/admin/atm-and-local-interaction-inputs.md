@@ -93,9 +93,9 @@ Posse rows skip some of these gates; **ATM does not**.
 | Field | Role |
 | --- | --- |
 | `awakener_id` | Owner. |
-| `metadata` | Display / notes. |
+| `metadata` | Display / notes. Kit Reader naming: see [`docs/admin/kit-reader.md`](kit-reader.md) (`{sourceLabel} {effectLabel}[ E#]`). |
 | `replaces_manifestation_id` | This row replaces another ATM on the same awakener when resolving the loadout. |
-| `is_accumulating` | Loaded / debug; not a scalar multiplier in the interaction engine. |
+| `is_accumulating` | Loaded / debug; not a scalar multiplier in the interaction engine. Kit Reader sets this for every-turn kit text (“at turn start” / “at turn end”). |
 | `is_permanent` | Data flag; not a Path Carver scalar formula input. |
 | `buff_target_type_restriction` (on ATM) | **Not** the interaction gate — that lives on **`tag_default_interaction`**. ATM column is unused for Layer B gating today. |
 
@@ -218,6 +218,8 @@ Let:
 | `add_scaled` | `before + modifierValue × factor` |
 | `multiply` | Non-%: `before × (modifierValue × factor)` · %-tag: `(1+before)×(modifierValue×factor)−1` |
 | `presence_multiply` | If modifier present: `before × factor` (once per modifier/target) |
+
+Kit Reader: kit text with **enjoy / enjoys / enjoying** usually means `unique_scaling` on the subject ATM (modifier tag root, not `.Fixed`). See [`docs/admin/kit-reader.md`](kit-reader.md).
 
 **Example (tag-mod, locked intent):** Shield 10 → increase to 20; Damage ATM unique_scaling Shield, `layer = add`, `add_scaled` / factor 1 → in Damage’s **add** band, read Shield **20** and add 20. Unique_scaling does not re-run Shield increase.
 

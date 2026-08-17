@@ -582,14 +582,20 @@ export function TableManager({
                       config.name === "awakener_tag_manifestation" &&
                       !isDeleted &&
                       hasNonPositiveInstanceOrCopies(record);
+                    const isUnverified =
+                      config.name === "awakener_tag_manifestation" &&
+                      !isDeleted &&
+                      record.verified === false;
                     const rowWarn =
                       flagConflict || localColumnMismatch || nonPositiveCopies;
                     return (
                       <tr
                         key={String(record.id)}
                         className={cn(
-                          isDeleted && "bg-zinc-50 text-zinc-400",
+                          // Precedence (last wins via twMerge): unverified < warn < deleted
+                          isUnverified && "bg-red-100",
                           rowWarn && "bg-amber-50",
+                          isDeleted && "bg-zinc-50 text-zinc-400",
                         )}
                         title={
                           flagConflict
@@ -598,7 +604,9 @@ export function TableManager({
                               ? LOCAL_INTERACTION_COLUMN_MISMATCH_HINT
                               : nonPositiveCopies
                                 ? NON_POSITIVE_INSTANCE_OR_COPIES_HINT
-                                : undefined
+                                : isUnverified
+                                  ? "Unverified (pending)"
+                                  : undefined
                         }
                         onDoubleClick={() => {
                           if (!showDeletedOnly && !isDeleted) {

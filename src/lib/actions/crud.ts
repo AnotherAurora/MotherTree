@@ -339,6 +339,15 @@ export async function createRecord(
       record.updated_at = nowIso();
     }
 
+    for (const field of config.fields) {
+      if (
+        field.defaultValue !== undefined &&
+        (record[field.name] === undefined || record[field.name] === null)
+      ) {
+        record[field.name] = field.defaultValue;
+      }
+    }
+
     const uniqueCheck = await assertUniqueConstraints(
       supabase,
       config,
@@ -526,6 +535,10 @@ export async function saveManifestationWithOverrides(
       }
       if (config.fields.some((field) => field.name === "updated_at")) {
         record.updated_at = nowIso();
+      }
+      // Manual creates default verified; Kit Reader insert CLI forces false.
+      if (record.verified == null) {
+        record.verified = true;
       }
 
       const uniqueCheck = await assertUniqueConstraints(

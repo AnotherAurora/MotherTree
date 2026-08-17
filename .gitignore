@@ -41,3 +41,7 @@ next-env.d.ts
 
 # Local database sample dumps (generated; SKeyDB data — do not commit)
 /sample-data/dumps/
+
+# Kit Reader working files (export + Agent proposals)
+/sample-data/kit-reader/*.kit.json
+/sample-data/kit-reader/*.proposal.json

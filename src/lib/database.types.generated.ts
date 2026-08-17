@@ -211,6 +211,7 @@ export type Database = {
           trigger_condition: number | null
           updated_at: string | null
           value_scalar: number | null
+          verified: boolean
         }
         Insert: {
           awakener_id: number
@@ -236,6 +237,7 @@ export type Database = {
           trigger_condition?: number | null
           updated_at?: string | null
           value_scalar?: number | null
+          verified?: boolean
         }
         Update: {
           awakener_id?: number
@@ -261,6 +263,7 @@ export type Database = {
           trigger_condition?: number | null
           updated_at?: string | null
           value_scalar?: number | null
+          verified?: boolean
         }
         Relationships: [
           {

@@ -514,6 +514,13 @@ export const TABLE_CONFIGS: TableConfig[] = [
         inlineEditable: true,
       },
       {
+        name: "verified",
+        label: "Verified",
+        type: "boolean",
+        defaultValue: true,
+        inlineEditable: true,
+      },
+      {
         name: "required_enlightenment",
         label: "Required Enlightenment",
         type: "number",

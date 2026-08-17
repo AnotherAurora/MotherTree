@@ -109,7 +109,8 @@ export async function getAwakenerRelatedTags(
         "required_enlightenment",
         effectiveEnlightenment(awakenerResult.data.enlightenment),
       )
-      .is("deleted_at", null);
+      .is("deleted_at", null)
+      .eq("verified", true);
 
     if (manifestationResult.error) {
       return { success: false, error: manifestationResult.error.message };
