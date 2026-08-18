@@ -1,6 +1,6 @@
 ---
 name: Simulator Phased Plan
-overview: Path Carver–first roadmap. Phase 1–2c.1 + 3a + 3a.1 + 3a.2 + 3a.3 + 3b + 3b.1 + 3c + 3c.1 + 3d + 3e (Tentacle TDU pool) done. Next is Phase 4 (desire_demand / radar / simulator, Calculation List layer breakdown, Corrosion/Embers Non-Active parent+descendants + name→id). Phase 5 smart recommend.
+overview: Path Carver–first roadmap. Phase 1–2c.1 + 3a + 3a.1 + 3a.2 + 3a.3 + 3b + 3b.1 + 3c + 3c.1 + 3d + 3e + 3f (Tentacle Crit Rate / Damage) done. Next is Phase 4 (desire_demand / radar / simulator, Calculation List layer breakdown, Corrosion/Embers Non-Active parent+descendants + name→id). Phase 5 smart recommend.
 todos:
   - id: seed-data
     content: Create scripts/seed-simulator-data.ts with 2-3 desires, demand rows, anchored awakeners; add npm script
@@ -74,6 +74,9 @@ todos:
   - id: phase-3e-tentacle-tdu-pool
     content: Phase 3e — All Attacker.Tentacle sources (RTM, Generate, Hit) finish as units × (Unique TDU + TDU + TDU.Fixed); soft-delete TDI 3/75/77; Vulnerability after pool
     status: completed
+  - id: phase-3f-tentacle-crit
+    content: Phase 3f — Tentacle Crit Rate (display-only) and Tentacle Crit Damage (multiply_one_plus after TDU, before Vulnerability); hardcoded formula, no new tags
+    status: completed
   - id: layer-breakdown-ui
     content: Phase 4 — Wire Summary / Calculation List to show layer-by-layer breakdown
     status: pending
@@ -101,13 +104,14 @@ isProject: false
 
 Path Carver’s **Review Tags** page is the primary surface for testing recommendation math. Simulator Start / Recommend / radar / `desire_demand` fulfillment come **after** Path Carver math stabilizes (Phase 4); the simulator will copy Path Carver logic.
 
-| Focus now (3e done → Phase 4)                                                 | Later (Phase 4+)                               |
+| Focus now (3f done → Phase 4)                                                 | Later (Phase 4+)                               |
 | ----------------------------------------------------------------------------- | ---------------------------------------------- |
 | Path Carver Review Tags apply + aggregation + interactions                    | Simulator radar / fulfillment UI               |
 | Pass-order layers + `awakener_local_manifestation_interaction` rename (2c)    | Full `desire_demand` scoring / curves          |
 | Manifestation-local unique_scaling / aftereffect + subject scheduling (3a→3c) | Port math into Simulator page                  |
 | `Special.Hit = Tentacle Attack` per-owner synthetics (3d, done)               | Smart search / recommend optimization          |
 | Tentacle TDU pool for RTM / Generate / Hit (3e, done)                         | Calculation List layer breakdown               |
+| Tentacle Crit Rate / Damage after TDU (3f, done)                              |                                                |
 | Layer pass order (2c) + drop leftover `final` enum via recreate (2c.1)        |                                                |
 | Special Corrosion/Embers (exact Non-Active; keyed by name)                    | Non-Active parent+descendants + wire by tag id |
 
@@ -1766,9 +1770,60 @@ finished = tentacle_units × (Unique TDU + TDU + TDU.Fixed)
 
 ---
 
+## Phase 3f — Tentacle Crit Rate / Tentacle Crit Damage (DONE)
+
+**Depends on:** 3e.
+
+### Goal
+
+Hardcoded team-derived Tentacle Crit stats. **No new tags.** Rate is display-only. Damage `multiply_one_plus`s every `Attacker.Tentacle` after the TDU pool and before Vulnerability.
+
+```text
+tentacleCritX =
+  ceil( sumTeam(baseStatX) / 2 )
++ sum( supportCritX_aoe )
++ ceil( sum( supportCritX_nonAoe ) / 4 )
+```
+
+| Input | Source | Notes |
+| ----- | ------ | ----- |
+| `baseStatX` | `critDmg` / `critRate` on total-base awakeners | Sum selected team |
+| `supportCritX_*` | Exact tag id **17** / **18** manifestations | Not `Support.Crit Damage.*` / `Support.Crit Rate.*` |
+| Exclusions | `isBaseStatTransfer`; `buffTargetTypeRestriction != null` (strict) | Base uses `/2` only; restricted rows never count |
+| `aoe` | `targetType === "aoe"` | Add effective scalar directly |
+| non-aoe | `self`, `single`, `null` | Sum then `/4`, ceil, add |
+
+Support sum is **manifestation-level** (keep `targetType`). Do not use owner tag totals.
+
+### Locks
+
+- No `Support.Tentacle Crit *` tags or TDI rows
+- Hop 4d order: units → TDU family pool → Tentacle Crit Damage → remaining Tentacle TDI (Vulnerability)
+- Tentacle Crit Rate: `kind: "special"` only; does not change scalars
+- Team-wide formula, computed once per hop (not per owner)
+- Strict buff restriction: `m.buffTargetTypeRestriction != null` → skip (no leafContext match)
+- Tag total math: crit-damage op is part of the hop 4d committed Tentacle block (after TDU, before Vulnerability)
+
+### Files
+
+- [`src/lib/path-carver/tentacle-crit.ts`](src/lib/path-carver/tentacle-crit.ts)
+- [`src/lib/path-carver/apply-interactions.ts`](src/lib/path-carver/apply-interactions.ts) hop 4d
+- Smoke: `npx tsx scripts/smoke-tentacle-crit.ts`
+
+### Acceptance criteria
+
+- [x] Base-only: `ceil(sum(crit_dmg)/2)`
+- [x] Support aoe adds directly; self/single/null `/4` then ceil
+- [x] Exact tag 17/18 only; descendants and base-stat transfers excluded
+- [x] `buffTargetTypeRestriction != null` excluded even when `"tentacle"`
+- [x] Tentacle Crit Damage after TDU, before Vulnerability
+- [x] Tentacle Crit Rate special step present; tentacle scalar unchanged
+
+---
+
 ## Phase 4 — desire_demand, radar, simulator port
 
-**Depends on:** Stable Path Carver math (through Phase **3e** preferably; through 2c minimum).
+**Depends on:** Stable Path Carver math (through Phase **3f** preferably; through 2c minimum).
 
 ### Goal
 
@@ -1848,5 +1903,6 @@ Path Carver upserts a single `desire_template` per `desire_id`.
 9. **Phase 3c.1** — aftereffect stack amplify (Increase → closure0 before create) (DONE)
 10. **Phase 3d** — Special.Hit = Tentacle Attack (DONE)
 11. **Phase 3e** — Attacker.Tentacle TDU pool for RTM / Generate / Hit (DONE)
-12. **Phase 4** — desire_demand / radar / simulator port + Calculation List layer breakdown + Corrosion/Embers Non-Active parent+descendants capacity + name→id wiring
-13. **Phase 5** — Smart recommend / search
+12. **Phase 3f** — Tentacle Crit Rate / Damage after TDU (DONE)
+13. **Phase 4** — desire_demand / radar / simulator port + Calculation List layer breakdown + Corrosion/Embers Non-Active parent+descendants capacity + name→id wiring
+14. **Phase 5** — Smart recommend / search

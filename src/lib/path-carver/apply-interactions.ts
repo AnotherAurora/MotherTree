@@ -22,6 +22,13 @@ import {
   SPECIAL_TENTACLE_HIT_POISON_TAG_ID,
   TENTACLE_TDU_FAMILY_POOL_LABEL,
 } from "@/lib/path-carver/hit-tentacle-attack";
+import {
+  computeTentacleCritDamage,
+  computeTentacleCritRate,
+  formatTentacleCritDetail,
+  TENTACLE_CRIT_DAMAGE_LABEL,
+  TENTACLE_CRIT_RATE_LABEL,
+} from "@/lib/path-carver/tentacle-crit";
 import { matchesDemandTag } from "@/lib/simulator/tag-matching";
 import type { TeamRealmResolution } from "@/lib/team-data/resolve-team-realms";
 import {
@@ -2602,9 +2609,11 @@ function collectAmplifyTargetIds(
  * 4d. Tentacle TDU pool: default Attacker.Tentacle (RTM, Generate) ×
  *    (Unique TDU + TDU + TDU.Fixed) from finalized owner totals; Hit channels
  *    ceil(hits×factor×pool) separately (realm Hit summed; each non-realm Hit
- *    row own channel). Skip TDU-family TDI on Tentacle subjects; remaining
- *    Tentacle TDI (Vulnerability) runs on pooled synthetics against finalized
- *    non-Tentacle snapshots, then merge. Before Corrosion.
+ *    row own channel). Then × (1 + Tentacle Crit Damage) (multiply_one_plus).
+ *    Skip TDU-family TDI on Tentacle subjects; remaining Tentacle TDI
+ *    (Vulnerability) runs on post-crit pooled synthetics against finalized
+ *    non-Tentacle snapshots, then merge. Tentacle Crit Rate is display-only.
+ *    Before Corrosion.
  * 5. Special conversions last inside Layer B.
  *
  * Phase 2b.1: isBaseStatTransfer / realm / Support isCreatedBase subjects contribute
@@ -3222,6 +3231,15 @@ export function applyInteractions(
       ...createdSynthetics,
       ...deferredSynthetics,
     ];
+    const tentacleCritInput = {
+      awakeners: [...awakenersById.values()],
+      appliedManifestations: tentaclePoolApplied,
+      awakenersById,
+      tagsById: input.tagsById,
+      scalarOpts,
+    };
+    const tentacleCritDamage = computeTentacleCritDamage(tentacleCritInput);
+    const tentacleCritRate = computeTentacleCritRate(tentacleCritInput);
     const tduOwnerValues = mergedOwnerValues;
     const finalizedModifierSnapshots: Manifestation[] = [];
     for (const [owner, tagMap] of mergedOwnerValues) {
@@ -3327,11 +3345,41 @@ export function applyInteractions(
         }
       }
 
-      let finished = product;
-      if (product !== 0 && tentacleAmplify.length > 0) {
+      let afterCrit = product;
+      let critSynthetic = productSynthetic;
+      if (product !== 0 && tentacleCritDamage.total > 0) {
+        const critAfterRaw = product * (1 + tentacleCritDamage.total);
+        afterCrit = Math.ceil(critAfterRaw - 1e-10);
+        hitTentacleSteps.push({
+          kind: "op",
+          tagId: tentacle.id,
+          tagName: tentacle.tagName,
+          owner,
+          op: "multiply_one_plus",
+          modifierTagName: TENTACLE_CRIT_DAMAGE_LABEL,
+          modifierValue: tentacleCritDamage.total,
+          factor: 1,
+          before: product,
+          afterRaw: critAfterRaw,
+          after: afterCrit,
+          rounded: afterCrit !== critAfterRaw,
+          pass: 0,
+          effectSources: [subjectLabel],
+          layer: "add",
+          leafContext: "tentacle",
+          subjectKey,
+          subjectLabel,
+        });
+        if (afterCrit !== product) {
+          critSynthetic = { ...productSynthetic, valueScalar: afterCrit };
+        }
+      }
+
+      let finished = afterCrit;
+      if (afterCrit !== 0 && tentacleAmplify.length > 0) {
         const cohort = cohortForSubject(
-          [...finalizedModifierSnapshots, productSynthetic],
-          productSynthetic,
+          [...finalizedModifierSnapshots, critSynthetic],
+          critSynthetic,
         );
         const amplifyResult = runInteractionsForLeafContext({
           appliedManifestations: cohort,
@@ -3599,6 +3647,16 @@ export function applyInteractions(
         detail: poisonDetailParts.join("; "),
       });
     }
+    hitTentacleSteps.push({
+      kind: "special",
+      label: TENTACLE_CRIT_RATE_LABEL,
+      detail: formatTentacleCritDetail(tentacleCritRate),
+    });
+    hitTentacleSteps.push({
+      kind: "special",
+      label: TENTACLE_CRIT_DAMAGE_LABEL,
+      detail: formatTentacleCritDetail(tentacleCritDamage),
+    });
   }
 
   steps.push(
