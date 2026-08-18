@@ -601,7 +601,7 @@ console.log("Part F — Generate Tentacle career vs Hit (shared TDU pool)");
     tagId: tentacleTag.id,
     tagName: tentacleTag.tagName,
     valueScalar: 1,
-    sourceType: "tentacle",
+    sourceType: null,
     targetType: "aoe",
   });
   const manifests = [active, hit, tdu, generate, layerATentacle];
@@ -965,7 +965,7 @@ console.log("Part N — STR Up invents Unique TDU into the pool");
     tagId: tentacleTag.id,
     tagName: tentacleTag.tagName,
     valueScalar: 2,
-    sourceType: "tentacle",
+    sourceType: null,
     targetType: "aoe",
   });
   const manifests = [str, tdu, tentacle];
@@ -1526,7 +1526,7 @@ console.log("Part O — Tentacle Hit Poison counts LayerA + RTM + Generate + Hit
     tagId: tentacleTag.id,
     tagName: tentacleTag.tagName,
     valueScalar: 2,
-    sourceType: "tentacle",
+    sourceType: null,
     targetType: "aoe",
   });
   const rtmTentacle = makeManifestation({
@@ -1538,7 +1538,7 @@ console.log("Part O — Tentacle Hit Poison counts LayerA + RTM + Generate + Hit
     tagId: tentacleTag.id,
     tagName: tentacleTag.tagName,
     valueScalar: 4,
-    sourceType: "tentacle",
+    sourceType: null,
     targetType: "aoe",
   });
   const manifests = [active, hit, poison, tdu, generate, layerATentacle, rtmTentacle];
@@ -1587,7 +1587,7 @@ console.log("Part P — Tentacle Hit Poison self stays on owning awakener");
     tagId: tentacleTag.id,
     tagName: tentacleTag.tagName,
     valueScalar: 2,
-    sourceType: "tentacle",
+    sourceType: null,
     targetType: "aoe",
   });
   const tentacle2 = makeManifestation({
@@ -1597,7 +1597,7 @@ console.log("Part P — Tentacle Hit Poison self stays on owning awakener");
     tagId: tentacleTag.id,
     tagName: tentacleTag.tagName,
     valueScalar: 5,
-    sourceType: "tentacle",
+    sourceType: null,
     targetType: "aoe",
   });
   const manifests = [poisonSelf, tentacle1, tentacle2];
@@ -1622,7 +1622,7 @@ console.log("Part Q — Tentacle Hit Poison ignores TDU count and still amplifie
     tagId: tentacleTag.id,
     tagName: tentacleTag.tagName,
     valueScalar: 2,
-    sourceType: "tentacle",
+    sourceType: null,
     targetType: "aoe",
   });
   const poison = makeManifestation({

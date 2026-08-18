@@ -4,7 +4,7 @@
  */
 
 import { mkdirSync, writeFileSync } from "node:fs";
-import { dirname } from "node:path";
+import { dirname, join } from "node:path";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { SKEYDB_COMMIT } from "@/lib/assets/skeydb-base";
 import { ENUM_VALUES, type Database } from "@/lib/database.types";
@@ -29,7 +29,6 @@ const SKILL_LEVEL = 6;
 export type MotherTreeSourceType =
   | "command card"
   | "exalt"
-  | "tentacle"
   | "rouse"
   | "talent";
 
@@ -755,6 +754,22 @@ export function writeKitPackToRepo(
   pack: KitPack,
 ): { absolutePath: string; relativePath: string } {
   const absolutePath = kitPackAbsolutePath(repoRoot, slug);
+  mkdirSync(dirname(absolutePath), { recursive: true });
+  writeFileSync(absolutePath, `${JSON.stringify(pack, null, 2)}\n`, "utf8");
+  return { absolutePath, relativePath: kitPackRelativePath(slug) };
+}
+
+/** Writes under sample-data/kit-reader with a statically scoped path (server actions). */
+export function writeKitPackToSampleData(
+  slug: string,
+  pack: KitPack,
+): { absolutePath: string; relativePath: string } {
+  const absolutePath = join(
+    process.cwd(),
+    "sample-data",
+    "kit-reader",
+    `${slug}.kit.json`,
+  );
   mkdirSync(dirname(absolutePath), { recursive: true });
   writeFileSync(absolutePath, `${JSON.stringify(pack, null, 2)}\n`, "utf8");
   return { absolutePath, relativePath: kitPackRelativePath(slug) };

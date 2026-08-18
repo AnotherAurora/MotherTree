@@ -236,7 +236,7 @@ console.log("Part B — leaf-gated buff_target_type_restriction");
       tagId: active.id,
       tagName: active.tagName,
       valueScalar: 50,
-      sourceType: "tentacle",
+      sourceType: null,
       targetType: "single",
     }),
   ];
@@ -278,7 +278,7 @@ console.log("Part B — leaf-gated buff_target_type_restriction");
   const activeTotal = result.totalsByTagId.get(active.id) ?? 0;
   // Command-card leaf: Final Damage gets Enhance (0.2 → (1+0.2)*(1+1)-1 = 1.4),
   // then Active 100 * (1+1.4) = 240 (ceil).
-  // Tentacle leaf: Enhance skipped, Final stays 0.2, Active 50 * (1+0.2) = 60 (ceil).
+  // Null-source leaf: Enhance skipped, Final stays 0.2, Active 50 * (1+0.2) = 60 (ceil).
   // Sum ≈ 240 + 60 = 300.
   assert(activeTotal > 150, `Active Damage summed across leaves (${activeTotal})`);
   assert(
@@ -294,15 +294,15 @@ console.log("Part B — leaf-gated buff_target_type_restriction");
     `restricted op emitted when leaf matches (${restrictionSteps.length} steps)`,
   );
 
-  const tentacleRestrictionSteps = result.steps.filter(
+  const nullRestrictionSteps = result.steps.filter(
     (s) =>
       s.kind === "op" &&
       s.buffRestrictionMet === "command card" &&
-      s.leafContext === "tentacle",
+      s.leafContext === null,
   );
   assert(
-    tentacleRestrictionSteps.length === 0,
-    "no restricted op line for tentacle leaf path",
+    nullRestrictionSteps.length === 0,
+    "no restricted op line for null leaf path",
   );
 
   // dependency_stat on Active Damage leaf

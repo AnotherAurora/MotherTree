@@ -1,14 +1,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { resolve } from "node:path";
 import {
   adminUnavailableResult,
   isAdminRuntimeEnabled,
 } from "@/lib/admin-runtime";
 import {
   buildKitPackForAwakener,
-  writeKitPackToRepo,
+  writeKitPackToSampleData,
 } from "@/lib/kit-reader/build-kit-pack";
 import { buildKitReaderCursorPrompt } from "@/lib/kit-reader/cursor-prompt";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -246,7 +245,7 @@ export async function exportKitPackAndPrompt(
       supabase,
       awakenerId,
     );
-    writeKitPackToRepo(resolve(process.cwd()), slug, pack);
+    writeKitPackToSampleData(slug, pack);
 
     const prompt = buildKitReaderCursorPrompt({
       awakenerName: pack.awakener.name,

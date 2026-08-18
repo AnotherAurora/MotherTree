@@ -149,7 +149,7 @@ Cursor chooses `required_enlightenment` and whether higher-E **replaces** vs **a
 
 ### Slot / section → `source_type` map (locked)
 
-MotherTree enum: `"command card" | "exalt" | "tentacle" | "rouse" | "talent"`.
+MotherTree enum: `"command card" | "exalt" | "rouse" | "talent"`.
 
 Export sets `sourceTypeHint` (and OE default enlightenment) from SKeyDB `public-v3` **`slot`** on skills, plus talents and derived cards:
 
@@ -165,7 +165,7 @@ Export sets `sourceTypeHint` (and OE default enlightenment) from SKeyDB `public-
 | Derived Cards / derived skills | `command card` | Same as Command Cards |
 | Talents (incl. Soulforge, Happy Little Fairy, passives) | `talent` | Ignore-list talents still `atmEligible: false` |
 
-Do **not** map any of the above to `tentacle` from slot alone; `"tentacle"` is reserved for genuinely tentacle-sourced ATMs if needed later.
+Do **not** invent a fifth `source_type`. Tentacle damage is a tag (`Attacker.Tentacle`), not a leaf source.
 
 Enlighten upgrade layers still set `required_enlightenment` to **1 / 2 / 3** for E1/E2/E3 when that layer is the source of the ATM; Over Exalt base uses **7**.
 
@@ -306,7 +306,7 @@ const allStats = z.enum([
 ]);
 
 const sourceType = z.enum([
-  "command card", "exalt", "tentacle", "rouse", "talent",
+  "command card", "exalt", "rouse", "talent",
 ]);
 
 const targetType = z.enum(["self", "single", "aoe"]);

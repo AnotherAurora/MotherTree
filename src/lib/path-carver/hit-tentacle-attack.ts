@@ -571,7 +571,7 @@ export function buildHitTentacleAttackManifestation(
     valueScalar: plan.hits,
     ...DEFAULT_COPY_INSTANCE_FIELDS,
     dependencyStat: null,
-    sourceType: "tentacle",
+    sourceType: null,
     targetType: "aoe",
     buffTargetTypeRestriction: null,
     metadata:

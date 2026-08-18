@@ -77,12 +77,16 @@ function sumSupportCritExact(
   return { aoe, nonAoe };
 }
 
+function ceilPercent(value: number): number {
+  return Math.ceil(value * 100 - 1e-10) / 100;
+}
+
 function assembleBreakdown(
   baseSum: number,
   support: SupportCritBuckets,
 ): TentacleCritBreakdown {
-  const basePart = Math.ceil(baseSum / 2);
-  const supportNonAoePart = Math.ceil(support.nonAoe / 4);
+  const basePart = ceilPercent(baseSum / 2);
+  const supportNonAoePart = ceilPercent(support.nonAoe / 4);
   const supportPart = support.aoe + supportNonAoePart;
   return {
     baseSum,
@@ -117,10 +121,10 @@ export function formatTentacleCritDetail(
   breakdown: TentacleCritBreakdown,
 ): string {
   return (
-    `base=ceil(${breakdown.baseSum}/2)=${breakdown.basePart}` +
+    `base=ceil%(${breakdown.baseSum}/2)=${breakdown.basePart}` +
     ` aoe=${breakdown.supportAoeSum}` +
     ` nonAoe=${breakdown.supportNonAoeSum}` +
-    `→ceil(${breakdown.supportNonAoeSum}/4)=${breakdown.supportNonAoePart}` +
+    `→ceil%(${breakdown.supportNonAoeSum}/4)=${breakdown.supportNonAoePart}` +
     ` total=${breakdown.total}`
   );
 }

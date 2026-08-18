@@ -20,7 +20,6 @@ const allStats = z.enum([
 const sourceType = z.enum([
   "command card",
   "exalt",
-  "tentacle",
   "rouse",
   "talent",
 ]);

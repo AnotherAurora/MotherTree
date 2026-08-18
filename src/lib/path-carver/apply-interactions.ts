@@ -685,7 +685,7 @@ function buildTentaclePoolSynthetic(
       sourceKind: "awakener",
       awakenerId,
       sourceName: TENTACLE_TDU_POOL_SUBJECT_LABEL,
-      sourceType: "tentacle",
+      sourceType: null,
     };
   }
   if (owner === "posse") {
@@ -694,7 +694,7 @@ function buildTentaclePoolSynthetic(
       id: tentacleTduPoolManifestationId(owner),
       sourceKind: "posse",
       sourceName: TENTACLE_TDU_POOL_SUBJECT_LABEL,
-      sourceType: "tentacle",
+      sourceType: null,
     };
   }
   if (owner === REALM_OWNER) {
@@ -703,14 +703,14 @@ function buildTentaclePoolSynthetic(
       id: tentacleTduPoolManifestationId(owner),
       sourceKind: "realm",
       sourceName: TENTACLE_TDU_POOL_SUBJECT_LABEL,
-      sourceType: "tentacle",
+      sourceType: null,
     };
   }
   return {
     ...base,
     id: tentacleTduPoolManifestationId(owner),
     sourceName: TENTACLE_TDU_POOL_SUBJECT_LABEL,
-    sourceType: "tentacle",
+    sourceType: null,
   };
 }
 
@@ -728,7 +728,7 @@ function buildTentaclePoisonFixedSynthetic(
       sourceKind: "awakener",
       awakenerId,
       sourceName: TENTACLE_HIT_POISON_SUBJECT_LABEL,
-      sourceType: "tentacle",
+      sourceType: null,
       metadata: "Special.Tentacle Hit = Poison",
     };
   }
@@ -738,7 +738,7 @@ function buildTentaclePoisonFixedSynthetic(
       id: tentaclePoisonFixedManifestationId(owner),
       sourceKind: "posse",
       sourceName: TENTACLE_HIT_POISON_SUBJECT_LABEL,
-      sourceType: "tentacle",
+      sourceType: null,
       metadata: "Special.Tentacle Hit = Poison",
     };
   }
@@ -748,7 +748,7 @@ function buildTentaclePoisonFixedSynthetic(
       id: tentaclePoisonFixedManifestationId(owner),
       sourceKind: "realm",
       sourceName: TENTACLE_HIT_POISON_SUBJECT_LABEL,
-      sourceType: "tentacle",
+      sourceType: null,
       metadata: "Special.Tentacle Hit = Poison",
     };
   }
@@ -756,7 +756,7 @@ function buildTentaclePoisonFixedSynthetic(
     ...base,
     id: tentaclePoisonFixedManifestationId(owner),
     sourceName: TENTACLE_HIT_POISON_SUBJECT_LABEL,
-    sourceType: "tentacle",
+    sourceType: null,
     metadata: "Special.Tentacle Hit = Poison",
   };
 }
@@ -3312,7 +3312,7 @@ export function applyInteractions(
           pass: 0,
           effectSources: [subjectLabel],
           layer: "add",
-          leafContext: "tentacle",
+          leafContext: null,
           subjectKey,
           subjectLabel,
         });
@@ -3366,7 +3366,7 @@ export function applyInteractions(
           pass: 0,
           effectSources: [subjectLabel],
           layer: "add",
-          leafContext: "tentacle",
+          leafContext: null,
           subjectKey,
           subjectLabel,
         });
@@ -3386,7 +3386,7 @@ export function applyInteractions(
           defaultInteractions: tentacleAmplify,
           tagsById: input.tagsById,
           awakenersById,
-          leafContext: "tentacle",
+          leafContext: null,
           awakenerNamesById: input.awakenerNamesById,
           recordBaseSteps: false,
           runSpecial: false,
@@ -3408,7 +3408,7 @@ export function applyInteractions(
             ...step,
             subjectKey,
             subjectLabel,
-            leafContext: "tentacle",
+            leafContext: null,
           });
         }
       }
@@ -3502,7 +3502,7 @@ export function applyInteractions(
           pass: 0,
           effectSources: [TENTACLE_HIT_POISON_SUBJECT_LABEL],
           layer: "add",
-          leafContext: "tentacle",
+          leafContext: null,
           subjectKey,
           subjectLabel: TENTACLE_HIT_POISON_SUBJECT_LABEL,
         });
@@ -3518,7 +3518,7 @@ export function applyInteractions(
             defaultInteractions: poisonFixedAmplify,
             tagsById: input.tagsById,
             awakenersById,
-            leafContext: "tentacle",
+            leafContext: null,
             awakenerNamesById: input.awakenerNamesById,
             recordBaseSteps: false,
             runSpecial: false,
@@ -3540,7 +3540,7 @@ export function applyInteractions(
               ...step,
               subjectKey,
               subjectLabel: TENTACLE_HIT_POISON_SUBJECT_LABEL,
-              leafContext: "tentacle",
+              leafContext: null,
             });
           }
         }

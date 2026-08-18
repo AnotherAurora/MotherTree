@@ -1456,7 +1456,7 @@ export type Database = {
         | "ultra"
         | "singularity ultra"
       realm_match_mode: "present" | "exclusive" | "combo"
-      source_type: "command card" | "exalt" | "tentacle" | "rouse" | "talent"
+      source_type: "command card" | "exalt" | "rouse" | "talent"
       target_type: "self" | "single" | "aoe"
     }
     CompositeTypes: {
@@ -1626,7 +1626,7 @@ export const Constants = {
         "singularity ultra",
       ],
       realm_match_mode: ["present", "exclusive", "combo"],
-      source_type: ["command card", "exalt", "tentacle", "rouse", "talent"],
+      source_type: ["command card", "exalt", "rouse", "talent"],
       target_type: ["self", "single", "aoe"],
     },
   },

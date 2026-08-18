@@ -103,7 +103,7 @@ When ATM `tagName` matches any prefix in `lexicon.aoeTagPrefixes` (includes subt
 
 ## Slot → `sourceType`
 
-Use pack `sourceTypeHint`: Strike/Defense/Skill1/Skill2/derived → `command card`; Rouse → `rouse`; Exalt/OverExalt → `exalt`; talents → `talent`. Do not map slot alone to `tentacle`.
+Use pack `sourceTypeHint`: Strike/Defense/Skill1/Skill2/derived → `command card`; Rouse → `rouse`; Exalt/OverExalt → `exalt`; talents → `talent`. `tentacle` is not a `source_type` value.
 
 ## Proposal status
 

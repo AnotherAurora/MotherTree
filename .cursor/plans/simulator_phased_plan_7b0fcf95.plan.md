@@ -1,6 +1,6 @@
 ---
 name: Simulator Phased Plan
-overview: Path Carver–first roadmap. Phase 1–2c.1 + 3a + 3a.1 + 3a.2 + 3a.3 + 3b + 3b.1 + 3c + 3c.1 + 3d + 3e + 3f (Tentacle Crit Rate / Damage) done. Next is Phase 4 (desire_demand / radar / simulator, Calculation List layer breakdown, Corrosion/Embers Non-Active parent+descendants + name→id). Phase 5 smart recommend.
+overview: Path Carver–first roadmap. Phase 1–2c.1 + 3a + 3a.1 + 3a.2 + 3a.3 + 3b + 3b.1 + 3c + 3c.1 + 3d + 3e + 3f + 3g (remove source_type tentacle) done. Next is Phase 4 (desire_demand / radar / simulator, Calculation List layer breakdown, Corrosion/Embers Non-Active parent+descendants + name→id). Phase 5 smart recommend.
 todos:
   - id: seed-data
     content: Create scripts/seed-simulator-data.ts with 2-3 desires, demand rows, anchored awakeners; add npm script
@@ -77,6 +77,9 @@ todos:
   - id: phase-3f-tentacle-crit
     content: Phase 3f — Tentacle Crit Rate (display-only) and Tentacle Crit Damage (multiply_one_plus after TDU, before Vulnerability); hardcoded formula, no new tags
     status: completed
+  - id: phase-3g-remove-source-type-tentacle
+    content: Phase 3g — Remove source_type tentacle enum via recreate-type swap; Hit/TDU/poison synthetics use sourceType null
+    status: completed
   - id: layer-breakdown-ui
     content: Phase 4 — Wire Summary / Calculation List to show layer-by-layer breakdown
     status: pending
@@ -104,7 +107,7 @@ isProject: false
 
 Path Carver’s **Review Tags** page is the primary surface for testing recommendation math. Simulator Start / Recommend / radar / `desire_demand` fulfillment come **after** Path Carver math stabilizes (Phase 4); the simulator will copy Path Carver logic.
 
-| Focus now (3f done → Phase 4)                                                 | Later (Phase 4+)                               |
+| Focus now (3g done → Phase 4)                                                 | Later (Phase 4+)                               |
 | ----------------------------------------------------------------------------- | ---------------------------------------------- |
 | Path Carver Review Tags apply + aggregation + interactions                    | Simulator radar / fulfillment UI               |
 | Pass-order layers + `awakener_local_manifestation_interaction` rename (2c)    | Full `desire_demand` scoring / curves          |
@@ -112,6 +115,7 @@ Path Carver’s **Review Tags** page is the primary surface for testing recommen
 | `Special.Hit = Tentacle Attack` per-owner synthetics (3d, done)               | Smart search / recommend optimization          |
 | Tentacle TDU pool for RTM / Generate / Hit (3e, done)                         | Calculation List layer breakdown               |
 | Tentacle Crit Rate / Damage after TDU (3f, done)                              |                                                |
+| Remove `source_type` `tentacle` enum; synthetics use `null` (3g, done)        |                                                |
 | Layer pass order (2c) + drop leftover `final` enum via recreate (2c.1)        |                                                |
 | Special Corrosion/Embers (exact Non-Active; keyed by name)                    | Non-Active parent+descendants + wire by tag id |
 
@@ -219,7 +223,7 @@ Renamed from the old `source_type` column on `tag_default_interaction` (oversigh
 - Restricted `creates_base` rows apply only when `leafContext` matches (scoped seed on that subject path).
 - If restriction is **null**, unrestricted creates run in Phase 1; amplify rows apply regardless of leaf `source_type` (subject to other rules).
 - Restriction does **not** live on `awakener_local_manifestation_interaction` (renamed from `manifestation_interaction_override` in Phase 2c) for now (may be added later). Gate using `tag_default_interaction.buff_target_type_restriction` only.
-- Example: subject is an `Attacker.Active Damage` contribution with `source_type == command card`. Restricted `Support.Enhance → Support.Final Damage` **applies** as a scoped Final seed on this path; same seed with a tentacle subject **skips**. Downstream `Support.Final Damage → Attacker.Active Damage` (`amplifies_subject`) still applies when its other rules pass.
+- Example: subject is an `Attacker.Active Damage` contribution with `source_type == command card`. Restricted `Support.Enhance → Support.Final Damage` **applies** as a scoped Final seed on this path; same seed with a `source_type` null subject **skips**. Downstream `Support.Final Damage → Attacker.Active Damage` (`amplifies_subject`) still applies when its other rules pass.
 - Review Tags tag list: still one scalar per tag for the current team calculation (no per-branch columns).
 - **Debug — Tag total math:** if a restricted interaction **applied** (restriction met for this subject), show **one extra** calculation line; if skipped due to restriction, **no** extra line for that interaction.
 
@@ -558,7 +562,7 @@ Debug: Review Tags debug already shows `dependency_stat`; show **raw vs effectiv
 
 #### Semantics
 
-- Interaction row field: `buff_target_type_restriction` (enum `source_type`: command card / exalt / tentacle / rouse / talent), nullable.
+- Interaction row field: `buff_target_type_restriction` (enum `source_type`: command card / exalt / rouse / talent), nullable.
 - **Leaf context:** when resolving values for a demand / leaf manifestation, set `leafSourceType = that manifestation.source_type` (nullable).
 - Carry `leafSourceType` as context for the **entire** multi-pass interaction chain for that calculation.
 - If interaction restriction is **null** → apply (subject to other 2a rules).
@@ -574,7 +578,7 @@ Support.Enhance → Support.Final Damage   (restriction: command card)
 Support.Final Damage → Attacker.Active Damage   (no restriction)
   → APPLIES when other rules pass
 
-Same chain for a tentacle leaf → Enhance SKIPPED; no dual totals stored
+Same chain for a null-source leaf → Enhance SKIPPED; no dual totals stored
 ```
 
 #### UI / debug
@@ -587,7 +591,7 @@ Same chain for a tentacle leaf → Enhance SKIPPED; no dual totals stored
 
 - Replace Phase 2a stub in [`apply-interactions.ts`](src/lib/path-carver/apply-interactions.ts) that ignores non-null restrictions.
 - Thread leaf `source_type` into the interaction engine when computing per-manifestation or per-leaf contributions that feed totals / math debug.
-- How to aggregate multiple leaves with different `source_type` into the single Review Tags tag total: use the same overall team aggregation as 2a, but each leaf’s contribution is computed with **its own** leaf context (so command-card leaves get restricted buffs; tentacle leaves do not). Sum those contributions into the tag total — still one number in the UI.
+- How to aggregate multiple leaves with different `source_type` into the single Review Tags tag total: use the same overall team aggregation as 2a, but each leaf’s contribution is computed with **its own** leaf context (so command-card leaves get restricted buffs; `source_type` null leaves do not). Sum those contributions into the tag total — still one number in the UI.
 - Part B consumes **already dependency-scaled** effective scalars from Part A.
 
 ### Acceptance criteria
@@ -1715,7 +1719,7 @@ channel = ceil(hits × factor × (Unique TDU + TDU + TDU.Fixed))
 - Default Generate / RTM `Attacker.Tentacle` stays `units × pool` (Hit never scales those units).
 - Ceil **per channel**, then add. `Special.Hit` tag total may still show `0.5+1=1.5`; conversion does not use that total as one factor.
 
-Skip live TDI 3 / 75 / 77 on Hit synthetics only (those stay 100% for Generate / Layer A Tentacle). Remaining Tentacle TDI (Vulnerability) still run. `sourceType = tentacle`. Hop **4d** after deferred amplify, before Corrosion.
+Skip live TDI 3 / 75 / 77 on Hit synthetics only (those stay 100% for Generate / Layer A Tentacle). Remaining Tentacle TDI (Vulnerability) still run. `sourceType = null` (Phase 3g). Hop **4d** after deferred amplify, before Corrosion.
 
 **Superseded by Phase 3e:** Generate / RTM / Layer A Tentacle now use the same TDU family pool as Hit. TDI 3 / 75 / 77 are soft-deleted.
 
@@ -1780,9 +1784,11 @@ Hardcoded team-derived Tentacle Crit stats. **No new tags.** Rate is display-onl
 
 ```text
 tentacleCritX =
-  ceil( sumTeam(baseStatX) / 2 )
+  ceil%( sumTeam(baseStatX) / 2 )
 + sum( supportCritX_aoe )
-+ ceil( sum( supportCritX_nonAoe ) / 4 )
++ ceil%( sum( supportCritX_nonAoe ) / 4 )
+
+ceil%(x) = Math.ceil(x * 100 - 1e-10) / 100   // whole percent, not whole units
 ```
 
 | Input | Source | Notes |
@@ -1791,7 +1797,7 @@ tentacleCritX =
 | `supportCritX_*` | Exact tag id **17** / **18** manifestations | Not `Support.Crit Damage.*` / `Support.Crit Rate.*` |
 | Exclusions | `isBaseStatTransfer`; `buffTargetTypeRestriction != null` (strict) | Base uses `/2` only; restricted rows never count |
 | `aoe` | `targetType === "aoe"` | Add effective scalar directly |
-| non-aoe | `self`, `single`, `null` | Sum then `/4`, ceil, add |
+| non-aoe | `self`, `single`, `null` | Sum then `/4`, percent-ceil (`ceil(x*100)/100`), add |
 
 Support sum is **manifestation-level** (keep `targetType`). Do not use owner tag totals.
 
@@ -1801,6 +1807,7 @@ Support sum is **manifestation-level** (keep `targetType`). Do not use owner tag
 - Hop 4d order: units → TDU family pool → Tentacle Crit Damage → remaining Tentacle TDI (Vulnerability)
 - Tentacle Crit Rate: `kind: "special"` only; does not change scalars
 - Team-wide formula, computed once per hop (not per owner)
+- Formula `/2` and `/4` parts percent-ceil (`Math.ceil(x*100)/100`); hop 4d tentacle product after multiply stays unit ceil
 - Strict buff restriction: `m.buffTargetTypeRestriction != null` → skip (no leafContext match)
 - Tag total math: crit-damage op is part of the hop 4d committed Tentacle block (after TDU, before Vulnerability)
 
@@ -1812,12 +1819,44 @@ Support sum is **manifestation-level** (keep `targetType`). Do not use owner tag
 
 ### Acceptance criteria
 
-- [x] Base-only: `ceil(sum(crit_dmg)/2)`
-- [x] Support aoe adds directly; self/single/null `/4` then ceil
+- [x] Base-only: `ceil%(sum(crit_dmg)/2)` (whole percent)
+- [x] Support aoe adds directly; self/single/null `/4` then percent-ceil
 - [x] Exact tag 17/18 only; descendants and base-stat transfers excluded
-- [x] `buffTargetTypeRestriction != null` excluded even when `"tentacle"`
+- [x] `buffTargetTypeRestriction != null` excluded even when `"command card"`
 - [x] Tentacle Crit Damage after TDU, before Vulnerability
 - [x] Tentacle Crit Rate special step present; tentacle scalar unchanged
+
+---
+
+## Phase 3g — Remove `source_type` tentacle (DONE)
+
+**Depends on:** 3f.
+
+### Goal
+
+Drop leftover enum value `tentacle` from `public.source_type`. Postgres has no `DROP VALUE`; recreate the type and swap columns. Hit / TDU-pool / poison synthetics use `sourceType: null` (same buff-restriction skip as before: `null !== "command card"`).
+
+### Locks
+
+- Datapatch `'tentacle'` → `NULL` on ATM `source_type` and all `buff_target_type_restriction` columns
+- Remaining labels: `command card` / `exalt` / `rouse` / `talent`
+- Keep Attacker.Tentacle hop 4d math; only the enum/leaf tag is gone
+- Kit Reader never mapped slots to `tentacle`
+
+### Files
+
+- Datapatch: `supabase/migrations/20260818103414_remove_source_type_tentacle.sql`
+- [`src/lib/path-carver/hit-tentacle-attack.ts`](src/lib/path-carver/hit-tentacle-attack.ts)
+- [`src/lib/path-carver/apply-interactions.ts`](src/lib/path-carver/apply-interactions.ts)
+- [`src/lib/kit-reader/proposal-schema.ts`](src/lib/kit-reader/proposal-schema.ts)
+- Smoke: `npx tsx scripts/smoke-phase-2b.ts`; `npx tsx scripts/smoke-hit-tentacle-attack.ts`; `npx tsx scripts/smoke-tentacle-crit.ts`
+
+### Acceptance criteria
+
+- [x] `public.source_type` has four values; zero rows remain `'tentacle'`
+- [x] Hit/TDU/poison synthetics `sourceType` / hop 4d `leafContext` are `null`
+- [x] Kit Reader Zod/`MotherTreeSourceType` cannot emit `tentacle`
+- [x] Smokes pass; tentacle damage totals unchanged
 
 ---
 
@@ -1904,5 +1943,6 @@ Path Carver upserts a single `desire_template` per `desire_id`.
 10. **Phase 3d** — Special.Hit = Tentacle Attack (DONE)
 11. **Phase 3e** — Attacker.Tentacle TDU pool for RTM / Generate / Hit (DONE)
 12. **Phase 3f** — Tentacle Crit Rate / Damage after TDU (DONE)
-13. **Phase 4** — desire_demand / radar / simulator port + Calculation List layer breakdown + Corrosion/Embers Non-Active parent+descendants capacity + name→id wiring
-14. **Phase 5** — Smart recommend / search
+13. **Phase 3g** — Remove `source_type` tentacle enum (DONE)
+14. **Phase 4** — desire_demand / radar / simulator port + Calculation List layer breakdown + Corrosion/Embers Non-Active parent+descendants capacity + name→id wiring
+15. **Phase 5** — Smart recommend / search

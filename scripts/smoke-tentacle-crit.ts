@@ -187,19 +187,19 @@ function emptyInput(
   };
 }
 
-console.log("Part A — base only: 4 × 0.4 critDmg → ceil(1.6/2)=1");
+console.log("Part A — base only: 4 × 0.4 critDmg → ceil%(1.6/2)=0.80");
 {
   const awakeners = [1, 2, 3, 4].map((id) =>
     makeAwakener({ id, critDmg: 0.4 }),
   );
   const dmg = computeTentacleCritDamage(emptyInput({ awakeners }));
   assert(dmg.baseSum === 1.6, `baseSum 1.6 (got ${dmg.baseSum})`);
-  assert(dmg.basePart === 1, `basePart ceil(1.6/2)=1 (got ${dmg.basePart})`);
+  assert(dmg.basePart === 0.8, `basePart ceil%(1.6/2)=0.8 (got ${dmg.basePart})`);
   assert(dmg.supportPart === 0, "no support");
-  assert(dmg.total === 1, `total 1 (got ${dmg.total})`);
+  assert(dmg.total === 0.8, `total 0.8 (got ${dmg.total})`);
 }
 
-console.log("Part B — Support self /4: two 0.2 self → ceil(0.4/4)=1");
+console.log("Part B — Support self /4: two 0.2 self → ceil%(0.4/4)=0.10");
 {
   const a1 = makeAwakener({ id: 1 });
   const a2 = makeAwakener({ id: 2 });
@@ -226,11 +226,11 @@ console.log("Part B — Support self /4: two 0.2 self → ceil(0.4/4)=1");
   );
   assert(dmg.supportNonAoeSum === 0.4, `nonAoe 0.4 (got ${dmg.supportNonAoeSum})`);
   assert(
-    dmg.supportNonAoePart === 1,
-    `nonAoePart ceil(0.4/4)=1 (got ${dmg.supportNonAoePart})`,
+    dmg.supportNonAoePart === 0.1,
+    `nonAoePart ceil%(0.4/4)=0.1 (got ${dmg.supportNonAoePart})`,
   );
   assert(dmg.supportAoeSum === 0, "aoe empty");
-  assert(dmg.total === 1, `total 1 (got ${dmg.total})`);
+  assert(dmg.total === 0.1, `total 0.1 (got ${dmg.total})`);
 }
 
 console.log("Part C — Support aoe direct: 0.3 aoe, no /4");
@@ -251,7 +251,7 @@ console.log("Part C — Support aoe direct: 0.3 aoe, no /4");
   assert(dmg.total === 0.3, `total 0.3 (got ${dmg.total})`);
 }
 
-console.log("Part D — mixed aoe 0.25 + self 0.8 → 0.25 + ceil(0.8/4)=1.25");
+console.log("Part D — mixed aoe 0.25 + self 0.8 → 0.25 + ceil%(0.8/4)=0.45");
 {
   const a1 = makeAwakener({ id: 1 });
   const rows = [
@@ -275,8 +275,8 @@ console.log("Part D — mixed aoe 0.25 + self 0.8 → 0.25 + ceil(0.8/4)=1.25");
   );
   assert(dmg.supportAoeSum === 0.25, `aoe 0.25 (got ${dmg.supportAoeSum})`);
   assert(dmg.supportNonAoeSum === 0.8, `nonAoe 0.8 (got ${dmg.supportNonAoeSum})`);
-  assert(dmg.supportPart === 1.25, `supportPart 1.25 (got ${dmg.supportPart})`);
-  assert(dmg.total === 1.25, `total 1.25 (got ${dmg.total})`);
+  assert(dmg.supportPart === 0.45, `supportPart 0.45 (got ${dmg.supportPart})`);
+  assert(dmg.total === 0.45, `total 0.45 (got ${dmg.total})`);
 }
 
 console.log("Part E — descendant Support.Crit Damage.Strike excluded");
@@ -309,12 +309,12 @@ console.log("Part F — base-stat transfer on tag 17 excluded from support");
   const dmg = computeTentacleCritDamage(
     emptyInput({ awakeners: [a1], appliedManifestations: [transfer] }),
   );
-  assert(dmg.basePart === 1, `basePart ceil(0.4/2)=1 (got ${dmg.basePart})`);
+  assert(dmg.basePart === 0.2, `basePart ceil%(0.4/2)=0.2 (got ${dmg.basePart})`);
   assert(dmg.supportPart === 0, "transfer not in support");
-  assert(dmg.total === 1, `total 1 (got ${dmg.total})`);
+  assert(dmg.total === 0.2, `total 0.2 (got ${dmg.total})`);
 }
 
-console.log("Part G — buffTargetTypeRestriction strict skip (even tentacle)");
+console.log("Part G — buffTargetTypeRestriction strict skip (even command card)");
 {
   const a1 = makeAwakener({ id: 1 });
   const restricted = makeManifestation({
@@ -323,7 +323,7 @@ console.log("Part G — buffTargetTypeRestriction strict skip (even tentacle)");
     tagName: critDmgTag.tagName,
     valueScalar: 0.5,
     targetType: "aoe",
-    buffTargetTypeRestriction: "tentacle",
+    buffTargetTypeRestriction: "command card",
   });
   const allowed = makeManifestation({
     id: 2,
@@ -366,7 +366,7 @@ console.log("Part H — single and null use /4 bucket");
   );
   assert(dmg.supportNonAoeSum === 0.4, `single+null 0.4 (got ${dmg.supportNonAoeSum})`);
   assert(dmg.supportAoeSum === 0, "not aoe");
-  assert(dmg.supportNonAoePart === 1, "ceil(0.4/4)=1");
+  assert(dmg.supportNonAoePart === 0.1, "ceil%(0.4/4)=0.1");
 }
 
 console.log("Part I — crit rate uses same buckets on tag 18 / critRate");
@@ -400,9 +400,9 @@ console.log("Part I — crit rate uses same buckets on tag 18 / critRate");
   const rate = computeTentacleCritRate(
     emptyInput({ awakeners, appliedManifestations: rows }),
   );
-  assert(rate.basePart === 1, `rate basePart 1 (got ${rate.basePart})`);
-  assert(rate.supportPart === 1.25, `rate support 1.25 (got ${rate.supportPart})`);
-  assert(rate.total === 2.25, `rate total 2.25 (got ${rate.total})`);
+  assert(rate.basePart === 0.8, `rate basePart 0.8 (got ${rate.basePart})`);
+  assert(rate.supportPart === 0.45, `rate support 0.45 (got ${rate.supportPart})`);
+  assert(rate.total === 1.25, `rate total 1.25 (got ${rate.total})`);
   const dmg = computeTentacleCritDamage(
     emptyInput({ awakeners, appliedManifestations: rows }),
   );
@@ -506,10 +506,11 @@ console.log("Part K — crit rate display-only; tentacle unchanged vs control");
   const special = withRate.steps.find(
     (s) => s.kind === "special" && s.label === TENTACLE_CRIT_RATE_LABEL,
   );
-  assert(special != null && special.kind === "special", "crit rate special step");
   assert(
-    special.kind === "special" && special.detail.includes("aoe=0.8"),
-    `rate detail shows aoe=0.8 (got ${special.kind === "special" ? special.detail : ""})`,
+    special != null &&
+      special.kind === "special" &&
+      special.detail.includes("aoe=0.8"),
+    `rate detail shows aoe=0.8 (got ${special?.kind === "special" ? special.detail : ""})`,
   );
   const rateOps = withRate.steps.filter(
     (s) =>
@@ -595,7 +596,7 @@ console.log("Part M — formatTentacleCritDetail");
     total: 2.15,
   });
   assert(
-    detail === "base=ceil(1.2/2)=1 aoe=0.15 nonAoe=0.8→ceil(0.8/4)=1 total=2.15",
+    detail === "base=ceil%(1.2/2)=1 aoe=0.15 nonAoe=0.8→ceil%(0.8/4)=1 total=2.15",
     `detail format (got ${detail})`,
   );
 }
