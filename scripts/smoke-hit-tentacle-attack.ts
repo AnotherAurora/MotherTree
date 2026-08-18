@@ -1319,9 +1319,10 @@ console.log("Part T — finalized TDU pool uses base TDU + Fixed + unique_scalin
     metadata: "Talent Fixed with aliemus unique_scaling",
     interactionOverrides: [
       {
+        id: 1,
         mode: "unique_scaling",
         modifierTagId: null,
-        modifierTagName: null,
+        modifierTagName: "Unknown",
         targetTagId: null,
         targetTagName: null,
         dependencyStat: "aliemus_regen",
@@ -1377,6 +1378,7 @@ console.log("Part T — finalized TDU pool uses base TDU + Fixed + unique_scalin
   );
   assert(
     special != null &&
+      special.kind === "special" &&
       special.detail.includes(`pool=${expectedPool}`) &&
       special.detail.includes("Fixed=68"),
     "special step shows pool breakdown with Fixed contributions",
@@ -1413,9 +1415,10 @@ console.log("Part U — finalized TDU pool then Vulnerability applies after pool
     targetType: "aoe",
     interactionOverrides: [
       {
+        id: 1,
         mode: "unique_scaling",
         modifierTagId: null,
-        modifierTagName: null,
+        modifierTagName: "Unknown",
         targetTagId: null,
         targetTagName: null,
         dependencyStat: "aliemus_regen",
