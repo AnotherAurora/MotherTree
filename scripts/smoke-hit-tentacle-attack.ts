@@ -179,9 +179,45 @@ const vulnTag = makeTag(200, "Support.Debuff.Tentacle Vulnerability", {
 const poisonAmpTag = makeTag(210, "Support.Increase Gain.Poison.Fixed", {
   isPercent: true,
 });
-const conversionTag = makeTag(300, "Special.Corrosion Conversion");
 const debuffTag = makeTag(301, "Support.Debuff.Corrosion");
 const corrosionDmgTag = makeTag(302, "Attacker.Corrosion Damage");
+const embersDebuffTag = makeTag(303, "Support.Debuff.Ancient Embers");
+const embersDmgTag = makeTag(304, "Attacker.Ancient Embers Damage");
+const increaseCorrosionTag = makeTag(305, "Support.Increase Gain.Corrosion", {
+  isPercent: true,
+  isAdditive: false,
+  layer: "post_add",
+});
+const corrosionToDamage = makeInteraction({
+  id: 111,
+  modifierTagId: debuffTag.id,
+  modifierTagName: debuffTag.tagName,
+  targetTagId: corrosionDmgTag.id,
+  targetTagName: corrosionDmgTag.tagName,
+  mathOperation: "add_scaled",
+  defaultFactor: 3,
+  createsBase: true,
+  amplifiesSubject: false,
+});
+const embersToDamage = makeInteraction({
+  id: 112,
+  modifierTagId: embersDebuffTag.id,
+  modifierTagName: embersDebuffTag.tagName,
+  targetTagId: embersDmgTag.id,
+  targetTagName: embersDmgTag.tagName,
+  mathOperation: "add_scaled",
+  defaultFactor: 3,
+  createsBase: true,
+  amplifiesSubject: false,
+});
+const increaseToCorrosion = makeInteraction({
+  id: 78,
+  modifierTagId: increaseCorrosionTag.id,
+  modifierTagName: increaseCorrosionTag.tagName,
+  targetTagId: debuffTag.id,
+  targetTagName: debuffTag.tagName,
+  mathOperation: "multiply_one_plus",
+});
 
 const multiplyToTdu = makeInteraction({
   id: 90,
@@ -626,64 +662,107 @@ console.log("Part F — Generate Tentacle career vs Hit (shared TDU pool)");
   );
 }
 
-console.log("Part G — Corrosion capacity includes Hit Tentacle");
+console.log("Part G — Corrosion debuff creates damage ×3");
 {
   const awakener = makeAwakener({ id: 1 });
-  const active = makeManifestation({
-    id: 1,
-    tagId: activeTag.id,
-    tagName: activeTag.tagName,
-    valueScalar: 10,
-  });
-  const hit = makeManifestation({
-    id: 2,
-    tagId: hitTag.id,
-    tagName: hitTag.tagName,
-    valueScalar: 0.5,
-    targetType: "aoe",
-  });
-  const tdu = makeManifestation({
-    id: 3,
-    tagId: tduTag.id,
-    tagName: tduTag.tagName,
-    valueScalar: 116,
-    targetType: "aoe",
-  });
-  const conversion = makeManifestation({
-    id: 4,
-    tagId: conversionTag.id,
-    tagName: conversionTag.tagName,
-    valueScalar: 1,
-  });
   const debuff = makeManifestation({
-    id: 5,
+    id: 1,
     tagId: debuffTag.id,
     tagName: debuffTag.tagName,
-    valueScalar: 1000,
+    valueScalar: 100,
   });
-  const manifests = [active, hit, tdu, conversion, debuff];
+  const manifests = [debuff];
   const tagsById: Record<number, Tag> = {
     ...coreTags,
-    [conversionTag.id]: conversionTag,
     [debuffTag.id]: debuffTag,
     [corrosionDmgTag.id]: corrosionDmgTag,
   };
   const result = applyInteractions({
     manifestations: manifests,
     appliedManifestations: manifests,
-    defaultInteractions: [],
+    defaultInteractions: [corrosionToDamage],
     tagsById,
     awakenersById: buildAwakenersById([awakener]),
-    hitCountByManifestationKey: hitMap(manifests, 3),
   });
-  // Hit Tentacle 174; Active Damage 10 × hitCount 3 = 30; capacity 204; damage 612
   assert(
-    (result.totalsByTagId.get(tentacleTag.id) ?? 0) === 174,
-    `Tentacle still 174 after conversion (got ${result.totalsByTagId.get(tentacleTag.id)})`,
+    (result.totalsByTagId.get(debuffTag.id) ?? 0) === 100,
+    `Corrosion debuff unchanged 100 (got ${result.totalsByTagId.get(debuffTag.id)})`,
   );
   assert(
-    (result.totalsByTagId.get(corrosionDmgTag.id) ?? 0) === 612,
-    `Corrosion damage 204×3=612 (got ${result.totalsByTagId.get(corrosionDmgTag.id)})`,
+    (result.totalsByTagId.get(corrosionDmgTag.id) ?? 0) === 300,
+    `Corrosion damage 100×3=300 (got ${result.totalsByTagId.get(corrosionDmgTag.id)})`,
+  );
+}
+
+console.log("Part G2 — Ancient Embers debuff creates damage ×3");
+{
+  const awakener = makeAwakener({ id: 1 });
+  const debuff = makeManifestation({
+    id: 1,
+    tagId: embersDebuffTag.id,
+    tagName: embersDebuffTag.tagName,
+    valueScalar: 100,
+  });
+  const manifests = [debuff];
+  const tagsById: Record<number, Tag> = {
+    ...coreTags,
+    [embersDebuffTag.id]: embersDebuffTag,
+    [embersDmgTag.id]: embersDmgTag,
+  };
+  const result = applyInteractions({
+    manifestations: manifests,
+    appliedManifestations: manifests,
+    defaultInteractions: [embersToDamage],
+    tagsById,
+    awakenersById: buildAwakenersById([awakener]),
+  });
+  assert(
+    (result.totalsByTagId.get(embersDebuffTag.id) ?? 0) === 100,
+    `Embers debuff unchanged 100 (got ${result.totalsByTagId.get(embersDebuffTag.id)})`,
+  );
+  assert(
+    (result.totalsByTagId.get(embersDmgTag.id) ?? 0) === 300,
+    `Embers damage 100×3=300 (got ${result.totalsByTagId.get(embersDmgTag.id)})`,
+  );
+}
+
+console.log("Part G3 — Increase Gain.Corrosion amplifies debuff");
+{
+  const awakener = makeAwakener({ id: 1 });
+  const debuff = makeManifestation({
+    id: 1,
+    tagId: debuffTag.id,
+    tagName: debuffTag.tagName,
+    valueScalar: 100,
+  });
+  const gain = makeManifestation({
+    id: 2,
+    tagId: increaseCorrosionTag.id,
+    tagName: increaseCorrosionTag.tagName,
+    valueScalar: 0.5,
+  });
+  const manifests = [debuff, gain];
+  const tagsById: Record<number, Tag> = {
+    ...coreTags,
+    [debuffTag.id]: debuffTag,
+    [corrosionDmgTag.id]: corrosionDmgTag,
+    [increaseCorrosionTag.id]: increaseCorrosionTag,
+  };
+  const result = applyInteractions({
+    manifestations: manifests,
+    appliedManifestations: manifests,
+    defaultInteractions: [corrosionToDamage, increaseToCorrosion],
+    tagsById,
+    awakenersById: buildAwakenersById([awakener]),
+  });
+  assert(
+    (result.totalsByTagId.get(debuffTag.id) ?? 0) === 150,
+    `Corrosion debuff 100×1.5=150 (got ${result.totalsByTagId.get(debuffTag.id)})`,
+  );
+  // Phase 1 create uses Layer A debuff (100); amplify is a later subject hop.
+  assert(
+    (result.totalsByTagId.get(corrosionDmgTag.id) ?? 0) === 300,
+    `Corrosion damage 100×3=300 (got ${result.totalsByTagId.get(corrosionDmgTag.id)})`,
   );
 }
 

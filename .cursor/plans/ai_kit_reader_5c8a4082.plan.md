@@ -260,8 +260,8 @@ Resolver fails closed if a Fixed child is missing from the live lexicon — fall
 | Base Damage | `Support.Base Damage` |
 | Strike Damage Up | `Support.Strike Damage Up` |
 | Pursuit Damage Up | `Support.Pursuit Damage Up` |
-| Corrosion | `Special.Corrosion` |
-| Ancient Embers | `Special.Ancient Embers` |
+| Corrosion | `Support.Debuff.Corrosion` |
+| Ancient Embers | `Support.Debuff.Ancient Embers` |
 | Self-Damage / Self-Harm | `Special.Self Damage` |
 | Creativity | `Special.Creativity` |
 | Generate Temporary Tentacle | `Support.Generate Temporary Tentacle` |

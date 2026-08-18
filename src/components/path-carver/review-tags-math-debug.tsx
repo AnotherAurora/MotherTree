@@ -382,8 +382,7 @@ export function ReviewTagsMathDebug({
           aftereffect from finishedOnce (merge contribution × hitCount;
           look-ahead defers creates_base + amplifies in the closure) →
           × hitCount (instances × copies) → Tentacle TDU pool
-          (RTM / Generate / Hit × Unique+TDU+Fixed) →
-          special conversions → totals.
+          (RTM / Generate / Hit × Unique+TDU+Fixed) → totals.
           Multiply ops ceil after each write. Restricted ops only appear when
           leaf matches. Base/op lines are single-hit; hitCount multiplies after.
           Same-tag merge uses tag.is_additive / tag.is_percent (percent:
@@ -399,7 +398,7 @@ export function ReviewTagsMathDebug({
             {specials.length > 0 && (
               <div className="space-y-1 border-b border-zinc-200 pb-3">
                 <p className="text-sm font-medium text-zinc-700">
-                  Special conversions
+                  Special steps
                 </p>
                 <ul className="space-y-1 pl-2">
                   {specials.map((s, i) => (

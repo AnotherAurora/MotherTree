@@ -535,6 +535,18 @@ async function loadSkill(skillId: string): Promise<SkillRecord | null> {
   );
 }
 
+async function loadDerivedSkill(id: string): Promise<SkillRecord | null> {
+  return fetchJson<SkillRecord>(
+    `${RAW_BASE}/src/data/public-v3/records/derived-skills/${id}.json`,
+  );
+}
+
+/** Derived cards live under records/derived-skills/; owned skills under records/skills/. */
+async function loadKitRecord(id: string): Promise<SkillRecord | null> {
+  if (id.startsWith("derived.")) return loadDerivedSkill(id);
+  return loadSkill(id);
+}
+
 async function loadTalent(talentId: string): Promise<TalentRecord | null> {
   return fetchJson<TalentRecord>(
     `${RAW_BASE}/src/data/public-v3/records/talents/${talentId}.json`,
@@ -603,20 +615,33 @@ export async function buildKitPackForAwakener(
 
   const forward = relationships.forward[catalogAwakener.id] ?? {};
   const skillIds = forward.ownedSkills ?? [];
-  const derivedIds = [
-    ...(forward.ownedDerivedSkills ?? []),
-    ...(forward.ownedDerivedCards ?? []),
-    ...(forward.derivedSkills ?? []),
-  ];
+  const derivedIds = Array.from(
+    new Set([
+      ...(forward.ownedDerivedSkills ?? []),
+      ...(forward.ownedDerivedCards ?? []),
+      ...(forward.derivedSkills ?? []),
+    ]),
+  );
   const talentIds = forward.ownedTalents ?? [];
 
   const skillRecords = (
     await Promise.all(skillIds.map((id) => loadSkill(id)))
   ).filter((row): row is SkillRecord => row != null);
 
-  const derivedRecords = (
-    await Promise.all(derivedIds.map((id) => loadSkill(id)))
-  ).filter((row): row is SkillRecord => row != null);
+  const derivedLoaded = await Promise.all(
+    derivedIds.map(async (id) => {
+      const row = await loadKitRecord(id);
+      if (row == null) {
+        console.warn(
+          `Kit pack: derived card "${id}" not found for ${awakener.name} (${catalogAwakener.id})`,
+        );
+      }
+      return row;
+    }),
+  );
+  const derivedRecords = derivedLoaded.filter(
+    (row): row is SkillRecord => row != null,
+  );
 
   // Skills flagged derived in the ownedSkills list also go to derivedCards.
   const ownedDerivedFromFlag = skillRecords.filter(

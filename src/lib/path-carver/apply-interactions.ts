@@ -93,16 +93,8 @@ const SPECIAL_TENTACLE_HIT_POISON = "Special.Tentacle Hit = Poison";
 const TENTACLE_TDU_POOL_ID_OFFSET = 6_000_000;
 const TENTACLE_POISON_FIXED_ID_OFFSET = 6_200_000;
 
-const SPECIAL_CORROSION_CONVERSION = "Special.Corrosion Conversion";
-const SPECIAL_EMBERS_CONVERSION = "Special.Ancient Embers Conversion";
-const DEBUFF_CORROSION = "Support.Debuff.Corrosion";
-const DEBUFF_EMBERS = "Support.Debuff.Ancient Embers";
-const ACTIVE_DAMAGE = "Attacker.Active Damage";
 const ATTACKER_POISON_FIXED = "Attacker.Poison.Fixed";
 const TENTACLE = "Attacker.Tentacle";
-const NON_ACTIVE_DAMAGE = "Attacker.Non-Active Damage";
-const CORROSION_DAMAGE = "Attacker.Corrosion Damage";
-const EMBERS_DAMAGE = "Attacker.Ancient Embers Damage";
 
 type OwnerKey = string;
 type OwnerTotals = Map<OwnerKey, Map<number, number>>;
@@ -759,16 +751,6 @@ function buildTentaclePoisonFixedSynthetic(
     sourceType: null,
     metadata: "Special.Tentacle Hit = Poison",
   };
-}
-
-function findTagIdByName(
-  tagsById: Record<number, Tag>,
-  tagName: string,
-): number | null {
-  for (const tag of Object.values(tagsById)) {
-    if (tag.tagName === tagName) return tag.id;
-  }
-  return null;
 }
 
 function getOwnerValue(
@@ -2045,57 +2027,6 @@ function applyInteractionOnto(
   }
 }
 
-function applySpecialConversion(
-  ownerValues: OwnerTotals,
-  tagsById: Record<number, Tag>,
-  appliedManifestations: Manifestation[],
-  conversionTagName: string,
-  debuffTagName: string,
-  damageTagName: string,
-  steps: ScalarMathStep[],
-): void {
-  const hasConversion = appliedManifestations.some(
-    (m) => m.tagName === conversionTagName,
-  );
-  if (!hasConversion) return;
-
-  const debuffId = findTagIdByName(tagsById, debuffTagName);
-  const damageId = findTagIdByName(tagsById, damageTagName);
-  const activeId = findTagIdByName(tagsById, ACTIVE_DAMAGE);
-  const tentacleId = findTagIdByName(tagsById, TENTACLE);
-  const nonActiveId = findTagIdByName(tagsById, NON_ACTIVE_DAMAGE);
-
-  if (debuffId == null || damageId == null) return;
-
-  const debuff = sumTeamTag(ownerValues, debuffId);
-  if (debuff <= 0) return;
-
-  const active = activeId != null ? sumTeamTag(ownerValues, activeId) : 0;
-  const tentacle =
-    tentacleId != null ? sumTeamTag(ownerValues, tentacleId) : 0;
-  const nonActive =
-    nonActiveId != null ? sumTeamTag(ownerValues, nonActiveId) : 0;
-
-  const capacity = Math.max(0, active * 1 + tentacle * 1 + nonActive * 0.5);
-  const lost = Math.min(debuff, capacity);
-  if (lost <= 0) return;
-
-  const scale = lost / debuff;
-  for (const [, map] of ownerValues) {
-    const current = map.get(debuffId);
-    if (current == null || current === 0) continue;
-    map.set(debuffId, current * (1 - scale));
-  }
-
-  addOwnerValue(ownerValues, TEAM_POOL_OWNER, damageId, lost * 3);
-
-  steps.push({
-    kind: "special",
-    label: conversionTagName,
-    detail: `${debuffTagName} lost ${lost.toFixed(4)} (capacity ${capacity.toFixed(4)}); +${(lost * 3).toFixed(4)} → ${damageTagName}`,
-  });
-}
-
 type RunInteractionsOptions = {
   appliedManifestations: Manifestation[];
   defaultInteractions: DefaultInteraction[];
@@ -2105,8 +2036,6 @@ type RunInteractionsOptions = {
   awakenerNamesById?: ReadonlyMap<number, string>;
   /** When false, skip recording base steps (caller already recorded them). */
   recordBaseSteps: boolean;
-  /** When false, skip Special conversions (caller runs once after merge). */
-  runSpecial: boolean;
   /**
    * Phase 3b — invent unique_scaling with no matching default (subject path).
    * Off for Phase 1 unrestricted creates.
@@ -2456,27 +2385,6 @@ function runInteractionsForLeafContext(
 
   steps.push(...lastPassOpSteps);
 
-  if (options.runSpecial) {
-    applySpecialConversion(
-      current,
-      options.tagsById,
-      options.appliedManifestations,
-      SPECIAL_CORROSION_CONVERSION,
-      DEBUFF_CORROSION,
-      CORROSION_DAMAGE,
-      steps,
-    );
-    applySpecialConversion(
-      current,
-      options.tagsById,
-      options.appliedManifestations,
-      SPECIAL_EMBERS_CONVERSION,
-      DEBUFF_EMBERS,
-      EMBERS_DAMAGE,
-      steps,
-    );
-  }
-
   return { ownerValues: current, steps };
 }
 
@@ -2582,8 +2490,7 @@ function collectAmplifyTargetIds(
 }
 
 /**
- * Layer B — apply tag_default_interaction (+ unique_scaling / aftereffect) and
- * Special conversions.
+ * Layer B — apply tag_default_interaction (+ unique_scaling / aftereffect).
  *
  * Matching: exact modifier; creates_base invent = exact target_tag_id;
  * amplifies_subject = prefix target + exclusion (tag + descendants).
@@ -2613,8 +2520,8 @@ function collectAmplifyTargetIds(
  *    Skip TDU-family TDI on Tentacle subjects; remaining Tentacle TDI
  *    (Vulnerability) runs on post-crit pooled synthetics against finalized
  *    non-Tentacle snapshots, then merge. Tentacle Crit Rate is display-only.
- *    Before Corrosion.
- * 5. Special conversions last inside Layer B.
+ *    Corrosion / Ancient Embers are ordinary creates_base interactions
+ *    (debuff ×3 → damage); no engine special-case.
  *
  * Phase 2b.1: isBaseStatTransfer / realm / Support isCreatedBase subjects contribute
  * absolute scalar only (no inbound ops) but remain in other subjects' cohorts as modifiers.
@@ -2738,7 +2645,6 @@ export function applyInteractions(
       leafContext: null,
       awakenerNamesById: input.awakenerNamesById,
       recordBaseSteps: false,
-      runSpecial: false,
       applyUniqueScalingInvents: false,
       teamMaxHp: input.teamMaxHp,
       realmMasteryTotal: input.realmMasteryTotal,
@@ -2942,7 +2848,6 @@ export function applyInteractions(
         leafContext: subject.sourceType,
         awakenerNamesById: input.awakenerNamesById,
         recordBaseSteps: false,
-        runSpecial: false,
         applyUniqueScalingInvents: true,
         uniqueScalingMatchInteractions: input.defaultInteractions,
         teamMaxHp: input.teamMaxHp,
@@ -3024,7 +2929,6 @@ export function applyInteractions(
         leafContext: null,
         awakenerNamesById: input.awakenerNamesById,
         recordBaseSteps: false,
-        runSpecial: false,
         applyUniqueScalingInvents: false,
         teamMaxHp: input.teamMaxHp,
         realmMasteryTotal: input.realmMasteryTotal,
@@ -3083,7 +2987,6 @@ export function applyInteractions(
         leafContext: null,
         awakenerNamesById: input.awakenerNamesById,
         recordBaseSteps: false,
-        runSpecial: false,
         applyUniqueScalingInvents: false,
         teamMaxHp: input.teamMaxHp,
         realmMasteryTotal: input.realmMasteryTotal,
@@ -3136,7 +3039,6 @@ export function applyInteractions(
       leafContext: null,
       awakenerNamesById: input.awakenerNamesById,
       recordBaseSteps: false,
-      runSpecial: false,
       applyUniqueScalingInvents: false,
       teamMaxHp: input.teamMaxHp,
       realmMasteryTotal: input.realmMasteryTotal,
@@ -3389,7 +3291,6 @@ export function applyInteractions(
           leafContext: null,
           awakenerNamesById: input.awakenerNamesById,
           recordBaseSteps: false,
-          runSpecial: false,
           applyUniqueScalingInvents: true,
           uniqueScalingMatchInteractions: input.defaultInteractions,
           teamMaxHp: input.teamMaxHp,
@@ -3521,7 +3422,6 @@ export function applyInteractions(
             leafContext: null,
             awakenerNamesById: input.awakenerNamesById,
             recordBaseSteps: false,
-            runSpecial: false,
             applyUniqueScalingInvents: true,
             uniqueScalingMatchInteractions: input.defaultInteractions,
             teamMaxHp: input.teamMaxHp,
@@ -3664,32 +3564,6 @@ export function applyInteractions(
     ...aftereffectSteps,
     ...hitCountSteps,
     ...hitTentacleSteps,
-  );
-
-  const phase2AppliedForSpecial = [
-    ...phase2Applied,
-    ...deferredSynthetics,
-    ...hitSynthetics.map((h) => h.manifestation),
-  ];
-
-  // Special conversions once on merged totals (all applied + created for presence).
-  applySpecialConversion(
-    mergedOwnerValues,
-    input.tagsById,
-    phase2AppliedForSpecial,
-    SPECIAL_CORROSION_CONVERSION,
-    DEBUFF_CORROSION,
-    CORROSION_DAMAGE,
-    steps,
-  );
-  applySpecialConversion(
-    mergedOwnerValues,
-    input.tagsById,
-    phase2AppliedForSpecial,
-    SPECIAL_EMBERS_CONVERSION,
-    DEBUFF_EMBERS,
-    EMBERS_DAMAGE,
-    steps,
   );
 
   const totalsByTagId = sumOwnerTotalsToTagMap(

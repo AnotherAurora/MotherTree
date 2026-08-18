@@ -1,6 +1,6 @@
 ---
 name: Simulator Phased Plan
-overview: Path Carver–first roadmap. Phase 1–2c.1 + 3a + 3a.1 + 3a.2 + 3a.3 + 3b + 3b.1 + 3c + 3c.1 + 3d + 3e + 3f + 3g (remove source_type tentacle) done. Next is Phase 4 (desire_demand / radar / simulator, Calculation List layer breakdown, Corrosion/Embers Non-Active parent+descendants + name→id). Phase 5 smart recommend.
+overview: Path Carver–first roadmap. Phase 1–2c.1 + 3a + 3a.1 + 3a.2 + 3a.3 + 3b + 3b.1 + 3c + 3c.1 + 3d + 3e + 3f + 3g (remove source_type tentacle) done. Next is Phase 4 (desire_demand / radar / simulator, Calculation List layer breakdown). Phase 5 smart recommend.
 todos:
   - id: seed-data
     content: Create scripts/seed-simulator-data.ts with 2-3 desires, demand rows, anchored awakeners; add npm script
@@ -63,13 +63,13 @@ todos:
     content: Phase 3b.1 — unique_scaling invent modifier pool prefix (Defender.Shield includes Defender.Shield.*); patch/inference stay exact; smoke + admin manual + plan lock
     status: completed
   - id: phase-3c-aftereffect-layer-b
-    content: Phase 3c — aftereffect emit/merge from finishedOnce (merge contribution × hitCount); own-tag merge finishedOnce × hitCount after aftereffect; restructure Layer B; closure look-ahead Option A; Bleed kit smoke; Special still last
+    content: Phase 3c — aftereffect emit/merge from finishedOnce (merge contribution × hitCount); own-tag merge finishedOnce × hitCount after aftereffect; restructure Layer B; closure look-ahead Option A; Bleed kit smoke
     status: completed
   - id: phase-3c1-aftereffect-stack-amplify
     content: Phase 3c.1 — Split look-ahead amplifies (closure0 stack vs created-base); deferred stack amplify on combined per-owner aftereffect sinks before create (Increase→Poison/Bleed); Sunfall-shaped smokes
     status: completed
   - id: phase-3d-hit-tentacle-attack
-    content: Phase 3d — Special.Hit = Tentacle Attack per-owner synthetics from Active Damage hitCounts × Hit factor × TDU family pool; skip TDI 3/75/77 on Hit synthetics; hop before Corrosion
+    content: Phase 3d — Special.Hit = Tentacle Attack per-owner synthetics from Active Damage hitCounts × Hit factor × TDU family pool; skip TDI 3/75/77 on Hit synthetics; hop at end of Layer B interaction pass
     status: completed
   - id: phase-3e-tentacle-tdu-pool
     content: Phase 3e — All Attacker.Tentacle sources (RTM, Generate, Hit) finish as units × (Unique TDU + TDU + TDU.Fixed); soft-delete TDI 3/75/77; Vulnerability after pool
@@ -95,9 +95,6 @@ todos:
   - id: debug-panels-fulfillment
     content: Phase 4 — Wire simulator Summary to desire_demand fulfillment
     status: pending
-  - id: fix-corrosion-embers-nonactive
-    content: Phase 4 — Special Corrosion/Embers Non-Active capacity = parent + descendants; rewire conversion/debuff/capacity/targets from tag names to tag ids
-    status: pending
 isProject: false
 ---
 
@@ -117,7 +114,6 @@ Path Carver’s **Review Tags** page is the primary surface for testing recommen
 | Tentacle Crit Rate / Damage after TDU (3f, done)                              |                                                |
 | Remove `source_type` `tentacle` enum; synthetics use `null` (3g, done)        |                                                |
 | Layer pass order (2c) + drop leftover `final` enum via recreate (2c.1)        |                                                |
-| Special Corrosion/Embers (exact Non-Active; keyed by name)                    | Non-Active parent+descendants + wire by tag id |
 
 ---
 
@@ -162,7 +158,6 @@ Debug merge **must equal** that tag’s Tag total. Merge sums `committedContribu
 | Manifestation-local unique_scaling / aftereffect | unique_scaling **3b** + invent prefix **3b.1**; aftereffect + Layer B reshape + closure look-ahead **3c**; stack amplify Increase→sink **3c.1 done** |
 | Calculation List layer breakdown                 | Deferred to Phase 4                                                                                                                                  |
 | Simulator using Path Carver math                 | Port in Phase 4                                                                                                                                      |
-| Corrosion/Embers Non-Active + wiring             | Deferred to Phase 4 — parent+descendants capacity; rewire name→id                                                                                    |
 
 ---
 
@@ -194,7 +189,7 @@ Intended pairs only (XOR). Same polarity is soft-warned in admin. Defaults: `cre
 
 **Lock:** invent = exact `target_tag_id`; amplify = prefix target + exclusion. Aftereffect emit is also exact `target_tag_id` only.
 
-Prefix / exclusion still apply per matched **amplify** tag (Strike base-present does not create parent Active Damage). Special Corrosion / Embers conversions are outside this rule.
+Prefix / exclusion still apply per matched **amplify** tag (Strike base-present does not create parent Active Damage).
 
 **Examples:**
 
@@ -208,7 +203,6 @@ Prefix / exclusion still apply per matched **amplify** tag (Strike base-present 
 
 1. **Phase 1 — unrestricted `creates_base`**: run create rows with null restriction; emit synthetic manifestations; Support created bases merge into totals (immune subjects); Attacker/Defender created bases become Phase 2 subjects.
 2. **Phase 2 — per subject**: restricted `creates_base` as scoped seed (path-local, not globally merged), then `amplifies_subject` only. `leafContext = subject.sourceType`. Merge only the subject’s `tagId`.
-3. **Special conversions** once on merged totals.
 
 Subjects = Layer A applied + created Attacker/Defender synthetics. Cohort excludes same-`tagId` siblings and includes created-base synthetics as modifiers.
 
@@ -231,7 +225,7 @@ Renamed from the old `source_type` column on `tag_default_interaction` (oversigh
 
 ### Temporary operation order (2a / 2b only)
 
-Assume **`add_scaled` first, then `presence_multiply` / `multiply_one_plus`**. Special conversions run as their own step (see below).
+Assume **`add_scaled` first, then `presence_multiply` / `multiply_one_plus`**.
 
 This order is **incorrect long-term**. Phase **2c** replaces it with pass order driven by the **modifier** tag’s `layer` (`pre_add` / `add` / `post_add` only). Aftereffects are Phase 3 **mode** timing, not a fourth layer.
 
@@ -259,22 +253,9 @@ else:
 
 `is_percent` lives on `tag` (fractional bonus where `0` means no bonus). Percent-seeded prefixes include `Support.Final Damage`, `Support.Enhance`, `Support.Increase Gain`, `Support.Crit Damage`, `Support.Crit Rate`, `Support.Damage AMP`, `Support.Base Damage`, plus exact tags `Support.Aliemu`, `Support.Embryo Fusion`, `Support.Fiamma`, `Support.Propagation Fiesta`, `Support.Take Effect Again`.
 
-### Special conversions (locked; not `tag_default_interaction`)
+### Corrosion / Ancient Embers (locked)
 
-Corrosion / Ancient Embers consume+transfer is **not** driven by interaction rows (those rows are soft-deleted). Engine applies hardcoded conversion rates (table uses names as labels; **Phase 2a** keys tags by **name** via `findTagIdByName` / `m.tagName ===`):
-
-| Special tag                         | Debuff                          | Consume sources                                                  | Transfer                                   |
-| ----------------------------------- | ------------------------------- | ---------------------------------------------------------------- | ------------------------------------------ |
-| `Special.Corrosion Conversion`      | `Support.Debuff.Corrosion`      | Active Damage ×1, Tentacle ×1, Non-Active Damage ×0.5; clamp ≥ 0 | lost ×3 → `Attacker.Corrosion Damage`      |
-| `Special.Ancient Embers Conversion` | `Support.Debuff.Ancient Embers` | same consume rates                                               | lost ×3 → `Attacker.Ancient Embers Damage` |
-
-```text
-lost = min(debuff, sum(source_i * rate_i))
-debuff -= lost
-damage_tag += lost * 3
-```
-
-Phase 2a implements these Special conversions alongside interaction ops (interaction rows for this behavior are gone). Non-Active capacity currently uses the **exact** parent tag only — provisional. **Phase 4** (1) rewires conversion gate, debuff, Active, Tentacle, Non-Active **parent**, and Corrosion/Embers damage targets to **numeric tag id** constants (same pattern as Death Resist / Keyflare — ids are the contract); (2) widens Non-Active capacity to **parent id + descendants** (look up parent `tag_name` from `tagsById`, then prefix-sum children — do not hardcode Poison Damage ids). Do **not** roll child targets into the parent via `tag_default_interaction` (keeps Poison Trigger scoped to its own target). Active Damage and Tentacle capacity stay exact (by id). Prefix gates (`Attacker.*` / `Defender.*`) and interaction target prefix matching stay name-based.
+`Support.Debuff.Corrosion` / `Support.Debuff.Ancient Embers` create `Attacker.Corrosion Damage` / `Attacker.Ancient Embers Damage` via `tag_default_interaction` `add_scaled ×3` (`creates_base`). Corrosion has `Support.Increase Gain.Corrosion` and `Support.Increase Gain.Corrosion Damage`; Ancient Embers has no Increase Gain tags. Debuff stacks are not consumed. No engine special-case.
 
 ### Manifestation-local interactions (current vs planned)
 
@@ -309,7 +290,7 @@ Primary files: [`manifestation-apply.ts`](src/lib/path-carver/manifestation-appl
 | 9   | **`dependency_stat` scaling + leaf-gated `buff_target_type_restriction` → Phase 2b** (not in 2a)                                                       |
 | 10  | Interaction matching: **exact modifier**; **creates_base invent = exact target_tag_id**; **amplify = prefix target + exclusion**; **multi-pass chain** |
 | 11  | Temporary op order: `add_scaled` then `presence_multiply` / `multiply_one_plus` (replaced in 2c)                                                       |
-| 12  | Implement locked `math_operation` formulas + `tag.is_percent` branch; Special Corrosion/Embers conversions by tag name                                 |
+| 12  | Implement locked `math_operation` formulas + `tag.is_percent` branch                                                                                   |
 
 ### Apply context extensions
 
@@ -368,8 +349,7 @@ When resolving `tag_default_interaction` (+ overrides) for Review Tags math:
 7. **Buff restriction:** do **not** implement branching in 2a — ignore non-null `buff_target_type_restriction` or skip those rows until 2b (pick one approach and document in code comments)
 8. **Temporary op order:** `add_scaled` first, then `presence_multiply` / `multiply_one_plus` (placeholder until 2c)
 9. **Ops:** implement `presence_multiply`, `add_scaled`, `multiply_one_plus` with `tag.is_percent` offset form; only Vulnerability uses `presence_multiply`
-10. **Special conversions:** apply Corrosion / Ancient Embers conversion when the corresponding `Special.* Conversion` tag is in play (hardcoded rates above)
-11. Output adjusted per-tag totals used by Review Tags list + debug
+10. Output adjusted per-tag totals used by Review Tags list + debug
 
 **Examples:**
 
@@ -395,7 +375,7 @@ Optional: show which interactions applied to which target tags (lightweight; ful
 | ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | [`src/lib/path-carver/manifestation-apply.ts`](src/lib/path-carver/manifestation-apply.ts)             | Damage-dealer set; Attacker.\* gate for all target_types; `target_type=self` for non-Attacker scoping; posse exception; apply reasons                  |
 | [`src/lib/path-carver/aggregate-tag-scalars.ts`](src/lib/path-carver/aggregate-tag-scalars.ts)         | Use new apply rules; hook interaction-adjusted totals (exclude Applied=no from sums)                                                                   |
-| New `src/lib/path-carver/apply-interactions.ts`                                                        | Exact modifier / prefix target / exclusion / multi-pass / self-scope; locked ops + `is_percent`; Special conversions; temp op order; no buff branching |
+| New `src/lib/path-carver/apply-interactions.ts`                                                        | Exact modifier / prefix target / exclusion / multi-pass / self-scope; locked ops + `is_percent`; temp op order; no buff branching                      |
 | [`src/components/path-carver/review-tags-step.tsx`](src/components/path-carver/review-tags-step.tsx)   | Pass anchors / damage dealers into apply context                                                                                                       |
 | [`src/components/path-carver/review-tags-debug.tsx`](src/components/path-carver/review-tags-debug.tsx) | Show **all** manifestations (including filtered); Applied + reason columns                                                                             |
 | [`src/components/path-carver/path-carver.tsx`](src/components/path-carver/path-carver.tsx)             | Wire `anchoredAwakeners` into Review Tags                                                                                                              |
@@ -411,7 +391,6 @@ Optional: show which interactions applied to which target tags (lightweight; ful
 - [x] Interactions: exact modifier match; target prefix + exclusion descendants; multi-pass chaining
 - [x] Self-targeted Support (etc.) interactions only modify the owning awakener’s matching target tags
 - [x] Ops: `presence_multiply` (Vulnerability only), `add_scaled`, `multiply_one_plus` with `is_percent` offset on percent targets
-- [x] Special Corrosion / Ancient Embers conversions applied by Special tag name (hardcoded rates)
 - [x] Review Tags scalar list uses only Applied = yes totals (after interactions)
 - [x] `dependency_stat` scaling and `buff_target_type_restriction` gating **not** implemented yet (Phase 2b)
 
@@ -879,8 +858,7 @@ Do **not** rename `tag_default_interaction` in this phase.
 | 4   | **Keep materialize-then-amplify outer pipeline.** Layer order replaces `opPriority` **inside** each interaction list (unrestricted creates; per-subject restricted creates + amplify). Do **not** flatten creates and amplifies into one layer-sorted bag. |
 | 5   | **Multi-pass until stable unchanged:** each pass still reapplies the full ordered list from base (`INTERACTION_MAX_PASSES` model). Layers only change sort order within that list.                                                                         |
 | 6   | **Override changing `math_operation` does not move the pass.** Timing still follows the matched default interaction’s **modifier tag layer**.                                                                                                              |
-| 7   | **Special conversions (Corrosion / Ancient Embers) run once after all layer interaction passes** (same as today — after the interaction loop, not interleaved by layer).                                                                                   |
-| 8   | **Review Tags math debug** shows the resolved **layer** on interaction steps in 2c (not deferred to Phase 4 Calculation List).                                                                                                                             |
+| 7   | **Review Tags math debug** shows the resolved **layer** on interaction steps in 2c (not deferred to Phase 4 Calculation List).                                                                                                                             |
 
 ### Scope
 
@@ -896,7 +874,7 @@ Do **not** rename `tag_default_interaction` in this phase.
 ### Primary files / blast radius
 
 - Migration (datapatch + enum `RENAME VALUE` + table rename)
-- [`apply-interactions.ts`](src/lib/path-carver/apply-interactions.ts) — replace `opPriority` with layer rank sort; Special still after loop
+- [`apply-interactions.ts`](src/lib/path-carver/apply-interactions.ts) — replace `opPriority` with layer rank sort
 - [`review-tags-math-debug.tsx`](src/components/path-carver/review-tags-math-debug.tsx) — show layer on steps
 - `schema-config`, CRUD / actions, [`load-team-data.ts`](src/lib/team-data/load-team-data.ts), admin manifestation form, simulator action
 - `scripts/export-sample-data.ts`, `sample-data/` dumps + README
@@ -909,7 +887,7 @@ Do **not** rename `tag_default_interaction` in this phase.
 - [x] Datapatch: former `f` tags (e.g. Crit Damage) are on `post_add`
 - [x] Pass order uses `pre_add`/`add`/`post_add`; generated types updated (leftover `final` enum label → Phase 2c.1)
 - [x] Null-layer rank matches locked key (`null` with `add`; within rank add_scaled then multiply, then id)
-- [x] Materialize-then-amplify outer structure unchanged; Special conversions still after all layer passes
+- [x] Materialize-then-amplify outer structure unchanged
 - [x] Override op change does not change pass layer
 - [x] Review Tags math debug shows layer on interaction steps
 - [x] Smoke fixture passes with expected order/totals
@@ -1178,11 +1156,10 @@ Even if `Defender.Shield`’s tag layer is `pre_add`, local `add` wins for **whe
 | 6   | **`aftereffect`:** `target_tag_id` = apply target (Bleed kits: prefer **Bleed** stack, not Bleed Damage); source = **`finishedOnce`** (not folded); `modifier_tag_id` null; required `target_type` (default `aoe`); write owner = `ownerKeyFor(source)` (not `*team*`); merge via `is_additive` + `isCreatedBase` synthetics; Trigger via closure look-ahead.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | 7   | **UI label-swap** as above — one dropdown, mode-dependent label, writes to different columns.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | 8   | **Local always wins** when a matching default exists. When no default exists, invent from the local row.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| 9   | **Deferred scheduling (Option A — implement):** look-ahead closure from aftereffect targets through `creates_base` edges; hold amplifies (and deferred creates along those edges) until aftereffects have written; then **one thin create hop + one thin amplify pass** on combined bases (not a full subject loop). Before Special. Approximation — see below.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| 9   | **Deferred scheduling (Option A — implement):** look-ahead closure from aftereffect targets through `creates_base` edges; hold amplifies (and deferred creates along those edges) until aftereffects have written; then **one thin create hop + one thin amplify pass** on combined bases (not a full subject loop). Approximation — see below.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | 10  | **Local binding:** aftereffect on A uses **A’s `finishedOnce`** at emit time (single-hit; before own-tag `× hitCount`).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | 11  | **Subject order (3c):** deterministic — `slotIndex` → `awakenerId` → `tagId` → `sourceKind` → `manifestation.id`. **Null last** on `slotIndex` / `awakenerId` (posse, realm, created-base). Empty aftereffect set matches 3b on **additive** totals; keep 3b smokes as 3c regressions. Out of scope: combinatorial max-damage order.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| 12  | Special Corrosion / Embers stay hardcoded post-pass (Phase 4).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| 13  | `buff_target_type_restriction` on local rows remains optional/later.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| 12  | `buff_target_type_restriction` on local rows remains optional/later.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | 14  | **No `final` layer** — only `pre_add` / `add` / `post_add`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | 15  | **Aftereffect emit:** `contribution = op(finishedOnce, factor)`; `before` is not in the op. Default op `multiply` → `finishedOnce * factor`; `add_scaled` → `finishedOnce + factor`. Merge scales by **`hitCount`** (`contribution × hitCount`); do not `op` the folded total.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | 16  | **Aftereffect factor:** `value_scalar` required (admin default **1**); scaled by source ATM awakener `dependency_stat` via `effectiveOverrideFactor`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
@@ -1205,7 +1182,7 @@ Even if `Defender.Shield`’s tag layer is `pre_add`, local `add` wins for **whe
 
 ### Layer B pipeline reshape (locked — implement in **3c**; stack amplify in **3c.1**)
 
-Today Layer B (`applyInteractions`) is: unrestricted creates → **isolated per-subject** cohort runs (merge finished subject values only) → Special. Aftereffects need **shared write state**, so Phase 3 explicitly restructures Layer B (not a new outer layer).
+Today Layer B (`applyInteractions`) is: unrestricted creates → **isolated per-subject** cohort runs (merge finished subject values only). Aftereffects need **shared write state**, so Phase 3 explicitly restructures Layer B (not a new outer layer).
 
 **Nothing after Layer B** in Path Carver aggregation today (`aggregate-tag-scalars` ends at `applyInteractionsForTeamData`). Phase 3 keeps that: reshape **inside** Layer B only.
 
@@ -1269,8 +1246,6 @@ Today Layer B (`applyInteractions`) is: unrestricted creates → **isolated per-
       no cohort / unique_scaling / leftover amplifies / second hitCount
    Trigger must not multiply the Bleed stack
    Do not set BleedDamage = f(Bleed, Trigger) on the final tag map
-
-5. Special Corrosion / Ancient Embers (still last inside Layer B)
 ```
 
 **Per-subject order (locked — 3a.3 / 3c):** finish single-hit → aftereffect from `finishedOnce` (scale `× hitCount` at Bleed merge) → merge own tag `finishedOnce × hitCount`. Do not run aftereffect on the already-multiplied subject total. **Layer A Bleed** is a normal subject on this path (not an aftereffect emit); aftereffect writes only add to the same owner Bleed bucket. Subject path stays per-subject for finishing each subject; aftereffect + deferred create/amplify use **shared** totals across subjects. Max-damage subject-order search remains out of scope (Phase 5).
@@ -1417,7 +1392,6 @@ After all aftereffects into closure0 tags are done:
     no cohort / unique_scaling / leftover amplifies / second hitCount
   do NOT set BleedDamage = f(Bleed, Trigger) on the final tag map
   Trigger must not multiply the Bleed stack
-Then Special Corrosion / Embers
 ```
 
 **Combined before Trigger:** deferred create input = finished Layer A Bleed subjects **plus** aftereffect Bleed writes (`is_additive` across owners); one thin Bleed → Bleed Damage create from that combined stack; Bleed Trigger amplifies that Bleed Damage **once** via the amplify helper (not a subject career, not a raw overwrite, not a second Trigger on Layer-A-only). Trigger never multiplies the Bleed stack itself. Empty aftereffect set: do not pull; 3b path unchanged.
@@ -1657,7 +1631,7 @@ poolContrib     = effectiveScalar × instance_count   # provider pool only
 - Subject order: `slotIndex` → `awakenerId` → `tagId` → `sourceKind` → `manifestation.id`; **null last** on `slotIndex` / `awakenerId`; empty aftereffect set matches 3b on additive totals; keep 3b smokes
 - Debug: aftereffect contributions, look-ahead closure set
 - Smokes: one-subject aftereffect; two-subject Bleed + Trigger (Option A); aftereffect × hitCount; Layer A Bleed + aftereffect combined stack; empty aftereffect = 3b additive totals; **3b smokes still pass**
-- Out of scope: desire_demand / radar / Calculation List; Corrosion/Embers rewire; max-damage subject search; **per-subject sequential trigger (record only above)**; unique_scaling / cohort / invented `sourceType` on the Bleed Damage synthetic
+- Out of scope: desire_demand / radar / Calculation List; max-damage subject search; **per-subject sequential trigger (record only above)**; unique_scaling / cohort / invented `sourceType` on the Bleed Damage synthetic
 
 **Acceptance:**
 
@@ -1669,7 +1643,7 @@ poolContrib     = effectiveScalar × instance_count   # provider pool only
 - [x] Layer A Bleed + aftereffect: Layer A Bleed is a normal subject; aftereffect merges into the same owner Bleed bucket; deferred create input = both sources (`is_additive`); one Bleed Damage rebuilt once; no Phase 1 Bleed Damage beside it; no second Trigger on Layer-A-only
 - [x] Bleed kit path: aftereffect → Bleed → combined → thin `creates_base` Bleed Damage (`hitCount = 1`) → thin Trigger amplify once on Bleed Damage (Trigger does not multiply Bleed stack; not a subject loop; not a raw overwrite)
 - [x] Deferred create/amplify: one create hop + one thin amplify pass as locked (decision 30); restricted creates that need command-card / exalt skip; Bleed Damage has no Layer A–style subject career
-- [x] Layer B restructured: per subject finish single-hit → aftereffect from `finishedOnce` (`× hitCount` at merge) → own-tag `finishedOnce × hitCount`; shared aftereffect totals; Special still last inside Layer B
+- [x] Layer B restructured: per subject finish single-hit → aftereffect from `finishedOnce` (`× hitCount` at merge) → own-tag `finishedOnce × hitCount`; shared aftereffect totals
 - [x] Subject order: `slotIndex` → `awakenerId` → `tagId` → `sourceKind` → `manifestation.id`; null `slotIndex` / `awakenerId` last; empty aftereffect set matches 3b on additive totals; 3b smokes still pass
 - [x] Review Tags debug shows aftereffect steps + look-ahead closure
 - [x] Smoke: two-subject Bleed + Trigger (Option A combined-before-trigger); aftereffect × hitCount; Layer A Bleed + aftereffect combined; empty aftereffect set matches 3b on additive totals; 3b smokes still pass
@@ -1719,7 +1693,7 @@ channel = ceil(hits × factor × (Unique TDU + TDU + TDU.Fixed))
 - Default Generate / RTM `Attacker.Tentacle` stays `units × pool` (Hit never scales those units).
 - Ceil **per channel**, then add. `Special.Hit` tag total may still show `0.5+1=1.5`; conversion does not use that total as one factor.
 
-Skip live TDI 3 / 75 / 77 on Hit synthetics only (those stay 100% for Generate / Layer A Tentacle). Remaining Tentacle TDI (Vulnerability) still run. `sourceType = null` (Phase 3g). Hop **4d** after deferred amplify, before Corrosion.
+Skip live TDI 3 / 75 / 77 on Hit synthetics only (those stay 100% for Generate / Layer A Tentacle). Remaining Tentacle TDI (Vulnerability) still run. `sourceType = null` (Phase 3g). Hop **4d** after deferred amplify, at the end of the Layer B interaction pass.
 
 **Superseded by Phase 3e:** Generate / RTM / Layer A Tentacle now use the same TDU family pool as Hit. TDI 3 / 75 / 77 are soft-deleted.
 
@@ -1791,13 +1765,13 @@ tentacleCritX =
 ceil%(x) = Math.ceil(x * 100 - 1e-10) / 100   // whole percent, not whole units
 ```
 
-| Input | Source | Notes |
-| ----- | ------ | ----- |
-| `baseStatX` | `critDmg` / `critRate` on total-base awakeners | Sum selected team |
-| `supportCritX_*` | Exact tag id **17** / **18** manifestations | Not `Support.Crit Damage.*` / `Support.Crit Rate.*` |
-| Exclusions | `isBaseStatTransfer`; `buffTargetTypeRestriction != null` (strict) | Base uses `/2` only; restricted rows never count |
-| `aoe` | `targetType === "aoe"` | Add effective scalar directly |
-| non-aoe | `self`, `single`, `null` | Sum then `/4`, percent-ceil (`ceil(x*100)/100`), add |
+| Input            | Source                                                             | Notes                                                |
+| ---------------- | ------------------------------------------------------------------ | ---------------------------------------------------- |
+| `baseStatX`      | `critDmg` / `critRate` on total-base awakeners                     | Sum selected team                                    |
+| `supportCritX_*` | Exact tag id **17** / **18** manifestations                        | Not `Support.Crit Damage.*` / `Support.Crit Rate.*`  |
+| Exclusions       | `isBaseStatTransfer`; `buffTargetTypeRestriction != null` (strict) | Base uses `/2` only; restricted rows never count     |
+| `aoe`            | `targetType === "aoe"`                                             | Add effective scalar directly                        |
+| non-aoe          | `self`, `single`, `null`                                           | Sum then `/4`, percent-ceil (`ceil(x*100)/100`), add |
 
 Support sum is **manifestation-level** (keep `targetType`). Do not use owner tag totals.
 
@@ -1866,7 +1840,7 @@ Drop leftover enum value `tentacle` from `public.source_type`. Postgres has no `
 
 ### Goal
 
-Port Path Carver–validated totals into simulator / desire scoring surfaces, wire **Summary / Calculation List** to a layer-by-layer breakdown, and fix Special Corrosion / Ancient Embers (Non-Active descendant capacity + name→id wiring).
+Port Path Carver–validated totals into simulator / desire scoring surfaces, and wire **Summary / Calculation List** to a layer-by-layer breakdown.
 
 ### Scope
 
@@ -1876,24 +1850,10 @@ Port Path Carver–validated totals into simulator / desire scoring surfaces, wi
 - Wire **Summary / Calculation List** to show **layer-by-layer** breakdown (`pre_add` / `add` / `post_add`; aftereffects shown after subject `post_add`, ordered by their `layer`)
 - Simulator Summary panel against real fulfillment
 - Generate / Recommend continue to use shared engine once ported
-- Fix Corrosion / Ancient Embers (see below)
-
-### Fix Corrosion / Ancient Embers
-
-**Problem (capacity):** Special conversion Non-Active capacity uses the exact parent tag only (`sumTeamTag` on that id in [`apply-interactions.ts`](src/lib/path-carver/apply-interactions.ts)). Child targets such as `Attacker.Non-Active Damage.Poison Damage` (and later Bleed Damage, etc.) do not feed `×0.5` capacity.
-
-**Problem (wiring):** Phase 2a keys conversion gate, debuff, capacity sources, and damage targets by **tag name** (`findTagIdByName` / `m.tagName ===`). Elsewhere (Death Resist, Keyflare, Tentacle base) the contract is **numeric tag id**.
-
-**Fix (capacity):** Resolve Non-Active **parent by id**; Non-Active capacity term = that id’s total **plus** all descendants (look up parent `tag_name` from `tagsById`, prefix-sum children). Do **not** hardcode Poison Damage ids/names. Do **not** add `tag_default_interaction` rollups from child targets into the parent (keeps Poison Trigger scoped). Active Damage and Tentacle capacity stay exact (by id).
-
-**Fix (wiring):** Replace name-string constants with numeric tag id constants for conversion gate, debuff, Active, Tentacle, Non-Active parent, and Corrosion/Embers damage targets (same style as [`death-resist-trigger.ts`](src/lib/path-carver/death-resist-trigger.ts) / [`trigger-condition.ts`](src/lib/path-carver/trigger-condition.ts)). **Ids are the contract** — renaming a tag does not break conversion if the id is unchanged; changing an id without updating constants no-ops until constants are updated. Out of scope: `Attacker.*` / `Defender.*` prefix gates and DB-driven interaction target prefix matching.
 
 ### Acceptance criteria (outline)
 
 - [ ] Calculation List shows per-layer contributions for a built team
-- [ ] Team with only `…Poison Damage` (no parent Non-Active scalar) still contributes Non-Active `×0.5` capacity to Corrosion / Embers
-- [ ] Poison Trigger still only amplifies Poison Damage, not other Non-Active children
-- [ ] Special conversion keys tags by id (not name); rename with same id still converts; id change without constant update does not
 
 ---
 
@@ -1944,5 +1904,5 @@ Path Carver upserts a single `desire_template` per `desire_id`.
 11. **Phase 3e** — Attacker.Tentacle TDU pool for RTM / Generate / Hit (DONE)
 12. **Phase 3f** — Tentacle Crit Rate / Damage after TDU (DONE)
 13. **Phase 3g** — Remove `source_type` tentacle enum (DONE)
-14. **Phase 4** — desire_demand / radar / simulator port + Calculation List layer breakdown + Corrosion/Embers Non-Active parent+descendants capacity + name→id wiring
+14. **Phase 4** — desire_demand / radar / simulator port + Calculation List layer breakdown
 15. **Phase 5** — Smart recommend / search
