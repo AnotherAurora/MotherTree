@@ -1,6 +1,6 @@
 ---
 name: Simulator Phased Plan
-overview: Path Carver–first roadmap. Phase 1–2c.1 + 3a + 3a.1 + 3a.2 + 3a.3 + 3b + 3b.1 + 3c + 3c.1 (aftereffect stack amplify) done. Next is Phase 4 (desire_demand / radar / simulator, Calculation List layer breakdown, Corrosion/Embers Non-Active parent+descendants + name→id). Phase 5 smart recommend.
+overview: Path Carver–first roadmap. Phase 1–2c.1 + 3a + 3a.1 + 3a.2 + 3a.3 + 3b + 3b.1 + 3c + 3c.1 + 3d + 3e (Tentacle TDU pool) done. Next is Phase 4 (desire_demand / radar / simulator, Calculation List layer breakdown, Corrosion/Embers Non-Active parent+descendants + name→id). Phase 5 smart recommend.
 todos:
   - id: seed-data
     content: Create scripts/seed-simulator-data.ts with 2-3 desires, demand rows, anchored awakeners; add npm script
@@ -68,6 +68,12 @@ todos:
   - id: phase-3c1-aftereffect-stack-amplify
     content: Phase 3c.1 — Split look-ahead amplifies (closure0 stack vs created-base); deferred stack amplify on combined per-owner aftereffect sinks before create (Increase→Poison/Bleed); Sunfall-shaped smokes
     status: completed
+  - id: phase-3d-hit-tentacle-attack
+    content: Phase 3d — Special.Hit = Tentacle Attack per-owner synthetics from Active Damage hitCounts × Hit factor × TDU family pool; skip TDI 3/75/77 on Hit synthetics; hop before Corrosion
+    status: completed
+  - id: phase-3e-tentacle-tdu-pool
+    content: Phase 3e — All Attacker.Tentacle sources (RTM, Generate, Hit) finish as units × (Unique TDU + TDU + TDU.Fixed); soft-delete TDI 3/75/77; Vulnerability after pool
+    status: completed
   - id: layer-breakdown-ui
     content: Phase 4 — Wire Summary / Calculation List to show layer-by-layer breakdown
     status: pending
@@ -95,14 +101,15 @@ isProject: false
 
 Path Carver’s **Review Tags** page is the primary surface for testing recommendation math. Simulator Start / Recommend / radar / `desire_demand` fulfillment come **after** Path Carver math stabilizes (Phase 4); the simulator will copy Path Carver logic.
 
-| Focus now (3b.1 → 3c.1)                                                                 | Later (Phase 4+)                               |
-| --------------------------------------------------------------------------------------- | ---------------------------------------------- |
-| Path Carver Review Tags apply + aggregation + interactions                              | Simulator radar / fulfillment UI               |
-| Pass-order layers + `awakener_local_manifestation_interaction` rename (2c)              | Full `desire_demand` scoring / curves          |
-| Manifestation-local unique_scaling / aftereffect + subject scheduling (3a→3c)           | Port math into Simulator page                  |
-| `dependency_stat` scalar scaling + leaf-gated `buff_target_type_restriction` (2b, done) | Smart search / recommend optimization          |
-| Layer pass order (2c) + drop leftover `final` enum via recreate (2c.1)                  | Calculation List layer breakdown               |
-| Special Corrosion/Embers (exact Non-Active; keyed by name)                              | Non-Active parent+descendants + wire by tag id |
+| Focus now (3e done → Phase 4)                                                 | Later (Phase 4+)                               |
+| ----------------------------------------------------------------------------- | ---------------------------------------------- |
+| Path Carver Review Tags apply + aggregation + interactions                    | Simulator radar / fulfillment UI               |
+| Pass-order layers + `awakener_local_manifestation_interaction` rename (2c)    | Full `desire_demand` scoring / curves          |
+| Manifestation-local unique_scaling / aftereffect + subject scheduling (3a→3c) | Port math into Simulator page                  |
+| `Special.Hit = Tentacle Attack` per-owner synthetics (3d, done)               | Smart search / recommend optimization          |
+| Tentacle TDU pool for RTM / Generate / Hit (3e, done)                         | Calculation List layer breakdown               |
+| Layer pass order (2c) + drop leftover `final` enum via recreate (2c.1)        |                                                |
+| Special Corrosion/Embers (exact Non-Active; keyed by name)                    | Non-Active parent+descendants + wire by tag id |
 
 ---
 
@@ -114,6 +121,10 @@ Path Carver’s **Review Tags** page is the primary surface for testing recommen
 - Wheels +12
 - Soulforge lv10
 - Gnostic Potential lv0, except limited awakeners who are lv5
+
+### Tag total math merge (standing)
+
+Debug merge **must equal** that tag’s Tag total. Merge sums `committedContribution` per subject block in [`review-tags-math-debug.tsx`](src/components/path-carver/review-tags-math-debug.tsx). Extra `base`/`op` hops that **replace** owner totals are **not** extra merge parts — mark prior blocks intermediate (deferred stack/create/amplify; Tentacle TDU pool / Hit). After any Path Carver math-debug or new synthetic hop, check `Attacker.Tentacle` merge vs Tag total.
 
 ---
 
@@ -1682,9 +1693,82 @@ poolContrib     = effectiveScalar × instance_count   # provider pool only
 
 ---
 
+## Phase 3d — Special.Hit = Tentacle Attack (DONE)
+
+**Depends on:** 3c.1.
+
+### Goal
+
+Convert Layer A `Attacker.Active Damage` (+ descendants) **hitCounts** into **Hit-channel** `Attacker.Tentacle` synthetics × the TDU family pool. No new tags.
+
+```text
+channel = ceil(hits × factor × (Unique TDU + TDU + TDU.Fixed))
+```
+
+- **Realm Hit** (`sourceKind === "realm"`): one channel; factor = sum of applied RTM Hit rows (`0.5 + RM`).
+- **Non-realm Hit** (ATM / covenant / wheel / posse): each applied row is its own channel; factor = that row only.
+- Hit scalar is a **damage multiplier**, not a fractional attack count. `attacks = hits` per channel (groundwork for tag 165; Poison unwired).
+- Default Generate / RTM `Attacker.Tentacle` stays `units × pool` (Hit never scales those units).
+- Ceil **per channel**, then add. `Special.Hit` tag total may still show `0.5+1=1.5`; conversion does not use that total as one factor.
+
+Skip live TDI 3 / 75 / 77 on Hit synthetics only (those stay 100% for Generate / Layer A Tentacle). Remaining Tentacle TDI (Vulnerability) still run. `sourceType = tentacle`. Hop **4d** after deferred amplify, before Corrosion.
+
+**Superseded by Phase 3e:** Generate / RTM / Layer A Tentacle now use the same TDU family pool as Hit. TDI 3 / 75 / 77 are soft-deleted.
+
+### Locks
+
+- Per (Active Damage owner × Hit channel); Hit `self` vs aoe; realm factor via `combineSameTagScalar`; non-realm not summed
+- Exact three TDU-family ids, not a TDU prefix unique_scaling
+- Do not copy Active Damage `target_type` onto Tentacle
+- Kit Reader: one Hit ATM; Aurita self / `value_scalar = 1` if per hitCount
+
+### Files
+
+- [`src/lib/path-carver/hit-tentacle-attack.ts`](src/lib/path-carver/hit-tentacle-attack.ts)
+- [`src/lib/path-carver/apply-interactions.ts`](src/lib/path-carver/apply-interactions.ts) hop 4d
+- Smoke: `npx tsx scripts/smoke-hit-tentacle-attack.ts`
+
+---
+
+## Phase 3e — Attacker.Tentacle TDU pool (DONE)
+
+**Depends on:** 3d.
+
+### Goal
+
+Finish **every** `Attacker.Tentacle` source with the Hit TDU family pool. No new sum tag.
+
+```text
+finished = tentacle_units × (Unique TDU + TDU + TDU.Fixed)
+```
+
+| Source                                     | `tentacle_units`                              |
+| ------------------------------------------ | --------------------------------------------- |
+| RTM `Attacker.Tentacle`                    | Layer A effective scalar (realm immune merge) |
+| Generate Permanent/Temporary (TDI 91 / 92) | invented count                                |
+| Hit                                        | `hits × factor` (3d)                          |
+
+### Locks
+
+- Exact ids 122 + 29 + 75 via `combineTduFamilyPool`; hop runs whenever Tentacle units exist (not only Hit)
+- Soft-delete TDI 3 / 75 / 77. Keep TDI 16 / 76 (STR → Unique TDU invent 0.5), 91 / 92, 73 (Vulnerability)
+- Do not lift realm subject immunity; pool hop multiplies already-merged RTM counts
+- Skip TDU-family amplify on Tentacle subjects; Vulnerability after pool on every owner (including `realm` / Generate `posse`)
+- STR-invented Unique TDU is Phase 1 Support created-base and feeds the pool without TDI 75
+- Tag total math: hop 4d blocks (`Hit = Tentacle Attack` / `Tentacle TDU pool`) are the **only** committed merge parts for Tentacle; Layer A / Generate / RTM unit blocks are intermediate (see standing merge lock)
+
+### Files
+
+- [`src/lib/path-carver/apply-interactions.ts`](src/lib/path-carver/apply-interactions.ts) hop 4d
+- [`src/lib/path-carver/hit-tentacle-attack.ts`](src/lib/path-carver/hit-tentacle-attack.ts)
+- Datapatch: `supabase/migrations/20260818031713_phase_3e_soft_delete_tdu_tentacle_tdi.sql`
+- Smoke: `npx tsx scripts/smoke-hit-tentacle-attack.ts`
+
+---
+
 ## Phase 4 — desire_demand, radar, simulator port
 
-**Depends on:** Stable Path Carver math (through Phase **3c.1** preferably; through 2c minimum).
+**Depends on:** Stable Path Carver math (through Phase **3e** preferably; through 2c minimum).
 
 ### Goal
 
@@ -1762,5 +1846,7 @@ Path Carver upserts a single `desire_template` per `desire_id`.
 7. **Phase 3b.1** — unique_scaling invent modifier prefix pool (DONE)
 8. **Phase 3c** — aftereffect + Layer B reshape + creates_base closure look-ahead deferred create/amplify (DONE)
 9. **Phase 3c.1** — aftereffect stack amplify (Increase → closure0 before create) (DONE)
-10. **Phase 4** — desire_demand / radar / simulator port + Calculation List layer breakdown + Corrosion/Embers Non-Active parent+descendants capacity + name→id wiring
-11. **Phase 5** — Smart recommend / search
+10. **Phase 3d** — Special.Hit = Tentacle Attack (DONE)
+11. **Phase 3e** — Attacker.Tentacle TDU pool for RTM / Generate / Hit (DONE)
+12. **Phase 4** — desire_demand / radar / simulator port + Calculation List layer breakdown + Corrosion/Embers Non-Active parent+descendants capacity + name→id wiring
+13. **Phase 5** — Smart recommend / search

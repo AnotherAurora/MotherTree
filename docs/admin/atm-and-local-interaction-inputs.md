@@ -219,7 +219,7 @@ Let:
 | `multiply` | Non-%: `before × (modifierValue × factor)` · %-tag: `(1+before)×(modifierValue×factor)−1` |
 | `presence_multiply` | If modifier present: `before × factor` (once per modifier/target) |
 
-Kit Reader: kit text with **enjoy / enjoys / enjoying** usually means `unique_scaling` on the subject ATM (modifier tag root, not `.Fixed`). See [`docs/admin/kit-reader.md`](kit-reader.md).
+Kit Reader: kit text with **enjoy / enjoys / enjoying** usually means `unique_scaling` on the subject ATM (modifier tag root, not `.Fixed`). Enjoy followed by **Tentacle DMG** attaches **two** `add_scaled` locals (`Support.Tentacle Damage Up` and `Support.Unique Tentacle Damage Up`). See [`docs/admin/kit-reader.md`](kit-reader.md).
 
 **Example (tag-mod, locked intent):** Shield 10 → increase to 20; Damage ATM unique_scaling Shield, `layer = add`, `add_scaled` / factor 1 → in Damage’s **add** band, read Shield **20** and add 20. Unique_scaling does not re-run Shield increase.
 

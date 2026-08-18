@@ -40,10 +40,37 @@ export function defaultTargetTypeForTag(
 
 const ENJOY_WORD = /\benjoy(s|ing)?\b/i;
 
+/**
+ * unique_scaling modifier roots when enjoy is followed by Tentacle DMG /
+ * Tentacle Damage. Unique TDU is a sibling of TDU, not a prefix child.
+ */
+export const ENJOY_TENTACLE_DMG_MODIFIER_TAG_NAMES = [
+  "Support.Tentacle Damage Up",
+  "Support.Unique Tentacle Damage Up",
+] as const;
+
+export type EnjoyTentacleDmgModifierTagName =
+  (typeof ENJOY_TENTACLE_DMG_MODIFIER_TAG_NAMES)[number];
+
 /** True when kit text contains enjoy / enjoys / enjoying. */
 export function detectEnjoyClause(kitText: string | null | undefined): boolean {
   if (!kitText) return false;
   return ENJOY_WORD.test(kitText);
+}
+
+/**
+ * True when enjoy / enjoys / enjoying is followed in the same clause by
+ * Tentacle DMG or Tentacle Damage (braces ignored). Counter / STR enjoy
+ * clauses return false.
+ */
+export function detectEnjoyTentacleDmgClause(
+  kitText: string | null | undefined,
+): boolean {
+  if (!kitText) return false;
+  const stripped = kitText.replace(/[{}]/g, "");
+  return /\benjoy(?:s|ing)?\b[^.\n]*\bTentacle\s+(?:DMG|Damage)\b/i.test(
+    stripped,
+  );
 }
 
 /**
@@ -72,4 +99,9 @@ export function parseEnjoyPercentFactor(
 /** Pack-serializable copy of aoe prefixes. */
 export function aoeTagPrefixesForPack(): string[] {
   return [...AOE_TAG_PREFIXES];
+}
+
+/** Pack-serializable copy of enjoy Tentacle DMG unique_scaling modifier roots. */
+export function enjoyTentacleDmgModifierTagNamesForPack(): string[] {
+  return [...ENJOY_TENTACLE_DMG_MODIFIER_TAG_NAMES];
 }

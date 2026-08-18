@@ -1124,6 +1124,7 @@ console.log("creates_base focused — Tentacle invent + unrestricted Fiamma");
 
   const generate = makeTag(58, "Support.Generate Permanent Tentacle");
   const tentacle = makeTag(5, "Attacker.Tentacle");
+  const tdu = makeTag(29, "Support.Tentacle Damage Up");
   const fiamma = makeTag(100, "Support.Fiamma", true);
   const finalDmg = makeTag(14, "Support.Final Damage", true);
   const active = makeTag(42, "Attacker.Active Damage");
@@ -1132,12 +1133,20 @@ console.log("creates_base focused — Tentacle invent + unrestricted Fiamma");
     const tagsById: Record<number, Tag> = {
       [generate.id]: generate,
       [tentacle.id]: tentacle,
+      [tdu.id]: tdu,
     };
     const manifests = [
       makeManifestation({
         id: 1,
         tagId: generate.id,
         tagName: generate.tagName,
+        valueScalar: 1,
+        targetType: "aoe",
+      }),
+      makeManifestation({
+        id: 2,
+        tagId: tdu.id,
+        tagName: tdu.tagName,
         valueScalar: 1,
         targetType: "aoe",
       }),

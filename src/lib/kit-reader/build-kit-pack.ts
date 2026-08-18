@@ -16,6 +16,8 @@ import {
 import {
   aoeTagPrefixesForPack,
   detectEnjoyClause,
+  detectEnjoyTentacleDmgClause,
+  enjoyTentacleDmgModifierTagNamesForPack,
 } from "./proposal-heuristics";
 import { kitPackAbsolutePath, kitPackRelativePath } from "./paths";
 
@@ -107,6 +109,8 @@ export type ExpandedLayer = {
   resolvedArgs: Record<string, string | number>;
   /** Kit text contains enjoy/enjoys/enjoying — inspect for unique_scaling locals. */
   hasEnjoyClause: boolean;
+  /** Enjoy clause is followed by Tentacle DMG / Tentacle Damage — dual TDU locals. */
+  hasEnjoyTentacleDmgClause: boolean;
 };
 
 export type KitPackSkill = {
@@ -170,6 +174,7 @@ export type KitPack = {
     };
     flavorTagSynonyms: ReturnType<typeof flavorTagSynonymsForPack>;
     aoeTagPrefixes: string[];
+    enjoyTentacleDmgModifierTagNames: string[];
   };
 };
 
@@ -257,12 +262,16 @@ function expandTemplate(
 }
 
 function layerFromExpanded(
-  partial: Omit<ExpandedLayer, "hasEnjoyClause">,
+  partial: Omit<
+    ExpandedLayer,
+    "hasEnjoyClause" | "hasEnjoyTentacleDmgClause"
+  >,
   expandedText: string,
 ): ExpandedLayer {
   return {
     ...partial,
     hasEnjoyClause: detectEnjoyClause(expandedText),
+    hasEnjoyTentacleDmgClause: detectEnjoyTentacleDmgClause(expandedText),
   };
 }
 
@@ -727,6 +736,8 @@ export async function buildKitPackForAwakener(
       },
       flavorTagSynonyms: flavorTagSynonymsForPack(),
       aoeTagPrefixes: aoeTagPrefixesForPack(),
+      enjoyTentacleDmgModifierTagNames:
+        enjoyTentacleDmgModifierTagNamesForPack(),
     },
   };
 

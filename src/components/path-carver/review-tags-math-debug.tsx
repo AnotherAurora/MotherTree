@@ -41,6 +41,17 @@ const DEFERRED_CREATE_SUBJECT_KEY = "deferred-create";
 const DEFERRED_STACK_AMPLIFY_SUBJECT_KEY = "deferred-stack-amplify";
 const DEFERRED_AMPLIFY_SUBJECT_KEY = "deferred-amplify";
 
+/** Matches apply-interactions hop 4d subject labels. */
+const HIT_TENTACLE_SUBJECT_LABEL = "Hit = Tentacle Attack";
+const TENTACLE_TDU_POOL_SUBJECT_LABEL = "Tentacle TDU pool";
+
+function isTentacleTduPoolSubject(block: SubjectMathBlock): boolean {
+  return (
+    block.subjectLabel === HIT_TENTACLE_SUBJECT_LABEL ||
+    block.subjectLabel === TENTACLE_TDU_POOL_SUBJECT_LABEL
+  );
+}
+
 function formatNum(value: number): string {
   if (Number.isInteger(value)) return String(value);
   const fixed = value.toFixed(4).replace(/\.?0+$/, "");
@@ -151,6 +162,8 @@ function subjectContribution(block: SubjectMathBlock): number | null {
  * Deferred create is intermediate when amplify also ran (engine merges amplify after only).
  * When deferred stack amplify ran, it replaced the combined stack — aftereffect /
  * Layer A / other subject blocks for this tag are intermediate.
+ * Hop 4d Tentacle TDU pool / Hit replaces owner Tentacle totals — Layer A /
+ * Generate / RTM unit blocks are intermediate.
  */
 function committedContribution(
   block: SubjectMathBlock,
@@ -168,7 +181,32 @@ function committedContribution(
   ) {
     return null;
   }
+  if (
+    subjects.some(isTentacleTduPoolSubject) &&
+    !isTentacleTduPoolSubject(block)
+  ) {
+    return null;
+  }
   return subjectContribution(block);
+}
+
+function intermediateMergeVia(
+  block: SubjectMathBlock,
+  subjects: readonly SubjectMathBlock[],
+): string {
+  if (
+    subjects.some(isTentacleTduPoolSubject) &&
+    !isTentacleTduPoolSubject(block)
+  ) {
+    return "TDU pool";
+  }
+  if (
+    subjects.some((s) => s.subjectKey === DEFERRED_STACK_AMPLIFY_SUBJECT_KEY) &&
+    block.subjectKey !== DEFERRED_STACK_AMPLIFY_SUBJECT_KEY
+  ) {
+    return "stack amplify";
+  }
+  return "amplify";
 }
 
 function mergeModeLabel(isAdditive: boolean, isPercent: boolean): string {
@@ -343,7 +381,9 @@ export function ReviewTagsMathDebug({
           unique_scaling local layer wins; invent/patch/base_stat) →
           aftereffect from finishedOnce (merge contribution × hitCount;
           look-ahead defers creates_base + amplifies in the closure) →
-          × hitCount (instances × copies) → special conversions → totals.
+          × hitCount (instances × copies) → Tentacle TDU pool
+          (RTM / Generate / Hit × Unique+TDU+Fixed) →
+          special conversions → totals.
           Multiply ops ceil after each write. Restricted ops only appear when
           leaf matches. Base/op lines are single-hit; hitCount multiplies after.
           Same-tag merge uses tag.is_additive / tag.is_percent (percent:
@@ -455,17 +495,7 @@ export function ReviewTagsMathDebug({
                                 )}
                               <li className="pt-0.5 text-zinc-700">
                                 {intermediate
-                                  ? `contribution = ${formatNum(pipeline!)} (intermediate; merged via ${
-                                      group.subjects.some(
-                                        (s) =>
-                                          s.subjectKey ===
-                                          DEFERRED_STACK_AMPLIFY_SUBJECT_KEY,
-                                      ) &&
-                                      block.subjectKey !==
-                                        DEFERRED_STACK_AMPLIFY_SUBJECT_KEY
-                                        ? "stack amplify"
-                                        : "amplify"
-                                    })`
+                                  ? `contribution = ${formatNum(pipeline!)} (intermediate; merged via ${intermediateMergeVia(block, group.subjects)})`
                                   : `contribution = ${
                                       committed != null
                                         ? formatNum(committed)

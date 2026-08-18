@@ -26,11 +26,11 @@ description: >-
 3. [`docs/admin/atm-and-local-interaction-inputs.md`](docs/admin/atm-and-local-interaction-inputs.md)
 4. [`src/lib/kit-reader/proposal-schema.ts`](src/lib/kit-reader/proposal-schema.ts)
 5. [`src/lib/kit-reader/atm-metadata.ts`](src/lib/kit-reader/atm-metadata.ts) — `buildAtmMetadata` / `detectIsAccumulating`
-6. [`src/lib/kit-reader/proposal-heuristics.ts`](src/lib/kit-reader/proposal-heuristics.ts) — enjoy detection, aoe tag prefixes
+6. [`src/lib/kit-reader/proposal-heuristics.ts`](src/lib/kit-reader/proposal-heuristics.ts) — enjoy detection, Tentacle DMG dual locals, aoe tag prefixes
 
 ## Workflow
 
-1. Read the kit pack: `assumptions`, skills (base + upgrades), derivedCards, talents (`atmEligible`), `ignoreList`, `lexicon.tags`, `lexicon.flavorTagSynonyms`, **`lexicon.aoeTagPrefixes`**, **`sourceLabel` / layer `sourceLabelHint`**, **`cost`**, layer **`hasEnjoyClause`**.
+1. Read the kit pack: `assumptions`, skills (base + upgrades), derivedCards, talents (`atmEligible`), `ignoreList`, `lexicon.tags`, `lexicon.flavorTagSynonyms`, **`lexicon.aoeTagPrefixes`**, **`lexicon.enjoyTentacleDmgModifierTagNames`**, **`sourceLabel` / layer `sourceLabelHint`**, **`cost`**, layer **`hasEnjoyClause`** / **`hasEnjoyTentacleDmgClause`**.
 2. Propose ATM + local rows for Path Carver math.
 3. Write proposal JSON to `sample-data/kit-reader/{slug}.proposal.json` (`schemaVersion: 1`).
 4. Run:
@@ -65,13 +65,15 @@ When kit text has **enjoy / enjoys / enjoying** (`hasEnjoyClause: true` on pack 
 
 - Attach a **local** on the **subject** ATM (Active Damage / Exalt damage / Strike in that clause).
 - Do **not** create a separate Support ATM for the modifier tag.
-- `mode: unique_scaling`, `modifierTagName` = modifier **root** (e.g. `Support.Tentacle Damage Up`, not `.Fixed`).
+- `mode: unique_scaling`, `modifierTagName` = modifier **root** (not `.Fixed`).
 - `valueScalar` = percent as factor (`50%` → `0.5`; use `parseEnjoyPercentFactor` or manual parse).
 - Default `mathOperation: multiply_one_plus`, `targetType: aoe`.
 - **Not** aftereffect; flat grants stay as ATMs.
 - Ambiguous → `needs_review`.
 
-Examples: Caecus *"enjoying a 50% Tentacle DMG bonus"*; `"24"` Rouse realm lines *"enjoys a … bonus"*.
+**Tentacle DMG exception** (`hasEnjoyTentacleDmgClause` / `detectEnjoyTentacleDmgClause`): when enjoy is followed in the same clause by **Tentacle DMG** or **Tentacle Damage**, attach **two** locals with the **same** fields except `modifierTagName` — `Support.Tentacle Damage Up` **and** `Support.Unique Tentacle Damage Up` (Unique is a sibling, not a TDU prefix child). Both: `add_scaled`, `valueScalar` from the percent, `targetType: aoe`, `layer: add`. Use pack `lexicon.enjoyTentacleDmgModifierTagNames`. Do **not** dual-tag Counter / STR enjoy.
+
+Examples: Caecus *"enjoying a 50% Tentacle DMG bonus"* → both TDU locals `add_scaled` `0.5`; `"24"` Aequor *"enjoys a 75% Tentacle DMG bonus"* → same pair at `0.75`; other `"24"` Rouse realm lines stay a single unique_scaling.
 
 ## Always-aoe tags
 
@@ -113,4 +115,4 @@ Use pack `sourceTypeHint`: Strike/Defense/Skill1/Skill2/derived → `command car
 
 ## Locals
 
-Follow `admin-local-interaction` rules: `unique_scaling` needs modifier tag **or** dependencyStat (target null); `aftereffect` needs target tag, modifier null, op `multiply` | `add_scaled`. Kit Reader **enjoy** heuristic → unique_scaling on subject (see above); not a modifier ATM grant.
+Follow `admin-local-interaction` rules: `unique_scaling` needs modifier tag **or** dependencyStat (target null); `aftereffect` needs target tag, modifier null, op `multiply` | `add_scaled`. Kit Reader **enjoy** heuristic → unique_scaling on subject (see above); enjoy + Tentacle DMG → two add_scaled locals; not a modifier ATM grant.

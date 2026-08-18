@@ -84,24 +84,29 @@ Aurita examples: Gland Division → `0 Cost Active Damage` / `0 Cost Active Dama
 
 ## Enjoy → unique_scaling
 
-When kit text uses **enjoy / enjoys / enjoying**, scale the **subject** ATM via a **local** (`mode: unique_scaling`), not a separate Support ATM for the modifier tag.
+When kit text uses **enjoy / enjoys / enjoying**, scale the **subject** ATM via a **local** (`mode: unique_scaling`), not a separate Support ATM for the modifier tag. Default op is `multiply_one_plus`, `targetType: aoe`. Modifier tag is the **root**, not `.Fixed`.
 
-Example (Caecus): *"Deal DMG, enjoying a 50% Tentacle DMG bonus"* → parent `Attacker.Active Damage` + local:
+**Tentacle DMG:** when enjoy is followed in the same clause by Tentacle DMG / Tentacle Damage, attach **two** locals with identical fields except `modifierTagName`. Unique TDU is a sibling of TDU, not a prefix child.
 
-| Field | Value |
-| --- | --- |
-| `mode` | `unique_scaling` |
-| `modifierTagName` | `Support.Tentacle Damage Up` (modifier **root**, not `.Fixed`) |
-| `valueScalar` | `0.5` |
-| `mathOperation` | `multiply_one_plus` |
-| `targetType` | `aoe` |
+Example (Caecus): *"Deal DMG, enjoying a 50% Tentacle DMG bonus"* → parent `Attacker.Active Damage` + both locals:
 
-- Pack layers with `hasEnjoyClause: true` flag text to inspect.
+| Field | Local 1 | Local 2 |
+| --- | --- | --- |
+| `mode` | `unique_scaling` | `unique_scaling` |
+| `modifierTagName` | `Support.Tentacle Damage Up` | `Support.Unique Tentacle Damage Up` |
+| `valueScalar` | `0.5` | `0.5` |
+| `mathOperation` | `add_scaled` | `add_scaled` |
+| `targetType` | `aoe` | `aoe` |
+| `layer` | `add` | `add` |
+
+`"24"` Aequor *"enjoys a 75% Tentacle DMG bonus"* → same pair at `0.75`. Counter / STR enjoy stay a single unique_scaling.
+
+- Pack layers with `hasEnjoyClause` / `hasEnjoyTentacleDmgClause` flag text to inspect.
 - Flat grants (“gain Shield”, “+STR”) → ATM on that tag, not enjoy local.
 - Aftereffect → emit pattern only, not enjoy wording.
 - Ambiguous enjoy → `needs_review`.
 
-Helpers: [`src/lib/kit-reader/proposal-heuristics.ts`](../../src/lib/kit-reader/proposal-heuristics.ts) (`detectEnjoyClause`, `parseEnjoyPercentFactor`).
+Helpers: [`src/lib/kit-reader/proposal-heuristics.ts`](../../src/lib/kit-reader/proposal-heuristics.ts) (`detectEnjoyClause`, `detectEnjoyTentacleDmgClause`, `parseEnjoyPercentFactor`).
 
 ## Always-aoe tags
 

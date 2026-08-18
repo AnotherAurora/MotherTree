@@ -10,6 +10,14 @@ import {
 } from "@/lib/path-carver/effective-value-scalar";
 import { manifestationHitCountKey } from "@/lib/path-carver/copy-instances";
 import { combineSameTagScalar } from "@/lib/path-carver/combine-same-tag-scalar";
+import {
+  ATTACKER_TENTACLE_TAG_ID,
+  buildHitTentacleSynthetics,
+  combineTduFamilyPoolBreakdown,
+  computeHitTentacleProduct,
+  isHitTentacleSkipModifier,
+  TENTACLE_TDU_FAMILY_POOL_LABEL,
+} from "@/lib/path-carver/hit-tentacle-attack";
 import { matchesDemandTag } from "@/lib/simulator/tag-matching";
 import type { TeamRealmResolution } from "@/lib/team-data/resolve-team-realms";
 import {
@@ -66,6 +74,10 @@ const DEFERRED_STACK_AMPLIFY_SUBJECT_LABEL =
   "Deferred stack amplify (closure0)";
 const DEFERRED_AMPLIFY_SUBJECT_KEY = "deferred-amplify";
 const DEFERRED_AMPLIFY_SUBJECT_LABEL = "Deferred amplify (closure)";
+const HIT_TENTACLE_SUBJECT_LABEL = "Hit = Tentacle Attack";
+const TENTACLE_TDU_POOL_SUBJECT_LABEL = "Tentacle TDU pool";
+const SPECIAL_HIT_TENTACLE_ATTACK = "Special.Hit = Tentacle Attack";
+const TENTACLE_TDU_POOL_ID_OFFSET = 6_000_000;
 
 const SPECIAL_CORROSION_CONVERSION = "Special.Corrosion Conversion";
 const SPECIAL_EMBERS_CONVERSION = "Special.Ancient Embers Conversion";
@@ -571,6 +583,112 @@ function buildOwnerStackSnapshot(
   return { ...base, sourceName: "(aftereffect stack)" };
 }
 
+const HOP_4D_FINALIZED_SNAPSHOT_ID_OFFSET = 6_100_000;
+
+function hop4dFinalizedSnapshotId(owner: OwnerKey, tagId: number): number {
+  const awakenerId = awakenerIdFromOwnerKey(owner);
+  if (awakenerId != null) {
+    return -(HOP_4D_FINALIZED_SNAPSHOT_ID_OFFSET + awakenerId * 1000 + tagId);
+  }
+  if (owner === REALM_OWNER) {
+    return -(HOP_4D_FINALIZED_SNAPSHOT_ID_OFFSET + 1_000_000 + tagId);
+  }
+  if (owner === "posse") {
+    return -(HOP_4D_FINALIZED_SNAPSHOT_ID_OFFSET + 2_000_000 + tagId);
+  }
+  if (owner === TEAM_POOL_OWNER) {
+    return -(HOP_4D_FINALIZED_SNAPSHOT_ID_OFFSET + 3_000_000 + tagId);
+  }
+  return -(HOP_4D_FINALIZED_SNAPSHOT_ID_OFFSET + 4_000_000 + tagId);
+}
+
+function finalizedSnapshotTargetType(
+  sourceManifestations: readonly Manifestation[],
+  owner: OwnerKey,
+  tagId: number,
+): TargetType {
+  let sawOwnerMatch = false;
+  for (const m of sourceManifestations) {
+    if (m.tagId !== tagId) continue;
+    if (ownerKeyFor(m) !== owner) continue;
+    sawOwnerMatch = true;
+    if (m.targetType === "self") return "self";
+  }
+  return sawOwnerMatch ? "aoe" : "aoe";
+}
+
+function buildHop4dFinalizedSnapshot(
+  tag: Tag,
+  owner: OwnerKey,
+  value: number,
+  sourceManifestations: readonly Manifestation[],
+): Manifestation | null {
+  const snapshot = buildOwnerStackSnapshot(tag, owner, value);
+  if (snapshot == null) return null;
+  return {
+    ...snapshot,
+    id: hop4dFinalizedSnapshotId(owner, tag.id),
+    sourceName: "(hop 4d finalized)",
+    targetType: finalizedSnapshotTargetType(sourceManifestations, owner, tag.id),
+  };
+}
+
+function tentacleTduPoolManifestationId(owner: OwnerKey): number {
+  const awakenerId = awakenerIdFromOwnerKey(owner);
+  if (awakenerId != null) return -(TENTACLE_TDU_POOL_ID_OFFSET + 100 + awakenerId);
+  if (owner === REALM_OWNER) return -(TENTACLE_TDU_POOL_ID_OFFSET + 1);
+  if (owner === "posse") return -(TENTACLE_TDU_POOL_ID_OFFSET + 2);
+  return -(TENTACLE_TDU_POOL_ID_OFFSET + 3);
+}
+
+/**
+ * Per-owner Tentacle bucket for the default (non-Hit) TDU pool hop.
+ * Hits use their own channel synthetics. Other owners keep posse/realm/
+ * awakener so ownerKeyFor matches the snapshot bucket.
+ */
+function buildTentaclePoolSynthetic(
+  tag: Tag,
+  owner: OwnerKey,
+  value: number,
+): Manifestation {
+  const base = buildCreatedBaseManifestation(tag, value);
+  const awakenerId = awakenerIdFromOwnerKey(owner);
+  if (awakenerId != null) {
+    return {
+      ...base,
+      id: tentacleTduPoolManifestationId(owner),
+      sourceKind: "awakener",
+      awakenerId,
+      sourceName: TENTACLE_TDU_POOL_SUBJECT_LABEL,
+      sourceType: "tentacle",
+    };
+  }
+  if (owner === "posse") {
+    return {
+      ...base,
+      id: tentacleTduPoolManifestationId(owner),
+      sourceKind: "posse",
+      sourceName: TENTACLE_TDU_POOL_SUBJECT_LABEL,
+      sourceType: "tentacle",
+    };
+  }
+  if (owner === REALM_OWNER) {
+    return {
+      ...base,
+      id: tentacleTduPoolManifestationId(owner),
+      sourceKind: "realm",
+      sourceName: TENTACLE_TDU_POOL_SUBJECT_LABEL,
+      sourceType: "tentacle",
+    };
+  }
+  return {
+    ...base,
+    id: tentacleTduPoolManifestationId(owner),
+    sourceName: TENTACLE_TDU_POOL_SUBJECT_LABEL,
+    sourceType: "tentacle",
+  };
+}
+
 function findTagIdByName(
   tagsById: Record<number, Tag>,
   tagName: string,
@@ -846,6 +964,14 @@ function isExcluded(
 ): boolean {
   if (exclusionTagName == null || exclusionTagName === "") return false;
   return matchesDemandTag(tagName, exclusionTagName);
+}
+
+function interactionTargetsTagName(
+  interaction: DefaultInteraction,
+  tagName: string,
+): boolean {
+  if (!interaction.targetTagName) return false;
+  return matchesDemandTag(tagName, interaction.targetTagName);
 }
 
 function matchingTargetTags(
@@ -2408,6 +2534,12 @@ function collectAmplifyTargetIds(
  * 4b. Deferred thin create (combined stack, *team* OK).
  * 4c. Deferred thin amplify on created synthetics (Trigger → Damage;
  *    leafContext = synthetic sourceType null). Not a subject loop.
+ * 4d. Tentacle TDU pool: default Attacker.Tentacle (RTM, Generate) ×
+ *    (Unique TDU + TDU + TDU.Fixed) from finalized owner totals; Hit channels
+ *    ceil(hits×factor×pool) separately (realm Hit summed; each non-realm Hit
+ *    row own channel). Skip TDU-family TDI on Tentacle subjects; remaining
+ *    Tentacle TDI (Vulnerability) runs on pooled synthetics against finalized
+ *    non-Tentacle snapshots, then merge. Before Corrosion.
  * 5. Special conversions last inside Layer B.
  *
  * Phase 2b.1: isBaseStatTransfer / realm / Support isCreatedBase subjects contribute
@@ -2718,9 +2850,15 @@ export function applyInteractions(
       }
 
       const cohort = cohortForSubject(phase2Applied, subject);
+      const tentacleAmplifyLive =
+        subject.tagId === ATTACKER_TENTACLE_TAG_ID
+          ? amplifyRowsLive.filter(
+              (i) => !isHitTentacleSkipModifier(i.modifierTagId),
+            )
+          : amplifyRowsLive;
       const subjectInteractions = [
         ...restrictedCreatesLive,
-        ...amplifyRowsLive,
+        ...tentacleAmplifyLive,
       ];
       const result = runInteractionsForLeafContext({
         appliedManifestations: cohort,
@@ -2978,11 +3116,291 @@ export function applyInteractions(
     }
   }
 
-  steps.push(...opSteps, ...aftereffectSteps, ...hitCountSteps);
+  const hitTentacleSteps: ScalarMathStep[] = [];
+  const hitSynthetics = buildHitTentacleSynthetics(
+    applied,
+    awakenersById,
+    input.tagsById,
+    hitCountByKey,
+    scalarOpts,
+  );
+  const tentacleTag = input.tagsById[ATTACKER_TENTACLE_TAG_ID];
+  const tentacleUnits = new Map<OwnerKey, number>();
+  if (tentacleTag != null) {
+    for (const [owner, map] of mergedOwnerValues) {
+      if (owner === TEAM_POOL_OWNER) continue;
+      const units = map.get(tentacleTag.id) ?? 0;
+      if (units !== 0) tentacleUnits.set(owner, units);
+    }
+  }
+
+  if (
+    tentacleTag != null &&
+    (tentacleUnits.size > 0 || hitSynthetics.length > 0)
+  ) {
+    const tentacle = tentacleTag;
+    const tentacleAmplify = amplifyRows.filter(
+      (i) =>
+        interactionTargetsTagName(i, TENTACLE) &&
+        !isHitTentacleSkipModifier(i.modifierTagId),
+    );
+
+    // Layer B subject loop has already finalized TDU-family totals (incl.
+    // unique_scaling and TDU-prefix amplifies). Do not rebuild from a warmup
+    // snapshot — that path skipped unique_scaling and dropped Fixed TDU.
+    const tentaclePoolApplied = [
+      ...applied,
+      ...createdSynthetics,
+      ...deferredSynthetics,
+    ];
+    const tduOwnerValues = mergedOwnerValues;
+    const finalizedModifierSnapshots: Manifestation[] = [];
+    for (const [owner, tagMap] of mergedOwnerValues) {
+      for (const [tagId, value] of tagMap) {
+        if (tagId === ATTACKER_TENTACLE_TAG_ID || value === 0) continue;
+        const tag = input.tagsById[tagId];
+        if (!tag) continue;
+        const snapshot = buildHop4dFinalizedSnapshot(
+          tag,
+          owner,
+          value,
+          tentaclePoolApplied,
+        );
+        if (snapshot != null) finalizedModifierSnapshots.push(snapshot);
+      }
+    }
+
+    const detailParts: string[] = [];
+    const hitDetailParts: string[] = [];
+
+    const emitTentacleProduct = (
+      owner: OwnerKey,
+      productSynthetic: Manifestation,
+      before: number,
+      factor: number,
+      pool: number,
+      product: number,
+      subjectLabel: string,
+      write: "set" | "merge",
+    ): void => {
+      const sourceLabel = sourceLabelFor(
+        productSynthetic,
+        input.awakenerNamesById,
+      );
+      const subjectKey = manifestationHitCountKey(productSynthetic);
+      hitTentacleSteps.push({
+        kind: "base",
+        tagId: tentacle.id,
+        tagName: tentacle.tagName,
+        owner,
+        scalar: before,
+        rawScalar: before,
+        sourceLabel,
+        subjectKey,
+        subjectLabel,
+        metadata: productSynthetic.metadata,
+      });
+      const pushPoolOp = (
+        modifierTagName: string,
+        modifierValue: number,
+        opBefore: number,
+        afterRaw: number,
+        after: number,
+      ): void => {
+        if (after === opBefore && afterRaw === opBefore) return;
+        hitTentacleSteps.push({
+          kind: "op",
+          tagId: tentacle.id,
+          tagName: tentacle.tagName,
+          owner,
+          op: "multiply",
+          modifierTagName,
+          modifierValue,
+          factor: 1,
+          before: opBefore,
+          afterRaw,
+          after,
+          rounded: after !== afterRaw,
+          pass: 0,
+          effectSources: [subjectLabel],
+          layer: "add",
+          leafContext: "tentacle",
+          subjectKey,
+          subjectLabel,
+        });
+      };
+      if (product !== before) {
+        const tduAfterRaw = before * pool;
+        if (factor === 1) {
+          pushPoolOp(
+            TENTACLE_TDU_FAMILY_POOL_LABEL,
+            pool,
+            before,
+            tduAfterRaw,
+            product,
+          );
+        } else {
+          pushPoolOp(
+            TENTACLE_TDU_FAMILY_POOL_LABEL,
+            pool,
+            before,
+            tduAfterRaw,
+            tduAfterRaw,
+          );
+          pushPoolOp(
+            SPECIAL_HIT_TENTACLE_ATTACK,
+            factor,
+            tduAfterRaw,
+            tduAfterRaw * factor,
+            product,
+          );
+        }
+      }
+
+      let finished = product;
+      if (product !== 0 && tentacleAmplify.length > 0) {
+        const cohort = cohortForSubject(
+          [...finalizedModifierSnapshots, productSynthetic],
+          productSynthetic,
+        );
+        const amplifyResult = runInteractionsForLeafContext({
+          appliedManifestations: cohort,
+          defaultInteractions: tentacleAmplify,
+          tagsById: input.tagsById,
+          awakenersById,
+          leafContext: "tentacle",
+          awakenerNamesById: input.awakenerNamesById,
+          recordBaseSteps: false,
+          runSpecial: false,
+          applyUniqueScalingInvents: true,
+          uniqueScalingMatchInteractions: input.defaultInteractions,
+          teamMaxHp: input.teamMaxHp,
+          realmMasteryTotal: input.realmMasteryTotal,
+          teamRealms: input.teamRealms,
+        });
+        finished = getOwnerValue(
+          amplifyResult.ownerValues,
+          owner,
+          productSynthetic.tagId,
+        );
+        for (const step of amplifyResult.steps) {
+          if (step.kind !== "op") continue;
+          if (step.tagId !== productSynthetic.tagId) continue;
+          hitTentacleSteps.push({
+            ...step,
+            subjectKey,
+            subjectLabel,
+            leafContext: "tentacle",
+          });
+        }
+      }
+
+      if (write === "set") {
+        setOwnerValue(mergedOwnerValues, owner, tentacle.id, finished);
+      } else if (finished !== 0) {
+        mergeOwnerValue(
+          mergedOwnerValues,
+          owner,
+          tentacle,
+          tentacle.id,
+          finished,
+        );
+      }
+    };
+
+    for (const owner of [...tentacleUnits.keys()].sort()) {
+      const units = tentacleUnits.get(owner) ?? 0;
+      if (units === 0) continue;
+      const poolBreakdown = combineTduFamilyPoolBreakdown(
+        tduOwnerValues,
+        tentaclePoolApplied,
+        owner,
+        input.tagsById,
+      );
+      const pool = poolBreakdown.total;
+      const product = computeHitTentacleProduct(units, 1, pool);
+      const productSynthetic = buildTentaclePoolSynthetic(
+        tentacle,
+        owner,
+        product,
+      );
+      detailParts.push(
+        `${owner} units=${units} pool=${pool}` +
+          ` (Unique=${poolBreakdown.unique}+TDU=${poolBreakdown.tdu}+Fixed=${poolBreakdown.fixed})` +
+          ` product=${product}`,
+      );
+      emitTentacleProduct(
+        owner,
+        productSynthetic,
+        units,
+        1,
+        pool,
+        product,
+        TENTACLE_TDU_POOL_SUBJECT_LABEL,
+        "set",
+      );
+    }
+
+    for (const hit of hitSynthetics) {
+      const owner = ownerKeyFor(hit.manifestation);
+      const poolBreakdown = combineTduFamilyPoolBreakdown(
+        tduOwnerValues,
+        tentaclePoolApplied,
+        owner,
+        input.tagsById,
+      );
+      const pool = poolBreakdown.total;
+      const product = computeHitTentacleProduct(hit.hits, hit.factor, pool);
+      const productSynthetic = {
+        ...hit.manifestation,
+        valueScalar: product,
+      };
+      const hitLine =
+        `${owner} channel=${hit.channelLabel} hits=${hit.hits}` +
+        ` attacks=${hit.attacks} factor=${hit.factor}` +
+        ` pool=${pool} (Unique=${poolBreakdown.unique}+TDU=${poolBreakdown.tdu}+Fixed=${poolBreakdown.fixed})` +
+        ` product=${product}`;
+      detailParts.push(hitLine);
+      hitDetailParts.push(hitLine);
+      emitTentacleProduct(
+        owner,
+        productSynthetic,
+        hit.hits,
+        hit.factor,
+        pool,
+        product,
+        HIT_TENTACLE_SUBJECT_LABEL,
+        "merge",
+      );
+    }
+
+    if (detailParts.length > 0) {
+      hitTentacleSteps.push({
+        kind: "special",
+        label: TENTACLE_TDU_POOL_SUBJECT_LABEL,
+        detail: detailParts.join("; "),
+      });
+    }
+    if (hitDetailParts.length > 0) {
+      hitTentacleSteps.push({
+        kind: "special",
+        label: "Special.Hit = Tentacle Attack",
+        detail: hitDetailParts.join("; "),
+      });
+    }
+  }
+
+  steps.push(
+    ...opSteps,
+    ...aftereffectSteps,
+    ...hitCountSteps,
+    ...hitTentacleSteps,
+  );
 
   const phase2AppliedForSpecial = [
     ...phase2Applied,
     ...deferredSynthetics,
+    ...hitSynthetics.map((h) => h.manifestation),
   ];
 
   // Special conversions once on merged totals (all applied + created for presence).
