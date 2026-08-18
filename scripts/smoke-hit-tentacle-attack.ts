@@ -7,8 +7,10 @@ import { manifestationHitCountKey } from "../src/lib/path-carver/copy-instances"
 import { buildAwakenersById } from "../src/lib/path-carver/effective-value-scalar";
 import {
   ATTACKER_ACTIVE_DAMAGE_TAG_ID,
+  ATTACKER_POISON_FIXED_TAG_ID,
   ATTACKER_TENTACLE_TAG_ID,
   SPECIAL_HIT_TENTACLE_ATTACK_TAG_ID,
+  SPECIAL_TENTACLE_HIT_POISON_TAG_ID,
   SUPPORT_TENTACLE_DAMAGE_UP_FIXED_TAG_ID,
   SUPPORT_TENTACLE_DAMAGE_UP_TAG_ID,
   SUPPORT_UNIQUE_TENTACLE_DAMAGE_UP_TAG_ID,
@@ -134,7 +136,17 @@ const hitTag = makeTag(SPECIAL_HIT_TENTACLE_ATTACK_TAG_ID, "Special.Hit = Tentac
   isAdditive: true,
   layer: null,
 });
+const tentacleHitPoisonTag = makeTag(
+  SPECIAL_TENTACLE_HIT_POISON_TAG_ID,
+  "Special.Tentacle Hit = Poison",
+  {
+    layer: null,
+  },
+);
 const tentacleTag = makeTag(ATTACKER_TENTACLE_TAG_ID, "Attacker.Tentacle", {
+  layer: "pre_add",
+});
+const poisonFixedTag = makeTag(ATTACKER_POISON_FIXED_TAG_ID, "Attacker.Poison.Fixed", {
   layer: "pre_add",
 });
 const activeTag = makeTag(ATTACKER_ACTIVE_DAMAGE_TAG_ID, "Attacker.Active Damage", {
@@ -162,6 +174,9 @@ const generateTempTag = makeTag(57, "Support.Generate Temporary Tentacle", {
 });
 const strUpTag = makeTag(31, "Support.STR Up");
 const vulnTag = makeTag(200, "Support.Debuff.Tentacle Vulnerability", {
+  isPercent: true,
+});
+const poisonAmpTag = makeTag(210, "Support.Increase Gain.Poison.Fixed", {
   isPercent: true,
 });
 const conversionTag = makeTag(300, "Special.Corrosion Conversion");
@@ -215,10 +230,20 @@ const vulnToTentacle = makeInteraction({
   targetTagName: tentacleTag.tagName,
   mathOperation: "multiply_one_plus",
 });
+const poisonAmpToFixed = makeInteraction({
+  id: 211,
+  modifierTagId: poisonAmpTag.id,
+  modifierTagName: poisonAmpTag.tagName,
+  targetTagId: poisonFixedTag.id,
+  targetTagName: poisonFixedTag.tagName,
+  mathOperation: "multiply_one_plus",
+});
 
 const coreTags: Record<number, Tag> = {
   [hitTag.id]: hitTag,
+  [tentacleHitPoisonTag.id]: tentacleHitPoisonTag,
   [tentacleTag.id]: tentacleTag,
+  [poisonFixedTag.id]: poisonFixedTag,
   [activeTag.id]: activeTag,
   [strikeTag.id]: strikeTag,
   [tduTag.id]: tduTag,
@@ -1454,6 +1479,190 @@ console.log("Part U — finalized TDU pool then Vulnerability applies after pool
       s.after === expectedTotal,
   );
   assert(vulnOp != null, "Vulnerability op applies to the pooled Tentacle synthetic");
+}
+
+console.log("Part O — Tentacle Hit Poison counts LayerA + RTM + Generate + Hit before TDU");
+{
+  const awakener = makeAwakener({ id: 1 });
+  const active = makeManifestation({
+    id: 1,
+    tagId: activeTag.id,
+    tagName: activeTag.tagName,
+    valueScalar: 0.2,
+  });
+  const hit = makeManifestation({
+    id: 2,
+    tagId: hitTag.id,
+    tagName: hitTag.tagName,
+    valueScalar: 0.5,
+    targetType: "aoe",
+  });
+  const poison = makeManifestation({
+    id: 3,
+    tagId: tentacleHitPoisonTag.id,
+    tagName: tentacleHitPoisonTag.tagName,
+    valueScalar: 4,
+    targetType: "aoe",
+  });
+  const tdu = makeManifestation({
+    id: 4,
+    tagId: tduTag.id,
+    tagName: tduTag.tagName,
+    valueScalar: 100,
+    targetType: "aoe",
+  });
+  const generate = makeManifestation({
+    id: 5,
+    tagId: generateTag.id,
+    tagName: generateTag.tagName,
+    valueScalar: 1,
+    targetType: "aoe",
+  });
+  const layerATentacle = makeManifestation({
+    id: 6,
+    tagId: tentacleTag.id,
+    tagName: tentacleTag.tagName,
+    valueScalar: 2,
+    sourceType: "tentacle",
+    targetType: "aoe",
+  });
+  const rtmTentacle = makeManifestation({
+    id: 7,
+    sourceKind: "realm",
+    awakenerId: null,
+    slotIndex: null,
+    sourceName: "aequor",
+    tagId: tentacleTag.id,
+    tagName: tentacleTag.tagName,
+    valueScalar: 4,
+    sourceType: "tentacle",
+    targetType: "aoe",
+  });
+  const manifests = [active, hit, poison, tdu, generate, layerATentacle, rtmTentacle];
+  const tagsById: Record<number, Tag> = {
+    ...coreTags,
+    [generateTag.id]: generateTag,
+  };
+  const result = applyInteractions({
+    manifestations: manifests,
+    appliedManifestations: manifests,
+    defaultInteractions: [generateToTentacle],
+    tagsById,
+    awakenersById: buildAwakenersById([awakener]),
+    hitCountByManifestationKey: hitMap(manifests, 3),
+  });
+  assert(
+    (result.totalsByTagId.get(tentacleTag.id) ?? 0) === 850,
+    `Tentacle total 200+400+100+150=850 (got ${result.totalsByTagId.get(tentacleTag.id)})`,
+  );
+  assert(
+    (result.totalsByTagId.get(poisonFixedTag.id) ?? 0) === 40,
+    `Poison.Fixed uses raw attacks 5×4 + 4×4 + 1×4 = 40 (got ${result.totalsByTagId.get(poisonFixedTag.id)})`,
+  );
+  const poisonSpecial = result.steps.find(
+    (s) => s.kind === "special" && s.label === tentacleHitPoisonTag.tagName,
+  );
+  assert(poisonSpecial != null, "tentacle poison special step recorded");
+}
+
+console.log("Part P — Tentacle Hit Poison self stays on owning awakener");
+{
+  const a1 = makeAwakener({ id: 1 });
+  const a2 = makeAwakener({ id: 2 });
+  const poisonSelf = makeManifestation({
+    id: 1,
+    awakenerId: 1,
+    tagId: tentacleHitPoisonTag.id,
+    tagName: tentacleHitPoisonTag.tagName,
+    valueScalar: 3,
+    targetType: "self",
+  });
+  const tentacle1 = makeManifestation({
+    id: 2,
+    awakenerId: 1,
+    slotIndex: 0,
+    tagId: tentacleTag.id,
+    tagName: tentacleTag.tagName,
+    valueScalar: 2,
+    sourceType: "tentacle",
+    targetType: "aoe",
+  });
+  const tentacle2 = makeManifestation({
+    id: 3,
+    awakenerId: 2,
+    slotIndex: 1,
+    tagId: tentacleTag.id,
+    tagName: tentacleTag.tagName,
+    valueScalar: 5,
+    sourceType: "tentacle",
+    targetType: "aoe",
+  });
+  const manifests = [poisonSelf, tentacle1, tentacle2];
+  const result = applyInteractions({
+    manifestations: manifests,
+    appliedManifestations: manifests,
+    defaultInteractions: [],
+    tagsById: coreTags,
+    awakenersById: buildAwakenersById([a1, a2]),
+  });
+  assert(
+    (result.totalsByTagId.get(poisonFixedTag.id) ?? 0) === 6,
+    `self poison only owner 1: 2×3=6 (got ${result.totalsByTagId.get(poisonFixedTag.id)})`,
+  );
+}
+
+console.log("Part Q — Tentacle Hit Poison ignores TDU count and still amplifies Poison.Fixed");
+{
+  const awakener = makeAwakener({ id: 1 });
+  const tentacle = makeManifestation({
+    id: 1,
+    tagId: tentacleTag.id,
+    tagName: tentacleTag.tagName,
+    valueScalar: 2,
+    sourceType: "tentacle",
+    targetType: "aoe",
+  });
+  const poison = makeManifestation({
+    id: 2,
+    tagId: tentacleHitPoisonTag.id,
+    tagName: tentacleHitPoisonTag.tagName,
+    valueScalar: 5,
+    targetType: "aoe",
+  });
+  const tdu = makeManifestation({
+    id: 3,
+    tagId: tduTag.id,
+    tagName: tduTag.tagName,
+    valueScalar: 100,
+    targetType: "aoe",
+  });
+  const poisonAmp = makeManifestation({
+    id: 4,
+    tagId: poisonAmpTag.id,
+    tagName: poisonAmpTag.tagName,
+    valueScalar: 0.2,
+    targetType: "aoe",
+  });
+  const manifests = [tentacle, poison, tdu, poisonAmp];
+  const tagsById: Record<number, Tag> = {
+    ...coreTags,
+    [poisonAmpTag.id]: poisonAmpTag,
+  };
+  const result = applyInteractions({
+    manifestations: manifests,
+    appliedManifestations: manifests,
+    defaultInteractions: [poisonAmpToFixed],
+    tagsById,
+    awakenersById: buildAwakenersById([awakener]),
+  });
+  assert(
+    (result.totalsByTagId.get(tentacleTag.id) ?? 0) === 200,
+    `Tentacle still uses TDU 2×100=200 (got ${result.totalsByTagId.get(tentacleTag.id)})`,
+  );
+  assert(
+    (result.totalsByTagId.get(poisonFixedTag.id) ?? 0) === 12,
+    `Poison.Fixed uses raw attacks 2×5=10, then ×1.2 = 12 (got ${result.totalsByTagId.get(poisonFixedTag.id)})`,
+  );
 }
 
 console.log("\nAll Hit = Tentacle Attack smoke checks passed.");

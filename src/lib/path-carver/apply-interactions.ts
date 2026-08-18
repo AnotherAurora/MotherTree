@@ -11,11 +11,15 @@ import {
 import { manifestationHitCountKey } from "@/lib/path-carver/copy-instances";
 import { combineSameTagScalar } from "@/lib/path-carver/combine-same-tag-scalar";
 import {
+  ATTACKER_POISON_FIXED_TAG_ID,
   ATTACKER_TENTACLE_TAG_ID,
   buildHitTentacleSynthetics,
+  collectPrePoolTentacleAttackBuckets,
+  combineTentacleHitPoisonScalarForOwner,
   combineTduFamilyPoolBreakdown,
   computeHitTentacleProduct,
   isHitTentacleSkipModifier,
+  SPECIAL_TENTACLE_HIT_POISON_TAG_ID,
   TENTACLE_TDU_FAMILY_POOL_LABEL,
 } from "@/lib/path-carver/hit-tentacle-attack";
 import { matchesDemandTag } from "@/lib/simulator/tag-matching";
@@ -75,15 +79,19 @@ const DEFERRED_STACK_AMPLIFY_SUBJECT_LABEL =
 const DEFERRED_AMPLIFY_SUBJECT_KEY = "deferred-amplify";
 const DEFERRED_AMPLIFY_SUBJECT_LABEL = "Deferred amplify (closure)";
 const HIT_TENTACLE_SUBJECT_LABEL = "Hit = Tentacle Attack";
+const TENTACLE_HIT_POISON_SUBJECT_LABEL = "Tentacle Hit = Poison";
 const TENTACLE_TDU_POOL_SUBJECT_LABEL = "Tentacle TDU pool";
 const SPECIAL_HIT_TENTACLE_ATTACK = "Special.Hit = Tentacle Attack";
+const SPECIAL_TENTACLE_HIT_POISON = "Special.Tentacle Hit = Poison";
 const TENTACLE_TDU_POOL_ID_OFFSET = 6_000_000;
+const TENTACLE_POISON_FIXED_ID_OFFSET = 6_200_000;
 
 const SPECIAL_CORROSION_CONVERSION = "Special.Corrosion Conversion";
 const SPECIAL_EMBERS_CONVERSION = "Special.Ancient Embers Conversion";
 const DEBUFF_CORROSION = "Support.Debuff.Corrosion";
 const DEBUFF_EMBERS = "Support.Debuff.Ancient Embers";
 const ACTIVE_DAMAGE = "Attacker.Active Damage";
+const ATTACKER_POISON_FIXED = "Attacker.Poison.Fixed";
 const TENTACLE = "Attacker.Tentacle";
 const NON_ACTIVE_DAMAGE = "Attacker.Non-Active Damage";
 const CORROSION_DAMAGE = "Attacker.Corrosion Damage";
@@ -641,6 +649,16 @@ function tentacleTduPoolManifestationId(owner: OwnerKey): number {
   return -(TENTACLE_TDU_POOL_ID_OFFSET + 3);
 }
 
+function tentaclePoisonFixedManifestationId(owner: OwnerKey): number {
+  const awakenerId = awakenerIdFromOwnerKey(owner);
+  if (awakenerId != null) {
+    return -(TENTACLE_POISON_FIXED_ID_OFFSET + 100 + awakenerId);
+  }
+  if (owner === REALM_OWNER) return -(TENTACLE_POISON_FIXED_ID_OFFSET + 1);
+  if (owner === "posse") return -(TENTACLE_POISON_FIXED_ID_OFFSET + 2);
+  return -(TENTACLE_POISON_FIXED_ID_OFFSET + 3);
+}
+
 /**
  * Per-owner Tentacle bucket for the default (non-Hit) TDU pool hop.
  * Hits use their own channel synthetics. Other owners keep posse/realm/
@@ -686,6 +704,53 @@ function buildTentaclePoolSynthetic(
     id: tentacleTduPoolManifestationId(owner),
     sourceName: TENTACLE_TDU_POOL_SUBJECT_LABEL,
     sourceType: "tentacle",
+  };
+}
+
+function buildTentaclePoisonFixedSynthetic(
+  tag: Tag,
+  owner: OwnerKey,
+  value: number,
+): Manifestation {
+  const base = buildCreatedBaseManifestation(tag, value);
+  const awakenerId = awakenerIdFromOwnerKey(owner);
+  if (awakenerId != null) {
+    return {
+      ...base,
+      id: tentaclePoisonFixedManifestationId(owner),
+      sourceKind: "awakener",
+      awakenerId,
+      sourceName: TENTACLE_HIT_POISON_SUBJECT_LABEL,
+      sourceType: "tentacle",
+      metadata: "Special.Tentacle Hit = Poison",
+    };
+  }
+  if (owner === "posse") {
+    return {
+      ...base,
+      id: tentaclePoisonFixedManifestationId(owner),
+      sourceKind: "posse",
+      sourceName: TENTACLE_HIT_POISON_SUBJECT_LABEL,
+      sourceType: "tentacle",
+      metadata: "Special.Tentacle Hit = Poison",
+    };
+  }
+  if (owner === REALM_OWNER) {
+    return {
+      ...base,
+      id: tentaclePoisonFixedManifestationId(owner),
+      sourceKind: "realm",
+      sourceName: TENTACLE_HIT_POISON_SUBJECT_LABEL,
+      sourceType: "tentacle",
+      metadata: "Special.Tentacle Hit = Poison",
+    };
+  }
+  return {
+    ...base,
+    id: tentaclePoisonFixedManifestationId(owner),
+    sourceName: TENTACLE_HIT_POISON_SUBJECT_LABEL,
+    sourceType: "tentacle",
+    metadata: "Special.Tentacle Hit = Poison",
   };
 }
 
@@ -3133,6 +3198,10 @@ export function applyInteractions(
       if (units !== 0) tentacleUnits.set(owner, units);
     }
   }
+  const prePoolTentacleBuckets = collectPrePoolTentacleAttackBuckets(
+    mergedOwnerValues,
+    hitSynthetics,
+  );
 
   if (
     tentacleTag != null &&
@@ -3172,6 +3241,7 @@ export function applyInteractions(
 
     const detailParts: string[] = [];
     const hitDetailParts: string[] = [];
+    const poisonDetailParts: string[] = [];
 
     const emitTentacleProduct = (
       owner: OwnerKey,
@@ -3308,6 +3378,140 @@ export function applyInteractions(
       }
     };
 
+    const poisonFixedTag = input.tagsById[ATTACKER_POISON_FIXED_TAG_ID];
+    const poisonFixedAmplify = amplifyRows.filter((i) =>
+      interactionTargetsTagName(i, ATTACKER_POISON_FIXED),
+    );
+    if (
+      poisonFixedTag != null &&
+      input.tagsById[SPECIAL_TENTACLE_HIT_POISON_TAG_ID] != null &&
+      prePoolTentacleBuckets.length > 0
+    ) {
+      const attacksByOwner = new Map<OwnerKey, number>();
+      const ownerBucketDetails = new Map<OwnerKey, string[]>();
+      for (const bucket of prePoolTentacleBuckets) {
+        attacksByOwner.set(
+          bucket.owner,
+          (attacksByOwner.get(bucket.owner) ?? 0) + bucket.attacks,
+        );
+        const label =
+          bucket.kind === "existing_tentacle"
+            ? `existing=${bucket.attacks}`
+            : `hit:${bucket.channelLabel}=${bucket.attacks}`;
+        const details = ownerBucketDetails.get(bucket.owner) ?? [];
+        details.push(label);
+        ownerBucketDetails.set(bucket.owner, details);
+      }
+
+      for (const owner of [...attacksByOwner.keys()].sort()) {
+        const attacks = attacksByOwner.get(owner) ?? 0;
+        if (attacks === 0) continue;
+        const factor = combineTentacleHitPoisonScalarForOwner(
+          applied,
+          owner,
+          awakenersById,
+          input.tagsById,
+          scalarOpts,
+        );
+        if (factor === 0) continue;
+        const product = attacks * factor;
+        if (product === 0) continue;
+        const productSynthetic = buildTentaclePoisonFixedSynthetic(
+          poisonFixedTag,
+          owner,
+          product,
+        );
+        const sourceLabel = sourceLabelFor(
+          productSynthetic,
+          input.awakenerNamesById,
+        );
+        const subjectKey = manifestationHitCountKey(productSynthetic);
+        hitTentacleSteps.push({
+          kind: "base",
+          tagId: poisonFixedTag.id,
+          tagName: poisonFixedTag.tagName,
+          owner,
+          scalar: product,
+          rawScalar: product,
+          sourceLabel,
+          subjectKey,
+          subjectLabel: TENTACLE_HIT_POISON_SUBJECT_LABEL,
+          metadata: productSynthetic.metadata,
+        });
+        hitTentacleSteps.push({
+          kind: "op",
+          tagId: poisonFixedTag.id,
+          tagName: poisonFixedTag.tagName,
+          owner,
+          op: "multiply",
+          modifierTagName: SPECIAL_TENTACLE_HIT_POISON,
+          modifierValue: factor,
+          factor: 1,
+          before: attacks,
+          afterRaw: product,
+          after: product,
+          rounded: false,
+          pass: 0,
+          effectSources: [TENTACLE_HIT_POISON_SUBJECT_LABEL],
+          layer: "add",
+          leafContext: "tentacle",
+          subjectKey,
+          subjectLabel: TENTACLE_HIT_POISON_SUBJECT_LABEL,
+        });
+
+        let finished = product;
+        if (poisonFixedAmplify.length > 0) {
+          const cohort = cohortForSubject(
+            [...finalizedModifierSnapshots, productSynthetic],
+            productSynthetic,
+          );
+          const amplifyResult = runInteractionsForLeafContext({
+            appliedManifestations: cohort,
+            defaultInteractions: poisonFixedAmplify,
+            tagsById: input.tagsById,
+            awakenersById,
+            leafContext: "tentacle",
+            awakenerNamesById: input.awakenerNamesById,
+            recordBaseSteps: false,
+            runSpecial: false,
+            applyUniqueScalingInvents: true,
+            uniqueScalingMatchInteractions: input.defaultInteractions,
+            teamMaxHp: input.teamMaxHp,
+            realmMasteryTotal: input.realmMasteryTotal,
+            teamRealms: input.teamRealms,
+          });
+          finished = getOwnerValue(
+            amplifyResult.ownerValues,
+            owner,
+            productSynthetic.tagId,
+          );
+          for (const step of amplifyResult.steps) {
+            if (step.kind !== "op") continue;
+            if (step.tagId !== productSynthetic.tagId) continue;
+            hitTentacleSteps.push({
+              ...step,
+              subjectKey,
+              subjectLabel: TENTACLE_HIT_POISON_SUBJECT_LABEL,
+              leafContext: "tentacle",
+            });
+          }
+        }
+
+        mergeOwnerValue(
+          mergedOwnerValues,
+          owner,
+          poisonFixedTag,
+          poisonFixedTag.id,
+          finished,
+        );
+        poisonDetailParts.push(
+          `${owner} attacks=${attacks} factor=${factor} product=${product}` +
+            ` buckets=[${(ownerBucketDetails.get(owner) ?? []).join(", ")}]` +
+            (finished !== product ? ` finished=${finished}` : ""),
+        );
+      }
+    }
+
     for (const owner of [...tentacleUnits.keys()].sort()) {
       const units = tentacleUnits.get(owner) ?? 0;
       if (units === 0) continue;
@@ -3386,6 +3590,13 @@ export function applyInteractions(
         kind: "special",
         label: "Special.Hit = Tentacle Attack",
         detail: hitDetailParts.join("; "),
+      });
+    }
+    if (poisonDetailParts.length > 0) {
+      hitTentacleSteps.push({
+        kind: "special",
+        label: SPECIAL_TENTACLE_HIT_POISON,
+        detail: poisonDetailParts.join("; "),
       });
     }
   }

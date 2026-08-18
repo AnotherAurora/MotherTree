@@ -32,6 +32,12 @@ export const SUPPORT_UNIQUE_TENTACLE_DAMAGE_UP_TAG_ID = 122;
 /** Special.Hit = Tentacle Attack */
 export const SPECIAL_HIT_TENTACLE_ATTACK_TAG_ID = 151;
 
+/** Attacker.Poison.Fixed */
+export const ATTACKER_POISON_FIXED_TAG_ID = 71;
+
+/** Special.Tentacle Hit = Poison */
+export const SPECIAL_TENTACLE_HIT_POISON_TAG_ID = 165;
+
 /** Exact TDU-family ids summed into the Tentacle product pool. */
 export const HIT_TENTACLE_TDU_FAMILY_TAG_IDS: readonly number[] = [
   SUPPORT_UNIQUE_TENTACLE_DAMAGE_UP_TAG_ID,
@@ -50,8 +56,10 @@ export const HIT_TENTACLE_SKIP_MODIFIER_TAG_IDS: ReadonlySet<number> = new Set(
 
 export const REQUIRED_HIT_TENTACLE_TAG_IDS: readonly number[] = [
   SPECIAL_HIT_TENTACLE_ATTACK_TAG_ID,
+  SPECIAL_TENTACLE_HIT_POISON_TAG_ID,
   ATTACKER_TENTACLE_TAG_ID,
   ATTACKER_ACTIVE_DAMAGE_TAG_ID,
+  ATTACKER_POISON_FIXED_TAG_ID,
   ...HIT_TENTACLE_TDU_FAMILY_TAG_IDS,
 ];
 
@@ -98,6 +106,13 @@ export type HitTentacleSynthetic = {
   channelLabel: string;
 };
 
+export type PrePoolTentacleAttackBucket = {
+  owner: string;
+  attacks: number;
+  channelLabel: string;
+  kind: "existing_tentacle" | "hit_channel";
+};
+
 /**
  * Stable negative id per (awakener, channel).
  * channelSeq 0 = summed realm Hit; 1+ = each non-realm Hit row.
@@ -133,6 +148,10 @@ export function isActiveDamageTagName(tagName: string): boolean {
 
 export function isHitTentacleAttackTagName(tagName: string): boolean {
   return tagName === "Special.Hit = Tentacle Attack";
+}
+
+export function isSpecialTentacleHitPoisonTagName(tagName: string): boolean {
+  return tagName === "Special.Tentacle Hit = Poison";
 }
 
 /** Matches apply-interactions ownerKeyFor for awakener / realm / posse. */
@@ -179,6 +198,15 @@ function hitAppliesToOwner(m: Manifestation, owner: string): boolean {
   return true;
 }
 
+function specialTentaclePoisonAppliesToOwner(
+  m: Manifestation,
+  owner: string,
+): boolean {
+  if (!isSpecialTentacleHitPoisonTagName(m.tagName)) return false;
+  if (m.targetType === "self" && hitConversionOwnerKey(m) !== owner) return false;
+  return true;
+}
+
 function hitRowScalar(
   m: Manifestation,
   awakenersById: ReadonlyMap<number, Awakener>,
@@ -211,6 +239,29 @@ export function combineRealmHitFactorForOwner(
       scalar,
       hitTag?.isAdditive !== false,
       hitTag?.isPercent === true,
+    );
+  }
+  return combined ?? 0;
+}
+
+export function combineTentacleHitPoisonScalarForOwner(
+  applied: readonly Manifestation[],
+  owner: string,
+  awakenersById: ReadonlyMap<number, Awakener>,
+  tagsById: Readonly<Record<number, Tag>>,
+  scalarOpts?: EffectiveScalarOptions,
+): number {
+  const poisonTag = tagsById[SPECIAL_TENTACLE_HIT_POISON_TAG_ID];
+  let combined: number | undefined;
+  for (const m of applied) {
+    if (!specialTentaclePoisonAppliesToOwner(m, owner)) continue;
+    const scalar = hitRowScalar(m, awakenersById, tagsById, scalarOpts);
+    if (scalar === 0) continue;
+    combined = combineSameTagScalar(
+      combined,
+      scalar,
+      poisonTag?.isAdditive !== false,
+      poisonTag?.isPercent === true,
     );
   }
   return combined ?? 0;
@@ -468,6 +519,39 @@ export function combineTduFamilyPoolBreakdown(
     tagsById[SUPPORT_TENTACLE_DAMAGE_UP_FIXED_TAG_ID],
   );
   return { unique, tdu, fixed, total: unique + tdu + fixed };
+}
+
+export function collectPrePoolTentacleAttackBuckets(
+  ownerValues: OwnerTagTotals,
+  hitSynthetics: readonly HitTentacleSynthetic[],
+): PrePoolTentacleAttackBucket[] {
+  const buckets: PrePoolTentacleAttackBucket[] = [];
+  for (const [owner, tagMap] of ownerValues) {
+    if (owner === TEAM_POOL_OWNER) continue;
+    const attacks = tagMap.get(ATTACKER_TENTACLE_TAG_ID) ?? 0;
+    if (attacks === 0) continue;
+    buckets.push({
+      owner,
+      attacks,
+      channelLabel: "existing",
+      kind: "existing_tentacle",
+    });
+  }
+  for (const hit of hitSynthetics) {
+    if (hit.attacks === 0) continue;
+    buckets.push({
+      owner: hit.owner,
+      attacks: hit.attacks,
+      channelLabel: hit.channelLabel,
+      kind: "hit_channel",
+    });
+  }
+  return buckets.sort(
+    (a, b) =>
+      a.owner.localeCompare(b.owner) ||
+      a.kind.localeCompare(b.kind) ||
+      a.channelLabel.localeCompare(b.channelLabel),
+  );
 }
 
 export function buildHitTentacleAttackManifestation(
