@@ -8,14 +8,30 @@ export const metadata: Metadata = {
   title: "Kit Reader",
 };
 
-export default function KitReaderPage() {
+type PageProps = {
+  searchParams: Promise<{ awakener?: string | string[] }>;
+};
+
+function parseInitialAwakenerId(
+  value: string | string[] | undefined,
+): number | null {
+  const raw = Array.isArray(value) ? value[0] : value;
+  if (raw == null || raw === "") return null;
+  const id = Number(raw);
+  if (!Number.isFinite(id) || !Number.isInteger(id) || id <= 0) return null;
+  return id;
+}
+
+export default async function KitReaderPage({ searchParams }: PageProps) {
   if (!isAdminRuntimeEnabled()) notFound();
+  const params = await searchParams;
+  const initialAwakenerId = parseInitialAwakenerId(params.awakener);
 
   return (
     <div className="flex min-h-screen">
       <Sidebar />
       <main className="flex-1 overflow-y-auto p-8">
-        <KitReaderPanel />
+        <KitReaderPanel initialAwakenerId={initialAwakenerId} />
       </main>
     </div>
   );

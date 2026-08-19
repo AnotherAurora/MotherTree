@@ -4,12 +4,14 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   useTransition,
   type ReactNode,
 } from "react";
 import Link from "next/link";
-import { Check, Copy, Loader2, Pencil, Trash2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Check, Copy, Loader2, Pencil, RefreshCw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   EditableCell,
@@ -38,6 +40,8 @@ import {
   TABLE_CONFIG_MAP,
   type FieldConfig,
 } from "@/lib/schema-config";
+
+const FOCUS_REFRESH_DEBOUNCE_MS = 300;
 
 const ATM_CONFIG = TABLE_CONFIG_MAP.awakener_tag_manifestation;
 
@@ -259,9 +263,14 @@ function formatStaticPendingValue(
   }
 }
 
-export function KitReaderPanel() {
+export function KitReaderPanel({
+  initialAwakenerId,
+}: {
+  initialAwakenerId: number | null;
+}) {
+  const router = useRouter();
   const [awakeners, setAwakeners] = useState<KitReaderAwakenerOption[]>([]);
-  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [selectedId, setSelectedId] = useState<number | null>(initialAwakenerId);
   const [pending, setPending] = useState<PendingAtmRow[]>([]);
   const [prompt, setPrompt] = useState("");
   const [packPath, setPackPath] = useState<string | null>(null);
@@ -278,10 +287,19 @@ export function KitReaderPanel() {
     Record<string, ForeignKeyOption[]>
   >({});
   const [fkLabels, setFkLabels] = useState<Record<string, string>>({});
+  const lastRefreshAtRef = useRef(0);
 
   const selected = useMemo(
     () => awakeners.find((row) => row.id === selectedId) ?? null,
     [awakeners, selectedId],
+  );
+
+  const selectAwakener = useCallback(
+    (id: number) => {
+      setSelectedId(id);
+      router.replace(`/kit-reader?awakener=${id}`, { scroll: false });
+    },
+    [router],
   );
 
   const refreshAwakeners = useCallback(async () => {
@@ -292,10 +310,13 @@ export function KitReaderPanel() {
     }
     setLoadError(null);
     setAwakeners(result.data);
-    if (selectedId == null && result.data.length > 0) {
-      setSelectedId(result.data[0].id);
+    if (result.data.length === 0) return;
+    const stillValid =
+      selectedId != null && result.data.some((row) => row.id === selectedId);
+    if (!stillValid) {
+      selectAwakener(result.data[0].id);
     }
-  }, [selectedId]);
+  }, [selectedId, selectAwakener]);
 
   const refreshPending = useCallback((awakenerId: number) => {
     startPendingLoad(async () => {
@@ -316,6 +337,11 @@ export function KitReaderPanel() {
     });
   }, []);
 
+  const refreshAll = useCallback(() => {
+    if (selectedId != null) refreshPending(selectedId);
+    void refreshAwakeners();
+  }, [selectedId, refreshPending, refreshAwakeners]);
+
   useEffect(() => {
     void refreshAwakeners();
   }, [refreshAwakeners]);
@@ -327,6 +353,27 @@ export function KitReaderPanel() {
     setPackPath(null);
     setEditingCell(null);
   }, [selectedId, refreshPending]);
+
+  useEffect(() => {
+    const onMaybeVisible = () => {
+      if (document.hidden || document.visibilityState !== "visible") return;
+      const now = Date.now();
+      if (now - lastRefreshAtRef.current < FOCUS_REFRESH_DEBOUNCE_MS) return;
+      lastRefreshAtRef.current = now;
+      refreshAll();
+    };
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") onMaybeVisible();
+    };
+
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    window.addEventListener("focus", onMaybeVisible);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.removeEventListener("focus", onMaybeVisible);
+    };
+  }, [refreshAll]);
 
   useEffect(() => {
     const inlineFkFields = INLINE_FIELDS.filter(
@@ -513,7 +560,7 @@ export function KitReaderPanel() {
           value={selectedId ?? ""}
           onChange={(event) => {
             const value = Number(event.target.value);
-            setSelectedId(Number.isFinite(value) ? value : null);
+            if (Number.isFinite(value)) selectAwakener(value);
           }}
         >
           {awakeners.map((row) => (
@@ -591,15 +638,30 @@ export function KitReaderPanel() {
               </span>
             )}
           </h2>
-          <Button
-            type="button"
-            variant="secondary"
-            disabled={busy || pending.length === 0}
-            onClick={onVerifyAll}
-          >
-            <Check className="mr-2 h-4 w-4" />
-            Verify all
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={busy || selectedId == null}
+              onClick={refreshAll}
+            >
+              {pendingLoad ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="mr-2 h-4 w-4" />
+              )}
+              Refresh
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={busy || pending.length === 0}
+              onClick={onVerifyAll}
+            >
+              <Check className="mr-2 h-4 w-4" />
+              Verify all
+            </Button>
+          </div>
         </div>
 
         {pending.length === 0 ? (
