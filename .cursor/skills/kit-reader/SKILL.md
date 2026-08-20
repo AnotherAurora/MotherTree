@@ -32,7 +32,7 @@ description: >-
 
 1. Read the kit pack: `assumptions`, skills (base + upgrades), derivedCards, talents (`atmEligible`), `ignoreList`, `lexicon.tags`, `lexicon.flavorTagSynonyms`, **`lexicon.aoeTagPrefixes`**, **`lexicon.enjoyTentacleDmgModifierTagNames`**, **`sourceLabel` / layer `sourceLabelHint`**, **`cost`**, layer **`hasEnjoyClause`** / **`hasEnjoyTentacleDmgClause`**.
 2. Propose ATM + local rows for Path Carver math.
-3. Write proposal JSON to `sample-data/kit-reader/{slug}.proposal.json` (`schemaVersion: 1`).
+3. Write proposal JSON to `sample-data/kit-reader/{slug}.proposal.json` (`schemaVersion: 1`). You may omit `metadata` — insert CLI computes it. Use `metadataSuffix` / `metadataOverride` for non-formula labels.
 4. Run:
 
 ```bash
@@ -43,17 +43,28 @@ npx tsx --env-file=.env.local scripts/insert-kit-pending.ts sample-data/kit-read
 
 ## Metadata (mandatory)
 
+> **`.Fixed` split:** `tagName` uses `.Fixed` when synonyms allow it. **Never** put `.Fixed` in inserted metadata — the insert CLI builds metadata via `buildAtmMetadata` from the kit pack `sourceLabel` + `tagName`. Use `metadataSuffix` / `metadataOverride` in the proposal only for deliberate custom labels.
+
 Do **not** put the skill/talent display name in as the source prefix (except Strike/Defense/cost-collision fallbacks already computed in the pack).
 
 ```text
 metadata = "{sourceLabel} {effectLabel}" [+ " E1"|" E2"|" E3"]
 ```
 
-- **`sourceLabel`:** use pack skill/talent `sourceLabel`, or upgrade layer `sourceLabelHint` (AbsoluteAxiom → `AA`).
-- **`effectLabel`:** `tagName` with leading `Attacker.` / `Support.` / `Defender.` / `Special.` / `When.` stripped (`Attacker.Active Damage` → `Active Damage`). Prefer `buildAtmMetadata` from `atm-metadata.ts`.
+- **`sourceLabel`:** resolved from kit pack via `sourceKitId` at insert (skill `sourceLabel`, upgrade `sourceLabelHint`, talent `Talent`/`SF`). Optional proposal `sourceLabel` only when pack lookup fails.
+- **`effectLabel`:** `tagName` with leading `Attacker.` / `Support.` / `Defender.` / `Special.` / `When.` stripped, then trailing `.Fixed` removed (`Defender.Shield.Fixed` → `Shield`; `Attacker.Active Damage` → `Active Damage`).
 - **E-suffix:** only when `requiredEnlightenment` is 1 / 2 / 3. Never append OE/AA again when source is already `OE` / `AA`.
+- **Proposal `metadata` field:** documentation-only; insert CLI ignores it. Use `metadataSuffix` (appended to canonical, e.g. `+ SF`) or `metadataOverride` (full custom label, e.g. `OE Heal *3`) when the formula is not enough.
 
-Examples: `0 Cost Active Damage`, `0 Cost Active Damage E2`, `Exalt Active Damage`, `OE STR Up`, `Talent …`, `SF …`, `Rouse …`, `AA …`, `Strike …`, `Defense …`.
+| `tagName` (DB) | Inserted metadata |
+| --- | --- |
+| `Defender.Shield.Fixed` | `{sourceLabel} Shield` |
+| `Defender.Heal.Fixed` | `{sourceLabel} Heal` |
+| `Support.Tentacle Damage Up.Fixed` | `{sourceLabel} Tentacle Damage Up` |
+| `Support.STR Up.Fixed` | `{sourceLabel} STR Up` |
+| `Attacker.Active Damage` | `{sourceLabel} Active Damage` (no `.Fixed` on this tree) |
+
+Examples: `0 Cost Active Damage`, `0 Cost Active Damage E2`, `Exalt Active Damage`, `OE STR Up`, `Talent Tentacle Damage Up + SF`, `AA Tentacle Damage Up`, `Strike …`, `Defense …`.
 
 ## isAccumulating
 

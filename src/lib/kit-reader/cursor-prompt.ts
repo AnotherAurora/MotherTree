@@ -26,7 +26,9 @@ SKeyDB commit: ${commit}
    Soulforge kit-specific only). Resolve tagName via pack
    lexicon.flavorTagSynonyms; prefer .Fixed except Attacker.Active Damage
    (rarely fixed — only Fixed Damage / Max HP when kit says so); never invent tags.
-   Build metadata as "{sourceLabel} {effectLabel}[ E1|E2|E3]" (see kit-reader.md);
+   Omit proposal metadata (CLI builds it from sourceLabel + tagName; strips trailing
+   .Fixed — e.g. tagName Support.Tentacle Damage Up.Fixed → inserted "AA Tentacle Damage Up").
+   Use metadataSuffix / metadataOverride for custom labels only;
    set isAccumulating true only for at-turn-start/end every-turn effects.
    Enjoy/enjoying/enjoys → unique_scaling local on subject ATM (not modifier ATM);
    enjoy + Tentacle DMG → two add_scaled locals (Tentacle Damage Up + Unique);
@@ -35,7 +37,8 @@ SKeyDB commit: ${commit}
    or Soulforge Astral Reign / CON·ATK·DEF% / first-Rouse Keyflare.
    AbsoluteAxiom → requiredEnlightenment 15 (AA); OverExalt → 7 (OE).
 4. Write the proposal JSON to ${proposalPath} (schemaVersion 1; see
-   src/lib/kit-reader/proposal-schema.ts). Do not set verified — the CLI forces false.
+   src/lib/kit-reader/proposal-schema.ts). Metadata is optional — insert CLI computes it.
+   Do not set verified — the CLI forces false.
 5. Run the insert CLI (pending only; aborts if pending ATMs already exist):
 
    npx tsx --env-file=.env.local scripts/insert-kit-pending.ts ${proposalPath}

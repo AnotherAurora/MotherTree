@@ -6,10 +6,15 @@
 const TAG_CATEGORY_PREFIX =
   /^(Attacker|Support|Defender|Special|When)\./;
 
-/** Strip leading category from MotherTree tag_name. */
+/**
+ * Strip leading category from MotherTree tag_name for metadata display.
+ * Trailing `.Fixed` is omitted from the effect label; proposal `tagName` still
+ * uses the full tag (including `.Fixed` when preferred by synonym rules).
+ */
 export function effectLabelFromTagName(tagName: string): string {
   const trimmed = tagName.trim();
-  return trimmed.replace(TAG_CATEGORY_PREFIX, "");
+  const withoutCategory = trimmed.replace(TAG_CATEGORY_PREFIX, "");
+  return withoutCategory.replace(/\.Fixed$/, "");
 }
 
 /** E1/E2/E3 only — not OE (7) or AA (15). */
@@ -31,6 +36,27 @@ export function buildAtmMetadata(input: {
   const suffix = enlightenMetadataSuffix(input.requiredEnlightenment);
   const base = `${input.sourceLabel.trim()} ${effect}`.trim();
   return suffix ? `${base} ${suffix}` : base;
+}
+
+/** Insert CLI: canonical metadata from pack sourceLabel + tag; optional suffix/override. */
+export function resolveInsertMetadata(input: {
+  tagName: string;
+  sourceLabel: string;
+  requiredEnlightenment?: number | null;
+  metadataOverride?: string | null;
+  metadataSuffix?: string | null;
+}): string {
+  const override = input.metadataOverride?.trim();
+  if (override) return override;
+
+  const canonical = buildAtmMetadata({
+    sourceLabel: input.sourceLabel,
+    tagName: input.tagName,
+    requiredEnlightenment: input.requiredEnlightenment,
+  });
+
+  const suffix = input.metadataSuffix?.trim();
+  return suffix ? `${canonical} ${suffix}`.trim() : canonical;
 }
 
 /** Every-turn effects: "at turn start" / "at turn end" (and close variants). */

@@ -23,8 +23,13 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
   getForeignKeyOptions,
+  resolveForeignKeyLabels,
   type ForeignKeyOption,
 } from "@/lib/actions/crud";
+import {
+  NON_POSITIVE_INSTANCE_OR_COPIES_HINT,
+  hasNonPositiveInstanceOrCopies,
+} from "@/lib/admin-form-warnings";
 import {
   exportKitPackAndPrompt,
   listKitReaderAwakeners,
@@ -40,6 +45,7 @@ import {
   TABLE_CONFIG_MAP,
   type FieldConfig,
 } from "@/lib/schema-config";
+import { cn } from "@/lib/utils";
 
 const FOCUS_REFRESH_DEBOUNCE_MS = 300;
 
@@ -165,10 +171,6 @@ function formatNullable(value: string | number | null | undefined): ReactNode {
   return value == null || value === "" ? "—" : value;
 }
 
-function formatFkId(value: number | null): ReactNode {
-  return value == null ? "—" : `#${value}`;
-}
-
 function pendingColumnLabel(name: PendingColumnName): string {
   if (name === "tag_id") return "Tag";
   if (name === "required_enlightenment") return "Enlightenment";
@@ -232,25 +234,27 @@ function readPendingFieldValue(
 function formatStaticPendingValue(
   row: PendingAtmRow,
   name: PendingColumnName,
+  fkLabels: Record<string, string>,
 ): { display: ReactNode; title?: string } {
+  const field = ATM_FIELD_BY_NAME[name];
+  const value = readPendingFieldValue(row, name);
+
   switch (name) {
     case "id":
       return { display: row.id };
-    case "awakener_id":
-      return { display: `#${row.awakener_id}` };
     case "tag_id": {
-      const label = row.tag_name ?? `tag:${row.tag_id}`;
-      return { display: label, title: label };
+      const label =
+        row.tag_name ?? formatCellDisplayValue(name, value, fkLabels);
+      return {
+        display: label,
+        title: label === "—" ? undefined : String(label),
+      };
     }
-    case "trigger_condition":
-      return { display: formatFkId(row.trigger_condition) };
     case "metadata":
       return {
         display: formatNullable(row.metadata),
         title: row.metadata ?? undefined,
       };
-    case "replaces_manifestation_id":
-      return { display: formatFkId(row.replaces_manifestation_id) };
     case "required_enlightenment":
       return {
         display:
@@ -259,7 +263,14 @@ function formatStaticPendingValue(
             : formatAwakenerEnlightenmentLabel(row.required_enlightenment),
       };
     default:
-      return { display: formatNullable(String(readPendingFieldValue(row, name))) };
+      if (field?.type === "foreignKey") {
+        const display = formatCellDisplayValue(name, value, fkLabels);
+        return {
+          display,
+          title: display === "—" ? undefined : display,
+        };
+      }
+      return { display: formatNullable(String(value)) };
   }
 }
 
@@ -325,7 +336,17 @@ export function KitReaderPanel({
         toast.error(result.error);
         return;
       }
+
+      const records = result.data.map(pendingRowToEditRecord);
+      const labelResult = await resolveForeignKeyLabels(
+        ATM_CONFIG.name,
+        records,
+      );
+
       setPending(result.data);
+      if (labelResult.success) {
+        setFkLabels(labelResult.data);
+      }
       setEditingCell(null);
       setAwakeners((prev) =>
         prev.map((row) =>
@@ -406,15 +427,10 @@ export function KitReaderPanel({
     void Promise.all(inlineFkFields.map(loadFieldOptions)).then((results) => {
       if (cancelled) return;
       const next: Record<string, ForeignKeyOption[]> = {};
-      const labels: Record<string, string> = {};
       for (const item of results) {
         next[item.fieldName] = item.options;
-        for (const option of item.options) {
-          labels[`${item.fieldName}:${option.value}`] = option.label;
-        }
       }
       setFkOptionsByField(next);
-      setFkLabels(labels);
     });
 
     return () => {
@@ -668,10 +684,22 @@ export function KitReaderPanel({
           <p className="text-sm text-zinc-500">No pending ATMs for this awakener.</p>
         ) : (
           <ul className="space-y-3">
-            {pending.map((row) => (
+            {pending.map((row) => {
+              const nonPositiveCopies = hasNonPositiveInstanceOrCopies(
+                pendingRowToEditRecord(row),
+              );
+              return (
               <li
                 key={row.id}
-                className="rounded-lg border border-border bg-white px-4 py-3"
+                className={cn(
+                  "rounded-lg border border-border bg-white px-4 py-3",
+                  nonPositiveCopies && "border-amber-200 bg-amber-50",
+                )}
+                title={
+                  nonPositiveCopies
+                    ? NON_POSITIVE_INSTANCE_OR_COPIES_HINT
+                    : undefined
+                }
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0 flex-1 space-y-3">
@@ -732,7 +760,11 @@ export function KitReaderPanel({
                           );
                         }
 
-                        const staticValue = formatStaticPendingValue(row, name);
+                        const staticValue = formatStaticPendingValue(
+                          row,
+                          name,
+                          fkLabels,
+                        );
                         return (
                           <PendingField
                             key={name}
@@ -814,7 +846,8 @@ export function KitReaderPanel({
                   </div>
                 </div>
               </li>
-            ))}
+            );
+            })}
           </ul>
         )}
       </form>

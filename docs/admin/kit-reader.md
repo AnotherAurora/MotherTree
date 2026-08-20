@@ -34,6 +34,7 @@ npx tsx --env-file=.env.local scripts/insert-kit-pending.ts sample-data/kit-read
 - Aborts if any alive pending ATM exists for that awakener. **No `--force`.**
 - Inserts only `status: "ok"` rows; always `verified = false`.
 - Two-pass for `replacesClientKey` → `replaces_manifestation_id`, then nested locals.
+- **Metadata is computed at insert** from the kit pack (`sourceKitId` → `sourceLabel`) + `tagName` via `buildAtmMetadata` (trailing `.Fixed` stripped from effect label). Proposal `metadata` is ignored. Use proposal `metadataSuffix` (e.g. `+ SF`) or `metadataOverride` (e.g. `OE Heal *3`) for custom labels. CLI output includes `metadataResolved` per row.
 
 Proposal schema: [`src/lib/kit-reader/proposal-schema.ts`](../../src/lib/kit-reader/proposal-schema.ts).
 
@@ -75,7 +76,7 @@ Helpers: [`src/lib/kit-reader/atm-metadata.ts`](../../src/lib/kit-reader/atm-met
 | Strike / Defense | card name |
 | Other Command / Derived | `{N} Cost` from SKeyDB `cost`, or **card name** if cost missing/`—` or duplicated |
 
-- `effectLabel`: strip leading `Attacker.` / `Support.` / `Defender.` / `Special.` / `When.` from `tagName`.
+- `effectLabel`: strip leading `Attacker.` / `Support.` / `Defender.` / `Special.` / `When.` from `tagName`, then strip trailing `.Fixed` (e.g. `Defender.Shield.Fixed` → `Shield`; tag resolution still prefers `.Fixed`).
 - Append `E1`/`E2`/`E3` only when `required_enlightenment` is 1/2/3. Do not double-append OE/AA.
 
 Aurita examples: Gland Division → `0 Cost Active Damage` / `0 Cost Active Damage E2`; Clamorous Ocean → `Exalt …`; Jellyfish Congregation → `OE …`; Sparkling Friendship (AbsoluteAxiom on Rouse) → `AA …` with enlightenment **15**; Happy Little Fairy → `Talent …`; Soulforge kit line → `SF …`.

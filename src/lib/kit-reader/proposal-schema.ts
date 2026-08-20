@@ -116,7 +116,14 @@ export const kitAtmProposalSchema = z.object({
   isAccumulating: z.boolean().default(false),
   isPermanent: z.boolean().default(false),
   buffTargetTypeRestriction: sourceType.nullable().default(null),
+  /** Documentation-only for proposals; insert CLI computes metadata via resolveInsertMetadata. */
   metadata: z.string().nullable().default(null),
+  /** Override pack lookup when testing; otherwise resolved from kit pack sourceKitId. */
+  sourceLabel: z.string().min(1).optional(),
+  /** Full custom metadata label; wins over buildAtmMetadata (e.g. "OE Heal *3"). */
+  metadataOverride: z.string().min(1).nullable().default(null),
+  /** Appended to CLI-built canonical metadata (e.g. "+ SF", "*3"). */
+  metadataSuffix: z.string().min(1).nullable().default(null),
   replacesClientKey: z.string().min(1).nullable().default(null),
   locals: z.array(kitLocalProposalSchema).default([]),
 });

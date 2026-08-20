@@ -26,6 +26,11 @@ import {
   defaultTargetTypeForTag,
   isAoeTagPrefix,
 } from "../src/lib/kit-reader/proposal-heuristics";
+import { resolveInsertMetadata } from "../src/lib/kit-reader/atm-metadata";
+import {
+  loadKitPackSourceLabelIndex,
+  resolveSourceLabelFromIndex,
+} from "../src/lib/kit-reader/resolve-source-label";
 
 const IGNORE_SOURCE_PATTERNS = [
   /gnostic.?potential/i,
@@ -140,11 +145,25 @@ function resolveAtmRow(
   awakenerId: number,
   maps: NameMaps,
   replacesManifestationId: number | null,
-): Record<string, unknown> {
+  sourceLabelIndex: Map<string, string>,
+): { row: Record<string, unknown>; metadata: string; sourceLabel: string } {
   const tagId = maps.tagByName.get(proposal.tagName);
   if (tagId == null) {
     throw new Error(`Unknown tagName "${proposal.tagName}"`);
   }
+
+  const sourceLabel = resolveSourceLabelFromIndex(
+    sourceLabelIndex,
+    proposal.sourceKitId,
+    proposal.sourceLabel,
+  );
+  const metadata = resolveInsertMetadata({
+    tagName: proposal.tagName,
+    sourceLabel,
+    requiredEnlightenment: proposal.requiredEnlightenment,
+    metadataOverride: proposal.metadataOverride,
+    metadataSuffix: proposal.metadataSuffix,
+  });
 
   let requiredRealm: number | null = null;
   if (proposal.requiredRealmName != null) {
@@ -182,26 +201,30 @@ function resolveAtmRow(
   }
 
   return {
-    awakener_id: awakenerId,
-    tag_id: tagId,
-    value_scalar: proposal.valueScalar,
-    dependency_stat: proposal.dependencyStat,
-    instance_count: proposal.instanceCount,
-    base_copies: proposal.baseCopies,
-    copy_provider_group_id: copyProviderGroupId,
-    required_enlightenment: proposal.requiredEnlightenment,
-    required_realm: requiredRealm,
-    source_type: proposal.sourceType,
-    target_type: targetType,
-    trigger_condition: triggerCondition,
-    is_accumulating: proposal.isAccumulating,
-    is_permanent: proposal.isPermanent,
-    buff_target_type_restriction: proposal.buffTargetTypeRestriction,
-    metadata: proposal.metadata,
-    replaces_manifestation_id: replacesManifestationId,
-    verified: false,
-    created_at: nowIso(),
-    updated_at: nowIso(),
+    row: {
+      awakener_id: awakenerId,
+      tag_id: tagId,
+      value_scalar: proposal.valueScalar,
+      dependency_stat: proposal.dependencyStat,
+      instance_count: proposal.instanceCount,
+      base_copies: proposal.baseCopies,
+      copy_provider_group_id: copyProviderGroupId,
+      required_enlightenment: proposal.requiredEnlightenment,
+      required_realm: requiredRealm,
+      source_type: proposal.sourceType,
+      target_type: targetType,
+      trigger_condition: triggerCondition,
+      is_accumulating: proposal.isAccumulating,
+      is_permanent: proposal.isPermanent,
+      buff_target_type_restriction: proposal.buffTargetTypeRestriction,
+      metadata,
+      replaces_manifestation_id: replacesManifestationId,
+      verified: false,
+      created_at: nowIso(),
+      updated_at: nowIso(),
+    },
+    metadata,
+    sourceLabel,
   };
 }
 
@@ -332,11 +355,19 @@ async function main() {
   }
 
   const maps = await loadNameMaps(supabase);
+  const sourceLabelIndex = loadKitPackSourceLabelIndex(file.kitPackPath);
   const ok = file.proposals.filter((p) => p.status === "ok");
   const skipped = file.proposals.filter((p) => p.status !== "ok");
 
   const clientKeyToId = new Map<string, number>();
   const inserted: { clientKey: string; id: number; locals: number }[] = [];
+  const metadataResolved: {
+    clientKey: string;
+    metadata: string;
+    sourceLabel: string;
+    metadataOverride?: string | null;
+    metadataSuffix?: string | null;
+  }[] = [];
   const failed: { clientKey: string; reason: string }[] = [];
 
   const bases = ok.filter((p) => p.replacesClientKey == null);
@@ -364,14 +395,31 @@ async function main() {
     }
 
     try {
-      const row = resolveAtmRow(proposal, awakener.id, maps, replacesId);
-      const id = await insertAtm(supabase, row);
+      const resolved = resolveAtmRow(
+        proposal,
+        awakener.id,
+        maps,
+        replacesId,
+        sourceLabelIndex,
+      );
+      const id = await insertAtm(supabase, resolved.row);
       clientKeyToId.set(proposal.clientKey, id);
       const localCount = await insertLocals(supabase, proposal, id, maps);
       inserted.push({
         clientKey: proposal.clientKey,
         id,
         locals: localCount,
+      });
+      metadataResolved.push({
+        clientKey: proposal.clientKey,
+        metadata: resolved.metadata,
+        sourceLabel: resolved.sourceLabel,
+        ...(proposal.metadataOverride != null
+          ? { metadataOverride: proposal.metadataOverride }
+          : {}),
+        ...(proposal.metadataSuffix != null
+          ? { metadataSuffix: proposal.metadataSuffix }
+          : {}),
       });
     } catch (error) {
       failed.push({
@@ -394,6 +442,7 @@ async function main() {
         awakener,
         insertedCount: inserted.length,
         inserted,
+        metadataResolved,
         skipped: skipped.map((p) => ({
           clientKey: p.clientKey,
           status: p.status,
