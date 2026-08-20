@@ -21,11 +21,14 @@ Kit pack: ${packPath}
 SKeyDB commit: ${commit}
 
 1. Read the kit pack (skill layers, atmEligible talents, ignore list,
-   lexicon.tags + lexicon.flavorTagSynonyms; use sourceLabel / sourceLabelHint).
+   lexicon.tags + lexicon.flavorTagSynonyms + lexicon.percentDependencyStats;
+   use sourceLabel / sourceLabelHint).
 2. Propose ATM + local rows for Path Carver (enlighten replace-vs-add;
    Soulforge kit-specific only). Resolve tagName via pack
    lexicon.flavorTagSynonyms; prefer .Fixed except Attacker.Active Damage
    (rarely fixed — only Fixed Damage / Max HP when kit says so); never invent tags.
+   When kit scales per 1% of a percent awakener stat (death_resist, damage_amp, …),
+   use value_scalar rate/10000 (see proposal-heuristics helpers), not the linear RM rate/100.
    Omit proposal metadata (CLI builds it from sourceLabel + tagName; strips trailing
    .Fixed — e.g. tagName Support.Tentacle Damage Up.Fixed → inserted "AA Tentacle Damage Up").
    Use metadataSuffix / metadataOverride for custom labels only;

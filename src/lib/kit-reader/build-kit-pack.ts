@@ -18,6 +18,7 @@ import {
   detectEnjoyClause,
   detectEnjoyTentacleDmgClause,
   enjoyTentacleDmgModifierTagNamesForPack,
+  percentDependencyStatsForPack,
 } from "./proposal-heuristics";
 import { kitPackAbsolutePath, kitPackRelativePath } from "./paths";
 
@@ -174,6 +175,7 @@ export type KitPack = {
     flavorTagSynonyms: ReturnType<typeof flavorTagSynonymsForPack>;
     aoeTagPrefixes: string[];
     enjoyTentacleDmgModifierTagNames: string[];
+    percentDependencyStats: string[];
   };
 };
 
@@ -762,6 +764,7 @@ export async function buildKitPackForAwakener(
       aoeTagPrefixes: aoeTagPrefixesForPack(),
       enjoyTentacleDmgModifierTagNames:
         enjoyTentacleDmgModifierTagNamesForPack(),
+      percentDependencyStats: percentDependencyStatsForPack(),
     },
   };
 

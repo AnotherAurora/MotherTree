@@ -1,7 +1,13 @@
 /**
  * Kit Reader proposal heuristics: enjoy → unique_scaling detection,
- * always-aoe tag prefixes. Used by pack export, insert CLI, and docs/skill.
+ * always-aoe tag prefixes, percent vs linear dependency_stat scaling.
+ * Used by pack export, insert CLI, and docs/skill.
  */
+
+import type { AllStats } from "@/lib/team-data/types";
+import { isPercentDependencyStat } from "@/lib/path-carver/effective-value-scalar";
+
+export { isPercentDependencyStat };
 
 /** ATM tag_name prefixes that always use target_type aoe (includes subtags). */
 export const AOE_TAG_PREFIXES = [
@@ -104,4 +110,119 @@ export function aoeTagPrefixesForPack(): string[] {
 /** Pack-serializable copy of enjoy Tentacle DMG unique_scaling modifier roots. */
 export function enjoyTentacleDmgModifierTagNamesForPack(): string[] {
   return [...ENJOY_TENTACLE_DMG_MODIFIER_TAG_NAMES];
+}
+
+/** Percent-style dependency_stat values (ATM scaleValueScalar uses ×100×100). */
+export const PERCENT_DEPENDENCY_STATS = [
+  "damage_amp",
+  "crit_rate",
+  "crit_dmg",
+  "sigil_yield",
+  "death_resist",
+] as const satisfies readonly AllStats[];
+
+export type PercentDependencyStat = (typeof PERCENT_DEPENDENCY_STATS)[number];
+
+/** Pack-serializable copy of percent dependency stats. */
+export function percentDependencyStatsForPack(): string[] {
+  return [...PERCENT_DEPENDENCY_STATS];
+}
+
+/**
+ * Kit: "every 1 {unit} of linear dep → +R% effect" (RM, con, atk, …).
+ * effective = value_scalar × stat → value_scalar = R / 100.
+ */
+export function valueScalarPerUnitLinearDep(ratePercentPerUnit: number): number {
+  return ratePercentPerUnit / 100;
+}
+
+/**
+ * Kit: "every 1% of percent dep → +R% effect" (DR, damage_amp, …).
+ * effective = value_scalar × 100 × (stat × 100) → value_scalar = R / 10000.
+ */
+export function valueScalarPerPercentPointOfPercentDep(
+  ratePercentPerDepPoint: number,
+): number {
+  return ratePercentPerDepPoint / 10_000;
+}
+
+/** Preview ATM effective scalar at a dependency fraction (e.g. 0.336 = 33.6% DR). Pre-ceil, for kit authoring sanity checks. */
+export function previewAtmEffectiveScalar(
+  valueScalar: number,
+  dependencyStat: AllStats,
+  depFraction: number,
+): number {
+  if (isPercentDependencyStat(dependencyStat)) {
+    return valueScalar * 100 * (depFraction * 100);
+  }
+  return valueScalar * depFraction;
+}
+
+export type EveryOnePercentRateParse = {
+  depIsPercent: true;
+  ratePercent: number;
+};
+
+/**
+ * Match "Every 1% … increase … by 0.2%" style kit lines.
+ * Returns null when pattern not found.
+ */
+export function parseEveryOnePercentRate(
+  text: string | null | undefined,
+): EveryOnePercentRateParse | null {
+  if (!text) return null;
+  const match = text.match(
+    /\bevery\s+1\s*%\s*[^.]{0,120}?\b(?:increase|gain|grant|add|by)\s*[^.]{0,40}?(\d+(?:\.\d+)?)\s*%/i,
+  );
+  if (!match) return null;
+  const ratePercent = Number(match[1]);
+  if (!Number.isFinite(ratePercent)) return null;
+  return { depIsPercent: true, ratePercent };
+}
+
+/** True when kit quote / rationale describes scaling per 1% of a dependency. */
+export function kitTextScalesPerOnePercentDep(
+  sourceQuote: string | null | undefined,
+  rationale?: string | null,
+): boolean {
+  const haystack = `${sourceQuote ?? ""} ${rationale ?? ""}`;
+  return /\bevery\s+1\s*%/i.test(haystack) || /\bper\s+1\s*%\b/i.test(haystack);
+}
+
+export type PercentDepValueScalarWarning = {
+  clientKey: string;
+  dependencyStat: AllStats;
+  valueScalar: number;
+  message: string;
+};
+
+/**
+ * Non-blocking check: value_scalar looks like linear RM rate (rate/100) on a
+ * percent dependency when kit text scales per 1%.
+ */
+export function warnPercentDepValueScalarLooksLinear(
+  clientKey: string,
+  dependencyStat: AllStats | null,
+  valueScalar: number | null,
+  sourceQuote: string,
+  rationale?: string | null,
+): PercentDepValueScalarWarning | null {
+  if (dependencyStat == null || valueScalar == null) return null;
+  if (!isPercentDependencyStat(dependencyStat)) return null;
+  if (!kitTextScalesPerOnePercentDep(sourceQuote, rationale)) return null;
+
+  const parsed = parseEveryOnePercentRate(sourceQuote);
+  const ratePercent = parsed?.ratePercent;
+  if (ratePercent == null || !Number.isFinite(ratePercent)) return null;
+
+  const expected = valueScalarPerPercentPointOfPercentDep(ratePercent);
+  const linearMistake = valueScalarPerUnitLinearDep(ratePercent);
+  if (valueScalar < linearMistake) return null;
+
+  return {
+    clientKey,
+    dependencyStat,
+    valueScalar,
+    message: `${clientKey}: value_scalar ${valueScalar} looks like linear rate/${100} on percent dep ${dependencyStat}; expected ~${expected} (rate/${10_000})`,
+  };
 }

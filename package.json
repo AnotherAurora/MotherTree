@@ -12,6 +12,7 @@
     "db:dump": "tsx --env-file=.env.local scripts/export-sample-data.ts",
     "kit:export": "tsx --env-file=.env.local scripts/export-kit-pack.ts",
     "kit:insert-pending": "tsx --env-file=.env.local scripts/insert-kit-pending.ts",
+    "smoke:kit-reader-percent-dep": "tsx scripts/smoke-kit-reader-percent-dep.ts",
     "db:dump-skeydb-assets": "tsx --env-file=.env.local scripts/export-skeydb-asset-names.ts",
     "db:seed-simulator": "tsx --env-file=.env.local scripts/seed-simulator-data.ts",
     "db:unseed-simulator": "tsx --env-file=.env.local scripts/unseed-simulator-data.ts",

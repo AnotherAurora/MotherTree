@@ -111,6 +111,29 @@ Example (Caecus): *"Deal DMG, enjoying a 50% Tentacle DMG bonus"* → parent `At
 
 Helpers: [`src/lib/kit-reader/proposal-heuristics.ts`](../../src/lib/kit-reader/proposal-heuristics.ts) (`detectEnjoyClause`, `detectEnjoyTentacleDmgClause`, `parseEnjoyPercentFactor`).
 
+## Percent vs linear `dependency_stat`
+
+Kit packs export `lexicon.percentDependencyStats` (`damage_amp`, `crit_rate`, `crit_dmg`, `sigil_yield`, `death_resist`). Path Carver scales these with `(value_scalar×100) × (stat×100)` where awakener stat is a **fraction** (33.6% → `0.336`). Linear stats (`realm_mastery`, `con`, `atk`, …) use `value_scalar × stat` only.
+
+| Kit wording | `dependency_stat` | `value_scalar` formula | Example |
+| --- | --- | --- | --- |
+| +0.2% effect **per 1** Realm Mastery | `realm_mastery` (linear) | `R / 100` | 0.2 → **0.002** (Casiah Master of Magic) |
+| +0.2% effect **per 1%** Death Resistance | `death_resist` (percent) | `R / 10000` | 0.2 → **0.00002** (Corposant Cinders Base DMG) |
+| +0.05% Shield **per 1%** DR | `death_resist` (percent) | `R / 10000` | 0.05 → **0.000005** |
+
+**Never** reuse the linear RM `0.002` pattern on percent deps — it overshoots by **100×**.
+
+Sanity check (Cinders Shield at **33.6% DR**): `0.000005 × 100 × (0.336 × 100) = 0.0168` → **+1.68%** Shield increase.
+
+Helpers in [`proposal-heuristics.ts`](../../src/lib/kit-reader/proposal-heuristics.ts):
+
+- `valueScalarPerUnitLinearDep(ratePercentPerUnit)` — linear deps
+- `valueScalarPerPercentPointOfPercentDep(ratePercentPerDepPoint)` — percent deps
+- `previewAtmEffectiveScalar(valueScalar, dependencyStat, depFraction)` — sanity preview
+- `parseEveryOnePercentRate(kitText)` — parse “Every 1% … by R%” lines
+
+Insert CLI emits non-blocking **warnings** when a percent-dep row’s `value_scalar` looks like a linear RM rate (`rate/100` instead of `rate/10000`).
+
 ## Always-aoe tags
 
 When ATM `tagName` matches any prefix in pack `lexicon.aoeTagPrefixes` (including subtags), set `targetType: "aoe"`. Insert CLI normalizes if Agent omits it.

@@ -26,11 +26,11 @@ description: >-
 3. [`docs/admin/atm-and-local-interaction-inputs.md`](docs/admin/atm-and-local-interaction-inputs.md)
 4. [`src/lib/kit-reader/proposal-schema.ts`](src/lib/kit-reader/proposal-schema.ts)
 5. [`src/lib/kit-reader/atm-metadata.ts`](src/lib/kit-reader/atm-metadata.ts) — `buildAtmMetadata` / `detectIsAccumulating`
-6. [`src/lib/kit-reader/proposal-heuristics.ts`](src/lib/kit-reader/proposal-heuristics.ts) — enjoy detection, Tentacle DMG dual locals, aoe tag prefixes
+6. [`src/lib/kit-reader/proposal-heuristics.ts`](src/lib/kit-reader/proposal-heuristics.ts) — enjoy detection, Tentacle DMG dual locals, aoe tag prefixes, **percent vs linear dependency_stat helpers**
 
 ## Workflow
 
-1. Read the kit pack: `assumptions`, skills (base + upgrades), derivedCards, talents (`atmEligible`), `ignoreList`, `lexicon.tags`, `lexicon.flavorTagSynonyms`, **`lexicon.aoeTagPrefixes`**, **`lexicon.enjoyTentacleDmgModifierTagNames`**, **`sourceLabel` / layer `sourceLabelHint`**, **`cost`**, layer **`hasEnjoyClause`** / **`hasEnjoyTentacleDmgClause`**.
+1. Read the kit pack: `assumptions`, skills (base + upgrades), derivedCards, talents (`atmEligible`), `ignoreList`, `lexicon.tags`, `lexicon.flavorTagSynonyms`, **`lexicon.aoeTagPrefixes`**, **`lexicon.percentDependencyStats`**, **`lexicon.enjoyTentacleDmgModifierTagNames`**, **`sourceLabel` / layer `sourceLabelHint`**, **`cost`**, layer **`hasEnjoyClause`** / **`hasEnjoyTentacleDmgClause`**.
 2. Propose ATM + local rows for Path Carver math.
 3. Write proposal JSON to `sample-data/kit-reader/{slug}.proposal.json` (`schemaVersion: 1`). You may omit `metadata` — insert CLI computes it. Use `metadataSuffix` / `metadataOverride` for non-formula labels.
 4. Run:
@@ -96,6 +96,7 @@ When ATM `tagName` matches any prefix in `lexicon.aoeTagPrefixes` (includes subt
 - Prefer `*.Fixed` when both parent and Fixed exist — **except** the `Attacker.Active Damage` tree (rarely fixed). Default Deal DMG → `Attacker.Active Damage`; use Fixed / Max HP only when kit text says so.
 - Ambiguous / unmapped → `status: "needs_review"` (or `unsupported` for ignore-list). Never guess a new tag string.
 - Dependency wording (Aliemus Regen Level, etc.) → `dependencyStat`, not a Support tag, when that is the ATM/local pattern.
+- **Percent vs linear `dependencyStat`:** kit says **“every 1%”** of DR / Damage AMP / Crit Rate / etc. (see pack `lexicon.percentDependencyStats`) → `valueScalarPerPercentPointOfPercentDep(R)` (`R/10000`). Kit says **“every 1”** RM / level / flat unit → `valueScalarPerUnitLinearDep(R)` (`R/100`). **Do not** copy Casiah RM `0.002` onto `death_resist`. Use `previewAtmEffectiveScalar` to sanity-check (e.g. Cinders: 33.6% DR → +1.68% Shield at `0.000005`).
 
 ## Ignore list (never propose as `ok`)
 

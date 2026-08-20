@@ -38,7 +38,7 @@ These set the row’s **effective base** before interactions.
 
 Owner for scaling = this ATM’s **awakener**.
 
-**Mental model:** blank dependency → flat number; set dependency → “rate × that awakener’s stat.”
+**Mental model:** blank dependency → flat number; set dependency → “rate × that awakener’s stat.” Kit Reader authors: see [Percent vs linear `dependency_stat`](kit-reader.md#percent-vs-linear-dependency_stat) in the Kit Reader doc when kit text says “every 1% …”.
 
 #### `instance_count` + `base_copies` + `copy_provider_group_id`
 

@@ -25,6 +25,7 @@ import {
 import {
   defaultTargetTypeForTag,
   isAoeTagPrefix,
+  warnPercentDepValueScalarLooksLinear,
 } from "../src/lib/kit-reader/proposal-heuristics";
 import { resolveInsertMetadata } from "../src/lib/kit-reader/atm-metadata";
 import {
@@ -369,6 +370,23 @@ async function main() {
     metadataSuffix?: string | null;
   }[] = [];
   const failed: { clientKey: string; reason: string }[] = [];
+  const warnings: { clientKey: string; message: string }[] = [];
+
+  for (const proposal of ok) {
+    const warning = warnPercentDepValueScalarLooksLinear(
+      proposal.clientKey,
+      proposal.dependencyStat,
+      proposal.valueScalar,
+      proposal.sourceQuote,
+      proposal.rationale,
+    );
+    if (warning != null) {
+      warnings.push({
+        clientKey: warning.clientKey,
+        message: warning.message,
+      });
+    }
+  }
 
   const bases = ok.filter((p) => p.replacesClientKey == null);
   const replacers = ok.filter((p) => p.replacesClientKey != null);
@@ -449,6 +467,7 @@ async function main() {
           unsupportedReason: p.unsupportedReason,
           rationale: p.rationale,
         })),
+        warnings,
         failed,
       },
       null,
