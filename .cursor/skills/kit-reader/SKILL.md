@@ -26,11 +26,11 @@ description: >-
 3. [`docs/admin/atm-and-local-interaction-inputs.md`](docs/admin/atm-and-local-interaction-inputs.md)
 4. [`src/lib/kit-reader/proposal-schema.ts`](src/lib/kit-reader/proposal-schema.ts)
 5. [`src/lib/kit-reader/atm-metadata.ts`](src/lib/kit-reader/atm-metadata.ts) — `buildAtmMetadata` / `detectIsAccumulating`
-6. [`src/lib/kit-reader/proposal-heuristics.ts`](src/lib/kit-reader/proposal-heuristics.ts) — enjoy detection, Tentacle DMG dual locals, aoe tag prefixes, **percent vs linear dependency_stat helpers**
+6. [`src/lib/kit-reader/proposal-heuristics.ts`](src/lib/kit-reader/proposal-heuristics.ts) — enjoy detection, Steal STR pairing, Tentacle DMG dual locals, aoe tag prefixes, **percent vs linear dependency_stat helpers**
 
 ## Workflow
 
-1. Read the kit pack: `assumptions`, skills (base + upgrades), derivedCards, **`enlightens`** (standalone E1/E2/etc.), talents (`atmEligible`), `ignoreList`, `lexicon.tags`, `lexicon.flavorTagSynonyms`, **`lexicon.aoeTagPrefixes`**, **`lexicon.percentDependencyStats`**, **`lexicon.enjoyTentacleDmgModifierTagNames`**, **`sourceLabel` / layer `sourceLabelHint`**, **`cost`**, layer **`hasEnjoyClause`** / **`hasEnjoyTentacleDmgClause`**.
+1. Read the kit pack: `assumptions`, skills (base + upgrades), derivedCards, **`enlightens`** (standalone E1/E2/etc.), talents (`atmEligible`), `ignoreList`, `lexicon.tags`, `lexicon.flavorTagSynonyms`, **`lexicon.aoeTagPrefixes`**, **`lexicon.percentDependencyStats`**, **`lexicon.enjoyTentacleDmgModifierTagNames`**, **`lexicon.stealStrTagNames`**, **`sourceLabel` / layer `sourceLabelHint`**, **`cost`**, layer **`hasEnjoyClause`** / **`hasEnjoyTentacleDmgClause`** / **`hasStealClause`**.
 2. Propose ATM + local rows for Path Carver math.
 3. Write proposal JSON to `sample-data/kit-reader/{slug}.proposal.json` (`schemaVersion: 1`). You may omit `metadata` — insert CLI computes it. Use `metadataSuffix` / `metadataOverride` for non-formula labels.
 4. Run:
@@ -85,6 +85,19 @@ When kit text has **enjoy / enjoys / enjoying** (`hasEnjoyClause: true` on pack 
 **Tentacle DMG exception** (`hasEnjoyTentacleDmgClause` / `detectEnjoyTentacleDmgClause`): when enjoy is followed in the same clause by **Tentacle DMG** or **Tentacle Damage**, attach **two** locals with the **same** fields except `modifierTagName` — `Support.Tentacle Damage Up` **and** `Support.Unique Tentacle Damage Up` (Unique is a sibling, not a TDU prefix child). Both: `add_scaled`, `valueScalar` from the percent, `targetType: self`, `layer: add`. Use pack `lexicon.enjoyTentacleDmgModifierTagNames`. Do **not** dual-tag Counter / STR enjoy.
 
 Examples: Caecus *"enjoying a 50% Tentacle DMG bonus"* → both TDU locals `add_scaled` `0.5`; `"24"` Aequor *"enjoys a 75% Tentacle DMG bonus"* → same pair at `0.75`; other `"24"` Rouse realm lines stay a single unique_scaling.
+
+## Steal → STR Down + STR Up
+
+When kit text has **`{Steal}`** / **Steal** + **STR** (`hasStealClause: true` on pack layers, or `detectStealClause`):
+
+- Propose **two** `status: ok` ATMs (not locals): `Defender.STR Down` (enemy, `aoe`) **and** `Support.STR Up.Fixed` (self gain, `aoe`).
+- **Identical** `valueScalar`, `dependencyStat`, `requiredEnlightenment`, `isPermanent`, `sourceType`, `sourceKitId`, `sourceQuote`, `metadataSuffix`.
+- Flat `Steal N STR` → `valueScalar = N / 100` (`parseStealStrScalar`). `Steal STR equal to N% of ATK` → `N / 100` + `dependencyStat: atk`.
+- Client keys: `*-str-down` + `*-str-up`.
+- **Not** Steal: plain `reduce … STR` / Exhaustion without Steal; `STR Reduction effect +N%` → `Support.Increase Gain.STR Down` only.
+- Ambiguous amount → `needs_review`. Insert CLI warns when STR Down lacks matching STR Up in the same batch.
+
+Examples (Faint): Rouse per-card `{Steal} 10 {STR}` → both at `0.1`; AA permanent Steal 25 → both at `0.25`, `isPermanent: true`; SF Steal 10% ATK → both at `0.1`, `dependencyStat: atk`.
 
 ## Always-aoe tags (ATM only)
 

@@ -113,6 +113,39 @@ Example (Caecus): *"Deal DMG, enjoying a 50% Tentacle DMG bonus"* → parent `At
 
 Helpers: [`src/lib/kit-reader/proposal-heuristics.ts`](../../src/lib/kit-reader/proposal-heuristics.ts) (`detectEnjoyClause`, `detectEnjoyTentacleDmgClause`, `parseEnjoyPercentFactor`).
 
+## Steal → STR Down + STR Up
+
+When kit text uses **`{Steal}`** or **Steal** in a clause that transfers **STR**, propose **two** `status: ok` ATMs with **identical** scalars and source context:
+
+| Half | `tagName` | `targetType` |
+| --- | --- | --- |
+| Enemy loses STR | `Defender.STR Down` | `aoe` |
+| Self gains STR | `Support.STR Up.Fixed` | `aoe` |
+
+Both rows share the same `sourceKitId`, `sourceQuote`, `sourceLayer`, `requiredEnlightenment`, `isPermanent`, `sourceType`, and `metadataSuffix`.
+
+**Scalar rules** (same as Exhaustion / Power):
+
+- Flat `Steal N STR` → `valueScalar = N / 100` (Steal 10 → `0.1`; Steal 25 → `0.25`)
+- `Steal STR equal to N% of ATK` → `valueScalar = N / 100`, `dependencyStat: atk`
+
+**Client-key convention:** `*-str-down` + `*-str-up` (e.g. Faint `rouse-per-card-str-down` / `rouse-per-card-str-up`).
+
+**Not Steal** (STR Down only — do not pair):
+
+- Plain reduction without Steal: `reduce … STR`, `[Exhaustion:Arg]` (e.g. Nutrient Absorption)
+- Amplifiers: `STR Reduction effect +N%` → `Support.Increase Gain.STR Down`
+- OE “reduces STR by N% of DEF” with no Steal keyword
+
+Ambiguous Steal+STR (amount not parseable) → `needs_review`.
+
+- Pack layers with `hasStealClause: true` flag text to inspect.
+- Use `lexicon.stealStrTagNames` for the pair tag names.
+
+Helpers: [`proposal-heuristics.ts`](../../src/lib/kit-reader/proposal-heuristics.ts) (`detectStealClause`, `parseStealStrScalar`, `warnStealMissingStrUpPair`).
+
+Insert CLI emits non-blocking **warnings** when a Steal STR Down row has no matching STR Up pair in the same proposal batch.
+
 ## Percent vs linear `dependency_stat`
 
 Kit packs export `lexicon.percentDependencyStats` (`damage_amp`, `crit_rate`, `crit_dmg`, `sigil_yield`, `death_resist`). Path Carver scales these with `(value_scalar×100) × (stat×100)` where awakener stat is a **fraction** (33.6% → `0.336`). Linear stats (`realm_mastery`, `con`, `atk`, …) use `value_scalar × stat` only.

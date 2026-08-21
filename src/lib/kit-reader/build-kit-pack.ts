@@ -17,7 +17,9 @@ import {
   aoeTagPrefixesForPack,
   detectEnjoyClause,
   detectEnjoyTentacleDmgClause,
+  detectStealClause,
   enjoyTentacleDmgModifierTagNamesForPack,
+  stealStrTagNamesForPack,
   percentDependencyStatsForPack,
 } from "./proposal-heuristics";
 import { kitPackAbsolutePath, kitPackRelativePath } from "./paths";
@@ -120,6 +122,8 @@ export type ExpandedLayer = {
   hasEnjoyClause: boolean;
   /** Enjoy clause is followed by Tentacle DMG / Tentacle Damage — dual TDU locals. */
   hasEnjoyTentacleDmgClause: boolean;
+  /** Kit text contains {Steal} / Steal + STR — dual STR Down + STR Up ATMs. */
+  hasStealClause: boolean;
 };
 
 export type KitPackSkill = {
@@ -198,6 +202,7 @@ export type KitPack = {
     flavorTagSynonyms: ReturnType<typeof flavorTagSynonymsForPack>;
     aoeTagPrefixes: string[];
     enjoyTentacleDmgModifierTagNames: string[];
+    stealStrTagNames: string[];
     percentDependencyStats: string[];
   };
 };
@@ -288,7 +293,7 @@ function expandTemplate(
 function layerFromExpanded(
   partial: Omit<
     ExpandedLayer,
-    "hasEnjoyClause" | "hasEnjoyTentacleDmgClause"
+    "hasEnjoyClause" | "hasEnjoyTentacleDmgClause" | "hasStealClause"
   >,
   expandedText: string,
 ): ExpandedLayer {
@@ -296,6 +301,7 @@ function layerFromExpanded(
     ...partial,
     hasEnjoyClause: detectEnjoyClause(expandedText),
     hasEnjoyTentacleDmgClause: detectEnjoyTentacleDmgClause(expandedText),
+    hasStealClause: detectStealClause(expandedText),
   };
 }
 
@@ -857,6 +863,7 @@ export async function buildKitPackForAwakener(
       aoeTagPrefixes: aoeTagPrefixesForPack(),
       enjoyTentacleDmgModifierTagNames:
         enjoyTentacleDmgModifierTagNamesForPack(),
+      stealStrTagNames: stealStrTagNamesForPack(),
       percentDependencyStats: percentDependencyStatsForPack(),
     },
   };

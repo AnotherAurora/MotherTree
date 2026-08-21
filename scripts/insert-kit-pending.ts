@@ -26,6 +26,7 @@ import {
   defaultTargetTypeForTag,
   isAoeTagPrefix,
   warnPercentDepValueScalarLooksLinear,
+  warnStealMissingStrUpPair,
 } from "../src/lib/kit-reader/proposal-heuristics";
 import { resolveInsertMetadata } from "../src/lib/kit-reader/atm-metadata";
 import {
@@ -391,6 +392,13 @@ async function main() {
         message: warning.message,
       });
     }
+  }
+
+  for (const stealWarning of warnStealMissingStrUpPair(ok)) {
+    warnings.push({
+      clientKey: stealWarning.clientKey,
+      message: stealWarning.message,
+    });
   }
 
   const bases = ok.filter((p) => p.replacesClientKey == null);

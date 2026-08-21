@@ -1,6 +1,7 @@
 /**
  * Kit Reader proposal heuristics: enjoy → unique_scaling detection,
- * always-aoe tag prefixes, percent vs linear dependency_stat scaling.
+ * steal → STR Down + STR Up pairing, always-aoe tag prefixes,
+ * percent vs linear dependency_stat scaling.
  * Used by pack export, insert CLI, and docs/skill.
  */
 
@@ -110,6 +111,134 @@ export function aoeTagPrefixesForPack(): string[] {
 /** Pack-serializable copy of enjoy Tentacle DMG unique_scaling modifier roots. */
 export function enjoyTentacleDmgModifierTagNamesForPack(): string[] {
   return [...ENJOY_TENTACLE_DMG_MODIFIER_TAG_NAMES];
+}
+
+const STEAL_WORD = /\{Steal\}|\bSteal\b/i;
+
+/** STR reference near a Steal clause ({STR}, STR▼, …). */
+const STEAL_STR_REF = /\{STR(?:▼)?\}|STR▼/i;
+
+/** Steal STR transfer: enemy STR Down + self STR Up.Fixed (dual ATM, not a flavor synonym). */
+export const STEAL_STR_TAG_NAMES = [
+  "Defender.STR Down",
+  "Support.STR Up.Fixed",
+] as const;
+
+export type StealStrTagName = (typeof STEAL_STR_TAG_NAMES)[number];
+
+/** Pack-serializable copy of Steal STR pair tag names. */
+export function stealStrTagNamesForPack(): string[] {
+  return [...STEAL_STR_TAG_NAMES];
+}
+
+/** True when kit text contains {Steal} / Steal in a clause that references STR. */
+export function detectStealClause(
+  kitText: string | null | undefined,
+): boolean {
+  if (!kitText) return false;
+  if (!STEAL_WORD.test(kitText)) return false;
+  return STEAL_STR_REF.test(kitText);
+}
+
+export type StealStrScalarParse = {
+  valueScalar: number;
+  dependencyStat: AllStats | null;
+};
+
+const STEAL_PERCENT_STAT =
+  /(?:\{Steal\}|\bSteal\b)[^.]{0,160}?(\d+(?:\.\d+)?)\s*%\s*(?:of\s+)?(?:[\w']+'s\s+)?(ATK|DEF|CON)\b/i;
+
+const STEAL_FLAT_STR =
+  /(?:\{Steal\}|\bSteal\b)[^.]{0,100}?(\d+(?:\.\d+)?)\s*(?:\{STR(?:▼)?\}|STR▼|\{STR\})/i;
+
+/**
+ * Parse Steal + STR scalar from kit text (flat N → N/100; N% of ATK/DEF/CON → N/100 + stat).
+ * Returns null when Steal+STR is present but amount is ambiguous.
+ */
+export function parseStealStrScalar(
+  text: string | null | undefined,
+): StealStrScalarParse | null {
+  if (!text || !detectStealClause(text)) return null;
+
+  const percentMatch = text.match(STEAL_PERCENT_STAT);
+  if (percentMatch) {
+    const n = Number(percentMatch[1]);
+    const stat = percentMatch[2].toLowerCase() as AllStats;
+    if (Number.isFinite(n)) {
+      return { valueScalar: n / 100, dependencyStat: stat };
+    }
+  }
+
+  const flatMatch = text.match(STEAL_FLAT_STR);
+  if (flatMatch) {
+    const n = Number(flatMatch[1]);
+    if (Number.isFinite(n)) {
+      return { valueScalar: n / 100, dependencyStat: null };
+    }
+  }
+
+  return null;
+}
+
+export type StealMissingStrUpWarning = {
+  clientKey: string;
+  message: string;
+};
+
+/** Minimal proposal shape for Steal pair validation (insert CLI). */
+export type StealPairProposalLike = {
+  clientKey: string;
+  status: string;
+  tagName: string;
+  sourceKitId: string;
+  sourceQuote: string;
+  valueScalar: number | null;
+  dependencyStat: AllStats | null;
+  requiredEnlightenment?: number;
+  isPermanent?: boolean;
+};
+
+function stealPairMatches(
+  down: StealPairProposalLike,
+  up: StealPairProposalLike,
+): boolean {
+  return (
+    up.tagName === "Support.STR Up.Fixed" &&
+    up.sourceKitId === down.sourceKitId &&
+    up.valueScalar === down.valueScalar &&
+    up.dependencyStat === down.dependencyStat &&
+    (up.requiredEnlightenment ?? 0) === (down.requiredEnlightenment ?? 0) &&
+    (up.isPermanent ?? false) === (down.isPermanent ?? false)
+  );
+}
+
+/**
+ * Non-blocking check: Steal STR Down row without matching STR Up pair in the same batch.
+ */
+export function warnStealMissingStrUpPair(
+  proposals: readonly StealPairProposalLike[],
+): StealMissingStrUpWarning[] {
+  const ok = proposals.filter((p) => p.status === "ok");
+  const warnings: StealMissingStrUpWarning[] = [];
+
+  for (const proposal of ok) {
+    if (proposal.tagName !== "Defender.STR Down") continue;
+    if (!detectStealClause(proposal.sourceQuote)) continue;
+
+    const hasPair = ok.some(
+      (other) =>
+        other.clientKey !== proposal.clientKey && stealPairMatches(proposal, other),
+    );
+
+    if (!hasPair) {
+      warnings.push({
+        clientKey: proposal.clientKey,
+        message: `${proposal.clientKey}: Steal STR clause has Defender.STR Down but no matching Support.STR Up.Fixed pair (same sourceKitId, valueScalar, dependencyStat, enlightenment, isPermanent)`,
+      });
+    }
+  }
+
+  return warnings;
 }
 
 /** Percent-style dependency_stat values (ATM scaleValueScalar uses ×100×100). */
