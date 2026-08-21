@@ -54,7 +54,7 @@ metadata = "{sourceLabel} {effectLabel}" [+ " E1"|" E2"|" E3"]
 - **`sourceLabel`:** resolved from kit pack via `sourceKitId` at insert (skill `sourceLabel`, upgrade `sourceLabelHint`, standalone enlighten `sourceLabel`, talent `Talent`/`SF`). Optional proposal `sourceLabel` only when pack lookup fails.
 - **`effectLabel`:** `tagName` with leading `Attacker.` / `Support.` / `Defender.` / `Special.` / `When.` stripped, then trailing `.Fixed` removed (`Defender.Shield.Fixed` → `Shield`; `Attacker.Active Damage` → `Active Damage`).
 - **E-suffix:** only when `requiredEnlightenment` is 1 / 2 / 3. Never append OE/AA again when source is already `OE` / `AA`.
-- **Proposal `metadata` field:** documentation-only; insert CLI ignores it. Use `metadataSuffix` (appended to canonical, e.g. `+ SF`) or `metadataOverride` (full custom label, e.g. `OE Heal *3`) when the formula is not enough.
+- **Proposal `metadata` field:** documentation-only; insert CLI ignores it. Use `metadataSuffix` (appended to canonical, e.g. `+ SF` on **Talent** rows) or `metadataOverride` (full custom label, e.g. `OE Heal *3`) when the formula is not enough. Do **not** set `metadataSuffix: "+ SF"` when pack `sourceLabel` is already `SF` — insert skips redundant suffixes.
 
 | `tagName` (DB) | Inserted metadata |
 | --- | --- |
@@ -98,6 +98,19 @@ When kit text has **`{Steal}`** / **Steal** + **STR** (`hasStealClause: true` on
 - Ambiguous amount → `needs_review`. Insert CLI warns when STR Down lacks matching STR Up in the same batch.
 
 Examples (Faint): Rouse per-card `{Steal} 10 {STR}` → both at `0.1`; AA permanent Steal 25 → both at `0.25`, `isPermanent: true`; SF Steal 10% ATK → both at `0.1`, `dependencyStat: atk`.
+
+## Lemurian synergy → four ATMs
+
+When kit text matches Lemurian team synergy (`detectLemurianSynergyClause` — e.g. *“1/2/3 other Lemurian Awakeners … DMG Amplification +20%/50%/100%”*):
+
+- Propose **four** `status: ok` ATMs (not locals, not one flat AMP row).
+- Row 1: `Special.Cause.Lemurian`, `valueScalar: 1`, `triggerConditionTagName: null`, `isPermanent: true`, `metadataOverride: "Lemurian"`.
+- Rows 2–4: `Support.Damage AMP`, `targetType: "aoe"`, with `triggerConditionTagName` = `Special.When.Lemurian Synergy 1|2|3` and scalars from `parseLemurianSynergyTiers` (default `0.2` / `0.5` / `1.0`).
+- **Client keys:** `lemurian-marker`, `lemurian-synergy-1`, `lemurian-synergy-2`, `lemurian-synergy-3`.
+- **`sourceType`:** usually `talent`. Engine applies **one** tier When gate per team size — do not stack all three AMP rows on one awakener.
+- Ambiguous tiers → `needs_review`.
+
+See [`docs/admin/kit-reader.md`](docs/admin/kit-reader.md#lemurian-synergy) and [`lemurian-synergy.ts`](src/lib/path-carver/lemurian-synergy.ts).
 
 ## Always-aoe tags (ATM only)
 

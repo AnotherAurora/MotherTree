@@ -38,6 +38,22 @@ export function buildAtmMetadata(input: {
   return suffix ? `${base} ${suffix}` : base;
 }
 
+/**
+ * Skip proposal metadataSuffix when it repeats sourceLabel already in canonical metadata
+ * (e.g. sourceLabel "SF" + suffix "+ SF" → "SF Poison", not "SF Poison + SF").
+ */
+export function isRedundantMetadataSuffix(
+  sourceLabel: string,
+  metadataSuffix: string,
+): boolean {
+  const label = sourceLabel.trim();
+  const suffix = metadataSuffix.trim();
+  if (!label || !suffix) return false;
+  if (suffix === label) return true;
+  if (suffix === `+ ${label}`) return true;
+  return false;
+}
+
 /** Insert CLI: canonical metadata from pack sourceLabel + tag; optional suffix/override. */
 export function resolveInsertMetadata(input: {
   tagName: string;
@@ -56,7 +72,9 @@ export function resolveInsertMetadata(input: {
   });
 
   const suffix = input.metadataSuffix?.trim();
-  return suffix ? `${canonical} ${suffix}`.trim() : canonical;
+  if (!suffix) return canonical;
+  if (isRedundantMetadataSuffix(input.sourceLabel, suffix)) return canonical;
+  return `${canonical} ${suffix}`.trim();
 }
 
 /** Every-turn effects: "at turn start" / "at turn end" (and close variants). */

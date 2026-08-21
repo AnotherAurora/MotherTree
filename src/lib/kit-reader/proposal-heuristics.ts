@@ -355,3 +355,65 @@ export function warnPercentDepValueScalarLooksLinear(
     message: `${clientKey}: value_scalar ${valueScalar} looks like linear rate/${100} on percent dep ${dependencyStat}; expected ~${expected} (rate/${10_000})`,
   };
 }
+
+export type LemurianSynergyTiers = {
+  tier1: number;
+  tier2: number;
+  tier3: number;
+};
+
+/** Default tier scalars for +20% / +50% / +100% DMG AMP. */
+export const DEFAULT_LEMURIAN_SYNERGY_TIERS: LemurianSynergyTiers = {
+  tier1: 0.2,
+  tier2: 0.5,
+  tier3: 1.0,
+};
+
+/**
+ * Kit: Lemurian team synergy — other Lemurians on team → tiered DMG AMP.
+ * e.g. "When there are 1/2/3 other Lemurian Awakeners … DMG Amplification +20%/50%/100%"
+ */
+export function detectLemurianSynergyClause(
+  kitText: string | null | undefined,
+): boolean {
+  if (!kitText) return false;
+  const normalized = kitText.toLowerCase();
+  if (!normalized.includes("lemurian")) return false;
+  if (!/\bother\b/.test(normalized)) return false;
+  return (
+    /\bdmg\s*amplification\b/.test(normalized) ||
+    /\bdamage\s*amp(?:lification)?\b/.test(normalized) ||
+    /\bsupport\.damage\s*amp\b/.test(normalized)
+  );
+}
+
+/**
+ * Parse tier percents from Lemurian synergy kit text (20/50/100 style).
+ * Returns null when clause detected but percents are ambiguous.
+ */
+export function parseLemurianSynergyTiers(
+  kitText: string | null | undefined,
+): LemurianSynergyTiers | null {
+  if (!detectLemurianSynergyClause(kitText)) return null;
+  if (!kitText) return null;
+
+  const percents: number[] = [];
+  for (const match of kitText.matchAll(/(\d+(?:\.\d+)?)\s*%/g)) {
+    const value = Number(match[1]);
+    if (Number.isFinite(value)) percents.push(value);
+  }
+
+  if (percents.length >= 3) {
+    return {
+      tier1: percents[0] / 100,
+      tier2: percents[1] / 100,
+      tier3: percents[2] / 100,
+    };
+  }
+
+  if (percents.length === 0) {
+    return { ...DEFAULT_LEMURIAN_SYNERGY_TIERS };
+  }
+
+  return null;
+}

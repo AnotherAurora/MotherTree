@@ -122,7 +122,7 @@ export const kitAtmProposalSchema = z.object({
   sourceLabel: z.string().min(1).optional(),
   /** Full custom metadata label; wins over buildAtmMetadata (e.g. "OE Heal *3"). */
   metadataOverride: z.string().min(1).nullable().default(null),
-  /** Appended to CLI-built canonical metadata (e.g. "+ SF", "*3"). */
+  /** Appended to CLI-built canonical metadata (e.g. "+ SF" on Talent rows, "*3"). Ignored when redundant with sourceLabel (SF + "+ SF"). */
   metadataSuffix: z.string().min(1).nullable().default(null),
   replacesClientKey: z.string().min(1).nullable().default(null),
   locals: z.array(kitLocalProposalSchema).default([]),

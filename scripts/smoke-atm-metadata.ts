@@ -79,7 +79,15 @@ assert(
     tagName: "Support.Tentacle Damage Up.Fixed",
     metadataSuffix: "+ SF",
   }) === "Talent Tentacle Damage Up + SF",
-  "canonical + metadataSuffix",
+  "Talent + metadataSuffix + SF",
+);
+assert(
+  resolveInsertMetadata({
+    sourceLabel: "SF",
+    tagName: "Support.Increase Gain.Poison",
+    metadataSuffix: "+ SF",
+  }) === "SF Increase Gain.Poison",
+  "SF sourceLabel skips redundant + SF suffix",
 );
 assert(
   resolveInsertMetadata({

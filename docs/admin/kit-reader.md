@@ -34,7 +34,7 @@ npx tsx --env-file=.env.local scripts/insert-kit-pending.ts sample-data/kit-read
 - Aborts if any alive pending ATM exists for that awakener. **No `--force`.**
 - Inserts only `status: "ok"` rows; always `verified = false`.
 - Two-pass for `replacesClientKey` → `replaces_manifestation_id`, then nested locals.
-- **Metadata is computed at insert** from the kit pack (`sourceKitId` → `sourceLabel`) + `tagName` via `buildAtmMetadata` (trailing `.Fixed` stripped from effect label). Proposal `metadata` is ignored. Use proposal `metadataSuffix` (e.g. `+ SF`) or `metadataOverride` (e.g. `OE Heal *3`) for custom labels. CLI output includes `metadataResolved` per row.
+- **Metadata is computed at insert** from the kit pack (`sourceKitId` → `sourceLabel`) + `tagName` via `buildAtmMetadata` (trailing `.Fixed` stripped from effect label). Proposal `metadata` is ignored. Use proposal `metadataSuffix` (e.g. `+ SF` on **Talent** rows only) or `metadataOverride` (e.g. `OE Heal *3`) for custom labels. When `sourceLabel` is already `SF`, `metadataSuffix: "+ SF"` is ignored (no `SF … + SF`). CLI output includes `metadataResolved` per row.
 
 Proposal schema: [`src/lib/kit-reader/proposal-schema.ts`](../../src/lib/kit-reader/proposal-schema.ts).
 
@@ -81,7 +81,9 @@ Helpers: [`src/lib/kit-reader/atm-metadata.ts`](../../src/lib/kit-reader/atm-met
 - `effectLabel`: strip leading `Attacker.` / `Support.` / `Defender.` / `Special.` / `When.` from `tagName`, then strip trailing `.Fixed` (e.g. `Defender.Shield.Fixed` → `Shield`; tag resolution still prefers `.Fixed`).
 - Append `E1`/`E2`/`E3` only when `required_enlightenment` is 1/2/3. Do not double-append OE/AA.
 
-Aurita examples: Gland Division → `0 Cost Active Damage` / `0 Cost Active Damage E2`; Clamorous Ocean → `Exalt …`; Jellyfish Congregation → `OE …`; Sparkling Friendship (AbsoluteAxiom on Rouse) → `AA …` with enlightenment **15**; Happy Little Fairy → `Talent …`; Soulforge kit line → `SF …`.
+Aurita examples: Gland Division → `0 Cost Active Damage` / `0 Cost Active Damage E2`; Clamorous Ocean → `Exalt …`; Jellyfish Congregation → `OE …`; Sparkling Friendship (AbsoluteAxiom on Rouse) → `AA …` with enlightenment **15**; Happy Little Fairy → `Talent …`; Soulforge kit line → `SF …` (do **not** also set `metadataSuffix: "+ SF"` — insert dedupes redundant suffixes).
+
+**`metadataSuffix`:** append only when canonical metadata is insufficient. Use `+ SF` when `sourceLabel` is `Talent` but the row is Soulforge-specific (`Talent Tentacle Damage Up + SF`). Soulforge Aptitude rows already resolve to `sourceLabel` `SF` → `SF Increase Gain.Poison` with no extra suffix.
 
 ### is_accumulating
 
@@ -168,6 +170,25 @@ Helpers in [`proposal-heuristics.ts`](../../src/lib/kit-reader/proposal-heuristi
 - `parseEveryOnePercentRate(kitText)` — parse “Every 1% … by R%” lines
 
 Insert CLI emits non-blocking **warnings** when a percent-dep row’s `value_scalar` looks like a linear RM rate (`rate/100` instead of `rate/10000`).
+
+## Lemurian synergy
+
+When kit text matches Lemurian team synergy (e.g. *“When there are 1/2/3 other Lemurian Awakeners in the team, DMG Amplification +20%/50%/100%”*), propose **four** `status: ok` ATMs on that awakener — not a single flat AMP row, not a local interaction.
+
+| # | `tagName` | `valueScalar` | `triggerConditionTagName` | Other fields |
+| --- | --- | --- | --- | --- |
+| 1 | `Special.Cause.Lemurian` | `1` | null | `isPermanent: true`, `metadataOverride: "Lemurian"` |
+| 2 | `Support.Damage AMP` | `0.2` | `Special.When.Lemurian Synergy 1` | `targetType: "aoe"` |
+| 3 | `Support.Damage AMP` | `0.5` | `Special.When.Lemurian Synergy 2` | `targetType: "aoe"` |
+| 4 | `Support.Damage AMP` | `1.0` | `Special.When.Lemurian Synergy 3` | `targetType: "aoe"` |
+
+- **Client keys:** `lemurian-marker`, `lemurian-synergy-1`, `lemurian-synergy-2`, `lemurian-synergy-3`
+- **`sourceType`:** usually `talent` (Soulforge / permanent trait)
+- Parse tier percents from kit text when non-standard (`parseLemurianSynergyTiers`); default 20 / 50 / 100
+- Only **one** tier row applies per awakener at a time (engine sets one When gate); multiple Lemurians on a team each contribute their active tier to team AMP
+- Ambiguous Lemurian wording → `needs_review`
+
+Helpers: [`proposal-heuristics.ts`](../../src/lib/kit-reader/proposal-heuristics.ts) (`detectLemurianSynergyClause`, `parseLemurianSynergyTiers`). Engine: [`lemurian-synergy.ts`](../../src/lib/path-carver/lemurian-synergy.ts).
 
 ## Always-aoe tags (ATM only)
 

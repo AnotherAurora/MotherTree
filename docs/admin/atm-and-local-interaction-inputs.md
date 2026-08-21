@@ -112,6 +112,28 @@ Posse rows skip some of these gates; **ATM does not**.
 
 ---
 
+### 1.5 Lemurian team synergy (tier When gates)
+
+Some awakeners (e.g. Faros) grant tiered **`Support.Damage AMP`** from **other** Lemurians on the team. Path Carver uses a **Cause marker + three mutually exclusive When gates** — not one flat row, not linear `trigger × N`.
+
+| Team Lemurians | Others (count − 1) | Active When | AMP per Lemurian |
+| --- | --- | --- | --- |
+| 1 alone | 0 | none | 0 |
+| 2 | 1 | `Special.When.Lemurian Synergy 1` | +20% (`0.2`) |
+| 3 | 2 | `Special.When.Lemurian Synergy 2` | +50% (`0.5`) |
+| 4+ | 3+ | `Special.When.Lemurian Synergy 3` | +100% (`1.0`) |
+
+**Data (four ATM rows per Lemurian awakener):**
+
+1. `Special.Cause.Lemurian` — `value_scalar = 1`, `trigger_condition` null, `is_permanent = true` (membership marker).
+2–4. `Support.Damage AMP` — `target_type = aoe`, each with a different `trigger_condition` (`Synergy 1` / `2` / `3`) and tier scalar (`0.2` / `0.5` / `1.0`).
+
+Engine: [`lemurian-synergy.ts`](../../src/lib/path-carver/lemurian-synergy.ts) sets **exactly one** tier When count to `1` before Pass 2 (gate only — tier value is in `value_scalar`). These When tags are **not** in the linear `CAUSE_TO_WHEN` map.
+
+Kit Reader rules: [`docs/admin/kit-reader.md`](kit-reader.md#lemurian-synergy).
+
+---
+
 ## 2. Local interaction (`awakener_local_manifestation_interaction`)
 
 Child of an ATM (or standalone admin table). **Parent ATM** = attachment point.
