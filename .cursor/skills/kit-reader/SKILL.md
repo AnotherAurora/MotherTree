@@ -78,17 +78,17 @@ When kit text has **enjoy / enjoys / enjoying** (`hasEnjoyClause: true` on pack 
 - Do **not** create a separate Support ATM for the modifier tag.
 - `mode: unique_scaling`, `modifierTagName` = modifier **root** (not `.Fixed`).
 - `valueScalar` = percent as factor (`50%` → `0.5`; use `parseEnjoyPercentFactor` or manual parse).
-- Default `mathOperation: multiply_one_plus`, `targetType: aoe`.
+- Default `mathOperation: multiply_one_plus`, `targetType: self`.
 - **Not** aftereffect; flat grants stay as ATMs.
 - Ambiguous → `needs_review`.
 
-**Tentacle DMG exception** (`hasEnjoyTentacleDmgClause` / `detectEnjoyTentacleDmgClause`): when enjoy is followed in the same clause by **Tentacle DMG** or **Tentacle Damage**, attach **two** locals with the **same** fields except `modifierTagName` — `Support.Tentacle Damage Up` **and** `Support.Unique Tentacle Damage Up` (Unique is a sibling, not a TDU prefix child). Both: `add_scaled`, `valueScalar` from the percent, `targetType: aoe`, `layer: add`. Use pack `lexicon.enjoyTentacleDmgModifierTagNames`. Do **not** dual-tag Counter / STR enjoy.
+**Tentacle DMG exception** (`hasEnjoyTentacleDmgClause` / `detectEnjoyTentacleDmgClause`): when enjoy is followed in the same clause by **Tentacle DMG** or **Tentacle Damage**, attach **two** locals with the **same** fields except `modifierTagName` — `Support.Tentacle Damage Up` **and** `Support.Unique Tentacle Damage Up` (Unique is a sibling, not a TDU prefix child). Both: `add_scaled`, `valueScalar` from the percent, `targetType: self`, `layer: add`. Use pack `lexicon.enjoyTentacleDmgModifierTagNames`. Do **not** dual-tag Counter / STR enjoy.
 
 Examples: Caecus *"enjoying a 50% Tentacle DMG bonus"* → both TDU locals `add_scaled` `0.5`; `"24"` Aequor *"enjoys a 75% Tentacle DMG bonus"* → same pair at `0.75`; other `"24"` Rouse realm lines stay a single unique_scaling.
 
-## Always-aoe tags
+## Always-aoe tags (ATM only)
 
-When ATM `tagName` matches any prefix in `lexicon.aoeTagPrefixes` (includes subtags like `Support.STR Up.Fixed`), set `targetType: "aoe"`. Use `defaultTargetTypeForTag` / `isAoeTagPrefix`. Insert CLI forces aoe if Agent omits.
+When **ATM** `tagName` matches any prefix in `lexicon.aoeTagPrefixes` (includes subtags like `Support.STR Up.Fixed`), set ATM `targetType: "aoe"`. Use `defaultTargetTypeForTag` / `isAoeTagPrefix`. Insert CLI forces aoe on the ATM if Agent omits. **Does not apply to unique_scaling locals** — those always use `targetType: self`.
 
 ## Tag resolution
 

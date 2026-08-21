@@ -9,7 +9,7 @@ import { isPercentDependencyStat } from "@/lib/path-carver/effective-value-scala
 
 export { isPercentDependencyStat };
 
-/** ATM tag_name prefixes that always use target_type aoe (includes subtags). */
+/** ATM tag_name prefixes that always use target_type aoe (includes subtags). Not used for unique_scaling locals. */
 export const AOE_TAG_PREFIXES = [
   "Support.Keyflare",
   "Support.STR Up",

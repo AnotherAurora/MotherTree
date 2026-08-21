@@ -10,6 +10,7 @@ import {
   withOrphanNumberSelectOption,
 } from "@/components/admin/number-select";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { updateRecord, type ForeignKeyOption } from "@/lib/actions/crud";
 import { ENUM_VALUES } from "@/lib/database.types";
 import { formatAwakenerEnlightenmentLabel } from "@/lib/enlightenment-options";
@@ -91,6 +92,7 @@ export function EditableCell({
   const [draft, setDraft] = React.useState<unknown>(value);
   const [saving, setSaving] = React.useState(false);
   const inputRef = React.useRef<HTMLInputElement>(null);
+  const textareaRef = React.useRef<HTMLTextAreaElement>(null);
 
   React.useEffect(() => {
     if (!isActive) {
@@ -99,13 +101,18 @@ export function EditableCell({
   }, [value, isActive]);
 
   React.useEffect(() => {
+    if (!isActive) return;
     if (
-      isActive &&
       (field.type === "number" || field.type === "text") &&
       inputRef.current
     ) {
       inputRef.current.focus();
       inputRef.current.select();
+      return;
+    }
+    if (field.type === "textarea" && textareaRef.current) {
+      textareaRef.current.focus();
+      textareaRef.current.select();
     }
   }, [isActive, field.type]);
 
@@ -116,7 +123,7 @@ export function EditableCell({
     }
 
     if (
-      field.type === "text" &&
+      (field.type === "text" || field.type === "textarea") &&
       field.required &&
       (nextValue == null || String(nextValue).trim() === "")
     ) {
@@ -175,20 +182,38 @@ export function EditableCell({
     }
   }
 
+  function handleTextareaKeyDown(event: React.KeyboardEvent) {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      setDraft(value);
+      onDeactivate();
+      return;
+    }
+    if (
+      event.key === "Enter" &&
+      (event.ctrlKey || event.metaKey)
+    ) {
+      event.preventDefault();
+      void save(draft);
+    }
+  }
+
   if (!isActive) {
     const display = formatCellDisplayValue(field.name, value, fkLabels);
-    const copyProviderTitle =
+    const cellTitle =
       field.name === "copy_provider_group_id" &&
       value != null &&
       value !== ""
         ? display
-        : undefined;
+        : field.type === "textarea" && display !== "—"
+          ? String(display)
+          : undefined;
 
     return (
       <button
         type="button"
         disabled={disabled || saving}
-        title={copyProviderTitle}
+        title={cellTitle}
         onClick={handleDisplayClick}
         className={cn(
           "group -mx-1 flex w-full items-center gap-1 rounded px-1 py-0.5 text-left",
@@ -303,6 +328,25 @@ export function EditableCell({
           onChange={(event) => setDraft(event.target.value)}
           onBlur={() => void save(draft)}
           onKeyDown={handleKeyDown}
+        />
+        {saving && (
+          <Loader2 className="mt-1 h-3.5 w-3.5 animate-spin text-zinc-400" />
+        )}
+      </div>
+    );
+  }
+
+  if (field.type === "textarea") {
+    return (
+      <div className="min-w-0" onClick={(event) => event.stopPropagation()}>
+        <Textarea
+          ref={textareaRef}
+          value={draft == null ? "" : String(draft)}
+          disabled={saving}
+          className="min-h-[72px] text-sm"
+          onChange={(event) => setDraft(event.target.value)}
+          onBlur={() => void save(draft)}
+          onKeyDown={handleTextareaKeyDown}
         />
         {saving && (
           <Loader2 className="mt-1 h-3.5 w-3.5 animate-spin text-zinc-400" />

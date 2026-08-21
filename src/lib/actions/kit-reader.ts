@@ -96,7 +96,9 @@ export type PendingAtmRow = {
     id: number;
     mode: string;
     modifier_tag_id: number | null;
+    modifier_tag_name: string | null;
     target_tag_id: number | null;
+    target_tag_name: string | null;
     math_operation: string | null;
     value_scalar: number | null;
     is_disabled: boolean | null;
@@ -133,7 +135,7 @@ export async function listPendingAtmsForAwakener(
       const { data: locals, error: localsError } = await supabase
         .from("awakener_local_manifestation_interaction")
         .select(
-          "id, manifestation_id, mode, modifier_tag_id, target_tag_id, math_operation, value_scalar, is_disabled",
+          "id, manifestation_id, mode, modifier_tag_id, target_tag_id, math_operation, value_scalar, is_disabled, modifier_tag:tag!modifier_tag_id(tag_name), target_tag:tag!target_tag_id(tag_name)",
         )
         .in("manifestation_id", ids)
         .is("deleted_at", null)
@@ -143,6 +145,8 @@ export async function listPendingAtmsForAwakener(
 
       for (const local of locals ?? []) {
         const mid = Number(local.manifestation_id);
+        const modifierTag = local.modifier_tag as { tag_name?: string } | null;
+        const targetTag = local.target_tag as { tag_name?: string } | null;
         const list = localsByManifestation.get(mid) ?? [];
         list.push({
           id: Number(local.id),
@@ -151,8 +155,10 @@ export async function listPendingAtmsForAwakener(
             local.modifier_tag_id == null
               ? null
               : Number(local.modifier_tag_id),
+          modifier_tag_name: modifierTag?.tag_name ?? null,
           target_tag_id:
             local.target_tag_id == null ? null : Number(local.target_tag_id),
+          target_tag_name: targetTag?.tag_name ?? null,
           math_operation: local.math_operation,
           value_scalar: local.value_scalar,
           is_disabled: local.is_disabled,

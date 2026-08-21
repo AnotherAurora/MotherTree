@@ -44,9 +44,11 @@ import {
   CREATES_AMPLIFY_CONFLICT_HINT,
   LOCAL_INTERACTION_COLUMN_MISMATCH_HINT,
   NON_POSITIVE_INSTANCE_OR_COPIES_HINT,
+  UNIQUE_SCALING_NON_SELF_TARGET_TYPE_HINT,
   hasCreatesAmplifyConflict,
   hasLocalInteractionColumnMismatch,
   hasNonPositiveInstanceOrCopies,
+  hasUniqueScalingNonSelfTargetType,
 } from "@/lib/admin-form-warnings";
 import { cn } from "@/lib/utils";
 
@@ -578,6 +580,11 @@ export function TableManager({
                         "awakener_local_manifestation_interaction" &&
                       !isDeleted &&
                       hasLocalInteractionColumnMismatch(record);
+                    const uniqueScalingNonSelfTargetType =
+                      config.name ===
+                        "awakener_local_manifestation_interaction" &&
+                      !isDeleted &&
+                      hasUniqueScalingNonSelfTargetType(record);
                     const nonPositiveCopies =
                       config.name === "awakener_tag_manifestation" &&
                       !isDeleted &&
@@ -587,7 +594,10 @@ export function TableManager({
                       !isDeleted &&
                       record.verified === false;
                     const rowWarn =
-                      flagConflict || localColumnMismatch || nonPositiveCopies;
+                      flagConflict ||
+                      localColumnMismatch ||
+                      uniqueScalingNonSelfTargetType ||
+                      nonPositiveCopies;
                     return (
                       <tr
                         key={String(record.id)}
@@ -602,11 +612,13 @@ export function TableManager({
                             ? CREATES_AMPLIFY_CONFLICT_HINT
                             : localColumnMismatch
                               ? LOCAL_INTERACTION_COLUMN_MISMATCH_HINT
-                              : nonPositiveCopies
-                                ? NON_POSITIVE_INSTANCE_OR_COPIES_HINT
-                                : isUnverified
-                                  ? "Unverified (pending)"
-                                  : undefined
+                              : uniqueScalingNonSelfTargetType
+                                ? UNIQUE_SCALING_NON_SELF_TARGET_TYPE_HINT
+                                : nonPositiveCopies
+                                  ? NON_POSITIVE_INSTANCE_OR_COPIES_HINT
+                                  : isUnverified
+                                    ? "Unverified (pending)"
+                                    : undefined
                         }
                         onDoubleClick={() => {
                           if (!showDeletedOnly && !isDeleted) {

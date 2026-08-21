@@ -82,7 +82,7 @@ export function defaultsForLocalInteractionMode(
     mode,
     value_scalar: 1,
     math_operation: "multiply_one_plus",
-    target_type: "aoe",
+    target_type: "self",
   };
 }
 
@@ -144,8 +144,20 @@ export function applyLocalInteractionModeSwitch<
       current.value_scalar == null || Number.isNaN(current.value_scalar)
         ? defaults.value_scalar!
         : current.value_scalar,
-    target_type: current.target_type ?? defaults.target_type!,
+    target_type:
+      nextMode === "unique_scaling"
+        ? "self"
+        : (current.target_type ?? defaults.target_type!),
   };
+}
+
+/** Save fallback when target_type is empty. */
+export function defaultTargetTypeForLocalMode(
+  mode: LocalInteractionMode,
+  current: string | null | undefined,
+): string {
+  if (current != null && current !== "") return current;
+  return defaultsForLocalInteractionMode(mode).target_type!;
 }
 
 export function setActiveTagId<T extends LocalInteractionFormValues>(
@@ -230,6 +242,19 @@ export function hasUniqueScalingTagAndDepHint(
 
 export const UNIQUE_SCALING_TAG_AND_DEP_HINT =
   "Modifier Tag + Dependency Stat: dep scales the factor (tag-mod path). For base-stat invent, clear Modifier Tag and keep Dependency Stat.";
+
+/** Soft warn when unique_scaling has target_type other than self. */
+export function hasUniqueScalingNonSelfTargetType(
+  values: Record<string, unknown>,
+): boolean {
+  if (values.mode !== "unique_scaling") return false;
+  const tt = values.target_type;
+  if (tt == null || tt === "") return false;
+  return String(tt) !== "self";
+}
+
+export const UNIQUE_SCALING_NON_SELF_TARGET_TYPE_HINT =
+  "unique_scaling rows should use target_type self; aoe/single have no effect on unique_scaling math today.";
 
 /** Display stored fraction as percent points (0.005 → 0.5). */
 export function valueScalarToPercentDisplay(

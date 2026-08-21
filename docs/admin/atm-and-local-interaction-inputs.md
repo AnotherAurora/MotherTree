@@ -159,13 +159,14 @@ Do not leave unique_scaling with both Modifier Tag and Dependency Stat empty.
 
 #### `target_type`
 
-Required; default **`aoe`**. Write / self-scoping for the local row (not null).
+Required (not null). Meaning depends on mode:
 
-| Value | Intent |
-| --- | --- |
-| `aoe` | Broad / team-style write scope (default) |
-| `self` | Same-owner scoping where local write/modifier rules use self |
-| `single` | Same enum as manifestations; prefer documenting kit intent in metadata if unused by a given mode path |
+| Mode | Default | Values |
+| --- | --- | --- |
+| `unique_scaling` | **`self`** | Use **`self` only**. Path Carver scopes the op to the attached ATM (owner + tag); `aoe` / `single` on the local row have no effect today. |
+| `aftereffect` | **`aoe`** | `aoe` / `single` / `self` — stamps the synthetic’s `targetType` for later reads; write owner stays the source ATM’s owner. |
+
+Admin shows a soft warning when `unique_scaling` has `target_type` other than `self`.
 
 #### `layer`
 

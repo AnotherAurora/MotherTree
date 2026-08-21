@@ -279,12 +279,17 @@ function resolveLocalRow(
     );
   }
 
-  let targetType = local.targetType;
-  const aoeTag =
-    (local.modifierTagName != null && isAoeTagPrefix(local.modifierTagName)) ||
-    (local.targetTagName != null && isAoeTagPrefix(local.targetTagName));
-  if (aoeTag) {
-    targetType = "aoe";
+  let targetType: "self" | "single" | "aoe";
+  if (local.mode === "unique_scaling") {
+    targetType = "self";
+  } else {
+    targetType = local.targetType ?? "aoe";
+    if (
+      local.targetTagName != null &&
+      isAoeTagPrefix(local.targetTagName)
+    ) {
+      targetType = "aoe";
+    }
   }
 
   return {
@@ -348,9 +353,9 @@ async function main() {
   const awakener = await resolveAwakenerId(supabase, file);
 
   const pending = await countPending(supabase, awakener.id);
-  if (pending > 0) {
+  if (pending > 0 && process.env.KIT_READER_APPEND !== "true") {
     console.error(
-      `Abort: awakener ${awakener.name} (id=${awakener.id}) has ${pending} pending ATM(s). Verify or soft-delete them before a new Kit Reader batch. No --force.`,
+      `Abort: awakener ${awakener.name} (id=${awakener.id}) has ${pending} pending ATM(s). Verify or soft-delete them before a new Kit Reader batch. No --force. Set KIT_READER_APPEND=true to add rows to an existing pending batch.`,
     );
     process.exit(1);
   }

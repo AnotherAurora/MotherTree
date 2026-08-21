@@ -30,12 +30,15 @@ import {
 } from "@/lib/actions/crud";
 import {
   LOCAL_INTERACTION_COLUMN_MISMATCH_HINT,
+  UNIQUE_SCALING_NON_SELF_TARGET_TYPE_HINT,
   UNIQUE_SCALING_TAG_AND_DEP_HINT,
   activeTagLabel,
   applyLocalInteractionModeSwitch,
   createEmptyLocalInteractionValues,
+  defaultTargetTypeForLocalMode,
   getActiveTagId,
   hasLocalInteractionColumnMismatch,
+  hasUniqueScalingNonSelfTargetType,
   hasUniqueScalingTagAndDepHint,
   isBaseStatUniqueScaling,
   isLocalInteractionMode,
@@ -106,10 +109,10 @@ function toOverrideDraft(row: Record<string, unknown>): OverrideDraft {
       row.math_operation == null ? null : String(row.math_operation),
     value_scalar:
       row.value_scalar == null ? null : Number(row.value_scalar),
-    target_type:
-      row.target_type == null
-        ? "aoe"
-        : String(row.target_type),
+    target_type: defaultTargetTypeForLocalMode(
+      normalizeLocalInteractionMode(row.mode),
+      row.target_type == null ? null : String(row.target_type),
+    ),
     dependency_stat:
       row.dependency_stat == null ? null : String(row.dependency_stat),
     is_disabled: Boolean(row.is_disabled),
@@ -332,7 +335,10 @@ export function ManifestationFormDialog({
           Number.isNaN(override.value_scalar)
             ? null
             : override.value_scalar,
-        target_type: override.target_type || "aoe",
+        target_type: defaultTargetTypeForLocalMode(
+          normalizeLocalInteractionMode(override.mode),
+          override.target_type,
+        ),
       }));
 
     for (const [index, override] of overridePayload.entries()) {
@@ -713,6 +719,12 @@ export function ManifestationFormDialog({
                         hasUniqueScalingTagAndDepHint(override) && (
                           <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
                             {UNIQUE_SCALING_TAG_AND_DEP_HINT}
+                          </p>
+                        )}
+                      {!hasLocalInteractionColumnMismatch(override) &&
+                        hasUniqueScalingNonSelfTargetType(override) && (
+                          <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                            {UNIQUE_SCALING_NON_SELF_TARGET_TYPE_HINT}
                           </p>
                         )}
 

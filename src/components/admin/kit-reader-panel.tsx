@@ -79,12 +79,25 @@ const PENDING_COLUMN_FIELDS = [
 
 type PendingColumnName = (typeof PENDING_COLUMN_FIELDS)[number];
 
-const INLINE_FIELDS = PENDING_COLUMN_FIELDS.map(
-  (name) => ATM_FIELD_BY_NAME[name],
-).filter(
-  (field): field is FieldConfig =>
-    Boolean(field?.inlineEditable) && field.name !== "verified",
-);
+/** Kit Reader-only inline overrides (does not affect admin table manager). */
+const KIT_READER_INLINE_OVERRIDES: Partial<
+  Record<PendingColumnName, Partial<FieldConfig>>
+> = {
+  metadata: { inlineEditable: true },
+};
+
+function pendingInlineField(name: PendingColumnName): FieldConfig | undefined {
+  const base = ATM_FIELD_BY_NAME[name];
+  if (!base) return undefined;
+  const override = KIT_READER_INLINE_OVERRIDES[name];
+  const field = override ? { ...base, ...override } : base;
+  if (!field.inlineEditable || field.name === "verified") return undefined;
+  return field;
+}
+
+const INLINE_FIELDS = PENDING_COLUMN_FIELDS.map((name) =>
+  pendingInlineField(name),
+).filter((field): field is FieldConfig => Boolean(field));
 
 type EditingCellState = {
   recordId: number;
@@ -715,13 +728,11 @@ export function KitReaderPanel({
 
                     <dl className="grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-3 lg:grid-cols-4">
                       {PENDING_COLUMN_FIELDS.map((name) => {
-                        const field = ATM_FIELD_BY_NAME[name];
+                        const field = pendingInlineField(name);
                         const label = pendingColumnLabel(name);
-                        const canInline =
-                          field?.inlineEditable === true &&
-                          field.name !== "verified";
+                        const isMetadata = name === "metadata";
 
-                        if (canInline && field) {
+                        if (field) {
                           const value = readPendingFieldValue(row, name);
                           const title = formatCellDisplayValue(
                             field.name,
@@ -733,7 +744,12 @@ export function KitReaderPanel({
                               key={name}
                               label={label}
                               title={title === "—" ? undefined : title}
-                              truncate={false}
+                              truncate={!isMetadata}
+                              className={
+                                isMetadata
+                                  ? "col-span-2 sm:col-span-3 lg:col-span-4"
+                                  : undefined
+                              }
                             >
                               <EditableCell
                                 tableName={ATM_CONFIG.name}
@@ -801,10 +817,36 @@ export function KitReaderPanel({
                                 </>
                               )}
                               {local.modifier_tag_id != null && (
-                                <> · modifier tag id {local.modifier_tag_id}</>
+                                <>
+                                  {" "}
+                                  · modifier{" "}
+                                  <span
+                                    title={
+                                      local.modifier_tag_name
+                                        ? `${local.modifier_tag_name} (id ${local.modifier_tag_id})`
+                                        : undefined
+                                    }
+                                  >
+                                    {local.modifier_tag_name ??
+                                      `tag:${local.modifier_tag_id}`}
+                                  </span>
+                                </>
                               )}
                               {local.target_tag_id != null && (
-                                <> · target tag id {local.target_tag_id}</>
+                                <>
+                                  {" "}
+                                  · target{" "}
+                                  <span
+                                    title={
+                                      local.target_tag_name
+                                        ? `${local.target_tag_name} (id ${local.target_tag_id})`
+                                        : undefined
+                                    }
+                                  >
+                                    {local.target_tag_name ??
+                                      `tag:${local.target_tag_id}`}
+                                  </span>
+                                </>
                               )}
                               {local.is_disabled ? " · disabled" : ""}
                             </li>
@@ -871,14 +913,16 @@ function PendingField({
   children,
   title,
   truncate = true,
+  className,
 }: {
   label: string;
   children: ReactNode;
   title?: string;
   truncate?: boolean;
+  className?: string;
 }) {
   return (
-    <div className="min-w-0">
+    <div className={cn("min-w-0", className)}>
       <dt className="text-xs text-zinc-500">{label}</dt>
       <dd
         className={

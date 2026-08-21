@@ -43,7 +43,7 @@ export const kitLocalProposalSchema = z
     dependencyStat: allStats.nullable(),
     mathOperation: mathOperation,
     valueScalar: z.number(),
-    targetType: targetType.default("aoe"),
+    targetType: targetType.default("self"),
     layer: layer.nullable(),
     isDisabled: z.boolean().default(false),
   })

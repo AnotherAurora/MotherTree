@@ -35,7 +35,7 @@ SKeyDB commit: ${commit}
    set isAccumulating true only for at-turn-start/end every-turn effects.
    Enjoy/enjoying/enjoys → unique_scaling local on subject ATM (not modifier ATM);
    enjoy + Tentacle DMG → two add_scaled locals (Tentacle Damage Up + Unique);
-   use lexicon.aoeTagPrefixes for targetType aoe on listed tags.
+   unique_scaling locals use targetType self; lexicon.aoeTagPrefixes applies to ATM targetType only.
 3. Never create ATMs for Gnostic Potential, Madness Omen, Dimensional Image,
    or Soulforge Astral Reign / CON·ATK·DEF% / first-Rouse Keyflare.
    AbsoluteAxiom → requiredEnlightenment 15 (AA); OverExalt → 7 (OE).

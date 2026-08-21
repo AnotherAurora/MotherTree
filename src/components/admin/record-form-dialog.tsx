@@ -29,11 +29,14 @@ import {
 } from "@/lib/actions/crud";
 import {
   LOCAL_INTERACTION_COLUMN_MISMATCH_HINT,
+  UNIQUE_SCALING_NON_SELF_TARGET_TYPE_HINT,
   UNIQUE_SCALING_TAG_AND_DEP_HINT,
   activeTagLabel,
   applyLocalInteractionModeSwitch,
+  defaultTargetTypeForLocalMode,
   getActiveTagId,
   hasLocalInteractionColumnMismatch,
+  hasUniqueScalingNonSelfTargetType,
   hasUniqueScalingTagAndDepHint,
   isBaseStatUniqueScaling,
   isLocalInteractionMode,
@@ -226,7 +229,10 @@ export function RecordFormDialog({
         return;
       }
       payload.mode = normalizeLocalInteractionMode(payload.mode);
-      payload.target_type = payload.target_type || "aoe";
+      payload.target_type = defaultTargetTypeForLocalMode(
+        payload.mode as "unique_scaling" | "aftereffect",
+        payload.target_type == null ? null : String(payload.target_type),
+      );
     }
 
     const result = isEditing
@@ -478,6 +484,13 @@ export function RecordFormDialog({
             hasUniqueScalingTagAndDepHint(values) && (
               <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
                 {UNIQUE_SCALING_TAG_AND_DEP_HINT}
+              </p>
+            )}
+          {isLocalInteraction &&
+            !hasLocalInteractionColumnMismatch(values) &&
+            hasUniqueScalingNonSelfTargetType(values) && (
+              <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                {UNIQUE_SCALING_NON_SELF_TARGET_TYPE_HINT}
               </p>
             )}
 
