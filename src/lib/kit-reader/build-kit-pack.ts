@@ -75,6 +75,14 @@ type TalentRecord = {
   route?: { slug?: string };
 };
 
+type EnlightenRecord = {
+  id: string;
+  name: string;
+  slot?: string;
+  descriptionTemplate?: string;
+  descriptionArgs?: Record<string, DescriptionArg>;
+};
+
 type CatalogAwakener = {
   id: string;
   name: string;
@@ -86,6 +94,7 @@ type CatalogFile = { records: CatalogAwakener[] };
 type RelationshipsForward = {
   ownedSkills?: string[];
   ownedTalents?: string[];
+  ownedEnlightens?: string[];
   ownedDerivedSkills?: string[];
   ownedDerivedCards?: string[];
   derivedSkills?: string[];
@@ -142,6 +151,18 @@ export type KitPackTalent = {
   base: ExpandedLayer;
 };
 
+/** Standalone awakener enlightens not patched onto a skill's upgrades[]. */
+export type KitPackEnlighten = {
+  id: string;
+  name: string;
+  slot: string | null;
+  /** Enlighten display name — used as metadata source prefix. */
+  sourceLabel: string;
+  atmEligible: boolean;
+  requiredEnlightenmentHint: number;
+  base: ExpandedLayer;
+};
+
 export type KitPack = {
   assumptions: {
     level: number;
@@ -160,6 +181,8 @@ export type KitPack = {
   skills: KitPackSkill[];
   derivedCards: KitPackSkill[];
   talents: KitPackTalent[];
+  /** Awakener-wide enlightens (E1/E2, etc.) not linked via skill upgrades[]. */
+  enlightens: KitPackEnlighten[];
   ignoreList: string[];
   lexicon: {
     tags: { id: number; tag_name: string }[];
@@ -555,6 +578,61 @@ async function loadTalent(talentId: string): Promise<TalentRecord | null> {
   );
 }
 
+async function loadEnlighten(
+  enlightenId: string,
+): Promise<EnlightenRecord | null> {
+  return fetchJson<EnlightenRecord>(
+    `${RAW_BASE}/src/data/public-v3/records/enlightens/${enlightenId}.json`,
+  );
+}
+
+function collectLinkedEnlightenIds(skills: KitPackSkill[]): Set<string> {
+  const ids = new Set<string>();
+  for (const skill of skills) {
+    for (const upgrade of skill.upgrades) {
+      if (upgrade.upgraderId != null) {
+        ids.add(upgrade.upgraderId);
+      }
+    }
+  }
+  return ids;
+}
+
+function buildEnlightenPackEntry(
+  enlighten: EnlightenRecord,
+): KitPackEnlighten {
+  const slot = enlighten.slot ?? null;
+  const requiredEnlightenmentHint = enlightenSlotToRequired(slot);
+  const expanded = expandTemplate(
+    enlighten.descriptionTemplate ?? "",
+    enlighten.descriptionArgs,
+    SKILL_LEVEL,
+  );
+  return {
+    id: enlighten.id,
+    name: enlighten.name,
+    slot,
+    sourceLabel: enlighten.name,
+    atmEligible: true,
+    requiredEnlightenmentHint,
+    base: layerFromExpanded(
+      {
+        layerKind: "enlighten",
+        upgraderType: "enlighten",
+        upgraderSlot: slot,
+        upgraderId: enlighten.id,
+        operation: null,
+        sourceLabelHint: enlighten.name,
+        requiredEnlightenmentHint,
+        descriptionTemplate: enlighten.descriptionTemplate ?? "",
+        expandedText: expanded.text,
+        resolvedArgs: expanded.resolvedArgs,
+      },
+      expanded.text,
+    ),
+  };
+}
+
 export async function buildKitPackForAwakener(
   supabase: SupabaseClient<Database>,
   motherTreeAwakenerId: number,
@@ -625,6 +703,7 @@ export async function buildKitPackForAwakener(
     ]),
   );
   const talentIds = forward.ownedTalents ?? [];
+  const enlightenIds = forward.ownedEnlightens ?? [];
 
   const skillRecords = (
     await Promise.all(skillIds.map((id) => loadSkill(id)))
@@ -684,6 +763,19 @@ export async function buildKitPackForAwakener(
 
   // Cost uniqueness across Skill1/Skill2 + derived (Strike/Defense keep names).
   assignCostBasedSourceLabels([...skills, ...derivedCards]);
+
+  const linkedEnlightenIds = collectLinkedEnlightenIds([
+    ...skills,
+    ...derivedCards,
+  ]);
+  const enlightenRecords = (
+    await Promise.all(enlightenIds.map((id) => loadEnlighten(id)))
+  ).filter((row): row is EnlightenRecord => row != null);
+  const enlightens = enlightenRecords
+    .filter((row) => !linkedEnlightenIds.has(row.id))
+    // OverExalt enlightens are exported as OverExalt skills, not standalone rows.
+    .filter((row) => row.slot !== "OverExalt")
+    .map(buildEnlightenPackEntry);
 
   const talents: KitPackTalent[] = talentRecords.map((talent) => {
     const eligibility = talentAtmEligibility(talent);
@@ -745,6 +837,7 @@ export async function buildKitPackForAwakener(
     skills,
     derivedCards,
     talents,
+    enlightens,
     ignoreList: [...IGNORE_LIST],
     lexicon: {
       tags: (tagsRes.data ?? []) as { id: number; tag_name: string }[],

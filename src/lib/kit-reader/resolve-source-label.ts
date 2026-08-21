@@ -28,6 +28,9 @@ export function buildKitPackSourceLabelIndex(pack: KitPack): Map<string, string>
   for (const talent of pack.talents) {
     index.set(talent.id, talent.sourceLabel);
   }
+  for (const enlighten of pack.enlightens ?? []) {
+    index.set(enlighten.id, enlighten.sourceLabel);
+  }
 
   return index;
 }

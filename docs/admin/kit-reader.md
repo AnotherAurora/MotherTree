@@ -51,6 +51,8 @@ Pinned SKeyDB commit: [`SKEYDB_COMMIT`](../../src/lib/assets/skeydb-base.ts).
 
 **`derivedCards`:** loaded from SKeyDB `records/derived-skills/` using relationship keys `ownedDerivedSkills`, `ownedDerivedCards`, and `derivedSkills` (IDs starting with `derived.`). Primary skills stay in `records/skills/`.
 
+**`enlightens`:** standalone awakener enlightens from SKeyDB `ownedEnlightens` that are **not** already linked via a skill/derived `upgrades[]` entry (by `upgraderId`). OverExalt enlightens are omitted (exported as OverExalt skills). Use `sourceKitId: enlighten.{slug}.{name}` and pack `sourceLabel` (enlighten display name) for metadata.
+
 ## Flavor → tag
 
 Resolve kit wording via the pack’s `lexicon.flavorTagSynonyms` (built from [`src/lib/kit-reader/flavor-tag-synonyms.ts`](../../src/lib/kit-reader/flavor-tag-synonyms.ts)). Prefer `.Fixed` except the `Attacker.Active Damage` tree. Never invent tags — only names in `lexicon.tags`.

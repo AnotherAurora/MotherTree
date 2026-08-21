@@ -30,7 +30,7 @@ description: >-
 
 ## Workflow
 
-1. Read the kit pack: `assumptions`, skills (base + upgrades), derivedCards, talents (`atmEligible`), `ignoreList`, `lexicon.tags`, `lexicon.flavorTagSynonyms`, **`lexicon.aoeTagPrefixes`**, **`lexicon.percentDependencyStats`**, **`lexicon.enjoyTentacleDmgModifierTagNames`**, **`sourceLabel` / layer `sourceLabelHint`**, **`cost`**, layer **`hasEnjoyClause`** / **`hasEnjoyTentacleDmgClause`**.
+1. Read the kit pack: `assumptions`, skills (base + upgrades), derivedCards, **`enlightens`** (standalone E1/E2/etc.), talents (`atmEligible`), `ignoreList`, `lexicon.tags`, `lexicon.flavorTagSynonyms`, **`lexicon.aoeTagPrefixes`**, **`lexicon.percentDependencyStats`**, **`lexicon.enjoyTentacleDmgModifierTagNames`**, **`sourceLabel` / layer `sourceLabelHint`**, **`cost`**, layer **`hasEnjoyClause`** / **`hasEnjoyTentacleDmgClause`**.
 2. Propose ATM + local rows for Path Carver math.
 3. Write proposal JSON to `sample-data/kit-reader/{slug}.proposal.json` (`schemaVersion: 1`). You may omit `metadata` — insert CLI computes it. Use `metadataSuffix` / `metadataOverride` for non-formula labels.
 4. Run:
@@ -51,7 +51,7 @@ Do **not** put the skill/talent display name in as the source prefix (except Str
 metadata = "{sourceLabel} {effectLabel}" [+ " E1"|" E2"|" E3"]
 ```
 
-- **`sourceLabel`:** resolved from kit pack via `sourceKitId` at insert (skill `sourceLabel`, upgrade `sourceLabelHint`, talent `Talent`/`SF`). Optional proposal `sourceLabel` only when pack lookup fails.
+- **`sourceLabel`:** resolved from kit pack via `sourceKitId` at insert (skill `sourceLabel`, upgrade `sourceLabelHint`, standalone enlighten `sourceLabel`, talent `Talent`/`SF`). Optional proposal `sourceLabel` only when pack lookup fails.
 - **`effectLabel`:** `tagName` with leading `Attacker.` / `Support.` / `Defender.` / `Special.` / `When.` stripped, then trailing `.Fixed` removed (`Defender.Shield.Fixed` → `Shield`; `Attacker.Active Damage` → `Active Damage`).
 - **E-suffix:** only when `requiredEnlightenment` is 1 / 2 / 3. Never append OE/AA again when source is already `OE` / `AA`.
 - **Proposal `metadata` field:** documentation-only; insert CLI ignores it. Use `metadataSuffix` (appended to canonical, e.g. `+ SF`) or `metadataOverride` (full custom label, e.g. `OE Heal *3`) when the formula is not enough.

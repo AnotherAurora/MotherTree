@@ -20,7 +20,7 @@ Awakener: ${input.awakenerName}
 Kit pack: ${packPath}
 SKeyDB commit: ${commit}
 
-1. Read the kit pack (skill layers, atmEligible talents, ignore list,
+1. Read the kit pack (skill layers, standalone enlightens, atmEligible talents, ignore list,
    lexicon.tags + lexicon.flavorTagSynonyms + lexicon.percentDependencyStats;
    use sourceLabel / sourceLabelHint).
 2. Propose ATM + local rows for Path Carver (enlighten replace-vs-add;
