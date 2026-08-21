@@ -38,7 +38,12 @@ import {
   softDeleteRecord,
   type ForeignKeyOption,
 } from "@/lib/actions/crud";
-import type { FieldConfig, ListSortState, TableConfig } from "@/lib/schema-config";
+import type {
+  FieldConfig,
+  ListSortDirection,
+  ListSortState,
+  TableConfig,
+} from "@/lib/schema-config";
 import { getDefaultListSort, getListFields } from "@/lib/schema-config";
 import {
   CREATES_AMPLIFY_CONFLICT_HINT,
@@ -107,7 +112,7 @@ function getSortValue(
 function compareSortValues(
   a: string | number | boolean | null,
   b: string | number | boolean | null,
-  direction: SortDirection,
+  direction: ListSortDirection,
 ) {
   if (a == null && b == null) return 0;
   if (a == null) return 1;
