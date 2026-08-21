@@ -61,6 +61,8 @@ type TableManagerProps = {
   config: TableConfig;
   initialRecords: Record<string, unknown>[];
   initialFkLabels: Record<string, string>;
+  initialTotalCount: number;
+  initialTruncated: boolean;
 };
 
 type ListViewMode = "table" | "tree";
@@ -157,11 +159,15 @@ export function TableManager({
   config,
   initialRecords,
   initialFkLabels,
+  initialTotalCount,
+  initialTruncated,
 }: TableManagerProps) {
   const [records, setRecords] =
     React.useState<Record<string, unknown>[]>(initialRecords);
   const [fkLabels, setFkLabels] =
     React.useState<Record<string, string>>(initialFkLabels);
+  const [totalCount, setTotalCount] = React.useState(initialTotalCount);
+  const [listTruncated, setListTruncated] = React.useState(initialTruncated);
   const [showDeletedOnly, setShowDeletedOnly] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
   const [dialogOpen, setDialogOpen] = React.useState(false);
@@ -282,6 +288,8 @@ export function TableManager({
     );
 
     setRecords(result.data);
+    setTotalCount(result.totalCount);
+    setListTruncated(result.truncated);
     if (labelResult.success) {
       setFkLabels(labelResult.data);
     }
@@ -419,7 +427,18 @@ export function TableManager({
         <CardHeader className="flex flex-row items-start justify-between gap-4">
           <div>
             <CardTitle>{config.label}</CardTitle>
-            <CardDescription>{config.description}</CardDescription>
+            <CardDescription>
+              {config.description}
+              {totalCount > 0 ? (
+                <>
+                  {" "}
+                  ·{" "}
+                  {totalCount === 1
+                    ? "1 record"
+                    : `${totalCount.toLocaleString()} records`}
+                </>
+              ) : null}
+            </CardDescription>
           </div>
           <div className="flex items-center gap-2">
             {treeListView && (
@@ -467,6 +486,8 @@ export function TableManager({
                         result.data,
                       );
                       setRecords(result.data);
+                      setTotalCount(result.totalCount);
+                      setListTruncated(result.truncated);
                       if (labelResult.success) setFkLabels(labelResult.data);
                     }
                     setLoading(false);
@@ -484,6 +505,12 @@ export function TableManager({
           </div>
         </CardHeader>
         <CardContent>
+          {listTruncated ? (
+            <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+              Record list was truncated at the safety cap. Not all rows were
+              loaded — contact the maintainer if you need the full table.
+            </div>
+          ) : null}
           {loading ? (
             <div className="flex items-center justify-center py-16 text-zinc-500">
               <Loader2 className="mr-2 h-5 w-5 animate-spin" />

@@ -1,6 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
 import {
+  PUBLIC_BULK_MAX_ROWS,
+  PUBLIC_FETCH_PAGE_SIZE,
   PUBLIC_ROW_LIMIT,
   isPublicReadTable,
   publicSelectClause,
@@ -11,9 +13,11 @@ import {
   PUBLIC_READ_CACHE_TTL_MS,
   getPublicReadCacheEntry,
   publicReadCacheKey,
+  publicReadCacheKeyAll,
   setPublicReadCacheEntry,
 } from "@/lib/public-read/cache";
 import { createAnonClient } from "@/lib/supabase/anon";
+import { paginateQuery } from "@/lib/supabase/paginate-query";
 
 export { PUBLIC_READ_CACHE_TTL_MS };
 
@@ -24,6 +28,11 @@ export type PublicReadResult<T extends PublicReadTable> =
 export type PublicReadOptions = {
   /** Cap rows returned (hard max: PUBLIC_ROW_LIMIT). */
   limit?: number;
+  /** Optional client (defaults to anon). Used by smoke tests. */
+  client?: SupabaseClient<Database>;
+};
+
+export type PublicReadAllOptions = {
   /** Optional client (defaults to anon). Used by smoke tests. */
   client?: SupabaseClient<Database>;
 };
@@ -76,6 +85,67 @@ export async function fetchPublicTable<T extends PublicReadTable>(
     success: true as const,
     data: truncated ? rows.slice(0, limit) : rows,
     truncated,
+  };
+
+  setPublicReadCacheEntry(key, {
+    data: result.data,
+    truncated: result.truncated,
+  });
+
+  return result;
+}
+
+/**
+ * Paginated fetch-all for Search catalog loads. Stays within PostgREST page size
+ * per request; `truncated` means the safety cap (`PUBLIC_BULK_MAX_ROWS`) was hit.
+ */
+export async function fetchAllPublicTable<T extends PublicReadTable>(
+  table: T,
+  options: PublicReadAllOptions = {},
+): Promise<PublicReadResult<T>> {
+  if (!isPublicReadTable(table)) {
+    return { success: false, error: `Table "${table}" is not publicly readable` };
+  }
+
+  const key = publicReadCacheKeyAll(table);
+  const cached = getPublicReadCacheEntry(key);
+  if (cached) {
+    return {
+      success: true,
+      data: cached.data as PublicRow<T>[],
+      truncated: cached.truncated,
+    };
+  }
+
+  const supabase = options.client ?? createAnonClient();
+  const select = publicSelectClause(table);
+
+  const paged = await paginateQuery<PublicRow<T>>(
+    async (from, to) => {
+      const { data, error } = await supabase
+        .from(table)
+        .select(select)
+        .order("id")
+        .range(from, to);
+      return {
+        data: (data ?? []) as unknown as PublicRow<T>[],
+        error,
+      };
+    },
+    {
+      pageSize: PUBLIC_FETCH_PAGE_SIZE,
+      maxRows: PUBLIC_BULK_MAX_ROWS,
+    },
+  );
+
+  if (paged.error) {
+    return { success: false, error: paged.error };
+  }
+
+  const result = {
+    success: true as const,
+    data: paged.data,
+    truncated: paged.truncated,
   };
 
   setPublicReadCacheEntry(key, {

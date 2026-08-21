@@ -195,6 +195,8 @@ type SearchResultsState =
       status: "success";
       rows: SearchResultRow[];
       truncated: boolean;
+      sourceTruncated: boolean;
+      resultsTruncated: boolean;
     };
 
 export function SearchFilters({ options }: SearchFiltersProps) {
@@ -257,6 +259,8 @@ export function SearchFilters({ options }: SearchFiltersProps) {
         status: "success",
         rows: result.rows,
         truncated: result.truncated,
+        sourceTruncated: result.sourceTruncated,
+        resultsTruncated: result.resultsTruncated,
       });
     });
   }
@@ -685,7 +689,19 @@ export function SearchFilters({ options }: SearchFiltersProps) {
             {results.rows.length === 1
               ? "1 record"
               : `${results.rows.length} records`}
-            {results.truncated ? " (truncated)" : ""}
+            {results.resultsTruncated ? " (top 500 by value)" : ""}
+          </p>
+        ) : null}
+
+        {!loading &&
+        results.status === "success" &&
+        results.sourceTruncated ? (
+          <p
+            role="alert"
+            className="rounded-md border border-[var(--mt-border)] bg-[rgb(255_245_235_/_0.35)] px-4 py-3 text-sm text-[var(--mt-ink)]"
+          >
+            Search catalog data was incomplete. Results may be missing rows —
+            narrow your filters or contact the maintainer.
           </p>
         ) : null}
 
@@ -711,7 +727,7 @@ export function SearchFilters({ options }: SearchFiltersProps) {
         {!loading && results.status === "success" ? (
           <SearchResultsTable
             rows={results.rows}
-            truncated={results.truncated}
+            resultsTruncated={results.resultsTruncated}
           />
         ) : null}
       </section>

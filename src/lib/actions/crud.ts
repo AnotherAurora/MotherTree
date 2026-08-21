@@ -14,6 +14,12 @@ import {
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
+import {
+  ADMIN_BULK_MAX_ROWS,
+  chunkArray,
+  DEFAULT_IN_CLAUSE_BATCH_SIZE,
+  paginateQuery,
+} from "@/lib/supabase/paginate-query";
 
 export type ForeignKeyOption = {
   value: number;
@@ -49,6 +55,15 @@ export type AnchoredAwakenerInput = {
 
 export type ActionResult<T = void> =
   | { success: true; data: T }
+  | { success: false; error: string };
+
+export type ListRecordsResult =
+  | {
+      success: true;
+      data: Record<string, unknown>[];
+      totalCount: number;
+      truncated: boolean;
+    }
   | { success: false; error: string };
 
 function revalidateTable(tableName: TableName) {
@@ -127,21 +142,22 @@ async function buildManifestationLabels(
   if (ids.length === 0) return labels;
 
   const supabase = createAdminClient();
-  const { data, error } = await supabase
-    .from("awakener_tag_manifestation")
-    .select(
-      "id, awakener!awakener_id(name), tag!tag_id(tag_name)",
-    )
-    .in("id", ids);
 
-  if (error || !data) return labels;
+  for (const batch of chunkArray(ids, DEFAULT_IN_CLAUSE_BATCH_SIZE)) {
+    const { data, error } = await supabase
+      .from("awakener_tag_manifestation")
+      .select("id, awakener!awakener_id(name), tag!tag_id(tag_name)")
+      .in("id", batch);
 
-  for (const row of data) {
-    const awakener = row.awakener as { name: string | null } | null;
-    const tag = row.tag as { tag_name: string | null } | null;
-    const awakenerName = awakener?.name ?? "Unknown Awakener";
-    const tagName = tag?.tag_name ?? "Unknown Tag";
-    labels.set(row.id, `${awakenerName} · ${tagName} (#${row.id})`);
+    if (error || !data) continue;
+
+    for (const row of data) {
+      const awakener = row.awakener as { name: string | null } | null;
+      const tag = row.tag as { tag_name: string | null } | null;
+      const awakenerName = awakener?.name ?? "Unknown Awakener";
+      const tagName = tag?.tag_name ?? "Unknown Tag";
+      labels.set(row.id, `${awakenerName} · ${tagName} (#${row.id})`);
+    }
   }
 
   return labels;
@@ -159,19 +175,22 @@ async function attachManifestationOverrideCounts(
     return records.map((record) => ({ ...record, override_count: 0 }));
   }
 
-  const { data, error } = await supabase
-    .from("awakener_local_manifestation_interaction")
-    .select("manifestation_id")
-    .in("manifestation_id", ids)
-    .is("deleted_at", null);
-
-  if (error) throw error;
-
   const counts = new Map<number, number>();
-  for (const row of data ?? []) {
-    if (row.manifestation_id == null) continue;
-    const manifestationId = Number(row.manifestation_id);
-    counts.set(manifestationId, (counts.get(manifestationId) ?? 0) + 1);
+
+  for (const batch of chunkArray(ids, DEFAULT_IN_CLAUSE_BATCH_SIZE)) {
+    const { data, error } = await supabase
+      .from("awakener_local_manifestation_interaction")
+      .select("manifestation_id")
+      .in("manifestation_id", batch)
+      .is("deleted_at", null);
+
+    if (error) throw error;
+
+    for (const row of data ?? []) {
+      if (row.manifestation_id == null) continue;
+      const manifestationId = Number(row.manifestation_id);
+      counts.set(manifestationId, (counts.get(manifestationId) ?? 0) + 1);
+    }
   }
 
   return records.map((record) => ({
@@ -215,32 +234,41 @@ async function attachDesireAnchoredAwakenerCounts(
 export async function listRecords(
   tableName: string,
   deletedOnly = false,
-): Promise<ActionResult<Record<string, unknown>[]>> {
+): Promise<ListRecordsResult> {
   if (!isAdminRuntimeEnabled()) return adminUnavailableResult();
   const config = getConfig(tableName);
   if (!config) return { success: false, error: "Unknown table" };
 
   try {
     const supabase = createAdminClient();
-    let query = supabase.from(config.name).select("*");
-    if (config.defaultListSort) {
-      query = query.order(config.defaultListSort.field, {
-        ascending: config.defaultListSort.direction === "asc",
-      });
-    } else {
-      query = query.order("id");
+    const orderField = config.defaultListSort?.field ?? "id";
+    const ascending = config.defaultListSort?.direction !== "desc";
+
+    const paged = await paginateQuery<Record<string, unknown>>(
+      async (from, to) => {
+        let query = supabase.from(config.name).select("*");
+        query = query.order(orderField, { ascending }).range(from, to);
+
+        if (config.softDelete) {
+          query = deletedOnly
+            ? query.not("deleted_at", "is", null)
+            : query.is("deleted_at", null);
+        }
+
+        const { data, error } = await query;
+        return {
+          data: (data ?? []) as Record<string, unknown>[],
+          error,
+        };
+      },
+      { maxRows: ADMIN_BULK_MAX_ROWS },
+    );
+
+    if (paged.error) {
+      return { success: false, error: paged.error };
     }
 
-    if (config.softDelete) {
-      query = deletedOnly
-        ? query.not("deleted_at", "is", null)
-        : query.is("deleted_at", null);
-    }
-
-    const { data, error } = await query;
-    if (error) return { success: false, error: error.message };
-
-    let records = (data ?? []) as Record<string, unknown>[];
+    let records = paged.data;
 
     if (config.name === "awakener_tag_manifestation") {
       records = await attachManifestationOverrideCounts(supabase, records);
@@ -250,7 +278,12 @@ export async function listRecords(
       records = await attachDesireAnchoredAwakenerCounts(supabase, records);
     }
 
-    return { success: true, data: records };
+    return {
+      success: true,
+      data: records,
+      totalCount: records.length,
+      truncated: paged.truncated,
+    };
   } catch (error) {
     return {
       success: false,
@@ -271,16 +304,33 @@ export async function getForeignKeyOptions(
 
   try {
     const supabase = createAdminClient();
-    let query = supabase.from(config.name).select("*").order("id");
 
-    if (config.softDelete) {
-      query = query.is("deleted_at", null);
+    const paged = await paginateQuery<Record<string, unknown>>(
+      async (from, to) => {
+        let query = supabase
+          .from(config.name)
+          .select("*")
+          .order("id")
+          .range(from, to);
+
+        if (config.softDelete) {
+          query = query.is("deleted_at", null);
+        }
+
+        const { data, error } = await query;
+        return {
+          data: (data ?? []) as Record<string, unknown>[],
+          error,
+        };
+      },
+      { maxRows: ADMIN_BULK_MAX_ROWS },
+    );
+
+    if (paged.error) {
+      return { success: false, error: paged.error };
     }
 
-    const { data, error } = await query;
-    if (error) return { success: false, error: error.message };
-
-    const rows = (data ?? []) as Record<string, unknown>[];
+    const rows = paged.data;
 
     let options: ForeignKeyOption[];
 
