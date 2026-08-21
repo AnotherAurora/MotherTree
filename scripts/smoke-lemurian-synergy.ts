@@ -28,6 +28,7 @@ function assert(cond: boolean, msg: string): void {
 
 function makeAwakener(partial: Partial<Awakener> & { id: number }): Awakener {
   return {
+    id: partial.id,
     name: partial.name ?? `A${partial.id}`,
     realm: partial.realm ?? "chaos",
     realmId: partial.realmId ?? 1,
@@ -44,7 +45,6 @@ function makeAwakener(partial: Partial<Awakener> & { id: number }): Awakener {
     sigilYield: partial.sigilYield ?? null,
     deathResist: partial.deathResist ?? null,
     enlightenment: partial.enlightenment ?? 3,
-    ...partial,
   };
 }
 
@@ -76,20 +76,31 @@ function makeManifestation(
     copyProviderGroupName: null,
     copyProviderTagIds: [],
     dependencyStat: null,
-    requiredEnlightenment: 0,
+    sourceType: partial.sourceType ?? "talent",
+    targetType: partial.targetType ?? "aoe",
+    buffTargetTypeRestriction: null,
+    metadata: null,
+    isAccumulating: false,
+    requiredEnlightenment: null,
+    requiredAwakenerId: null,
+    requiredAwakenerName: null,
+    requiredRealm: null,
+    requiredRealm2: null,
     requiredRealmId: null,
     requiredRealmId2: null,
-    requiredRealmMode: null,
-    requiredAwakenerId: null,
-    triggerCondition: null,
-    targetType: partial.targetType ?? "aoe",
-    sourceType: partial.sourceType ?? "talent",
-    buffTargetTypeRestriction: null,
-    isAccumulating: false,
-    isPermanent: partial.isPermanent ?? false,
-    isBaseStatTransfer: false,
+    replacesManifestationId: null,
     interactionOverrides: [],
-    ...partial,
+    isBaseStatTransfer: false,
+    isCreatedBase: false,
+    triggerCondition: partial.triggerCondition ?? null,
+    realmId: null,
+    requiredRealmMode: null,
+    dependencyRate: null,
+    dependencyRateStat: null,
+    pureBonusTarget: null,
+    id: partial.id,
+    tagId: partial.tagId,
+    tagName: partial.tagName,
   };
 }
 
@@ -132,7 +143,6 @@ function lemurianManifestationsForAwakener(
       tagId: causeTag.id,
       tagName: causeTag.tagName,
       valueScalar: 1,
-      isPermanent: true,
       triggerCondition: null,
     }),
     makeManifestation({
@@ -170,7 +180,7 @@ function teamWithLemurianCount(count: number): TeamData {
   const manifestations: Manifestation[] = [];
   for (let i = 0; i < count; i += 1) {
     const id = i + 1;
-    awakeners.push(makeAwakener({ id, slotIndex: i }));
+    awakeners.push(makeAwakener({ id }));
     manifestations.push(...lemurianManifestationsForAwakener(id, i, id * 10));
   }
   return {
