@@ -222,7 +222,14 @@ export async function listRecords(
 
   try {
     const supabase = createAdminClient();
-    let query = supabase.from(config.name).select("*").order("id");
+    let query = supabase.from(config.name).select("*");
+    if (config.defaultListSort) {
+      query = query.order(config.defaultListSort.field, {
+        ascending: config.defaultListSort.direction === "asc",
+      });
+    } else {
+      query = query.order("id");
+    }
 
     if (config.softDelete) {
       query = deletedOnly

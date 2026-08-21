@@ -38,8 +38,8 @@ import {
   softDeleteRecord,
   type ForeignKeyOption,
 } from "@/lib/actions/crud";
-import type { FieldConfig, TableConfig } from "@/lib/schema-config";
-import { getListFields } from "@/lib/schema-config";
+import type { FieldConfig, ListSortState, TableConfig } from "@/lib/schema-config";
+import { getDefaultListSort, getListFields } from "@/lib/schema-config";
 import {
   CREATES_AMPLIFY_CONFLICT_HINT,
   LOCAL_INTERACTION_COLUMN_MISMATCH_HINT,
@@ -56,13 +56,6 @@ type TableManagerProps = {
   config: TableConfig;
   initialRecords: Record<string, unknown>[];
   initialFkLabels: Record<string, string>;
-};
-
-type SortDirection = "asc" | "desc";
-
-type SortState = {
-  field: string | null;
-  direction: SortDirection;
 };
 
 type ListViewMode = "table" | "tree";
@@ -138,7 +131,7 @@ function compareSortValues(
 function sortRecords(
   records: Record<string, unknown>[],
   listFields: FieldConfig[],
-  sort: SortState,
+  sort: ListSortState,
   fkLabels: Record<string, string>,
 ) {
   if (!sort.field) return records;
@@ -172,10 +165,9 @@ export function TableManager({
   >(null);
   const [deletingId, setDeletingId] = React.useState<number | null>(null);
   const [restoringId, setRestoringId] = React.useState<number | null>(null);
-  const [sort, setSort] = React.useState<SortState>({
-    field: null,
-    direction: "asc",
-  });
+  const [sort, setSort] = React.useState<ListSortState>(() =>
+    getDefaultListSort(config),
+  );
   const [editingCell, setEditingCell] = React.useState<EditingCellState>(null);
   const [fkOptionsByField, setFkOptionsByField] = React.useState<
     Record<string, ForeignKeyOption[]>
@@ -200,7 +192,7 @@ export function TableManager({
   const inlineFields = listFields.filter((field) => field.inlineEditable);
 
   React.useEffect(() => {
-    setSort({ field: null, direction: "asc" });
+    setSort(getDefaultListSort(config));
     setEditingCell(null);
   }, [config.name]);
 
