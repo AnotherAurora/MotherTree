@@ -22,7 +22,14 @@ import {
   stealStrTagNamesForPack,
   percentDependencyStatsForPack,
 } from "./proposal-heuristics";
+import {
+  expandDescriptionTemplate,
+  type KitDescriptionArg,
+  type ResolvedArgMetaEntry,
+} from "./description-args";
 import { kitPackAbsolutePath, kitPackRelativePath } from "./paths";
+
+export type { ResolvedArgMetaEntry } from "./description-args";
 
 const RAW_BASE = `https://raw.githubusercontent.com/dansa/SKeyDB/${SKEYDB_COMMIT}`;
 const AWAKENER_LEVEL = 60;
@@ -35,12 +42,6 @@ export type MotherTreeSourceType =
   | "rouse"
   | "talent";
 
-type DescriptionArg =
-  | { kind: "linear"; base: string; gainPerLevel: string }
-  | { kind: "scaling"; values: string[]; stat?: string; suffix?: string }
-  | { kind: "fixed"; value: string }
-  | { kind: string; [key: string]: unknown };
-
 type SkillUpgrade = {
   id?: string;
   operation?: string;
@@ -49,7 +50,7 @@ type SkillUpgrade = {
   upgraderSlot?: string;
   patch?: {
     descriptionTemplate?: string;
-    descriptionArgs?: Record<string, DescriptionArg>;
+    descriptionArgs?: Record<string, KitDescriptionArg>;
   };
 };
 
@@ -59,7 +60,7 @@ type SkillRecord = {
   slot?: string;
   cost?: string | number | null;
   descriptionTemplate?: string;
-  descriptionArgs?: Record<string, DescriptionArg>;
+  descriptionArgs?: Record<string, KitDescriptionArg>;
   upgrades?: SkillUpgrade[];
   derived?: boolean;
   isDerived?: boolean;
@@ -73,7 +74,7 @@ type TalentRecord = {
   maxLevel?: number;
   defaultMaxed?: boolean;
   descriptionTemplate?: string;
-  descriptionArgs?: Record<string, DescriptionArg>;
+  descriptionArgs?: Record<string, KitDescriptionArg>;
   route?: { slug?: string };
 };
 
@@ -82,7 +83,7 @@ type EnlightenRecord = {
   name: string;
   slot?: string;
   descriptionTemplate?: string;
-  descriptionArgs?: Record<string, DescriptionArg>;
+  descriptionArgs?: Record<string, KitDescriptionArg>;
 };
 
 type CatalogAwakener = {
@@ -118,6 +119,8 @@ export type ExpandedLayer = {
   descriptionTemplate: string;
   expandedText: string;
   resolvedArgs: Record<string, string | number>;
+  /** Per-arg stat/suffix/substatBonus from SKeyDB descriptionArgs. */
+  resolvedArgMeta: Record<string, ResolvedArgMetaEntry>;
   /** Kit text contains enjoy/enjoys/enjoying — inspect for unique_scaling locals. */
   hasEnjoyClause: boolean;
   /** Enjoy clause is followed by Tentacle DMG / Tentacle Damage — dual TDU locals. */
@@ -223,71 +226,6 @@ async function fetchJson<T>(url: string): Promise<T | null> {
     );
   }
   return (await response.json()) as T;
-}
-
-function parseNumeric(raw: string | undefined): number {
-  if (!raw) return 0;
-  const parsed = Number(String(raw).trim());
-  return Number.isFinite(parsed) ? parsed : 0;
-}
-
-function resolveArgValue(
-  arg: DescriptionArg | undefined,
-  level: number,
-): string | number {
-  if (!arg) return "";
-  if (arg.kind === "linear") {
-    const linear = arg as { base: string; gainPerLevel: string };
-    const rank = Math.max(1, Math.floor(level));
-    return (
-      parseNumeric(linear.base) +
-      parseNumeric(linear.gainPerLevel) * (rank - 1)
-    );
-  }
-  if (arg.kind === "scaling") {
-    const values = (arg as { values: string[] }).values ?? [];
-    const index = Math.max(
-      0,
-      Math.min(Math.floor(level) - 1, values.length - 1),
-    );
-    const n = parseNumeric(values[index]);
-    return Number.isFinite(n) ? n : (values[index] ?? "");
-  }
-  if (arg.kind === "fixed") {
-    const value = (arg as { value: string }).value;
-    const n = Number(value);
-    return Number.isFinite(n) && String(n) === String(value).trim()
-      ? n
-      : (value ?? "");
-  }
-  return "";
-}
-
-function expandTemplate(
-  template: string,
-  args: Record<string, DescriptionArg> | undefined,
-  level: number,
-): { text: string; resolvedArgs: Record<string, string | number> } {
-  const resolvedArgs: Record<string, string | number> = {};
-  for (const [key, arg] of Object.entries(args ?? {})) {
-    resolvedArgs[key] = resolveArgValue(arg, level);
-  }
-
-  let text = template ?? "";
-  // [Damage:Arg1], [Arg1], {plural:[Arg2]|time|times}, {Brace}
-  text = text.replace(/\[(?:Damage:)?([A-Za-z0-9_]+)\]/g, (_m, key: string) => {
-    const v = resolvedArgs[key];
-    return v == null ? `[${key}]` : String(v);
-  });
-  text = text.replace(
-    /\{plural:\[([A-Za-z0-9_]+)\]\|([^|]+)\|([^}]+)\}/g,
-    (_m, key: string, singular: string, plural: string) => {
-      const n = Number(resolvedArgs[key]);
-      return n === 1 ? singular : plural;
-    },
-  );
-
-  return { text, resolvedArgs };
 }
 
 function layerFromExpanded(
@@ -490,7 +428,7 @@ function buildSkillPackEntry(
   const initialSourceLabel =
     sourceLabelFromSlot(slot, skill.name) ?? skill.name;
   const baseTemplate = skill.descriptionTemplate ?? "";
-  const baseExpanded = expandTemplate(
+  const baseExpanded = expandDescriptionTemplate(
     baseTemplate,
     skill.descriptionArgs,
     skillLevel,
@@ -501,7 +439,7 @@ function buildSkillPackEntry(
       upgrade.patch?.descriptionTemplate ?? baseTemplate;
     const patchArgs =
       upgrade.patch?.descriptionArgs ?? skill.descriptionArgs;
-    const expanded = expandTemplate(patchTemplate, patchArgs, skillLevel);
+    const expanded = expandDescriptionTemplate(patchTemplate, patchArgs, skillLevel);
     const upgraderType = upgrade.upgraderType ?? null;
     const upgraderSlot = upgrade.upgraderSlot ?? null;
     let requiredEnlightenmentHint = defaultRequiredEnlightenment;
@@ -524,6 +462,7 @@ function buildSkillPackEntry(
         descriptionTemplate: patchTemplate,
         expandedText: expanded.text,
         resolvedArgs: expanded.resolvedArgs,
+        resolvedArgMeta: expanded.resolvedArgMeta,
       },
       expanded.text,
     );
@@ -553,6 +492,7 @@ function buildSkillPackEntry(
         descriptionTemplate: baseTemplate,
         expandedText: baseExpanded.text,
         resolvedArgs: baseExpanded.resolvedArgs,
+        resolvedArgMeta: baseExpanded.resolvedArgMeta,
       },
       baseExpanded.text,
     ),
@@ -609,7 +549,7 @@ function buildEnlightenPackEntry(
 ): KitPackEnlighten {
   const slot = enlighten.slot ?? null;
   const requiredEnlightenmentHint = enlightenSlotToRequired(slot);
-  const expanded = expandTemplate(
+  const expanded = expandDescriptionTemplate(
     enlighten.descriptionTemplate ?? "",
     enlighten.descriptionArgs,
     SKILL_LEVEL,
@@ -633,6 +573,7 @@ function buildEnlightenPackEntry(
         descriptionTemplate: enlighten.descriptionTemplate ?? "",
         expandedText: expanded.text,
         resolvedArgs: expanded.resolvedArgs,
+        resolvedArgMeta: expanded.resolvedArgMeta,
       },
       expanded.text,
     ),
@@ -792,7 +733,7 @@ export async function buildKitPackForAwakener(
       : (talent.family ?? "").toLowerCase().includes("gnostic")
         ? gnosticLevel
         : (talent.maxLevel ?? 1);
-    const expanded = expandTemplate(
+    const expanded = expandDescriptionTemplate(
       talent.descriptionTemplate ?? "",
       talent.descriptionArgs,
       Math.max(1, levelUsed),
@@ -819,6 +760,7 @@ export async function buildKitPackForAwakener(
           descriptionTemplate: talent.descriptionTemplate ?? "",
           expandedText: expanded.text,
           resolvedArgs: expanded.resolvedArgs,
+          resolvedArgMeta: expanded.resolvedArgMeta,
         },
         expanded.text,
       ),

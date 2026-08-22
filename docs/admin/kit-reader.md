@@ -126,10 +126,12 @@ When kit text uses **`{Steal}`** or **Steal** in a clause that transfers **STR**
 
 Both rows share the same `sourceKitId`, `sourceQuote`, `sourceLayer`, `requiredEnlightenment`, `isPermanent`, `sourceType`, and `metadataSuffix`.
 
-**Scalar rules** (same as Exhaustion / Power):
+**Scalar rules** (Steal only — not `[Power:Arg]`):
 
 - Flat `Steal N STR` → `valueScalar = N / 100` (Steal 10 → `0.1`; Steal 25 → `0.25`)
 - `Steal STR equal to N% of ATK` → `valueScalar = N / 100`, `dependencyStat: atk`
+
+**`[Power:Arg]` / `[Block:Arg]` / `[{Poison}:Arg]`** use pack `resolvedArgMeta` (see [SKeyDB arg scaling](#skeydb-arg-scaling-resolvedargmeta)) — not flat Steal rules.
 
 **Client-key convention:** `*-str-down` + `*-str-up` (e.g. Faint `rouse-per-card-str-down` / `rouse-per-card-str-up`).
 
@@ -147,6 +149,33 @@ Ambiguous Steal+STR (amount not parseable) → `needs_review`.
 Helpers: [`proposal-heuristics.ts`](../../src/lib/kit-reader/proposal-heuristics.ts) (`detectStealClause`, `parseStealStrScalar`, `warnStealMissingStrUpPair`).
 
 Insert CLI emits non-blocking **warnings** when a Steal STR Down row has no matching STR Up pair in the same proposal batch.
+
+## SKeyDB arg scaling (`resolvedArgMeta`)
+
+Each pack layer exports `resolvedArgs` (lv6 numbers) and **`resolvedArgMeta`** (per-arg `stat`, `suffix`, `hasSubstatBonus`, `substatBonusSubstat`) from SKeyDB `descriptionArgs`.
+
+When `resolvedArgMeta.ArgN` has **`stat`** (`atk` / `def` / `con`) and **`suffix`** includes **`%`**:
+
+- `valueScalar = resolvedArgs.ArgN / 100` (`valueScalarFromKitPercent`)
+- `dependencyStat = meta.stat` (`inferDependencyStatFromArgMeta`)
+
+Applies across channel tokens — not only `[Damage:Arg]`:
+
+| Channel / token | Typical tag | Example |
+| --- | --- | --- |
+| `[Damage:Arg]` | `Attacker.Active Damage` | Deal 20% ATK DMG → `0.2`, `atk` |
+| `[Block:Arg]` | `Defender.Shield.Fixed` | Gain 20% DEF Shield → `0.2`, `def` |
+| `[Power:Arg]` | `Support.STR Up.Fixed` | Obtain 4% ATK STR → `0.04`, `atk` (not flat STR) |
+| `[{Poison}:Arg]` | `Attacker.Poison` | Inflict 150% ATK Poison → `1.5`, `atk` |
+| `[Exhaustion:Arg]` | `Defender.STR Down` | Reduce by N% DEF → `N/100`, `def` |
+
+**`hasSubstatBonus: true`** (e.g. Agrippa Pale Blessing Poison × Sigil Yield) → **`status: needs_review`** — multi-stat formula; one ATM cannot express it (`argMetaRequiresReview`).
+
+**“equal {Poison}” / “equal {Bleed}”** — no separate poison arg; use **aftereffect** on the damage ATM with the same scalar/dep as damage.
+
+**“Trigger [ArgN]% {Poison}”** — ArgN is usually a flat trigger fraction (no `stat` in meta) → not `Attacker.Poison` stack application.
+
+Helpers: [`description-args.ts`](../../src/lib/kit-reader/description-args.ts), [`proposal-heuristics.ts`](../../src/lib/kit-reader/proposal-heuristics.ts).
 
 ## Percent vs linear `dependency_stat`
 

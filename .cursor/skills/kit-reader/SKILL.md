@@ -30,7 +30,7 @@ description: >-
 
 ## Workflow
 
-1. Read the kit pack: `assumptions`, skills (base + upgrades), derivedCards, **`enlightens`** (standalone E1/E2/etc.), talents (`atmEligible`), `ignoreList`, `lexicon.tags`, `lexicon.flavorTagSynonyms`, **`lexicon.aoeTagPrefixes`**, **`lexicon.percentDependencyStats`**, **`lexicon.enjoyTentacleDmgModifierTagNames`**, **`lexicon.stealStrTagNames`**, **`sourceLabel` / layer `sourceLabelHint`**, **`cost`**, layer **`hasEnjoyClause`** / **`hasEnjoyTentacleDmgClause`** / **`hasStealClause`**.
+1. Read the kit pack: `assumptions`, skills (base + upgrades), derivedCards, **`enlightens`** (standalone E1/E2/etc.), talents (`atmEligible`), `ignoreList`, `lexicon.tags`, `lexicon.flavorTagSynonyms`, **`lexicon.aoeTagPrefixes`**, **`lexicon.percentDependencyStats`**, **`lexicon.enjoyTentacleDmgModifierTagNames`**, **`lexicon.stealStrTagNames`**, **`sourceLabel` / layer `sourceLabelHint`**, **`cost`**, layer **`resolvedArgs` + `resolvedArgMeta`**, layer **`hasEnjoyClause`** / **`hasEnjoyTentacleDmgClause`** / **`hasStealClause`**.
 2. Propose ATM + local rows for Path Carver math.
 3. Write proposal JSON to `sample-data/kit-reader/{slug}.proposal.json` (`schemaVersion: 1`). You may omit `metadata` — insert CLI computes it. Use `metadataSuffix` / `metadataOverride` for non-formula labels.
 4. Run:
@@ -93,6 +93,7 @@ When kit text has **`{Steal}`** / **Steal** + **STR** (`hasStealClause: true` on
 - Propose **two** `status: ok` ATMs (not locals): `Defender.STR Down` (enemy, `aoe`) **and** `Support.STR Up.Fixed` (self gain, `aoe`).
 - **Identical** `valueScalar`, `dependencyStat`, `requiredEnlightenment`, `isPermanent`, `sourceType`, `sourceKitId`, `sourceQuote`, `metadataSuffix`.
 - Flat `Steal N STR` → `valueScalar = N / 100` (`parseStealStrScalar`). `Steal STR equal to N% of ATK` → `N / 100` + `dependencyStat: atk`.
+- **`[Power:Arg]` is not flat Steal** — use `resolvedArgMeta` (see SKeyDB arg scaling below).
 - Client keys: `*-str-down` + `*-str-up`.
 - **Not** Steal: plain `reduce … STR` / Exhaustion without Steal; `STR Reduction effect +N%` → `Support.Increase Gain.STR Down` only.
 - Ambiguous amount → `needs_review`. Insert CLI warns when STR Down lacks matching STR Up in the same batch.
@@ -123,6 +124,23 @@ When **ATM** `tagName` matches any prefix in `lexicon.aoeTagPrefixes` (includes 
 - Ambiguous / unmapped → `status: "needs_review"` (or `unsupported` for ignore-list). Never guess a new tag string.
 - Dependency wording (Aliemus Regen Level, etc.) → `dependencyStat`, not a Support tag, when that is the ATM/local pattern.
 - **Percent vs linear `dependencyStat`:** kit says **“every 1%”** of DR / Damage AMP / Crit Rate / etc. (see pack `lexicon.percentDependencyStats`) → `valueScalarPerPercentPointOfPercentDep(R)` (`R/10000`). Kit says **“every 1”** RM / level / flat unit → `valueScalarPerUnitLinearDep(R)` (`R/100`). **Do not** copy Casiah RM `0.002` onto `death_resist`. Use `previewAtmEffectiveScalar` to sanity-check (e.g. Cinders: 33.6% DR → +1.68% Shield at `0.000005`).
+
+## SKeyDB arg scaling (`resolvedArgMeta`)
+
+Each layer has `resolvedArgs` (lv6 values) and **`resolvedArgMeta`** (`stat`, `suffix`, `hasSubstatBonus`).
+
+When `resolvedArgMeta.ArgN.stat` is set and `suffix` includes `%`:
+
+- `valueScalar = valueScalarFromKitPercent(resolvedArgs.ArgN)` → `ArgN / 100`
+- `dependencyStat = inferDependencyStatFromArgMeta(meta)` → usually `atk`, `def`, or `con`
+
+Covers **`[Power:Arg]` → STR**, **`[Block:Arg]` → Shield**, **`[Damage:Arg]` → Active Damage**, **`[{Poison}:Arg]` → Attacker.Poison**, **`[Exhaustion:Arg]` → STR Down**, etc. Do **not** treat `[Power:Arg]` as flat +N% STR with `dependencyStat: null`.
+
+**`hasSubstatBonus: true`** → **`status: needs_review`** (`argMetaRequiresReview`) — e.g. Agrippa Pale Blessing Poison scaled by ATK% × Sigil Yield; one ATM cannot express both.
+
+**“equal {Poison}” / “equal {Bleed}”** — aftereffect local on the damage ATM (same scalar/dep as damage), not a separate arg row.
+
+**“Trigger [ArgN]% {Poison}”** — flat trigger fraction when meta has no `stat`; not stack-application `Attacker.Poison`.
 
 ## Ignore list (never propose as `ok`)
 

@@ -7,8 +7,20 @@
 
 import type { AllStats } from "@/lib/team-data/types";
 import { isPercentDependencyStat } from "@/lib/path-carver/effective-value-scalar";
+import {
+  argMetaRequiresReview,
+  inferDependencyStatFromArgMeta,
+  valueScalarFromKitPercent,
+  type ResolvedArgMetaEntry,
+} from "./description-args";
 
 export { isPercentDependencyStat };
+export {
+  argMetaRequiresReview,
+  inferDependencyStatFromArgMeta,
+  valueScalarFromKitPercent,
+  type ResolvedArgMetaEntry,
+};
 
 /** ATM tag_name prefixes that always use target_type aoe (includes subtags). Not used for unique_scaling locals. */
 export const AOE_TAG_PREFIXES = [
