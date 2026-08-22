@@ -61,6 +61,7 @@ type ManifestationFormDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   record?: Record<string, unknown> | null;
+  initialOverrides?: AwakenerLocalManifestationInteractionInput[];
   onSuccess: () => void;
 };
 
@@ -124,9 +125,10 @@ export function ManifestationFormDialog({
   open,
   onOpenChange,
   record,
+  initialOverrides,
   onSuccess,
 }: ManifestationFormDialogProps) {
-  const isEditing = Boolean(record);
+  const isEditing = Boolean(record?.id != null);
   const childConfig = config.childTables?.[0];
   const overrideFields = childConfig?.fields ?? [];
 
@@ -150,7 +152,40 @@ export function ManifestationFormDialog({
 
     setCreateMore(false);
     setValues(getInitialValues(config, record));
-    setOverrides([]);
+    setOverrides(
+      !isEditing && initialOverrides
+        ? initialOverrides.map((override) => ({
+            clientKey: crypto.randomUUID(),
+            mode: normalizeLocalInteractionMode(override.mode),
+            modifier_tag_id:
+              override.modifier_tag_id == null
+                ? null
+                : Number(override.modifier_tag_id),
+            target_tag_id:
+              override.target_tag_id == null
+                ? null
+                : Number(override.target_tag_id),
+            layer: override.layer == null ? null : String(override.layer),
+            math_operation:
+              override.math_operation == null
+                ? null
+                : String(override.math_operation),
+            value_scalar:
+              override.value_scalar == null
+                ? null
+                : Number(override.value_scalar),
+            target_type: defaultTargetTypeForLocalMode(
+              normalizeLocalInteractionMode(override.mode),
+              override.target_type == null ? null : String(override.target_type),
+            ),
+            dependency_stat:
+              override.dependency_stat == null
+                ? null
+                : String(override.dependency_stat),
+            is_disabled: Boolean(override.is_disabled),
+          }))
+        : [],
+    );
 
     const manifestationFkFields = getFormFields(config).filter(
       (field) => field.type === "foreignKey" && field.foreignKey,

@@ -103,7 +103,7 @@ export function RecordFormDialog({
   record,
   onSuccess,
 }: RecordFormDialogProps) {
-  const isEditing = Boolean(record);
+  const isEditing = Boolean(record?.id != null);
   const [values, setValues] = React.useState<Record<string, unknown>>({});
   const [fkOptions, setFkOptions] = React.useState<
     Record<string, ForeignKeyOption[]>

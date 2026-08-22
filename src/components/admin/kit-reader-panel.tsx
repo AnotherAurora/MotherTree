@@ -39,12 +39,17 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   getForeignKeyOptions,
   resolveForeignKeyLabels,
+  type AwakenerLocalManifestationInteractionInput,
   type ForeignKeyOption,
 } from "@/lib/actions/crud";
 import {
   NON_POSITIVE_INSTANCE_OR_COPIES_HINT,
   hasNonPositiveInstanceOrCopies,
 } from "@/lib/admin-form-warnings";
+import {
+  defaultTargetTypeForLocalMode,
+  normalizeLocalInteractionMode,
+} from "@/lib/admin-local-interaction";
 import {
   exportKitPackAndPrompt,
   listAtmsForAwakener,
@@ -329,6 +334,9 @@ export function KitReaderPanel({
     string,
     unknown
   > | null>(null);
+  const [editingOverrides, setEditingOverrides] = useState<
+    AwakenerLocalManifestationInteractionInput[] | undefined
+  >(undefined);
   const [editingCell, setEditingCell] = useState<EditingCellState>(null);
   const [fkOptionsByField, setFkOptionsByField] = useState<
     Record<string, ForeignKeyOption[]>
@@ -572,6 +580,7 @@ export function KitReaderPanel({
 
   const onEdit = (row: PendingAtmRow) => {
     setEditingRecord(pendingRowToEditRecord(row));
+    setEditingOverrides(undefined);
     setEditOpen(true);
   };
 
@@ -580,6 +589,22 @@ export function KitReaderPanel({
     delete record.id;
     record.verified = true;
     setEditingRecord(record);
+    setEditingOverrides(
+      row.locals.map((local) => ({
+        mode: local.mode,
+        modifier_tag_id: local.modifier_tag_id,
+        target_tag_id: local.target_tag_id,
+        layer: null,
+        math_operation: local.math_operation,
+        value_scalar: local.value_scalar,
+        target_type: defaultTargetTypeForLocalMode(
+          normalizeLocalInteractionMode(local.mode),
+          null,
+        ),
+        dependency_stat: null,
+        is_disabled: Boolean(local.is_disabled),
+      })),
+    );
     setEditOpen(true);
   };
 
@@ -592,6 +617,7 @@ export function KitReaderPanel({
       base_copies: 1,
       is_accumulating: false,
     });
+    setEditingOverrides(undefined);
     setEditOpen(true);
   };
 
@@ -1175,9 +1201,13 @@ export function KitReaderPanel({
         open={editOpen}
         onOpenChange={(open) => {
           setEditOpen(open);
-          if (!open) setEditingRecord(null);
+          if (!open) {
+            setEditingRecord(null);
+            setEditingOverrides(undefined);
+          }
         }}
         record={editingRecord}
+        initialOverrides={editingOverrides}
         onSuccess={onEditSuccess}
       />
     </div>
