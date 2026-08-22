@@ -14,6 +14,7 @@ description: >-
 
 - Cursor-assisted only — do **not** call in-app LLMs or ask for provider API keys.
 - Write path = **validated insert CLI only**. Never invent an admin JSON import UI.
+- Never write or generate ad-hoc one-time patch/update scripts (`scripts/apply-*.ts`, `scripts/patch-*.ts`). All updates must be made via proposal JSON with `insert-kit-pending.ts --patch` / `--append`, or via the Kit Reader UI (`/kit-reader`).
 - Every inserted ATM must be **`verified = false`**. The CLI forces this; never set verified true.
 - One awakener per run. Clear pending (verify or soft-delete) before a new batch — CLI aborts if pending exist; **no `--force`**.
 - Locals inherit pending/live from parent ATM (no separate verified column).

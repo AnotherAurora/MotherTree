@@ -17,7 +17,7 @@ UI: `/kit-reader` (sidebar Tools). Export writes the repo file `sample-data/kit-
 2. If that awakener has pending ATMs: **Verify** or soft-delete until the queue is empty. Export / new batch is blocked while pending remain.
 3. **Export kit pack & fill prompt** → writes `sample-data/kit-reader/{slug}.kit.json`.
 4. **Copy Cursor prompt** → paste into Cursor Agent mode.
-5. Agent proposes + runs insert CLI (`verified=false` only).
+5. Agent proposes + runs insert CLI (`verified=false` only). Never write ad-hoc patch scripts (`scripts/apply-*.ts`); use `insert-kit-pending.ts --patch`/`--append` or the UI.
 6. Back in Kit Reader: **Edit** pending rows as needed → **Verify** (or soft-delete). The Awakener Manifestations table remains available for broader CRUD.
 
 ```text
