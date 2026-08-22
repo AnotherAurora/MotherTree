@@ -82,7 +82,8 @@ If a gate fails, the row is **not applied** (Review Tags shows Applied = no). It
 | `required_enlightenment` | Admin enters **E0 / E1 / E2 / E3 / OE / AA** (stored as `0 / 1 / 2 / 3 / 7 / 15`, same breakpoints as Search Awakener Enlightenment). Path Carver load/resolve and Search gate with `required_enlightenment <=` assumed enlightenment; Review Tags apply path does not currently gate on it the same way as realm. |
 | `trigger_condition` | FK to a **When.\*** tag. Null = always eligible on the null-trigger pass. Set = applied only after Cause→When counts, scaled ×N times. |
 | `target_type` | **`self`:** this Support/Defender-style contribution is scoped to the owner (and Attacker.\* still needs damage-dealer). Used for interaction self-scoping when this row is a **modifier**. |
-| `source_type` | Leaf type (`command card` / `exalt` / `rouse` / `talent`). Used as **subject context** when this ATM is the interaction subject so `tag_default_interaction.buff_target_type_restriction` can match. |
+| `source_type` | Leaf type (`command card` / `exalt` / `rouse` / `talent`). Used as **subject context** when this ATM is the interaction subject so `buff_target_type_restriction` (on TDI or modifier manifestations) can match. |
+| `buff_target_type_restriction` | Gates modifier presence during interaction resolution against the subject's `source_type` (`leafContext`). When set (e.g. `exalt`), this buff modifier only applies to subjects with matching `source_type`. |
 | Tag name `Attacker.*` | Applied only if this awakener is marked **damage dealer** on the desire build (any `target_type`). |
 
 Posse rows skip some of these gates; **ATM does not**.
@@ -98,7 +99,6 @@ Posse rows skip some of these gates; **ATM does not**.
 | `replaces_manifestation_id` | This row replaces another ATM on the same awakener when resolving the loadout. |
 | `is_accumulating` | Loaded / debug; not a scalar multiplier in the interaction engine. Kit Reader sets this for every-turn kit text (“at turn start” / “at turn end”). |
 | `is_permanent` | Data flag; not a Path Carver scalar formula input. |
-| `buff_target_type_restriction` (on ATM) | **Not** the interaction gate — that lives on **`tag_default_interaction`**. ATM column is unused for Layer B gating today. |
 
 ---
 

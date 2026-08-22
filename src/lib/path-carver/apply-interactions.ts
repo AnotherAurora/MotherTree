@@ -2326,7 +2326,13 @@ function runInteractionsForLeafContext(
   const steps: ScalarMathStep[] = [];
   const base: OwnerTotals = new Map();
 
-  for (const m of options.appliedManifestations) {
+  const eligibleManifestations = options.appliedManifestations.filter(
+    (m) =>
+      m.buffTargetTypeRestriction == null ||
+      m.buffTargetTypeRestriction === options.leafContext,
+  );
+
+  for (const m of eligibleManifestations) {
     const raw = m.valueScalar ?? 0;
     const scalar = effectiveManifestationScalar(
       m,
@@ -2381,7 +2387,7 @@ function runInteractionsForLeafContext(
       for (const interaction of interactionsInIdOpOrder) {
         applyInteractionOnto(
           interaction,
-          options.appliedManifestations,
+          eligibleManifestations,
           base,
           current,
           next,
@@ -2398,7 +2404,7 @@ function runInteractionsForLeafContext(
       }
       if (options.applyUniqueScalingInvents) {
         applyUniqueScalingInvents(
-          options.appliedManifestations,
+          eligibleManifestations,
           options.uniqueScalingMatchInteractions ??
             options.defaultInteractions,
           base,

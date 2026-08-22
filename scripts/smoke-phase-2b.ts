@@ -332,6 +332,79 @@ console.log("Part B — leaf-gated buff_target_type_restriction");
       baseStep.scalar === 200,
     "base step shows raw vs effective",
   );
+
+  // Manifestation-level buff_target_type_restriction gating
+  const exaltRestrictedFinalDmg = makeManifestation({
+    id: 15,
+    tagId: finalDmg.id,
+    tagName: finalDmg.tagName,
+    valueScalar: 0.2,
+    buffTargetTypeRestriction: "exalt",
+    targetType: "aoe",
+  });
+  const unrestrictedFinalDmg = makeManifestation({
+    id: 16,
+    tagId: finalDmg.id,
+    tagName: finalDmg.tagName,
+    valueScalar: 0.1,
+    buffTargetTypeRestriction: null,
+    targetType: "aoe",
+  });
+  const cmdCardActive = makeManifestation({
+    id: 17,
+    tagId: active.id,
+    tagName: active.tagName,
+    valueScalar: 100,
+    sourceType: "command card",
+    targetType: "single",
+  });
+  const exaltActive = makeManifestation({
+    id: 18,
+    tagId: active.id,
+    tagName: active.tagName,
+    valueScalar: 100,
+    sourceType: "exalt",
+    targetType: "single",
+  });
+  const finalToActiveInteraction = makeInteraction({
+    id: 3,
+    modifierTagId: finalDmg.id,
+    modifierTagName: finalDmg.tagName,
+    targetTagId: active.id,
+    targetTagName: active.tagName,
+    mathOperation: "multiply_one_plus",
+    defaultFactor: 1,
+    createsBase: false,
+    amplifiesSubject: true,
+  });
+
+  const manifestationGatingResult = applyInteractions({
+    manifestations: [
+      exaltRestrictedFinalDmg,
+      unrestrictedFinalDmg,
+      cmdCardActive,
+      exaltActive,
+    ],
+    appliedManifestations: [
+      exaltRestrictedFinalDmg,
+      unrestrictedFinalDmg,
+      cmdCardActive,
+      exaltActive,
+    ],
+    defaultInteractions: [finalToActiveInteraction],
+    tagsById,
+    awakenersById,
+  });
+
+  // cmdCardActive gets only unrestricted (0.1): 100 * (1 + 0.1) = 110
+  // exaltActive gets both (multiplicative fold-back: 1.2 * 1.1 - 1 = 0.32): 100 * (1 + 0.32) = 131
+  // Total Active Damage = 110 + 131 = 241 (if exalt leaked to command card it would be 131 + 131 = 262)
+  const totalGatedActive =
+    manifestationGatingResult.totalsByTagId.get(active.id) ?? 0;
+  assert(
+    totalGatedActive === 241,
+    `manifestation buffTargetTypeRestriction gates modifier presence (expected 241, got ${totalGatedActive})`,
+  );
 }
 
 console.log("presence_multiply leaves owner buckets for later self multipliers");
