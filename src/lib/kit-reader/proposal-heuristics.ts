@@ -429,3 +429,73 @@ export function parseLemurianSynergyTiers(
 
   return null;
 }
+
+/** Copy provider group for Devour-bracketed kit effects (copy_provider_group.id 7). */
+export const DEVOUR_COPY_PROVIDER_GROUP_NAME = "2x Devour" as const;
+
+const DEVOUR_WORD = /\{Devour\}|\bDevour\b/i;
+
+/** True when kit text contains {Devour} or Devour (e.g. [{Devour}: …]). */
+export function detectDevourClause(
+  kitText: string | null | undefined,
+): boolean {
+  if (!kitText) return false;
+  return DEVOUR_WORD.test(kitText);
+}
+
+/** Pack-serializable Devour copy provider group name. */
+export function devourCopyProviderGroupNameForPack(): string {
+  return DEVOUR_COPY_PROVIDER_GROUP_NAME;
+}
+
+export type DevourWhenTriggerWarning = {
+  clientKey: string;
+  message: string;
+};
+
+/** Minimal proposal shape for Devour copy-provider validation (insert CLI). */
+export type DevourProposalLike = {
+  clientKey: string;
+  status: string;
+  sourceQuote: string;
+  triggerConditionTagName?: string | null;
+  copyProviderGroupName?: string | null;
+};
+
+/**
+ * Non-blocking check: Devour sourceQuote should use copyProviderGroupName
+ * "2x Devour" with triggerConditionTagName null — not Special.When/Cause.Devour.
+ */
+export function warnDevourUsingWhenTrigger(
+  proposals: readonly DevourProposalLike[],
+): DevourWhenTriggerWarning[] {
+  const ok = proposals.filter((p) => p.status === "ok");
+  const warnings: DevourWhenTriggerWarning[] = [];
+
+  for (const proposal of ok) {
+    if (!detectDevourClause(proposal.sourceQuote)) continue;
+
+    const usesWhenTrigger =
+      proposal.triggerConditionTagName === "Special.When.Devour" ||
+      proposal.triggerConditionTagName === "Special.Cause.Devour";
+    const missingCopyGroup =
+      proposal.copyProviderGroupName !== DEVOUR_COPY_PROVIDER_GROUP_NAME;
+
+    if (usesWhenTrigger) {
+      warnings.push({
+        clientKey: proposal.clientKey,
+        message: `${proposal.clientKey}: Devour effect uses triggerConditionTagName "${proposal.triggerConditionTagName}" — use copyProviderGroupName "${DEVOUR_COPY_PROVIDER_GROUP_NAME}" and triggerConditionTagName null instead`,
+      });
+      continue;
+    }
+
+    if (missingCopyGroup) {
+      warnings.push({
+        clientKey: proposal.clientKey,
+        message: `${proposal.clientKey}: Devour sourceQuote should set copyProviderGroupName "${DEVOUR_COPY_PROVIDER_GROUP_NAME}" and triggerConditionTagName null`,
+      });
+    }
+  }
+
+  return warnings;
+}

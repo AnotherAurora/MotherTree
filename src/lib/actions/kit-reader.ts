@@ -24,6 +24,8 @@ export type KitReaderAwakenerOption = {
   id: number;
   name: string;
   pendingCount: number;
+  verifiedCount: number;
+  totalCount: number;
 };
 
 export async function listKitReaderAwakeners(): Promise<
@@ -41,27 +43,39 @@ export async function listKitReaderAwakeners(): Promise<
 
     if (error) return { success: false, error: error.message };
 
-    const { data: pendingRows, error: pendingError } = await supabase
+    const { data: atmRows, error: atmError } = await supabase
       .from("awakener_tag_manifestation")
-      .select("awakener_id")
-      .eq("verified", false)
+      .select("awakener_id, verified")
       .is("deleted_at", null);
 
-    if (pendingError) return { success: false, error: pendingError.message };
+    if (atmError) return { success: false, error: atmError.message };
 
     const pendingByAwakener = new Map<number, number>();
-    for (const row of pendingRows ?? []) {
+    const verifiedByAwakener = new Map<number, number>();
+
+    for (const row of atmRows ?? []) {
       const id = Number(row.awakener_id);
-      pendingByAwakener.set(id, (pendingByAwakener.get(id) ?? 0) + 1);
+      if (row.verified) {
+        verifiedByAwakener.set(id, (verifiedByAwakener.get(id) ?? 0) + 1);
+      } else {
+        pendingByAwakener.set(id, (pendingByAwakener.get(id) ?? 0) + 1);
+      }
     }
 
     return {
       success: true,
-      data: (awakeners ?? []).map((row) => ({
-        id: Number(row.id),
-        name: String(row.name),
-        pendingCount: pendingByAwakener.get(Number(row.id)) ?? 0,
-      })),
+      data: (awakeners ?? []).map((row) => {
+        const id = Number(row.id);
+        const pendingCount = pendingByAwakener.get(id) ?? 0;
+        const verifiedCount = verifiedByAwakener.get(id) ?? 0;
+        return {
+          id,
+          name: String(row.name),
+          pendingCount,
+          verifiedCount,
+          totalCount: pendingCount + verifiedCount,
+        };
+      }),
     };
   } catch (error) {
     return {
@@ -105,22 +119,31 @@ export type PendingAtmRow = {
   }[];
 };
 
-export async function listPendingAtmsForAwakener(
+export type KitReaderAtmMode = "pending" | "verified" | "all";
+
+export async function listAtmsForAwakener(
   awakenerId: number,
+  mode: KitReaderAtmMode = "pending",
 ): Promise<ActionResult<PendingAtmRow[]>> {
   if (!isAdminRuntimeEnabled()) return adminUnavailableResult();
 
   try {
     const supabase = createAdminClient();
-    const { data, error } = await supabase
+    let query = supabase
       .from("awakener_tag_manifestation")
       .select(
         "id, awakener_id, tag_id, trigger_condition, metadata, replaces_manifestation_id, dependency_stat, value_scalar, instance_count, base_copies, copy_provider_group_id, is_accumulating, is_permanent, verified, required_enlightenment, required_realm, source_type, target_type, buff_target_type_restriction, tag!tag_id(tag_name)",
       )
       .eq("awakener_id", awakenerId)
-      .eq("verified", false)
-      .is("deleted_at", null)
-      .order("id");
+      .is("deleted_at", null);
+
+    if (mode === "pending") {
+      query = query.eq("verified", false);
+    } else if (mode === "verified") {
+      query = query.eq("verified", true);
+    }
+
+    const { data, error } = await query.order("id");
 
     if (error) return { success: false, error: error.message };
 
@@ -210,9 +233,15 @@ export async function listPendingAtmsForAwakener(
     return {
       success: false,
       error:
-        error instanceof Error ? error.message : "Failed to list pending ATMs",
+        error instanceof Error ? error.message : "Failed to list ATMs",
     };
   }
+}
+
+export async function listPendingAtmsForAwakener(
+  awakenerId: number,
+): Promise<ActionResult<PendingAtmRow[]>> {
+  return listAtmsForAwakener(awakenerId, "pending");
 }
 
 export async function exportKitPackAndPrompt(
@@ -313,6 +342,40 @@ export async function verifyPendingAtm(
   }
 }
 
+export async function unverifyAtm(
+  manifestationId: number,
+): Promise<ActionResult<{ id: number }>> {
+  if (!isAdminRuntimeEnabled()) return adminUnavailableResult();
+
+  try {
+    const supabase = createAdminClient();
+    const { data, error } = await supabase
+      .from("awakener_tag_manifestation")
+      .update({ verified: false, updated_at: nowIso() } as never)
+      .eq("id", manifestationId)
+      .is("deleted_at", null)
+      .select("id")
+      .maybeSingle();
+
+    if (error) return { success: false, error: error.message };
+    if (!data) {
+      return {
+        success: false,
+        error: "ATM not found",
+      };
+    }
+
+    revalidatePath("/kit-reader");
+    revalidatePath("/tables/awakener_tag_manifestation");
+    return { success: true, data: { id: Number(data.id) } };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to unverify ATM",
+    };
+  }
+}
+
 export async function verifyAllPendingForAwakener(
   awakenerId: number,
 ): Promise<ActionResult<{ count: number }>> {
@@ -342,7 +405,7 @@ export async function verifyAllPendingForAwakener(
   }
 }
 
-export async function softDeletePendingAtm(
+export async function softDeleteAtm(
   manifestationId: number,
 ): Promise<ActionResult<{ id: number }>> {
   if (!isAdminRuntimeEnabled()) return adminUnavailableResult();
@@ -355,14 +418,13 @@ export async function softDeletePendingAtm(
       .from("awakener_tag_manifestation")
       .update({ deleted_at: stamp, updated_at: stamp } as never)
       .eq("id", manifestationId)
-      .eq("verified", false)
       .is("deleted_at", null)
       .select("id")
       .maybeSingle();
 
     if (error) return { success: false, error: error.message };
     if (!data) {
-      return { success: false, error: "Pending ATM not found" };
+      return { success: false, error: "ATM not found" };
     }
 
     await supabase
@@ -379,6 +441,61 @@ export async function softDeletePendingAtm(
       success: false,
       error:
         error instanceof Error ? error.message : "Failed to soft-delete ATM",
+    };
+  }
+}
+
+export async function softDeletePendingAtm(
+  manifestationId: number,
+): Promise<ActionResult<{ id: number }>> {
+  return softDeleteAtm(manifestationId);
+}
+
+export async function getAwakenerNotes(
+  awakenerId: number,
+): Promise<ActionResult<{ notes: string | null }>> {
+  if (!isAdminRuntimeEnabled()) return adminUnavailableResult();
+
+  try {
+    const supabase = createAdminClient();
+    const { data, error } = await supabase
+      .from("awakener")
+      .select("notes")
+      .eq("id", awakenerId)
+      .is("deleted_at", null)
+      .maybeSingle();
+
+    if (error) return { success: false, error: error.message };
+    return { success: true, data: { notes: data?.notes ?? null } };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to load awakener notes",
+    };
+  }
+}
+
+export async function saveAwakenerNotes(
+  awakenerId: number,
+  notes: string | null,
+): Promise<ActionResult<{ notes: string | null }>> {
+  if (!isAdminRuntimeEnabled()) return adminUnavailableResult();
+
+  try {
+    const supabase = createAdminClient();
+    const { error } = await supabase
+      .from("awakener")
+      .update({ notes: notes || null, updated_at: nowIso() } as never)
+      .eq("id", awakenerId)
+      .is("deleted_at", null);
+
+    if (error) return { success: false, error: error.message };
+    revalidatePath("/kit-reader");
+    return { success: true, data: { notes: notes || null } };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to save awakener notes",
     };
   }
 }

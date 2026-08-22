@@ -22,7 +22,8 @@ SKeyDB commit: ${commit}
 
 1. Read the kit pack (skill layers, standalone enlightens, atmEligible talents, ignore list,
    lexicon.tags + lexicon.flavorTagSynonyms + lexicon.percentDependencyStats;
-   use sourceLabel / sourceLabelHint; per layer read resolvedArgs AND resolvedArgMeta).
+   use sourceLabel / sourceLabelHint; per layer read resolvedArgs AND resolvedArgMeta,
+   hasEnjoyClause / hasStealClause / hasDevourClause).
 2. Propose ATM + local rows for Path Carver (enlighten replace-vs-add;
    Soulforge kit-specific only). Resolve tagName via pack
    lexicon.flavorTagSynonyms; prefer .Fixed except Attacker.Active Damage
@@ -38,6 +39,8 @@ SKeyDB commit: ${commit}
    unique_scaling locals use targetType self; lexicon.aoeTagPrefixes applies to ATM targetType only.
    {Steal} / Steal + STR → two ok ATMs: Defender.STR Down + Support.STR Up.Fixed (same scalar);
    plain STR reduction without Steal → STR Down only.
+   [{Devour}: …] / {Devour} effects → copyProviderGroupName "2x Devour", triggerConditionTagName null
+   (never Special.When.Devour or Special.Cause.Devour); insert CLI adds "Devour" to metadata.
    resolvedArgMeta: stat + % suffix → dependencyStat (atk/def/con) and valueScalar = ArgN/100
    for Power/Block/Damage/Poison/Exhaustion channel args; hasSubstatBonus → needs_review.
 3. Never create ATMs for Gnostic Potential, Madness Omen, Dimensional Image,

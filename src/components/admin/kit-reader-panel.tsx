@@ -11,12 +11,27 @@ import {
 } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Check, Copy, Loader2, Pencil, RefreshCw, Trash2 } from "lucide-react";
+import {
+  Check,
+  Copy,
+  Loader2,
+  Pencil,
+  Plus,
+  RefreshCw,
+  RotateCcw,
+  Trash2,
+} from "lucide-react";
 import { toast } from "sonner";
+import { AwakenerKitNotes } from "@/components/admin/awakener-kit-notes";
 import {
   EditableCell,
   formatCellDisplayValue,
 } from "@/components/admin/editable-cell";
+import {
+  INITIAL_KIT_READER_FILTERS,
+  KitReaderFilters,
+  type KitReaderFiltersState,
+} from "@/components/admin/kit-reader-filters";
 import { ManifestationFormDialog } from "@/components/admin/manifestation-form-dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -32,11 +47,13 @@ import {
 } from "@/lib/admin-form-warnings";
 import {
   exportKitPackAndPrompt,
+  listAtmsForAwakener,
   listKitReaderAwakeners,
-  listPendingAtmsForAwakener,
-  softDeletePendingAtm,
+  softDeleteAtm,
+  unverifyAtm,
   verifyAllPendingForAwakener,
   verifyPendingAtm,
+  type KitReaderAtmMode,
   type KitReaderAwakenerOption,
   type PendingAtmRow,
 } from "@/lib/actions/kit-reader";
@@ -55,7 +72,7 @@ const ATM_FIELD_BY_NAME = Object.fromEntries(
   ATM_CONFIG.fields.map((field) => [field.name, field]),
 ) as Record<string, FieldConfig>;
 
-/** Pending queue column order (excludes timestamps + verified). */
+/** ATM queue column order (excludes timestamps). */
 const PENDING_COLUMN_FIELDS = [
   "id",
   "awakener_id",
@@ -289,17 +306,23 @@ function formatStaticPendingValue(
 
 export function KitReaderPanel({
   initialAwakenerId,
+  initialMode = "pending",
 }: {
   initialAwakenerId: number | null;
+  initialMode?: KitReaderAtmMode;
 }) {
   const router = useRouter();
   const [awakeners, setAwakeners] = useState<KitReaderAwakenerOption[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(initialAwakenerId);
-  const [pending, setPending] = useState<PendingAtmRow[]>([]);
+  const [mode, setMode] = useState<KitReaderAtmMode>(initialMode);
+  const [filters, setFilters] = useState<KitReaderFiltersState>(
+    INITIAL_KIT_READER_FILTERS,
+  );
+  const [rows, setRows] = useState<PendingAtmRow[]>([]);
   const [prompt, setPrompt] = useState("");
   const [packPath, setPackPath] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [pendingLoad, startPendingLoad] = useTransition();
+  const [rowsLoading, startRowsLoading] = useTransition();
   const [busy, startBusy] = useTransition();
   const [editOpen, setEditOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<Record<
@@ -318,12 +341,30 @@ export function KitReaderPanel({
     [awakeners, selectedId],
   );
 
+  const updateUrl = useCallback(
+    (id: number | null, targetMode: KitReaderAtmMode) => {
+      if (id == null) return;
+      router.replace(`/kit-reader?awakener=${id}&mode=${targetMode}`, {
+        scroll: false,
+      });
+    },
+    [router],
+  );
+
   const selectAwakener = useCallback(
     (id: number) => {
       setSelectedId(id);
-      router.replace(`/kit-reader?awakener=${id}`, { scroll: false });
+      updateUrl(id, mode);
     },
-    [router],
+    [mode, updateUrl],
+  );
+
+  const handleModeChange = useCallback(
+    (newMode: KitReaderAtmMode) => {
+      setMode(newMode);
+      updateUrl(selectedId, newMode);
+    },
+    [selectedId, updateUrl],
   );
 
   const refreshAwakeners = useCallback(async () => {
@@ -342,39 +383,35 @@ export function KitReaderPanel({
     }
   }, [selectedId, selectAwakener]);
 
-  const refreshPending = useCallback((awakenerId: number) => {
-    startPendingLoad(async () => {
-      const result = await listPendingAtmsForAwakener(awakenerId);
-      if (!result.success) {
-        toast.error(result.error);
-        return;
-      }
+  const refreshRows = useCallback(
+    (awakenerId: number, targetMode: KitReaderAtmMode) => {
+      startRowsLoading(async () => {
+        const result = await listAtmsForAwakener(awakenerId, targetMode);
+        if (!result.success) {
+          toast.error(result.error);
+          return;
+        }
 
-      const records = result.data.map(pendingRowToEditRecord);
-      const labelResult = await resolveForeignKeyLabels(
-        ATM_CONFIG.name,
-        records,
-      );
+        const records = result.data.map(pendingRowToEditRecord);
+        const labelResult = await resolveForeignKeyLabels(
+          ATM_CONFIG.name,
+          records,
+        );
 
-      setPending(result.data);
-      if (labelResult.success) {
-        setFkLabels(labelResult.data);
-      }
-      setEditingCell(null);
-      setAwakeners((prev) =>
-        prev.map((row) =>
-          row.id === awakenerId
-            ? { ...row, pendingCount: result.data.length }
-            : row,
-        ),
-      );
-    });
-  }, []);
+        setRows(result.data);
+        if (labelResult.success) {
+          setFkLabels(labelResult.data);
+        }
+        setEditingCell(null);
+      });
+    },
+    [],
+  );
 
   const refreshAll = useCallback(() => {
-    if (selectedId != null) refreshPending(selectedId);
+    if (selectedId != null) refreshRows(selectedId, mode);
     void refreshAwakeners();
-  }, [selectedId, refreshPending, refreshAwakeners]);
+  }, [selectedId, mode, refreshRows, refreshAwakeners]);
 
   useEffect(() => {
     void refreshAwakeners();
@@ -382,11 +419,11 @@ export function KitReaderPanel({
 
   useEffect(() => {
     if (selectedId == null) return;
-    refreshPending(selectedId);
+    refreshRows(selectedId, mode);
     setPrompt("");
     setPackPath(null);
     setEditingCell(null);
-  }, [selectedId, refreshPending]);
+  }, [selectedId, mode, refreshRows]);
 
   useEffect(() => {
     const onMaybeVisible = () => {
@@ -451,7 +488,7 @@ export function KitReaderPanel({
     };
   }, []);
 
-  const hasPending = (selected?.pendingCount ?? 0) > 0 || pending.length > 0;
+  const hasPending = (selected?.pendingCount ?? 0) > 0;
 
   const onExport = () => {
     if (selectedId == null) return;
@@ -488,7 +525,20 @@ export function KitReaderPanel({
         return;
       }
       toast.success(`Verified ATM #${id}`);
-      if (selectedId != null) refreshPending(selectedId);
+      if (selectedId != null) refreshRows(selectedId, mode);
+      await refreshAwakeners();
+    });
+  };
+
+  const onUnverify = (id: number) => {
+    startBusy(async () => {
+      const result = await unverifyAtm(id);
+      if (!result.success) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success(`Moved ATM #${id} to Pending`);
+      if (selectedId != null) refreshRows(selectedId, mode);
       await refreshAwakeners();
     });
   };
@@ -502,20 +552,20 @@ export function KitReaderPanel({
         return;
       }
       toast.success(`Verified ${result.data.count} ATM(s)`);
-      refreshPending(selectedId);
+      refreshRows(selectedId, mode);
       await refreshAwakeners();
     });
   };
 
   const onSoftDelete = (id: number) => {
     startBusy(async () => {
-      const result = await softDeletePendingAtm(id);
+      const result = await softDeleteAtm(id);
       if (!result.success) {
         toast.error(result.error);
         return;
       }
-      toast.success(`Soft-deleted pending ATM #${id}`);
-      if (selectedId != null) refreshPending(selectedId);
+      toast.success(`Soft-deleted ATM #${id}`);
+      if (selectedId != null) refreshRows(selectedId, mode);
       await refreshAwakeners();
     });
   };
@@ -525,13 +575,34 @@ export function KitReaderPanel({
     setEditOpen(true);
   };
 
+  const onClone = (row: PendingAtmRow) => {
+    const record = pendingRowToEditRecord(row);
+    delete record.id;
+    record.verified = true;
+    setEditingRecord(record);
+    setEditOpen(true);
+  };
+
+  const onAddNew = () => {
+    if (selectedId == null) return;
+    setEditingRecord({
+      awakener_id: selectedId,
+      verified: mode === "verified" || mode === "all",
+      instance_count: 1,
+      base_copies: 1,
+      is_accumulating: false,
+    });
+    setEditOpen(true);
+  };
+
   const onEditSuccess = () => {
-    if (selectedId != null) refreshPending(selectedId);
+    if (selectedId != null) refreshRows(selectedId, mode);
+    void refreshAwakeners();
   };
 
   const handleInlineUpdate = (updated: Record<string, unknown>) => {
     const id = Number(updated.id);
-    setPending((current) =>
+    setRows((current) =>
       current.map((row) =>
         row.id === id ? mergePendingFromUpdate(row, updated) : row,
       ),
@@ -552,6 +623,45 @@ export function KitReaderPanel({
     }
   };
 
+  // Apply filters
+  const filteredRows = useMemo(() => {
+    return rows.filter((row) => {
+      // Enlightenment filter
+      if (filters.enlightenment !== "all") {
+        if (filters.enlightenment === "unset") {
+          if (row.required_enlightenment != null) return false;
+        } else {
+          if (row.required_enlightenment !== Number(filters.enlightenment)) {
+            return false;
+          }
+        }
+      }
+
+      // Source type filter
+      if (filters.sourceType !== "all") {
+        if (filters.sourceType === "unset") {
+          if (row.source_type != null && row.source_type !== "") return false;
+        } else {
+          if (row.source_type !== filters.sourceType) return false;
+        }
+      }
+
+      // Search query
+      if (filters.searchQuery.trim() !== "") {
+        const q = filters.searchQuery.trim().toLowerCase();
+        const matchesTag = row.tag_name?.toLowerCase().includes(q) ?? false;
+        const matchesMetadata = row.metadata?.toLowerCase().includes(q) ?? false;
+        const matchesDependency = row.dependency_stat?.toLowerCase().includes(q) ?? false;
+        const matchesId = String(row.id).includes(q) || String(row.tag_id).includes(q);
+        if (!matchesTag && !matchesMetadata && !matchesDependency && !matchesId) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [rows, filters]);
+
   return (
     <div className="mx-auto max-w-5xl space-y-8">
       <header className="space-y-2">
@@ -559,19 +669,19 @@ export function KitReaderPanel({
           Local admin only
         </p>
         <h1 className="text-3xl font-semibold tracking-tight text-zinc-950">
-          Kit Reader
+          Kit Reader &amp; Editor
         </h1>
         <p className="max-w-2xl text-sm text-zinc-600">
-          Export one awakener&apos;s SKeyDB kit pack, copy a Cursor Agent prompt,
-          insert pending ATMs via CLI, then edit / verify here. No in-app AI and
-          no JSON import. The{" "}
+          Triage and verify proposed kit packs, or view and tune live Awakener kits
+          with inline cell editing, notes scratchpad, and local interaction overrides.
+          The{" "}
           <Link
             href="/tables/awakener_tag_manifestation"
             className="underline underline-offset-2 hover:text-zinc-950"
           >
             Awakener Manifestations
           </Link>{" "}
-          table remains available for broader CRUD.
+          table remains available for broader database management.
         </p>
       </header>
 
@@ -581,6 +691,7 @@ export function KitReaderPanel({
         </div>
       )}
 
+      {/* Awakener Selection */}
       <section className="space-y-3">
         <Label htmlFor="kit-reader-awakener">Awakener</Label>
         <select
@@ -594,301 +705,466 @@ export function KitReaderPanel({
         >
           {awakeners.map((row) => (
             <option key={row.id} value={row.id}>
-              {row.name}
-              {row.pendingCount > 0 ? ` (${row.pendingCount} pending)` : ""}
+              {row.name} ({row.pendingCount} pending / {row.verifiedCount} verified)
             </option>
           ))}
         </select>
       </section>
 
-      {hasPending && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          Pending ATMs must be verified or soft-deleted before a new export /
-          Cursor batch for this awakener.
-        </div>
+      {/* Awakener Notes Scratchpad */}
+      {selected && (
+        <AwakenerKitNotes
+          awakenerId={selected.id}
+          awakenerName={selected.name}
+        />
       )}
 
-      {/* Form wrapper: browser form restoration can flip `disabled` on
-          controls across refresh (SSR/client hydration mismatches).
-          `autoComplete` is invalid on <button>, so opt out via <form>. */}
-      <form
-        autoComplete="off"
-        className="flex flex-wrap gap-3"
-        onSubmit={(event) => event.preventDefault()}
-      >
-        <Button
-          type="button"
-          disabled={busy || selectedId == null || hasPending}
-          onClick={onExport}
-        >
-          {busy ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          ) : null}
-          Export kit pack &amp; fill prompt
-        </Button>
-        <Button
-          type="button"
-          variant="secondary"
-          disabled={busy || !prompt}
-          onClick={() => void onCopyPrompt()}
-        >
-          <Copy className="mr-2 h-4 w-4" />
-          Copy Cursor prompt
-        </Button>
-        {packPath && (
-          <p className="self-center text-xs text-zinc-500">Wrote {packPath}</p>
-        )}
-      </form>
-
-      <section className="space-y-2">
-        <Label htmlFor="kit-reader-prompt">Cursor Agent prompt</Label>
-        <Textarea
-          id="kit-reader-prompt"
-          readOnly
-          value={prompt}
-          placeholder="Export a kit pack to fill this prompt."
-          className="min-h-[220px] bg-zinc-50 font-mono text-sm leading-relaxed text-zinc-900"
-        />
-      </section>
-
-      <form
-        autoComplete="off"
-        className="space-y-3"
-        onSubmit={(event) => event.preventDefault()}
-      >
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-lg font-medium text-zinc-950">
-            Pending queue
-            {pendingLoad ? (
-              <Loader2 className="ml-2 inline h-4 w-4 animate-spin text-zinc-400" />
-            ) : (
-              <span className="ml-2 text-sm font-normal text-zinc-500">
-                ({pending.length})
-              </span>
+      {/* Mode Toggle Bar */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => handleModeChange("pending")}
+            className={cn(
+              "flex items-center gap-2 rounded-lg px-3.5 py-1.5 text-sm font-medium transition-colors",
+              mode === "pending"
+                ? "bg-zinc-900 text-white shadow-xs"
+                : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200 hover:text-zinc-900",
             )}
-          </h2>
-          <div className="flex flex-wrap gap-2">
+          >
+            Pending Review
+            <span
+              className={cn(
+                "rounded-full px-2 py-0.5 text-xs font-semibold",
+                mode === "pending"
+                  ? "bg-zinc-800 text-zinc-100"
+                  : "bg-zinc-200 text-zinc-700",
+              )}
+            >
+              {selected?.pendingCount ?? 0}
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={() => handleModeChange("verified")}
+            className={cn(
+              "flex items-center gap-2 rounded-lg px-3.5 py-1.5 text-sm font-medium transition-colors",
+              mode === "verified"
+                ? "bg-zinc-900 text-white shadow-xs"
+                : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200 hover:text-zinc-900",
+            )}
+          >
+            Verified Kit
+            <span
+              className={cn(
+                "rounded-full px-2 py-0.5 text-xs font-semibold",
+                mode === "verified"
+                  ? "bg-zinc-800 text-zinc-100"
+                  : "bg-zinc-200 text-zinc-700",
+              )}
+            >
+              {selected?.verifiedCount ?? 0}
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={() => handleModeChange("all")}
+            className={cn(
+              "flex items-center gap-2 rounded-lg px-3.5 py-1.5 text-sm font-medium transition-colors",
+              mode === "all"
+                ? "bg-zinc-900 text-white shadow-xs"
+                : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200 hover:text-zinc-900",
+            )}
+          >
+            All Records
+            <span
+              className={cn(
+                "rounded-full px-2 py-0.5 text-xs font-semibold",
+                mode === "all"
+                  ? "bg-zinc-800 text-zinc-100"
+                  : "bg-zinc-200 text-zinc-700",
+              )}
+            >
+              {selected?.totalCount ?? 0}
+            </span>
+          </button>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          {(mode === "verified" || mode === "all") && (
             <Button
               type="button"
-              variant="secondary"
+              size="sm"
+              onClick={onAddNew}
               disabled={busy || selectedId == null}
-              onClick={refreshAll}
             >
-              {pendingLoad ? (
+              <Plus className="mr-1.5 h-4 w-4" />
+              Add Manifestation
+            </Button>
+          )}
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            disabled={busy || selectedId == null}
+            onClick={refreshAll}
+          >
+            {rowsLoading ? (
+              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+            )}
+            Refresh
+          </Button>
+        </div>
+      </div>
+
+      {/* Pending Mode Ingestion Tools */}
+      {mode === "pending" && (
+        <div className="space-y-4">
+          {hasPending && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+              Pending ATMs must be verified or soft-deleted before exporting a new kit pack
+              for this awakener.
+            </div>
+          )}
+
+          <form
+            autoComplete="off"
+            className="flex flex-wrap gap-3"
+            onSubmit={(event) => event.preventDefault()}
+          >
+            <Button
+              type="button"
+              disabled={busy || selectedId == null || hasPending}
+              onClick={onExport}
+            >
+              {busy ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <RefreshCw className="mr-2 h-4 w-4" />
-              )}
-              Refresh
+              ) : null}
+              Export kit pack &amp; fill prompt
             </Button>
             <Button
               type="button"
               variant="secondary"
-              disabled={busy || pending.length === 0}
+              disabled={busy || !prompt}
+              onClick={() => void onCopyPrompt()}
+            >
+              <Copy className="mr-2 h-4 w-4" />
+              Copy Cursor prompt
+            </Button>
+            {packPath && (
+              <p className="self-center text-xs text-zinc-500">Wrote {packPath}</p>
+            )}
+          </form>
+
+          <section className="space-y-2">
+            <Label htmlFor="kit-reader-prompt">Cursor Agent prompt</Label>
+            <Textarea
+              id="kit-reader-prompt"
+              readOnly
+              value={prompt}
+              placeholder="Export a kit pack to fill this prompt."
+              className="min-h-[160px] bg-zinc-50 font-mono text-sm leading-relaxed text-zinc-900"
+            />
+          </section>
+        </div>
+      )}
+
+      {/* Manifestations List Section */}
+      <form
+        autoComplete="off"
+        className="space-y-4"
+        onSubmit={(event) => event.preventDefault()}
+      >
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-lg font-medium text-zinc-950">
+            {mode === "pending"
+              ? "Pending queue"
+              : mode === "verified"
+                ? "Verified manifestations"
+                : "All manifestations"}
+            {rowsLoading ? (
+              <Loader2 className="ml-2 inline h-4 w-4 animate-spin text-zinc-400" />
+            ) : (
+              <span className="ml-2 text-sm font-normal text-zinc-500">
+                ({filteredRows.length} of {rows.length})
+              </span>
+            )}
+          </h2>
+
+          {mode === "pending" && (
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={busy || rows.length === 0}
               onClick={onVerifyAll}
             >
               <Check className="mr-2 h-4 w-4" />
               Verify all
             </Button>
-          </div>
+          )}
         </div>
 
-        {pending.length === 0 ? (
-          <p className="text-sm text-zinc-500">No pending ATMs for this awakener.</p>
+        {/* Filter Toolbar */}
+        {rows.length > 0 && (
+          <KitReaderFilters
+            filters={filters}
+            onFilterChange={setFilters}
+            totalCount={rows.length}
+            filteredCount={filteredRows.length}
+          />
+        )}
+
+        {rows.length === 0 ? (
+          <p className="text-sm text-zinc-500 py-4">
+            {mode === "pending"
+              ? "No pending ATMs for this awakener."
+              : mode === "verified"
+                ? "No verified manifestations found. Add one or verify items from the pending queue."
+                : "No manifestations found for this awakener."}
+          </p>
+        ) : filteredRows.length === 0 ? (
+          <p className="text-sm text-zinc-500 py-4">
+            No manifestations match the selected filters.
+          </p>
         ) : (
           <ul className="space-y-3">
-            {pending.map((row) => {
+            {filteredRows.map((row) => {
               const nonPositiveCopies = hasNonPositiveInstanceOrCopies(
                 pendingRowToEditRecord(row),
               );
               return (
-              <li
-                key={row.id}
-                className={cn(
-                  "rounded-lg border border-border bg-white px-4 py-3",
-                  nonPositiveCopies && "border-amber-200 bg-amber-50",
-                )}
-                title={
-                  nonPositiveCopies
-                    ? NON_POSITIVE_INSTANCE_OR_COPIES_HINT
-                    : undefined
-                }
-              >
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="min-w-0 flex-1 space-y-3">
-                    <p className="font-medium text-zinc-950">
-                      #{row.id}{" "}
-                      <span
-                        className="text-zinc-700"
-                        title={row.tag_name ?? `tag:${row.tag_id}`}
-                      >
-                        {row.tag_name ?? `tag:${row.tag_id}`}
-                      </span>
-                    </p>
+                <li
+                  key={row.id}
+                  className={cn(
+                    "rounded-lg border border-border bg-white px-4 py-3 shadow-2xs transition-colors",
+                    nonPositiveCopies && "border-amber-200 bg-amber-50",
+                  )}
+                  title={
+                    nonPositiveCopies
+                      ? NON_POSITIVE_INSTANCE_OR_COPIES_HINT
+                      : undefined
+                  }
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1 space-y-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-medium text-zinc-950">
+                          #{row.id}{" "}
+                          <span
+                            className="text-zinc-700"
+                            title={row.tag_name ?? `tag:${row.tag_id}`}
+                          >
+                            {row.tag_name ?? `tag:${row.tag_id}`}
+                          </span>
+                        </p>
+                        {mode === "all" && (
+                          <span
+                            className={cn(
+                              "rounded-full px-2 py-0.5 text-xs font-semibold border",
+                              row.verified
+                                ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                                : "border-amber-200 bg-amber-50 text-amber-700",
+                            )}
+                          >
+                            {row.verified ? "Verified" : "Pending"}
+                          </span>
+                        )}
+                      </div>
 
-                    <dl className="grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-3 lg:grid-cols-4">
-                      {PENDING_COLUMN_FIELDS.map((name) => {
-                        const field = pendingInlineField(name);
-                        const label = pendingColumnLabel(name);
-                        const isMetadata = name === "metadata";
+                      <dl className="grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-3 lg:grid-cols-4">
+                        {PENDING_COLUMN_FIELDS.map((name) => {
+                          const field = pendingInlineField(name);
+                          const label = pendingColumnLabel(name);
+                          const isMetadata = name === "metadata";
 
-                        if (field) {
-                          const value = readPendingFieldValue(row, name);
-                          const title = formatCellDisplayValue(
-                            field.name,
-                            value,
+                          if (field) {
+                            const value = readPendingFieldValue(row, name);
+                            const title = formatCellDisplayValue(
+                              field.name,
+                              value,
+                              fkLabels,
+                            );
+                            return (
+                              <PendingField
+                                key={name}
+                                label={label}
+                                title={title === "—" ? undefined : title}
+                                truncate={!isMetadata}
+                                className={
+                                  isMetadata
+                                    ? "col-span-2 sm:col-span-3 lg:col-span-4"
+                                    : undefined
+                                }
+                              >
+                                <EditableCell
+                                  tableName={ATM_CONFIG.name}
+                                  recordId={row.id}
+                                  field={field}
+                                  value={value}
+                                  fkLabels={fkLabels}
+                                  fkOptions={fkOptionsByField[field.name] ?? []}
+                                  disabled={busy}
+                                  isActive={
+                                    editingCell?.recordId === row.id &&
+                                    editingCell.fieldName === field.name
+                                  }
+                                  onActivate={() =>
+                                    setEditingCell({
+                                      recordId: row.id,
+                                      fieldName: field.name,
+                                    })
+                                  }
+                                  onDeactivate={() => setEditingCell(null)}
+                                  onUpdate={handleInlineUpdate}
+                                />
+                              </PendingField>
+                            );
+                          }
+
+                          const staticValue = formatStaticPendingValue(
+                            row,
+                            name,
                             fkLabels,
                           );
                           return (
                             <PendingField
                               key={name}
                               label={label}
-                              title={title === "—" ? undefined : title}
-                              truncate={!isMetadata}
-                              className={
-                                isMetadata
-                                  ? "col-span-2 sm:col-span-3 lg:col-span-4"
-                                  : undefined
-                              }
+                              title={staticValue.title}
                             >
-                              <EditableCell
-                                tableName={ATM_CONFIG.name}
-                                recordId={row.id}
-                                field={field}
-                                value={value}
-                                fkLabels={fkLabels}
-                                fkOptions={fkOptionsByField[field.name] ?? []}
-                                disabled={busy}
-                                isActive={
-                                  editingCell?.recordId === row.id &&
-                                  editingCell.fieldName === field.name
-                                }
-                                onActivate={() =>
-                                  setEditingCell({
-                                    recordId: row.id,
-                                    fieldName: field.name,
-                                  })
-                                }
-                                onDeactivate={() => setEditingCell(null)}
-                                onUpdate={handleInlineUpdate}
-                              />
+                              {staticValue.display}
                             </PendingField>
                           );
-                        }
+                        })}
+                      </dl>
 
-                        const staticValue = formatStaticPendingValue(
-                          row,
-                          name,
-                          fkLabels,
-                        );
-                        return (
-                          <PendingField
-                            key={name}
-                            label={label}
-                            title={staticValue.title}
-                          >
-                            {staticValue.display}
-                          </PendingField>
-                        );
-                      })}
-                    </dl>
+                      {row.locals.length > 0 && (
+                        <div className="space-y-1.5">
+                          <p className="text-xs font-medium text-zinc-500">
+                            Local interactions ({row.locals.length})
+                          </p>
+                          <ul className="space-y-1">
+                            {row.locals.map((local) => (
+                              <li
+                                key={local.id}
+                                className="text-sm text-zinc-700"
+                              >
+                                <span className="font-medium text-zinc-900">
+                                  {local.mode}
+                                </span>
+                                {local.math_operation != null && (
+                                  <>
+                                    {" "}
+                                    · {local.math_operation}
+                                    {local.value_scalar != null
+                                      ? ` ${local.value_scalar}`
+                                      : ""}
+                                  </>
+                                )}
+                                {local.modifier_tag_id != null && (
+                                  <>
+                                    {" "}
+                                    · modifier{" "}
+                                    <span
+                                      title={
+                                        local.modifier_tag_name
+                                          ? `${local.modifier_tag_name} (id ${local.modifier_tag_id})`
+                                          : undefined
+                                      }
+                                    >
+                                      {local.modifier_tag_name ??
+                                        `tag:${local.modifier_tag_id}`}
+                                    </span>
+                                  </>
+                                )}
+                                {local.target_tag_id != null && (
+                                  <>
+                                    {" "}
+                                    · target{" "}
+                                    <span
+                                      title={
+                                        local.target_tag_name
+                                          ? `${local.target_tag_name} (id ${local.target_tag_id})`
+                                          : undefined
+                                      }
+                                    >
+                                      {local.target_tag_name ??
+                                        `tag:${local.target_tag_id}`}
+                                    </span>
+                                  </>
+                                )}
+                                {local.is_disabled ? " · disabled" : ""}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
 
-                    {row.locals.length > 0 && (
-                      <div className="space-y-1.5">
-                        <p className="text-xs font-medium text-zinc-500">
-                          Local interactions ({row.locals.length})
-                        </p>
-                        <ul className="space-y-1">
-                          {row.locals.map((local) => (
-                            <li
-                              key={local.id}
-                              className="text-sm text-zinc-700"
-                            >
-                              <span className="font-medium text-zinc-900">
-                                {local.mode}
-                              </span>
-                              {local.math_operation != null && (
-                                <>
-                                  {" "}
-                                  · {local.math_operation}
-                                  {local.value_scalar != null
-                                    ? ` ${local.value_scalar}`
-                                    : ""}
-                                </>
-                              )}
-                              {local.modifier_tag_id != null && (
-                                <>
-                                  {" "}
-                                  · modifier{" "}
-                                  <span
-                                    title={
-                                      local.modifier_tag_name
-                                        ? `${local.modifier_tag_name} (id ${local.modifier_tag_id})`
-                                        : undefined
-                                    }
-                                  >
-                                    {local.modifier_tag_name ??
-                                      `tag:${local.modifier_tag_id}`}
-                                  </span>
-                                </>
-                              )}
-                              {local.target_tag_id != null && (
-                                <>
-                                  {" "}
-                                  · target{" "}
-                                  <span
-                                    title={
-                                      local.target_tag_name
-                                        ? `${local.target_tag_name} (id ${local.target_tag_id})`
-                                        : undefined
-                                    }
-                                  >
-                                    {local.target_tag_name ??
-                                      `tag:${local.target_tag_id}`}
-                                  </span>
-                                </>
-                              )}
-                              {local.is_disabled ? " · disabled" : ""}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
+                    <div className="flex shrink-0 flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="secondary"
+                        disabled={busy}
+                        onClick={() => onEdit(row)}
+                        title="Edit manifestation & local interactions"
+                      >
+                        <Pencil className="mr-1 h-3.5 w-3.5" />
+                        Edit
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="secondary"
+                        disabled={busy}
+                        onClick={() => onClone(row)}
+                        title="Duplicate as a new manifestation"
+                      >
+                        <Copy className="mr-1 h-3.5 w-3.5" />
+                        Clone
+                      </Button>
+                      {!row.verified ? (
+                        <Button
+                          type="button"
+                          size="sm"
+                          disabled={busy}
+                          onClick={() => onVerify(row.id)}
+                          title="Verify this pending manifestation"
+                        >
+                          <Check className="mr-1 h-3.5 w-3.5" />
+                          Verify
+                        </Button>
+                      ) : (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="secondary"
+                          disabled={busy}
+                          onClick={() => onUnverify(row.id)}
+                          title="Move back to pending queue"
+                        >
+                          <RotateCcw className="mr-1 h-3.5 w-3.5" />
+                          Unverify
+                        </Button>
+                      )}
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="destructive"
+                        disabled={busy}
+                        onClick={() => onSoftDelete(row.id)}
+                        title="Soft-delete this manifestation"
+                      >
+                        <Trash2 className="mr-1 h-3.5 w-3.5" />
+                        Delete
+                      </Button>
+                    </div>
                   </div>
-                  <div className="flex shrink-0 flex-wrap gap-2">
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="secondary"
-                      disabled={busy}
-                      onClick={() => onEdit(row)}
-                    >
-                      <Pencil className="mr-1 h-3.5 w-3.5" />
-                      Edit
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      disabled={busy}
-                      onClick={() => onVerify(row.id)}
-                    >
-                      <Check className="mr-1 h-3.5 w-3.5" />
-                      Verify
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="destructive"
-                      disabled={busy}
-                      onClick={() => onSoftDelete(row.id)}
-                    >
-                      <Trash2 className="mr-1 h-3.5 w-3.5" />
-                      Soft-delete
-                    </Button>
-                  </div>
-                </div>
-              </li>
-            );
+                </li>
+              );
             })}
           </ul>
         )}

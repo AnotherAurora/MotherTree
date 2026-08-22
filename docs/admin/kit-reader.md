@@ -67,6 +67,12 @@ Helpers: [`src/lib/kit-reader/atm-metadata.ts`](../../src/lib/kit-reader/atm-met
 {sourceLabel} {effectLabel}[ E1|E2|E3]
 ```
 
+Devour-bracketed effects (copy provider group `"2x Devour"`):
+
+```text
+{sourceLabel} Devour {effectLabel}[ E1|E2|E3]
+```
+
 | Kit source | `sourceLabel` (from pack) |
 | --- | --- |
 | Non-Soulforge talent | `Talent` |
@@ -149,6 +155,20 @@ Ambiguous Steal+STR (amount not parseable) → `needs_review`.
 Helpers: [`proposal-heuristics.ts`](../../src/lib/kit-reader/proposal-heuristics.ts) (`detectStealClause`, `parseStealStrScalar`, `warnStealMissingStrUpPair`).
 
 Insert CLI emits non-blocking **warnings** when a Steal STR Down row has no matching STR Up pair in the same proposal batch.
+
+## Devour → 2x Devour copy provider group
+
+When kit text uses **`[{Devour}: …]`** or **`{Devour}`** (pack layer `hasDevourClause: true`, or `detectDevourClause`):
+
+- Set **`copyProviderGroupName: "2x Devour"`** → `copy_provider_group_id: 7` at insert.
+- Set **`triggerConditionTagName: null`** — do **not** use `Special.When.Devour` or `Special.Cause.Devour`.
+- Insert CLI metadata includes **`Devour`**: `{sourceLabel} Devour {effectLabel}[ E1|E2|E3]` (e.g. `Exalt Devour Draw.Command Card.Strike`).
+
+Pack export exposes `lexicon.devourCopyProviderGroupName` (`"2x Devour"`).
+
+Helpers: [`proposal-heuristics.ts`](../../src/lib/kit-reader/proposal-heuristics.ts) (`detectDevourClause`, `DEVOUR_COPY_PROVIDER_GROUP_NAME`, `warnDevourUsingWhenTrigger`).
+
+Insert CLI emits non-blocking **warnings** when a Devour `sourceQuote` uses a When/Cause trigger or omits the copy provider group.
 
 ## SKeyDB arg scaling (`resolvedArgMeta`)
 

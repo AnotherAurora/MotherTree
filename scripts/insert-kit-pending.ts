@@ -25,8 +25,11 @@ import {
 import {
   defaultTargetTypeForTag,
   isAoeTagPrefix,
+  DEVOUR_COPY_PROVIDER_GROUP_NAME,
+  detectDevourClause,
   warnPercentDepValueScalarLooksLinear,
   warnStealMissingStrUpPair,
+  warnDevourUsingWhenTrigger,
 } from "../src/lib/kit-reader/proposal-heuristics";
 import { resolveInsertMetadata } from "../src/lib/kit-reader/atm-metadata";
 import {
@@ -165,6 +168,9 @@ function resolveAtmRow(
     requiredEnlightenment: proposal.requiredEnlightenment,
     metadataOverride: proposal.metadataOverride,
     metadataSuffix: proposal.metadataSuffix,
+    isDevour:
+      proposal.copyProviderGroupName === DEVOUR_COPY_PROVIDER_GROUP_NAME ||
+      detectDevourClause(proposal.sourceQuote),
   });
 
   let requiredRealm: number | null = null;
@@ -398,6 +404,13 @@ async function main() {
     warnings.push({
       clientKey: stealWarning.clientKey,
       message: stealWarning.message,
+    });
+  }
+
+  for (const devourWarning of warnDevourUsingWhenTrigger(ok)) {
+    warnings.push({
+      clientKey: devourWarning.clientKey,
+      message: devourWarning.message,
     });
   }
 

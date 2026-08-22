@@ -26,11 +26,11 @@ description: >-
 3. [`docs/admin/atm-and-local-interaction-inputs.md`](docs/admin/atm-and-local-interaction-inputs.md)
 4. [`src/lib/kit-reader/proposal-schema.ts`](src/lib/kit-reader/proposal-schema.ts)
 5. [`src/lib/kit-reader/atm-metadata.ts`](src/lib/kit-reader/atm-metadata.ts) — `buildAtmMetadata` / `detectIsAccumulating`
-6. [`src/lib/kit-reader/proposal-heuristics.ts`](src/lib/kit-reader/proposal-heuristics.ts) — enjoy detection, Steal STR pairing, Tentacle DMG dual locals, aoe tag prefixes, **percent vs linear dependency_stat helpers**
+6. [`src/lib/kit-reader/proposal-heuristics.ts`](src/lib/kit-reader/proposal-heuristics.ts) — enjoy detection, Steal STR pairing, **Devour copy provider group**, Tentacle DMG dual locals, aoe tag prefixes, **percent vs linear dependency_stat helpers**
 
 ## Workflow
 
-1. Read the kit pack: `assumptions`, skills (base + upgrades), derivedCards, **`enlightens`** (standalone E1/E2/etc.), talents (`atmEligible`), `ignoreList`, `lexicon.tags`, `lexicon.flavorTagSynonyms`, **`lexicon.aoeTagPrefixes`**, **`lexicon.percentDependencyStats`**, **`lexicon.enjoyTentacleDmgModifierTagNames`**, **`lexicon.stealStrTagNames`**, **`sourceLabel` / layer `sourceLabelHint`**, **`cost`**, layer **`resolvedArgs` + `resolvedArgMeta`**, layer **`hasEnjoyClause`** / **`hasEnjoyTentacleDmgClause`** / **`hasStealClause`**.
+1. Read the kit pack: `assumptions`, skills (base + upgrades), derivedCards, **`enlightens`** (standalone E1/E2/etc.), talents (`atmEligible`), `ignoreList`, `lexicon.tags`, `lexicon.flavorTagSynonyms`, **`lexicon.aoeTagPrefixes`**, **`lexicon.percentDependencyStats`**, **`lexicon.enjoyTentacleDmgModifierTagNames`**, **`lexicon.stealStrTagNames`**, **`lexicon.devourCopyProviderGroupName`**, **`sourceLabel` / layer `sourceLabelHint`**, **`cost`**, layer **`resolvedArgs` + `resolvedArgMeta`**, layer **`hasEnjoyClause`** / **`hasEnjoyTentacleDmgClause`** / **`hasStealClause`** / **`hasDevourClause`**.
 2. Propose ATM + local rows for Path Carver math.
 3. Write proposal JSON to `sample-data/kit-reader/{slug}.proposal.json` (`schemaVersion: 1`). You may omit `metadata` — insert CLI computes it. Use `metadataSuffix` / `metadataOverride` for non-formula labels.
 4. Run:
@@ -49,6 +49,12 @@ Do **not** put the skill/talent display name in as the source prefix (except Str
 
 ```text
 metadata = "{sourceLabel} {effectLabel}" [+ " E1"|" E2"|" E3"]
+```
+
+Devour-bracketed effects (`copyProviderGroupName: "2x Devour"`):
+
+```text
+metadata = "{sourceLabel} Devour {effectLabel}" [+ " E1"|" E2"|" E3"]
 ```
 
 - **`sourceLabel`:** resolved from kit pack via `sourceKitId` at insert (skill `sourceLabel`, upgrade `sourceLabelHint`, standalone enlighten `sourceLabel`, talent `Talent`/`SF`). Optional proposal `sourceLabel` only when pack lookup fails.
@@ -99,6 +105,18 @@ When kit text has **`{Steal}`** / **Steal** + **STR** (`hasStealClause: true` on
 - Ambiguous amount → `needs_review`. Insert CLI warns when STR Down lacks matching STR Up in the same batch.
 
 Examples (Faint): Rouse per-card `{Steal} 10 {STR}` → both at `0.1`; AA permanent Steal 25 → both at `0.25`, `isPermanent: true`; SF Steal 10% ATK → both at `0.1`, `dependencyStat: atk`.
+
+## Devour → 2x Devour copy provider group
+
+When kit text has **`[{Devour}: …]`** or **`{Devour}`** (`hasDevourClause: true` on pack layers, or `detectDevourClause`):
+
+- Set **`copyProviderGroupName: "2x Devour"`** (`copy_provider_group_id: 7` at insert).
+- Set **`triggerConditionTagName: null`** — never `Special.When.Devour` or `Special.Cause.Devour`.
+- Insert CLI metadata includes **`Devour`**: `{sourceLabel} Devour {effectLabel}[ E#]` (e.g. `Exalt Devour Hand Size`).
+
+Example (Helot Surviving Impasse): `[{Devour}: Draw 3 "Strike" cards, …]` → `Support.Draw.Command Card.Strike`, `copyProviderGroupName: "2x Devour"`, `triggerConditionTagName: null`, metadata `Exalt Devour Draw.Command Card.Strike`.
+
+Insert CLI warns when Devour rows use When/Cause triggers or omit the copy provider group.
 
 ## Lemurian synergy → four ATMs
 

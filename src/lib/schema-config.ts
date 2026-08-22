@@ -305,6 +305,13 @@ export const TABLE_CONFIGS: TableConfig[] = [
       { name: "aliemus_regen", label: "Aliemus Regen", type: "number" },
       { name: "sigil_yield", label: "Sigil Yield", type: "number" },
       { name: "death_resist", label: "Base Death Resist", type: "number" },
+      {
+        name: "notes",
+        label: "Kit Notes",
+        type: "textarea",
+        listHidden: true,
+        formWidth: "full",
+      },
       ...timestampFields(),
     ],
   },

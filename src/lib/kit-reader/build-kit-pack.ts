@@ -15,9 +15,11 @@ import {
 } from "./atm-metadata";
 import {
   aoeTagPrefixesForPack,
+  detectDevourClause,
   detectEnjoyClause,
   detectEnjoyTentacleDmgClause,
   detectStealClause,
+  devourCopyProviderGroupNameForPack,
   enjoyTentacleDmgModifierTagNamesForPack,
   stealStrTagNamesForPack,
   percentDependencyStatsForPack,
@@ -127,6 +129,8 @@ export type ExpandedLayer = {
   hasEnjoyTentacleDmgClause: boolean;
   /** Kit text contains {Steal} / Steal + STR — dual STR Down + STR Up ATMs. */
   hasStealClause: boolean;
+  /** Kit text contains {Devour} / Devour — copyProviderGroupName 2x Devour. */
+  hasDevourClause: boolean;
 };
 
 export type KitPackSkill = {
@@ -206,6 +210,7 @@ export type KitPack = {
     aoeTagPrefixes: string[];
     enjoyTentacleDmgModifierTagNames: string[];
     stealStrTagNames: string[];
+    devourCopyProviderGroupName: string;
     percentDependencyStats: string[];
   };
 };
@@ -231,7 +236,10 @@ async function fetchJson<T>(url: string): Promise<T | null> {
 function layerFromExpanded(
   partial: Omit<
     ExpandedLayer,
-    "hasEnjoyClause" | "hasEnjoyTentacleDmgClause" | "hasStealClause"
+    | "hasEnjoyClause"
+    | "hasEnjoyTentacleDmgClause"
+    | "hasStealClause"
+    | "hasDevourClause"
   >,
   expandedText: string,
 ): ExpandedLayer {
@@ -240,6 +248,7 @@ function layerFromExpanded(
     hasEnjoyClause: detectEnjoyClause(expandedText),
     hasEnjoyTentacleDmgClause: detectEnjoyTentacleDmgClause(expandedText),
     hasStealClause: detectStealClause(expandedText),
+    hasDevourClause: detectDevourClause(expandedText),
   };
 }
 
@@ -806,6 +815,7 @@ export async function buildKitPackForAwakener(
       enjoyTentacleDmgModifierTagNames:
         enjoyTentacleDmgModifierTagNamesForPack(),
       stealStrTagNames: stealStrTagNamesForPack(),
+      devourCopyProviderGroupName: devourCopyProviderGroupNameForPack(),
       percentDependencyStats: percentDependencyStatsForPack(),
     },
   };

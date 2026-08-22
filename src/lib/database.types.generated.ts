@@ -56,6 +56,7 @@ export type Database = {
           id: number
           keyflare_regen: number | null
           name: string | null
+          notes: string | null
           realm: number | null
           realm_mastery: number | null
           sigil_yield: number | null
@@ -77,6 +78,7 @@ export type Database = {
           id?: number
           keyflare_regen?: number | null
           name?: string | null
+          notes?: string | null
           realm?: number | null
           realm_mastery?: number | null
           sigil_yield?: number | null
@@ -98,6 +100,7 @@ export type Database = {
           id?: number
           keyflare_regen?: number | null
           name?: string | null
+          notes?: string | null
           realm?: number | null
           realm_mastery?: number | null
           sigil_yield?: number | null

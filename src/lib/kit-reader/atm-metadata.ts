@@ -27,14 +27,30 @@ export function enlightenMetadataSuffix(
   return null;
 }
 
+/** True when metadata already contains a Devour segment (avoid "Devour Devour"). */
+export function metadataAlreadyContainsDevour(
+  sourceLabel: string,
+  metadataSuffix?: string | null,
+): boolean {
+  const label = sourceLabel.trim();
+  if (/\bDevour\b/i.test(label)) return true;
+  const suffix = metadataSuffix?.trim();
+  if (suffix && /\bDevour\b/i.test(suffix)) return true;
+  return false;
+}
+
 export function buildAtmMetadata(input: {
   sourceLabel: string;
   tagName: string;
   requiredEnlightenment?: number | null;
+  isDevour?: boolean;
 }): string {
   const effect = effectLabelFromTagName(input.tagName);
   const suffix = enlightenMetadataSuffix(input.requiredEnlightenment);
-  const base = `${input.sourceLabel.trim()} ${effect}`.trim();
+  const label = input.sourceLabel.trim();
+  const devourSegment =
+    input.isDevour && !metadataAlreadyContainsDevour(label) ? "Devour " : "";
+  const base = `${label} ${devourSegment}${effect}`.trim();
   return suffix ? `${base} ${suffix}` : base;
 }
 
@@ -61,14 +77,20 @@ export function resolveInsertMetadata(input: {
   requiredEnlightenment?: number | null;
   metadataOverride?: string | null;
   metadataSuffix?: string | null;
+  isDevour?: boolean;
 }): string {
   const override = input.metadataOverride?.trim();
   if (override) return override;
+
+  const isDevour =
+    input.isDevour === true &&
+    !metadataAlreadyContainsDevour(input.sourceLabel, input.metadataSuffix);
 
   const canonical = buildAtmMetadata({
     sourceLabel: input.sourceLabel,
     tagName: input.tagName,
     requiredEnlightenment: input.requiredEnlightenment,
+    isDevour,
   });
 
   const suffix = input.metadataSuffix?.trim();
