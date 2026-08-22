@@ -51,8 +51,7 @@ export type KitDescriptionArg =
       stat?: string;
       suffix?: string;
       substatBonus?: DescriptionArgSubstatBonus;
-    }
-  | { kind: string; [key: string]: unknown };
+    };
 
 export type ResolvedArgMetaEntry = {
   /** MotherTree all_stats when SKeyDB stat is ATK/DEF/CON. */
