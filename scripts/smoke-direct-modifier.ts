@@ -3,7 +3,6 @@ import { applyInteractions } from "../src/lib/path-carver/apply-interactions";
 import type {
   Awakener,
   Tag,
-  DefaultInteraction,
   Manifestation,
 } from "../src/lib/team-data/types";
 
@@ -14,7 +13,6 @@ function makeTag(id: number, tagName: string, isPercent: boolean, layer: "pre_ad
     layer,
     isPercent,
     isAdditive: true,
-    isSearchable: true,
   };
 }
 
@@ -29,10 +27,11 @@ const tagsById: Record<number, Tag> = {
 const awakener: Awakener = {
   id: 1,
   name: "Helot: Catena",
-  slug: "helot-catena",
+  realm: "chaos",
+  realmId: 1,
+  con: 2000,
   atk: 1000,
   def: 500,
-  hp: 2000,
   keyflareRegen: 1,
   critRate: 0.1,
   critDmg: 1.5,
@@ -50,21 +49,31 @@ const awakenersById = new Map<number, Awakener>([[1, awakener]]);
 // 100 base damage with 50% direct_modifier Enhance
 const manifestation: Manifestation = {
   id: 101,
+  sourceKind: "awakener",
   awakenerId: 1,
+  slotIndex: 0,
+  sourceName: "Helot: Catena",
   tagId: 1,
   tagName: "Attacker.Active Damage",
   valueScalar: 100,
-  rawScalar: 100,
   dependencyStat: null,
   instanceCount: 1,
   baseCopies: 1,
+  copyProviderGroupId: null,
+  copyProviderGroupName: null,
+  copyProviderTagIds: [],
   requiredEnlightenment: 0,
+  requiredAwakenerId: null,
+  requiredAwakenerName: null,
   requiredRealm: null,
+  requiredRealm2: null,
+  requiredRealmId: null,
+  requiredRealmId2: null,
+  requiredRealmMode: null,
   sourceType: "command card",
   targetType: "single",
   triggerCondition: null,
   isAccumulating: false,
-  isPermanent: false,
   buffTargetTypeRestriction: null,
   metadata: "Crimson Shackles Damage",
   replacesManifestationId: null,
@@ -84,16 +93,21 @@ const manifestation: Manifestation = {
       isDisabled: false,
     },
   ],
-  isDamageDealer: true,
+  isBaseStatTransfer: false,
+  isCreatedBase: false,
+  realmId: null,
+  dependencyRate: null,
+  dependencyRateStat: null,
+  pureBonusTarget: null,
 };
 
 const res = applyInteractions({
+  manifestations: [manifestation],
   appliedManifestations: [manifestation],
   defaultInteractions: [],
   tagsById,
   awakenersById,
   awakenerNamesById: new Map([[1, "Helot: Catena"]]),
-  desireTargetTagNames: ["Attacker.Active Damage"],
 });
 
 // Single hit: 100 * (1 + 0.5) = 150
