@@ -1454,4 +1454,168 @@ console.log("creates_base exact target — no prefix fan-out to Heal.Fixed");
   );
 }
 
+console.log("Mixed self and aoe modifier rows apply once per target owner");
+{
+  const jenkin = makeAwakener({ id: 27, atk: 100 });
+  const ally = makeAwakener({ id: 28, atk: 100 });
+  const awakenersById = buildAwakenersById([jenkin, ally]);
+
+  const critDmg = makeTag(17, "Support.Crit Damage", true);
+  const activeDmg = makeTag(42, "Attacker.Active Damage");
+
+  const tagsById: Record<number, Tag> = {
+    [critDmg.id]: critDmg,
+    [activeDmg.id]: activeDmg,
+  };
+
+  const manifests: Manifestation[] = [
+    // Jenkin has Active Damage (100)
+    makeManifestation({
+      id: 1,
+      awakenerId: 27,
+      tagId: activeDmg.id,
+      tagName: activeDmg.tagName,
+      valueScalar: 100,
+      sourceType: "command card",
+      targetType: "aoe",
+    }),
+    // Ally has Active Damage (100)
+    makeManifestation({
+      id: 2,
+      awakenerId: 28,
+      tagId: activeDmg.id,
+      tagName: activeDmg.tagName,
+      valueScalar: 100,
+      sourceType: "command card",
+      targetType: "aoe",
+    }),
+    // Jenkin self Crit Damage (0.75 + 0.75 + 0.50 = 2.0)
+    makeManifestation({
+      id: 3,
+      awakenerId: 27,
+      tagId: critDmg.id,
+      tagName: critDmg.tagName,
+      valueScalar: 0.75,
+      targetType: "self",
+    }),
+    makeManifestation({
+      id: 4,
+      awakenerId: 27,
+      tagId: critDmg.id,
+      tagName: critDmg.tagName,
+      valueScalar: 0.75,
+      targetType: "self",
+    }),
+    makeManifestation({
+      id: 5,
+      awakenerId: 27,
+      tagId: critDmg.id,
+      tagName: critDmg.tagName,
+      valueScalar: 0.5,
+      targetType: "self",
+    }),
+    // Jenkin aoe Crit Damage (0.75 + 0.75 = 1.5)
+    makeManifestation({
+      id: 6,
+      awakenerId: 27,
+      tagId: critDmg.id,
+      tagName: critDmg.tagName,
+      valueScalar: 0.75,
+      targetType: "aoe",
+    }),
+    makeManifestation({
+      id: 7,
+      awakenerId: 27,
+      tagId: critDmg.id,
+      tagName: critDmg.tagName,
+      valueScalar: 0.75,
+      targetType: "aoe",
+    }),
+  ];
+
+  const interactions: DefaultInteraction[] = [
+    makeInteraction({
+      id: 10,
+      modifierTagId: critDmg.id,
+      modifierTagName: critDmg.tagName,
+      targetTagId: activeDmg.id,
+      targetTagName: activeDmg.tagName,
+      mathOperation: "multiply_one_plus",
+      defaultFactor: 1,
+    }),
+  ];
+
+  // 1) Solo Jenkin test
+  const soloResult = applyInteractions({
+    manifestations: manifests.filter((m) => m.awakenerId === 27),
+    appliedManifestations: manifests.filter((m) => m.awakenerId === 27),
+    defaultInteractions: interactions,
+    tagsById,
+    awakenersById: buildAwakenersById([jenkin]),
+  });
+
+  const soloOps = soloResult.steps.filter(
+    (s): s is Extract<typeof s, { kind: "op" }> =>
+      s.kind === "op" && s.modifierTagName === critDmg.tagName,
+  );
+  assert(
+    soloOps.length === 1,
+    `Solo Jenkin receives Crit Damage op exactly once (got ${soloOps.length})`,
+  );
+  assert(
+    soloOps[0]?.modifierValue === 3.5,
+    `Solo Jenkin modifier value is 3.5 (got ${soloOps[0]?.modifierValue})`,
+  );
+  // 100 * (1 + 3.5) = 450 (NOT 2025 from double 4.5x)
+  const soloActive = soloResult.totalsByTagId.get(activeDmg.id) ?? 0;
+  assert(
+    soloActive === 450,
+    `Solo Jenkin Active Damage is 450 (got ${soloActive})`,
+  );
+
+  // 2) Team test: Jenkin gets 4.5x, Ally gets 2.5x (1.5 aoe only)
+  const teamResult = applyInteractions({
+    manifestations: manifests,
+    appliedManifestations: manifests,
+    defaultInteractions: interactions,
+    tagsById,
+    awakenersById,
+  });
+
+  const jenkinOps = teamResult.steps.filter(
+    (s): s is Extract<typeof s, { kind: "op" }> =>
+      s.kind === "op" &&
+      s.owner === "awakener:27" &&
+      s.modifierTagName === critDmg.tagName,
+  );
+  const allyOps = teamResult.steps.filter(
+    (s): s is Extract<typeof s, { kind: "op" }> =>
+      s.kind === "op" &&
+      s.owner === "awakener:28" &&
+      s.modifierTagName === critDmg.tagName,
+  );
+  assert(
+    jenkinOps.length === 1,
+    `Jenkin receives Crit Damage op once in team (got ${jenkinOps.length})`,
+  );
+  assert(
+    jenkinOps[0]?.modifierValue === 3.5,
+    `Jenkin modifier value in team is 3.5 (got ${jenkinOps[0]?.modifierValue})`,
+  );
+  assert(
+    allyOps.length === 1,
+    `Ally receives Crit Damage op once in team (got ${allyOps.length})`,
+  );
+  assert(
+    allyOps[0]?.modifierValue === 1.5,
+    `Ally modifier value in team is 1.5 (got ${allyOps[0]?.modifierValue})`,
+  );
+  // Total Active Damage: Jenkin 450 + Ally 250 = 700
+  const teamActive = teamResult.totalsByTagId.get(activeDmg.id) ?? 0;
+  assert(
+    teamActive === 700,
+    `Team Active Damage is 700 (got ${teamActive})`,
+  );
+}
+
 console.log("\nAll Phase 2b smoke checks passed.");

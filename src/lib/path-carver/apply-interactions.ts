@@ -1214,23 +1214,147 @@ function sumTeamTagPrefix(
 }
 
 /**
- * Fold prefix-matched modifier tag totals for the given owners.
- * Per-tag combine uses each tag’s additive/percent; across tags uses root flags.
+ * Resolves the modifier value for a target owner under self/non-self scoping rules.
+ *
+ * Scoping rules:
+ * - targetOwner receives their own modifier bucket in full (both self and non-self rows).
+ * - targetOwner receives teammates' non-self (aoe/team-wide) modifier rows only (self rows excluded).
+ * - TEAM_POOL_OWNER (synthesized or created base modifiers) is always included.
+ * - When targetOwner is TEAM_POOL_OWNER (e.g. writeToTeamPool), only non-self modifier rows from all owners
+ *   plus TEAM_POOL_OWNER are included.
  */
-function combinePrefixModifierValue(
-  ownerValues: OwnerTotals,
+function computeScopedModifierValue(
+  current: OwnerTotals,
+  appliedManifestations: Manifestation[],
+  modifierTagId: number,
+  tagsById: Record<number, Tag>,
+  targetOwner: OwnerKey | typeof TEAM_POOL_OWNER,
+  awakenersById?: ReadonlyMap<number, Awakener>,
+  scalarOpts?: EffectiveScalarOptions,
+): number {
+  const modifierTag = tagsById[modifierTagId];
+  const modifierManifests = collectModifierManifestations(
+    appliedManifestations,
+    modifierTagId,
+  );
+
+  if (modifierManifests.length === 0) {
+    let combined: number | undefined;
+    for (const [owner, map] of current) {
+      const v = map.get(modifierTagId) ?? 0;
+      if (v === 0) continue;
+      combined = combineSameTagScalar(
+        combined,
+        v,
+        modifierTag?.isAdditive !== false,
+        modifierTag?.isPercent === true,
+      );
+    }
+    return combined ?? 0;
+  }
+
+  const manifestsByOwner = new Map<OwnerKey, Manifestation[]>();
+  for (const m of modifierManifests) {
+    const owner = ownerKeyFor(m);
+    let list = manifestsByOwner.get(owner);
+    if (!list) {
+      list = [];
+      manifestsByOwner.set(owner, list);
+    }
+    list.push(m);
+  }
+
+  let combined: number | undefined;
+
+  for (const [owner, manifests] of manifestsByOwner) {
+    if (owner === targetOwner) {
+      const v = getOwnerValue(current, owner, modifierTagId);
+      if (v !== 0) {
+        combined = combineSameTagScalar(
+          combined,
+          v,
+          modifierTag?.isAdditive !== false,
+          modifierTag?.isPercent === true,
+        );
+      }
+    } else {
+      const nonSelfRows = manifests.filter(
+        (m) => effectiveModifierTargetType(m, modifierTagId) !== "self",
+      );
+      if (nonSelfRows.length === 0) continue;
+
+      if (nonSelfRows.length === manifests.length) {
+        const v = getOwnerValue(current, owner, modifierTagId);
+        if (v !== 0) {
+          combined = combineSameTagScalar(
+            combined,
+            v,
+            modifierTag?.isAdditive !== false,
+            modifierTag?.isPercent === true,
+          );
+        }
+      } else {
+        let ownerNonSelf: number | undefined;
+        for (const m of nonSelfRows) {
+          const scalar = effectiveManifestationScalar(
+            m,
+            awakenersById ?? new Map(),
+            tagsById,
+            scalarOpts,
+          );
+          if (scalar === 0) continue;
+          ownerNonSelf = combineSameTagScalar(
+            ownerNonSelf,
+            scalar,
+            modifierTag?.isAdditive !== false,
+            modifierTag?.isPercent === true,
+          );
+        }
+        if (ownerNonSelf != null && ownerNonSelf !== 0) {
+          combined = combineSameTagScalar(
+            combined,
+            ownerNonSelf,
+            modifierTag?.isAdditive !== false,
+            modifierTag?.isPercent === true,
+          );
+        }
+      }
+    }
+  }
+
+  const teamVal = getOwnerValue(current, TEAM_POOL_OWNER, modifierTagId);
+  if (teamVal !== 0) {
+    combined = combineSameTagScalar(
+      combined,
+      teamVal,
+      modifierTag?.isAdditive !== false,
+      modifierTag?.isPercent === true,
+    );
+  }
+
+  return combined ?? 0;
+}
+
+function computeScopedPrefixModifierValue(
+  current: OwnerTotals,
+  appliedManifestations: Manifestation[],
   matchingTagIds: readonly number[],
   tagsById: Record<number, Tag>,
   rootModifierTag: Tag | undefined,
-  owners: Iterable<OwnerKey>,
+  targetOwner: OwnerKey,
+  awakenersById?: ReadonlyMap<number, Awakener>,
+  scalarOpts?: EffectiveScalarOptions,
 ): number {
   let combined: number | undefined;
   for (const tagId of matchingTagIds) {
-    const partial = combineTagAcrossOwners(
-      ownerValues,
+    const partial = computeScopedModifierValue(
+      current,
+      appliedManifestations,
       tagId,
-      tagsById[tagId],
-      owners,
+      tagsById,
+      targetOwner,
+      awakenersById,
+      scalarOpts,
     );
     if (partial === 0) continue;
     combined = combineSameTagScalar(
@@ -1572,110 +1696,6 @@ function applyInteractionOnto(
     return;
   }
 
-  const selfOwners = new Set<OwnerKey>();
-  let hasNonSelfModifier = false;
-
-  for (const m of modifierManifests) {
-    const targetType = effectiveModifierTargetType(m, modifierTagId);
-    if (targetType === "self") {
-      selfOwners.add(ownerKeyFor(m));
-    } else {
-      hasNonSelfModifier = true;
-    }
-  }
-  // Synthesized modifier value lives on *team* / owners without a manifestation row.
-  if (modifierManifests.length === 0 && synthesizedModifierValue !== 0) {
-    hasNonSelfModifier = true;
-  }
-
-  for (const owner of selfOwners) {
-    const modValue = combineTagAcrossOwners(
-      current,
-      modifierTagId,
-      tagsById[modifierTagId],
-      [owner, TEAM_POOL_OWNER],
-    );
-    const ownerHasModifier = modifierManifests.some(
-      (m) => ownerKeyFor(m) === owner,
-    );
-    const ownerAwakenerId = awakenerIdFromOwnerKey(owner);
-    const ownerAwakener =
-      ownerAwakenerId != null
-        ? (awakenersById.get(ownerAwakenerId) ?? null)
-        : null;
-
-    for (const target of targets) {
-      const requireBase = requiresTargetBasePresence(
-        interaction,
-        target.tagName,
-      );
-      if (requireBase && !isBasePresent(base, owner, target.id)) continue;
-
-      const override = findTargetOverride(
-        appliedManifestations,
-        owner,
-        target.id,
-        modifierTagId,
-      );
-      if (!ownerMatchesInteractionBand(override, modifierLayer, bandRank)) {
-        continue;
-      }
-      const resolved = resolveOpAndFactor(
-        interaction,
-        override,
-        ownerAwakener,
-        modifierTagIsPercent,
-        teamMaxHp,
-      );
-      if (resolved.disabled) continue;
-
-      if (resolved.op === "presence_multiply") {
-        if (!(modValue !== 0 || ownerHasModifier)) continue;
-      }
-
-      const applyLayer = effectiveInteractionLayerForOwner(
-        override,
-        modifierLayer,
-      );
-      applyOpAndRecord(
-        next,
-        owner,
-        target,
-        modifierTagName,
-        resolved.op === "presence_multiply" ? 1 : modValue,
-        resolved.factor,
-        resolved.op,
-        steps,
-        pass,
-        modifierTagId,
-        presenceApplied,
-        effectSources,
-        applyLayer,
-        buffRestrictionMet,
-        leafContext,
-        override != null ? "patch" : undefined,
-        bandRank,
-      );
-    }
-  }
-
-  if (!hasNonSelfModifier) return;
-
-  // Non-self uses only non-self owners' modifier contributions (not self buckets).
-  const nonSelfOwners = new Set<OwnerKey>();
-  for (const m of modifierManifests) {
-    if (effectiveModifierTargetType(m, modifierTagId) === "self") continue;
-    nonSelfOwners.add(ownerKeyFor(m));
-  }
-  const modValue = combineTagAcrossOwners(
-    current,
-    modifierTagId,
-    tagsById[modifierTagId],
-    [...nonSelfOwners, TEAM_POOL_OWNER],
-  );
-
-  const present = modValue !== 0 || nonSelfOwners.size > 0;
-
   for (const target of targets) {
     const requireBase = requiresTargetBasePresence(
       interaction,
@@ -1700,45 +1720,6 @@ function applyInteractionOnto(
     }
 
     const teamMatchesBand = layerRank(modifierLayer) === bandRank;
-
-    if (requireBase && ownersInBand.size === 0) continue;
-
-    let defaultOp: OperationType = interaction.mathOperation;
-    let defaultFactor = interaction.defaultFactor ?? 0;
-    let allDisabled = ownersInBand.size > 0;
-
-    if (ownersInBand.size === 0) {
-      allDisabled = false;
-    } else {
-      for (const owner of ownersInBand) {
-        const override = findTargetOverride(
-          appliedManifestations,
-          owner,
-          target.id,
-          modifierTagId,
-        );
-        if (override?.isDisabled) continue;
-        allDisabled = false;
-        const ownerAwakenerId = awakenerIdFromOwnerKey(owner);
-        const ownerAwakener =
-          ownerAwakenerId != null
-            ? (awakenersById.get(ownerAwakenerId) ?? null)
-            : null;
-        const resolved = resolveOpAndFactor(
-          interaction,
-          override,
-          ownerAwakener,
-          modifierTagIsPercent,
-          teamMaxHp,
-        );
-        defaultOp = resolved.op;
-        defaultFactor = resolved.factor;
-        break;
-      }
-    }
-
-    if (allDisabled) continue;
-
     const writeToTeamPool =
       interaction.createsBase && !interaction.amplifiesSubject;
 
@@ -1746,193 +1727,25 @@ function applyInteractionOnto(
       foldTeamPoolIntoCanonicalOwner(next, base, target.id, requireBase);
     }
 
-    if (defaultOp === "presence_multiply") {
-      if (!present) continue;
-      if (writeToTeamPool) {
-        if (!teamMatchesBand) continue;
-        applyOpAndRecord(
-          next,
-          TEAM_POOL_OWNER,
-          target,
-          modifierTagName,
-          1,
-          defaultFactor,
-          "presence_multiply",
-          steps,
-          pass,
-          modifierTagId,
-          presenceApplied,
-          effectSources,
-          modifierLayer,
-          buffRestrictionMet,
-          leafContext,
-          undefined,
-          bandRank,
-        );
-        continue;
-      }
-      for (const owner of ownersInBand) {
-        const override = findTargetOverride(
-          appliedManifestations,
-          owner,
-          target.id,
-          modifierTagId,
-        );
-        if (override?.isDisabled) continue;
-        const ownerAwakenerId = awakenerIdFromOwnerKey(owner);
-        const ownerAwakener =
-          ownerAwakenerId != null
-            ? (awakenersById.get(ownerAwakenerId) ?? null)
-            : null;
-        const resolved = resolveOpAndFactor(
-          interaction,
-          override,
-          ownerAwakener,
-          modifierTagIsPercent,
-          teamMaxHp,
-        );
-        applyOpAndRecord(
-          next,
-          owner,
-          target,
-          modifierTagName,
-          1,
-          resolved.factor,
-          "presence_multiply",
-          steps,
-          pass,
-          modifierTagId,
-          presenceApplied,
-          effectSources,
-          effectiveInteractionLayerForOwner(override, modifierLayer),
-          buffRestrictionMet,
-          leafContext,
-          override != null ? "patch" : undefined,
-          bandRank,
-        );
-      }
-      if (
-        !requireBase &&
-        teamMatchesBand &&
-        getOwnerValue(next, TEAM_POOL_OWNER, target.id) !== 0
-      ) {
-        applyOpAndRecord(
-          next,
-          TEAM_POOL_OWNER,
-          target,
-          modifierTagName,
-          1,
-          defaultFactor,
-          "presence_multiply",
-          steps,
-          pass,
-          modifierTagId,
-          presenceApplied,
-          effectSources,
-          modifierLayer,
-          buffRestrictionMet,
-          leafContext,
-          undefined,
-          bandRank,
-        );
-      }
-      continue;
-    }
-
-    if (defaultOp === "add_scaled") {
-      if (writeToTeamPool) {
-        if (!teamMatchesBand) continue;
-        applyOpAndRecord(
-          next,
-          TEAM_POOL_OWNER,
-          target,
-          modifierTagName,
-          modValue,
-          defaultFactor,
-          "add_scaled",
-          steps,
-          pass,
-          modifierTagId,
-          presenceApplied,
-          effectSources,
-          modifierLayer,
-          buffRestrictionMet,
-          leafContext,
-        );
-      } else if (ownersInBand.size > 0) {
-        for (const owner of ownersInBand) {
-          const override = findTargetOverride(
-            appliedManifestations,
-            owner,
-            target.id,
-            modifierTagId,
-          );
-          if (override?.isDisabled) continue;
-          const ownerAwakenerId = awakenerIdFromOwnerKey(owner);
-          const ownerAwakener =
-            ownerAwakenerId != null
-              ? (awakenersById.get(ownerAwakenerId) ?? null)
-              : null;
-          const resolved = resolveOpAndFactor(
-            interaction,
-            override,
-            ownerAwakener,
-            modifierTagIsPercent,
-            teamMaxHp,
-          );
-          applyOpAndRecord(
-            next,
-            owner,
-            target,
-            modifierTagName,
-            modValue,
-            resolved.factor,
-            "add_scaled",
-            steps,
-            pass,
-            modifierTagId,
-            presenceApplied,
-            effectSources,
-            effectiveInteractionLayerForOwner(override, modifierLayer),
-            buffRestrictionMet,
-            leafContext,
-            override != null ? "patch" : undefined,
-          );
-        }
-      } else if (!requireBase && teamMatchesBand) {
-        // Substitute with no base: synthesize once into *team*.
-        applyOpAndRecord(
-          next,
-          TEAM_POOL_OWNER,
-          target,
-          modifierTagName,
-          modValue,
-          defaultFactor,
-          "add_scaled",
-          steps,
-          pass,
-          modifierTagId,
-          presenceApplied,
-          effectSources,
-          modifierLayer,
-          buffRestrictionMet,
-          leafContext,
-        );
-      }
-      continue;
-    }
-
-    // multiply_one_plus / multiply
     if (writeToTeamPool) {
       if (!teamMatchesBand) continue;
+      const modValue = computeScopedModifierValue(
+        current,
+        appliedManifestations,
+        modifierTagId,
+        tagsById,
+        TEAM_POOL_OWNER,
+        awakenersById,
+      );
+      if (modValue === 0) continue;
       applyOpAndRecord(
         next,
         TEAM_POOL_OWNER,
         target,
         modifierTagName,
         modValue,
-        defaultFactor,
-        defaultOp,
+        interaction.defaultFactor ?? 0,
+        interaction.mathOperation,
         steps,
         pass,
         modifierTagId,
@@ -1942,59 +1755,92 @@ function applyInteractionOnto(
         buffRestrictionMet,
         leafContext,
       );
-    } else if (ownersInBand.size > 0) {
-      for (const owner of ownersInBand) {
-        const override = findTargetOverride(
-          appliedManifestations,
-          owner,
-          target.id,
-          modifierTagId,
-        );
-        if (override?.isDisabled) continue;
-        const ownerAwakenerId = awakenerIdFromOwnerKey(owner);
-        const ownerAwakener =
-          ownerAwakenerId != null
-            ? (awakenersById.get(ownerAwakenerId) ?? null)
-            : null;
-        const resolved = resolveOpAndFactor(
-          interaction,
-          override,
-          ownerAwakener,
-          modifierTagIsPercent,
-          teamMaxHp,
-        );
-        applyOpAndRecord(
-          next,
-          owner,
-          target,
-          modifierTagName,
-          modValue,
-          resolved.factor,
-          resolved.op,
-          steps,
-          pass,
-          modifierTagId,
-          presenceApplied,
-          effectSources,
-          effectiveInteractionLayerForOwner(override, modifierLayer),
-          buffRestrictionMet,
-          leafContext,
-          override != null ? "patch" : undefined,
-        );
-      }
-      if (
-        !requireBase &&
-        teamMatchesBand &&
-        getOwnerValue(next, TEAM_POOL_OWNER, target.id) !== 0
-      ) {
+      continue;
+    }
+
+    for (const owner of ownersInBand) {
+      if (requireBase && !isBasePresent(base, owner, target.id)) continue;
+
+      const override = findTargetOverride(
+        appliedManifestations,
+        owner,
+        target.id,
+        modifierTagId,
+      );
+      if (override?.isDisabled) continue;
+
+      const modValue = computeScopedModifierValue(
+        current,
+        appliedManifestations,
+        modifierTagId,
+        tagsById,
+        owner,
+        awakenersById,
+      );
+      if (modValue === 0) continue;
+
+      const ownerAwakenerId = awakenerIdFromOwnerKey(owner);
+      const ownerAwakener =
+        ownerAwakenerId != null
+          ? (awakenersById.get(ownerAwakenerId) ?? null)
+          : null;
+      const resolved = resolveOpAndFactor(
+        interaction,
+        override,
+        ownerAwakener,
+        modifierTagIsPercent,
+        teamMaxHp,
+      );
+      if (resolved.disabled) continue;
+
+      const applyLayer = effectiveInteractionLayerForOwner(
+        override,
+        modifierLayer,
+      );
+
+      applyOpAndRecord(
+        next,
+        owner,
+        target,
+        modifierTagName,
+        resolved.op === "presence_multiply" ? 1 : modValue,
+        resolved.factor,
+        resolved.op,
+        steps,
+        pass,
+        modifierTagId,
+        presenceApplied,
+        effectSources,
+        applyLayer,
+        buffRestrictionMet,
+        leafContext,
+        override != null ? "patch" : undefined,
+        bandRank,
+      );
+    }
+
+    if (
+      !requireBase &&
+      teamMatchesBand &&
+      getOwnerValue(next, TEAM_POOL_OWNER, target.id) !== 0
+    ) {
+      const modValue = computeScopedModifierValue(
+        current,
+        appliedManifestations,
+        modifierTagId,
+        tagsById,
+        TEAM_POOL_OWNER,
+        awakenersById,
+      );
+      if (modValue !== 0) {
         applyOpAndRecord(
           next,
           TEAM_POOL_OWNER,
           target,
           modifierTagName,
           modValue,
-          defaultFactor,
-          defaultOp,
+          interaction.defaultFactor ?? 0,
+          interaction.mathOperation,
           steps,
           pass,
           modifierTagId,
@@ -2005,24 +1851,6 @@ function applyInteractionOnto(
           leafContext,
         );
       }
-    } else if (!requireBase && teamMatchesBand) {
-      applyOpAndRecord(
-        next,
-        TEAM_POOL_OWNER,
-        target,
-        modifierTagName,
-        modValue,
-        defaultFactor,
-        defaultOp,
-        steps,
-        pass,
-        modifierTagId,
-        presenceApplied,
-        effectSources,
-        modifierLayer,
-        buffRestrictionMet,
-        leafContext,
-      );
     }
   }
 }
@@ -2214,48 +2042,16 @@ function applyUniqueScalingInvents(
           ? effectSourcesFromManifests(modifierManifests, awakenerNamesById)
           : ["(synthesized)"];
 
-      const selfOwners = new Set<OwnerKey>();
-      let hasNonSelfModifier = false;
-      for (const modM of modifierManifests) {
-        // Per-row tag id so modifier-ATM overrides key off that manifestation’s tag.
-        const targetType = effectiveModifierTargetType(modM, modM.tagId);
-        if (targetType === "self") {
-          selfOwners.add(ownerKeyFor(modM));
-        } else {
-          hasNonSelfModifier = true;
-        }
-      }
-      if (modifierManifests.length === 0 && synthesizedModifierValue !== 0) {
-        hasNonSelfModifier = true;
-      }
-
-      let modValue = 0;
-      if (selfOwners.has(owner)) {
-        modValue = combinePrefixModifierValue(
-          current,
-          matchingTagIds,
-          tagsById,
-          modifierTag,
-          [owner, TEAM_POOL_OWNER],
-        );
-      } else if (hasNonSelfModifier) {
-        const nonSelfOwners = new Set<OwnerKey>();
-        for (const modM of modifierManifests) {
-          if (effectiveModifierTargetType(modM, modM.tagId) === "self") {
-            continue;
-          }
-          nonSelfOwners.add(ownerKeyFor(modM));
-        }
-        modValue = combinePrefixModifierValue(
-          current,
-          matchingTagIds,
-          tagsById,
-          modifierTag,
-          [...nonSelfOwners, TEAM_POOL_OWNER],
-        );
-      } else {
-        continue;
-      }
+      const modValue = computeScopedPrefixModifierValue(
+        current,
+        appliedManifestations,
+        matchingTagIds,
+        tagsById,
+        modifierTag,
+        owner,
+        awakenersById,
+      );
+      if (modValue === 0) continue;
 
       const op = local.mathOperation ?? "multiply_one_plus";
       const factor = effectiveOverrideFactor(

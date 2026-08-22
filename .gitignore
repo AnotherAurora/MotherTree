@@ -43,5 +43,5 @@ next-env.d.ts
 /sample-data/dumps/
 
 # Kit Reader working files (export + Agent proposals)
-/sample-data/kit-reader/*.kit.json
-/sample-data/kit-reader/*.proposal.json
+/sample-data/kit-reader/*
+!/sample-data/kit-reader/README.md
