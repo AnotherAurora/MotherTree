@@ -1,6 +1,6 @@
 ---
 name: Simulator Phased Plan
-overview: Path Carver–first roadmap. Phase 1–2c.1 + 3a + 3a.1 + 3a.2 + 3a.3 + 3b + 3b.1 + 3c + 3c.1 + 3d + 3e + 3f + 3g (remove source_type tentacle) done. Next is Phase 4 (desire_demand / radar / simulator, Calculation List layer breakdown). Phase 5 smart recommend.
+overview: Path Carver–first roadmap. Phase 1–2c.1 + 3a + 3a.1 + 3a.2 + 3a.3 + 3b + 3b.1 + 3c + 3c.1 + 3d + 3e + 3f + 3g + 3h (direct_modifier mode) done. Next is Phase 4 (desire_demand / radar / simulator, Calculation List layer breakdown). Phase 5 smart recommend.
 todos:
   - id: seed-data
     content: Create scripts/seed-simulator-data.ts with 2-3 desires, demand rows, anchored awakeners; add npm script
@@ -1834,6 +1834,35 @@ Drop leftover enum value `tentacle` from `public.source_type`. Postgres has no `
 
 ---
 
+## Phase 3h — `direct_modifier` local interaction mode (DONE)
+
+**Depends on:** 3a–3g.
+
+### Goal
+
+Introduce a third local interaction mode, `direct_modifier`, on `awakener_local_manifestation_interaction` for self-contained, row-specific bonuses on the attached ATM's single-hit base (e.g. temporary Enhance stacks, card-specific Crit DMG bonuses). Unlike `unique_scaling` (which requires or reads from team modifier pools and can overwrite global rules), `direct_modifier` uses its own `value_scalar` and optional semantic `modifier_tag_id` without touching or colliding with global modifier pools.
+
+### Locks
+
+- DB enum `public.awakener_local_interaction_mode` includes `'direct_modifier'`.
+- Check constraint requires `target_tag_id IS NULL` and `value_scalar IS NOT NULL`.
+- `modifier_tag_id` is optional; when set, provides semantic tagging for layer resolution (`modifier_tag.layer`) and debug labeling.
+- Evaluated in-band during single-hit subject processing at the appropriate layer rank (`pre_add` / `add` / `post_add`).
+- Target type is always `self`.
+- Visible in Review Tags **Debug — Tag total math** with `unique_scaling=direct_modifier`.
+- Kit Reader prompt, skill, and schema support `direct_modifier` proposals and validation.
+
+### Files
+
+- Migration: `supabase/migrations/20260822140000_phase_3h_direct_modifier_local_interaction_mode.sql`
+- Helpers & Admin: [`src/lib/admin-local-interaction.ts`](src/lib/admin-local-interaction.ts), [`src/lib/schema-config.ts`](src/lib/schema-config.ts)
+- Types & DB: [`src/lib/database.types.generated.ts`](src/lib/database.types.generated.ts), [`src/lib/team-data/types.ts`](src/lib/team-data/types.ts)
+- Engine: [`src/lib/path-carver/apply-interactions.ts`](src/lib/path-carver/apply-interactions.ts)
+- Kit Reader: [`src/lib/kit-reader/proposal-schema.ts`](src/lib/kit-reader/proposal-schema.ts), [`scripts/insert-kit-pending.ts`](scripts/insert-kit-pending.ts), [`src/lib/kit-reader/cursor-prompt.ts`](src/lib/kit-reader/cursor-prompt.ts), [`.cursor/skills/kit-reader/SKILL.md`](.cursor/skills/kit-reader/SKILL.md), [`docs/admin/kit-reader.md`](docs/admin/kit-reader.md)
+- Manual: [`docs/admin/atm-and-local-interaction-inputs.md`](docs/admin/atm-and-local-interaction-inputs.md)
+
+---
+
 ## Phase 4 — desire_demand, radar, simulator port
 
 **Depends on:** Stable Path Carver math (through Phase **3f** preferably; through 2c minimum).
@@ -1904,5 +1933,6 @@ Path Carver upserts a single `desire_template` per `desire_id`.
 11. **Phase 3e** — Attacker.Tentacle TDU pool for RTM / Generate / Hit (DONE)
 12. **Phase 3f** — Tentacle Crit Rate / Damage after TDU (DONE)
 13. **Phase 3g** — Remove `source_type` tentacle enum (DONE)
-14. **Phase 4** — desire_demand / radar / simulator port + Calculation List layer breakdown
-15. **Phase 5** — Smart recommend / search
+14. **Phase 3h** — `direct_modifier` local interaction mode (DONE)
+15. **Phase 4** — desire_demand / radar / simulator port + Calculation List layer breakdown
+16. **Phase 5** — Smart recommend / search

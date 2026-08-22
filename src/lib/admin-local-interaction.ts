@@ -3,11 +3,15 @@
  * Label-swap tag field, mode defaults, and soft-warn validation.
  */
 
-export type LocalInteractionMode = "unique_scaling" | "aftereffect";
+export type LocalInteractionMode =
+  | "unique_scaling"
+  | "aftereffect"
+  | "direct_modifier";
 
 export const LOCAL_INTERACTION_MODES: readonly LocalInteractionMode[] = [
   "unique_scaling",
   "aftereffect",
+  "direct_modifier",
 ] as const;
 
 export const UNIQUE_SCALING_MATH_OPERATIONS = [
@@ -20,6 +24,12 @@ export const UNIQUE_SCALING_MATH_OPERATIONS = [
 export const AFTEREFFECT_MATH_OPERATIONS = [
   "multiply",
   "add_scaled",
+] as const;
+
+export const DIRECT_MODIFIER_MATH_OPERATIONS = [
+  "multiply_one_plus",
+  "add_scaled",
+  "multiply",
 ] as const;
 
 export type LocalInteractionFormValues = {
@@ -37,7 +47,11 @@ export type LocalInteractionFormValues = {
 export function isLocalInteractionMode(
   value: unknown,
 ): value is LocalInteractionMode {
-  return value === "unique_scaling" || value === "aftereffect";
+  return (
+    value === "unique_scaling" ||
+    value === "aftereffect" ||
+    value === "direct_modifier"
+  );
 }
 
 export function normalizeLocalInteractionMode(
@@ -53,15 +67,17 @@ export function activeTagColumn(
 }
 
 export function activeTagLabel(mode: LocalInteractionMode): string {
-  return mode === "aftereffect" ? "Target Tag" : "Modifier Tag";
+  if (mode === "aftereffect") return "Target Tag";
+  if (mode === "direct_modifier") return "Semantic Tag";
+  return "Modifier Tag";
 }
 
 export function mathOperationsForMode(
   mode: LocalInteractionMode,
 ): readonly string[] {
-  return mode === "aftereffect"
-    ? AFTEREFFECT_MATH_OPERATIONS
-    : UNIQUE_SCALING_MATH_OPERATIONS;
+  if (mode === "aftereffect") return AFTEREFFECT_MATH_OPERATIONS;
+  if (mode === "direct_modifier") return DIRECT_MODIFIER_MATH_OPERATIONS;
+  return UNIQUE_SCALING_MATH_OPERATIONS;
 }
 
 export function defaultsForLocalInteractionMode(
@@ -76,6 +92,14 @@ export function defaultsForLocalInteractionMode(
       value_scalar: 1,
       math_operation: "multiply",
       target_type: "aoe",
+    };
+  }
+  if (mode === "direct_modifier") {
+    return {
+      mode,
+      value_scalar: 1,
+      math_operation: "multiply_one_plus",
+      target_type: "self",
     };
   }
   return {
@@ -137,7 +161,9 @@ export function applyLocalInteractionModeSwitch<
     ...current,
     mode: nextMode,
     modifier_tag_id:
-      nextMode === "unique_scaling" ? selectedTagId : null,
+      nextMode === "unique_scaling" || nextMode === "direct_modifier"
+        ? selectedTagId
+        : null,
     target_tag_id: nextMode === "aftereffect" ? selectedTagId : null,
     math_operation: nextOp ?? null,
     value_scalar:
@@ -145,7 +171,7 @@ export function applyLocalInteractionModeSwitch<
         ? defaults.value_scalar!
         : current.value_scalar,
     target_type:
-      nextMode === "unique_scaling"
+      nextMode === "unique_scaling" || nextMode === "direct_modifier"
         ? "self"
         : (current.target_type ?? defaults.target_type!),
   };
@@ -206,14 +232,16 @@ export function isBaseStatUniqueScaling(
  * True when mode vs modifier/target/dep columns disagree.
  * unique_scaling: tag-mod (modifier set) or base-stat (modifier null + dep set);
  * target_tag_id always null. aftereffect: target required, modifier null.
+ * direct_modifier: target_tag_id always null, value_scalar required.
  */
 export function hasLocalInteractionColumnMismatch(
   values: Record<string, unknown>,
 ): boolean {
   const mode = values.mode;
-  const modifier = nullishTagId(values.modifier_tag_id);
-  const target = nullishTagId(values.target_tag_id);
-  const dep = nullishDependencyStat(values.dependency_stat);
+  const modifier = nullishTagId(values.modifier_tag_id ?? values.modifierTagId);
+  const target = nullishTagId(values.target_tag_id ?? values.targetTagId);
+  const dep = nullishDependencyStat(values.dependency_stat ?? values.dependencyStat);
+  const val = values.value_scalar ?? values.valueScalar;
 
   if (mode === "unique_scaling") {
     if (target != null) return true;
@@ -223,11 +251,15 @@ export function hasLocalInteractionColumnMismatch(
   if (mode === "aftereffect") {
     return target == null || modifier != null;
   }
+  if (mode === "direct_modifier") {
+    if (target != null) return true;
+    return val == null || Number.isNaN(Number(val));
+  }
   return true;
 }
 
 export const LOCAL_INTERACTION_COLUMN_MISMATCH_HINT =
-  "unique_scaling: Modifier Tag, or leave Modifier empty and set Dependency Stat (base-stat); Target Tag must be empty. aftereffect: Target Tag required; Modifier Tag empty.";
+  "unique_scaling: Modifier Tag, or leave Modifier empty and set Dependency Stat (base-stat); Target Tag must be empty. aftereffect: Target Tag required; Modifier Tag empty. direct_modifier: Value Scalar required; Target Tag must be empty.";
 
 /** Soft info when unique_scaling has both a modifier tag and dependency_stat. */
 export function hasUniqueScalingTagAndDepHint(
@@ -243,18 +275,20 @@ export function hasUniqueScalingTagAndDepHint(
 export const UNIQUE_SCALING_TAG_AND_DEP_HINT =
   "Modifier Tag + Dependency Stat: dep scales the factor (tag-mod path). For base-stat invent, clear Modifier Tag and keep Dependency Stat.";
 
-/** Soft warn when unique_scaling has target_type other than self. */
+/** Soft warn when unique_scaling or direct_modifier has target_type other than self. */
 export function hasUniqueScalingNonSelfTargetType(
   values: Record<string, unknown>,
 ): boolean {
-  if (values.mode !== "unique_scaling") return false;
-  const tt = values.target_type;
+  if (values.mode !== "unique_scaling" && values.mode !== "direct_modifier") {
+    return false;
+  }
+  const tt = values.target_type ?? values.targetType;
   if (tt == null || tt === "") return false;
   return String(tt) !== "self";
 }
 
 export const UNIQUE_SCALING_NON_SELF_TARGET_TYPE_HINT =
-  "unique_scaling rows should use target_type self; aoe/single have no effect on unique_scaling math today.";
+  "unique_scaling and direct_modifier rows should use target_type self; aoe/single have no effect on local math today.";
 
 /** Display stored fraction as percent points (0.005 → 0.5). */
 export function valueScalarToPercentDisplay(

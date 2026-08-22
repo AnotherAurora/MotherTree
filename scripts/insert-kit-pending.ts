@@ -14,6 +14,8 @@ import { isAdminRuntimeEnabled } from "../src/lib/admin-runtime";
 import {
   AFTEREFFECT_MATH_OPERATIONS,
   UNIQUE_SCALING_MATH_OPERATIONS,
+  DIRECT_MODIFIER_MATH_OPERATIONS,
+  mathOperationsForMode,
   hasLocalInteractionColumnMismatch,
 } from "../src/lib/admin-local-interaction";
 import type { Database } from "../src/lib/database.types";
@@ -70,7 +72,7 @@ function nowIso(): string {
 }
 
 function isIgnoreListed(proposal: KitAtmProposal): boolean {
-  const haystack = `${proposal.sourceKitId} ${proposal.sourceQuote} ${proposal.tagName}`;
+  const haystack = `${proposal.sourceKitId} ${proposal.sourceQuote ?? ""} ${proposal.tagName}`;
   return IGNORE_SOURCE_PATTERNS.some((re) => re.test(haystack));
 }
 
@@ -241,10 +243,7 @@ function resolveLocalRow(
   manifestationId: number,
   maps: NameMaps,
 ): Record<string, unknown> {
-  const allowedOps: readonly string[] =
-    local.mode === "aftereffect"
-      ? AFTEREFFECT_MATH_OPERATIONS
-      : UNIQUE_SCALING_MATH_OPERATIONS;
+  const allowedOps: readonly string[] = mathOperationsForMode(local.mode);
   if (!allowedOps.includes(local.mathOperation)) {
     throw new Error(
       `Local mathOperation "${local.mathOperation}" not allowed for mode ${local.mode}`,
@@ -287,7 +286,7 @@ function resolveLocalRow(
   }
 
   let targetType: "self" | "single" | "aoe";
-  if (local.mode === "unique_scaling") {
+  if (local.mode === "unique_scaling" || local.mode === "direct_modifier") {
     targetType = "self";
   } else {
     targetType = local.targetType ?? "aoe";
@@ -338,13 +337,22 @@ async function insertLocals(
 }
 
 async function main() {
-  const proposalArg = process.argv[2];
+  const args = process.argv.slice(2);
+  const flags = new Set(args.filter((a) => a.startsWith("--")));
+  const proposalArg = args.find((a) => !a.startsWith("--"));
+
   if (!proposalArg) {
     console.error(
-      "Usage: npx tsx --env-file=.env.local scripts/insert-kit-pending.ts <proposal.json>",
+      "Usage: npx tsx --env-file=.env.local scripts/insert-kit-pending.ts <proposal.json> [--append|--upsert|--patch]",
     );
     process.exit(1);
   }
+
+  const isAppendMode =
+    flags.has("--append") ||
+    flags.has("--upsert") ||
+    flags.has("--patch") ||
+    process.env.KIT_READER_APPEND === "true";
 
   const absolute = resolve(process.cwd(), proposalArg);
   const raw = JSON.parse(readFileSync(absolute, "utf8"));
@@ -360,9 +368,9 @@ async function main() {
   const awakener = await resolveAwakenerId(supabase, file);
 
   const pending = await countPending(supabase, awakener.id);
-  if (pending > 0 && process.env.KIT_READER_APPEND !== "true") {
+  if (pending > 0 && !isAppendMode) {
     console.error(
-      `Abort: awakener ${awakener.name} (id=${awakener.id}) has ${pending} pending ATM(s). Verify or soft-delete them before a new Kit Reader batch. No --force. Set KIT_READER_APPEND=true to add rows to an existing pending batch.`,
+      `Abort: awakener ${awakener.name} (id=${awakener.id}) has ${pending} pending ATM(s). Verify or soft-delete them before a new Kit Reader batch. No --force. Pass --append / --patch (or set KIT_READER_APPEND=true) to add/patch rows in an existing pending batch.`,
     );
     process.exit(1);
   }
@@ -429,10 +437,13 @@ async function main() {
     let replacesId: number | null = null;
     if (proposal.replacesClientKey != null) {
       replacesId = clientKeyToId.get(proposal.replacesClientKey) ?? null;
+      if (replacesId == null && /^\d+$/.test(proposal.replacesClientKey)) {
+        replacesId = Number(proposal.replacesClientKey);
+      }
       if (replacesId == null) {
         failed.push({
           clientKey: proposal.clientKey,
-          reason: `replacesClientKey "${proposal.replacesClientKey}" not found in inserted map`,
+          reason: `replacesClientKey "${proposal.replacesClientKey}" not found in inserted map or database IDs`,
         });
         return;
       }

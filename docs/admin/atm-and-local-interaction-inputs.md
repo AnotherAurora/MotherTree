@@ -13,6 +13,7 @@ Quick lookup: how fields on **`awakener_tag_manifestation`** (ATM) and **`awaken
 | Local row as **patch** of a matching `tag_default_interaction` | Live (`unique_scaling`) |
 | Local **`unique_scaling` invent** (tag-mod or base-stat null-mod) | Live (**3b**); invent Modifier Tag is **prefix** (**3b.1**) |
 | Local **`aftereffect`** emit / merge (× `hitCount` = instances × effective copies) | Live (**3c**) |
+| Local **`direct_modifier`** self-contained card buff | Live (**3h**) |
 
 Formulas below for aftereffect are **live in Review Tags** (Phase 3c). Invent/patch/`unique_scaling` layer rules are live.
 
@@ -138,12 +139,13 @@ Kit Reader rules: [`docs/admin/kit-reader.md`](kit-reader.md#lemurian-synergy).
 
 Child of an ATM (or standalone admin table). **Parent ATM** = attachment point.
 
-Two **modes** (no separate “override” mode):
+Three **modes** (no separate “override” mode):
 
 | Mode | Attachment meaning | Tag columns |
 | --- | --- | --- |
-| **`unique_scaling`** | Row on the **target** ATM (e.g. Active Damage / Shield). Scales **that** manifestation. | `modifier_tag_id` = tag modifier **or null** (null ⇒ `dependency_stat` required — base-stat); `target_tag_id` **null** |
+| **`unique_scaling`** | Row on the **target** ATM (e.g. Active Damage / Shield). Scales **that** manifestation from a team pool or base stat. | `modifier_tag_id` = tag modifier **or null** (null ⇒ `dependency_stat` required — base-stat); `target_tag_id` **null** |
 | **`aftereffect`** | Row on the **source** ATM (e.g. Active Damage). After that subject finishes, emit into another tag. | `target_tag_id` required; `modifier_tag_id` **null** |
+| **`direct_modifier`** | Row on the **target** ATM (e.g. Active Damage). Self-contained local buff (e.g. Enhance, Crit DMG) that applies only to this manifestation. | `modifier_tag_id` optional (semantic tag for layer/label); `target_tag_id` **null** |
 
 Admin shows **one** tag dropdown; label swaps (“Modifier Tag” vs “Target Tag”). Mode switch moves the selected id into the active column and nulls the other. For unique_scaling you may clear Modifier Tag and set **Dependency Stat** instead (base-stat invent).
 
@@ -287,16 +289,43 @@ Bleed kits: aftereffect → **Bleed** (source owner) → combined stack → Blee
 
 ---
 
+### 2.4 Mode: `direct_modifier` (Phase 3h)
+
+**What it does**
+
+Provides a self-contained local modifier on the attached ATM's single-hit base. Unlike `unique_scaling`, it does **not** query or depend on team tag pools, and does **not** patch or overwrite global `tag_default_interaction` rules.
+
+- **`modifier_tag_id`**: Optional semantic tag (e.g. `Support.Enhance`, `Support.Crit Damage`). When set, the interaction layer is inferred from `modifier_tag.layer` (unless overridden by local `layer`), and debug steps label the operation with this tag name.
+- **`target_tag_id`**: Always `null`.
+- **`value_scalar`**: The direct modifier value (e.g. `0.5` for +50% Enhance).
+- **`dependency_stat`**: Optional; when set, scales the factor by the owner awakener's stat or percentage points.
+- **`math_operation`**: `multiply_one_plus` (default), `add_scaled`, or `multiply`.
+- **`target_type`**: Always `self`.
+- **`layer`**: `pre_add`, `add`, `post_add` (defaults to semantic modifier tag layer or `add`).
+
+**Apply formula (in-band on subject single-hit base):**
+
+```text
+contribution = modifierValue * factor  (where modifierValue = 1 or base_stat, factor = value_scalar)
+if op == "multiply_one_plus":
+  if target.is_percent:
+    target = (1 + before) * (1 + contribution) - 1
+  else:
+    target = before * (1 + contribution)
+```
+
+---
+
 ## 3. Side-by-side cheat sheet
 
-| | ATM | Local `unique_scaling` | Local `aftereffect` |
-| --- | --- | --- | --- |
-| Main number | Base for this tag | **Factor** on Mod→this ATM | **Factor** with finished(S) |
-| Other operand | awakener stat (if dep set) | Modifier tag total **or** awakener dep (null mod) | Finished source value |
-| Op uses target `before`? | n/a (is the base) | **Yes** | **No** (merge via `is_additive`) |
-| Default op | n/a | `multiply_one_plus` | `multiply` |
-| `layer` | n/a (tag has its own) | When on **target** path | Order among aftereffects |
-| Typical kits | Damage / Shield ATM bases | Shield→Damage invent/patch; sigil→Shield base-stat | Damage→**Bleed** emit |
+| | ATM | Local `unique_scaling` | Local `aftereffect` | Local `direct_modifier` |
+| --- | --- | --- | --- | --- |
+| Main number | Base for this tag | **Factor** on Mod→this ATM | **Factor** with finished(S) | **Direct bonus** on this ATM |
+| Other operand | awakener stat (if dep set) | Modifier tag total **or** awakener dep (null mod) | Finished source value | Fixed `1` (or awakener dep if set) |
+| Op uses target `before`? | n/a (is the base) | **Yes** | **No** (merge via `is_additive`) | **Yes** |
+| Default op | n/a | `multiply_one_plus` | `multiply` | `multiply_one_plus` |
+| `layer` | n/a (tag has its own) | When on **target** path | Order among aftereffects | When on **target** path |
+| Typical kits | Damage / Shield ATM bases | Shield→Damage invent/patch; sigil→Shield base-stat | Damage→**Bleed** emit | Card-specific Enhance / Crit DMG (e.g. Helot AA) |
 
 ---
 

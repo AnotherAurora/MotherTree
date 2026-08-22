@@ -32,14 +32,18 @@ description: >-
 
 1. Read the kit pack: `assumptions`, skills (base + upgrades), derivedCards, **`enlightens`** (standalone E1/E2/etc.), talents (`atmEligible`), `ignoreList`, `lexicon.tags`, `lexicon.flavorTagSynonyms`, **`lexicon.aoeTagPrefixes`**, **`lexicon.percentDependencyStats`**, **`lexicon.enjoyTentacleDmgModifierTagNames`**, **`lexicon.stealStrTagNames`**, **`lexicon.devourCopyProviderGroupName`**, **`sourceLabel` / layer `sourceLabelHint`**, **`cost`**, layer **`resolvedArgs` + `resolvedArgMeta`**, layer **`hasEnjoyClause`** / **`hasEnjoyTentacleDmgClause`** / **`hasStealClause`** / **`hasDevourClause`**.
 2. Propose ATM + local rows for Path Carver math.
-3. Write proposal JSON to `sample-data/kit-reader/{slug}.proposal.json` (`schemaVersion: 1`). You may omit `metadata` — insert CLI computes it. Use `metadataSuffix` / `metadataOverride` for non-formula labels.
+3. Write sparse proposal JSON to `sample-data/kit-reader/{slug}.proposal.json` (`schemaVersion: 1`).
+   - **Write Sparse JSON:** Omit default values (`status: "ok"`, `instanceCount: 1`, `baseCopies: 1`, `locals: []`, `dependencyStat: null`, `isAccumulating: false`, `isPermanent: false`, etc.).
+   - **Omit `sourceQuote` and redundant metadata:** The insert CLI resolves metadata and context from `sourceKitId` and `tagName`.
+   - **Omit ignore-listed items:** Do not output JSON entries for Gnostic Potential, Madness Omen, or Soulforge boilerplate.
 4. Run:
 
 ```bash
 npx tsx --env-file=.env.local scripts/insert-kit-pending.ts sample-data/kit-reader/{slug}.proposal.json
 ```
 
-5. Summarize inserted vs skipped (`needs_review` / `unsupported`) vs failed. Do **not** hand the user JSON to paste into admin.
+Pass `--append` or `--patch` if appending/updating rows in an existing pending batch.
+5. Summarize inserted vs skipped (`needs_review`) vs failed. Do **not** hand the user JSON to paste into admin. For minor row adjustments, guide the user to the Kit Reader UI (`/kit-reader`).
 
 ## Metadata (mandatory)
 
@@ -91,6 +95,19 @@ When kit text has **enjoy / enjoys / enjoying** (`hasEnjoyClause: true` on pack 
 **Tentacle DMG exception** (`hasEnjoyTentacleDmgClause` / `detectEnjoyTentacleDmgClause`): when enjoy is followed in the same clause by **Tentacle DMG** or **Tentacle Damage**, attach **two** locals with the **same** fields except `modifierTagName` — `Support.Tentacle Damage Up` **and** `Support.Unique Tentacle Damage Up` (Unique is a sibling, not a TDU prefix child). Both: `add_scaled`, `valueScalar` from the percent, `targetType: self`, `layer: add`. Use pack `lexicon.enjoyTentacleDmgModifierTagNames`. Do **not** dual-tag Counter / STR enjoy.
 
 Examples: Caecus *"enjoying a 50% Tentacle DMG bonus"* → both TDU locals `add_scaled` `0.5`; `"24"` Aequor *"enjoys a 75% Tentacle DMG bonus"* → same pair at `0.75`; other `"24"` Rouse realm lines stay a single unique_scaling.
+
+## Direct modifier → local direct_modifier
+
+When kit text grants **card-specific or record-specific self-contained buffs** (e.g. *Temporary Enhance on specific cards in hand*, *this card gains +N% Crit DMG*, or other intrinsic card multipliers that must not broadcast to all cards of that awakener):
+
+- Attach a **local** on the **subject** ATM with `mode: direct_modifier`.
+- Do **not** create a global Support ATM (which would pollute the global tag pool and apply to all skills).
+- `modifierTagName` = semantic tag (e.g. `Support.Enhance`, `Support.Crit Damage`), `targetTagName: null`.
+- `valueScalar` = the direct bonus scalar (e.g. `50 stacks of Temporary Enhance` / `+50%` → `0.5`).
+- Default `mathOperation: multiply_one_plus` (or `add_scaled`), `targetType: self`.
+- Layer is resolved from the semantic tag (e.g. `Support.Enhance` → `add`) or explicit `layer`.
+
+Example: Helot: Catena AA *"grant each unique 'Helot: Catena' Command Card in hand 50 stacks of Temporary Enhance"* → attach `mode: direct_modifier`, `modifierTagName: "Support.Enhance"`, `valueScalar: 0.5`, `mathOperation: "multiply_one_plus"`, `targetType: "self"` to the affected Command Card damage ATMs.
 
 ## Steal → STR Down + STR Up
 
@@ -160,8 +177,9 @@ Covers **`[Power:Arg]` → STR**, **`[Block:Arg]` → Shield**, **`[Damage:Arg]`
 
 **“Trigger [ArgN]% {Poison}”** — flat trigger fraction when meta has no `stat`; not stack-application `Attacker.Poison`.
 
-## Ignore list (never propose as `ok`)
+## Ignore list (omit from proposal JSON)
 
+Do not output proposals for:
 - Gnostic Potential
 - Madness Omen
 - Dimensional Image

@@ -32,19 +32,23 @@ const mathOperation = z.enum([
   "multiply_one_plus",
   "multiply",
 ]);
-const localMode = z.enum(["unique_scaling", "aftereffect"]);
+const localMode = z.enum([
+  "unique_scaling",
+  "aftereffect",
+  "direct_modifier",
+]);
 const proposalStatus = z.enum(["ok", "needs_review", "unsupported"]);
 
 export const kitLocalProposalSchema = z
   .object({
     mode: localMode,
-    modifierTagName: z.string().min(1).nullable(),
-    targetTagName: z.string().min(1).nullable(),
-    dependencyStat: allStats.nullable(),
+    modifierTagName: z.string().min(1).nullable().default(null),
+    targetTagName: z.string().min(1).nullable().default(null),
+    dependencyStat: allStats.nullable().default(null),
     mathOperation: mathOperation,
     valueScalar: z.number(),
     targetType: targetType.default("self"),
-    layer: layer.nullable(),
+    layer: layer.nullable().default(null),
     isDisabled: z.boolean().default(false),
   })
   .superRefine((row, ctx) => {
@@ -90,27 +94,48 @@ export const kitLocalProposalSchema = z
         });
       }
     }
+    if (row.mode === "direct_modifier") {
+      if (row.targetTagName != null) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "direct_modifier: targetTagName must be null",
+          path: ["targetTagName"],
+        });
+      }
+      if (
+        row.mathOperation !== "multiply_one_plus" &&
+        row.mathOperation !== "add_scaled" &&
+        row.mathOperation !== "multiply"
+      ) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message:
+            "direct_modifier: only multiply_one_plus | add_scaled | multiply",
+          path: ["mathOperation"],
+        });
+      }
+    }
   });
 
 export const kitAtmProposalSchema = z.object({
   clientKey: z.string().min(1),
-  status: proposalStatus,
+  status: proposalStatus.default("ok"),
   rationale: z.string().optional(),
   unsupportedReason: z.string().optional(),
   sourceKitId: z.string().min(1),
-  sourceQuote: z.string().min(1),
+  sourceQuote: z.string().min(1).optional(),
   sourceLayer: z
     .enum(["base", "enlighten", "talent", "soulforge_kit"])
     .optional(),
   tagName: z.string().min(1),
-  valueScalar: z.number().nullable(),
+  valueScalar: z.number().nullable().default(null),
   dependencyStat: allStats.nullable().default(null),
   instanceCount: z.number().int().default(1),
   baseCopies: z.number().int().default(1),
   copyProviderGroupName: z.string().min(1).nullable().default(null),
   requiredEnlightenment: z.number().int().default(0),
   requiredRealmName: z.string().min(1).nullable().default(null),
-  sourceType: sourceType.nullable(),
+  sourceType: sourceType.nullable().default(null),
   targetType: targetType.nullable().default("aoe"),
   triggerConditionTagName: z.string().min(1).nullable().default(null),
   isAccumulating: z.boolean().default(false),

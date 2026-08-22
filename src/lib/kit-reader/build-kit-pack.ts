@@ -118,7 +118,6 @@ export type ExpandedLayer = {
   /** Metadata source prefix for this layer (AA overrides parent for AbsoluteAxiom). */
   sourceLabelHint: string;
   requiredEnlightenmentHint: number;
-  descriptionTemplate: string;
   expandedText: string;
   resolvedArgs: Record<string, string | number>;
   /** Per-arg stat/suffix/substatBonus from SKeyDB descriptionArgs. */
@@ -196,9 +195,9 @@ export type KitPack = {
   enlightens: KitPackEnlighten[];
   ignoreList: string[];
   lexicon: {
-    tags: { id: number; tag_name: string }[];
-    realms: { id: number; name: string }[];
-    copyProviderGroups: { id: number; name: string }[];
+    tags: string[];
+    realms: string[];
+    copyProviderGroups: string[];
     enums: {
       source_type: readonly string[];
       target_type: readonly string[];
@@ -468,7 +467,6 @@ function buildSkillPackEntry(
         operation: upgrade.operation ?? null,
         sourceLabelHint: layerSourceLabelHint(initialSourceLabel, upgraderSlot),
         requiredEnlightenmentHint,
-        descriptionTemplate: patchTemplate,
         expandedText: expanded.text,
         resolvedArgs: expanded.resolvedArgs,
         resolvedArgMeta: expanded.resolvedArgMeta,
@@ -498,7 +496,6 @@ function buildSkillPackEntry(
         operation: null,
         sourceLabelHint: initialSourceLabel,
         requiredEnlightenmentHint: defaultRequiredEnlightenment,
-        descriptionTemplate: baseTemplate,
         expandedText: baseExpanded.text,
         resolvedArgs: baseExpanded.resolvedArgs,
         resolvedArgMeta: baseExpanded.resolvedArgMeta,
@@ -579,7 +576,6 @@ function buildEnlightenPackEntry(
         operation: null,
         sourceLabelHint: enlighten.name,
         requiredEnlightenmentHint,
-        descriptionTemplate: enlighten.descriptionTemplate ?? "",
         expandedText: expanded.text,
         resolvedArgs: expanded.resolvedArgs,
         resolvedArgMeta: expanded.resolvedArgMeta,
@@ -766,7 +762,6 @@ export async function buildKitPackForAwakener(
           operation: null,
           sourceLabelHint: sourceLabel,
           requiredEnlightenmentHint: 0,
-          descriptionTemplate: talent.descriptionTemplate ?? "",
           expandedText: expanded.text,
           resolvedArgs: expanded.resolvedArgs,
           resolvedArgMeta: expanded.resolvedArgMeta,
@@ -797,12 +792,9 @@ export async function buildKitPackForAwakener(
     enlightens,
     ignoreList: [...IGNORE_LIST],
     lexicon: {
-      tags: (tagsRes.data ?? []) as { id: number; tag_name: string }[],
-      realms: (realmsRes.data ?? []) as { id: number; name: string }[],
-      copyProviderGroups: (groupsRes.data ?? []) as {
-        id: number;
-        name: string;
-      }[],
+      tags: (tagsRes.data ?? []).map((t) => t.tag_name),
+      realms: (realmsRes.data ?? []).map((r) => r.name),
+      copyProviderGroups: (groupsRes.data ?? []).map((g) => g.name),
       enums: {
         source_type: ENUM_VALUES.source_type,
         target_type: ENUM_VALUES.target_type,

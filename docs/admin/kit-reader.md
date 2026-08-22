@@ -31,8 +31,9 @@ npx tsx --env-file=.env.local scripts/insert-kit-pending.ts sample-data/kit-read
 ```
 
 - Requires `ADMIN_ENABLED=true` (local).
-- Aborts if any alive pending ATM exists for that awakener. **No `--force`.**
-- Inserts only `status: "ok"` rows; always `verified = false`.
+- Aborts if any alive pending ATM exists for that awakener unless `--append` / `--patch` is passed (or `KIT_READER_APPEND=true`). **No `--force`.**
+- Inserts only `status: "ok"` rows (default if omitted); always `verified = false`.
+- Supports sparse proposals: default fields (`instanceCount: 1`, `baseCopies: 1`, `locals: []`, `status: "ok"`, `dependencyStat: null`, etc.) and `sourceQuote` can be omitted to minimize token overhead.
 - Two-pass for `replacesClientKey` → `replaces_manifestation_id`, then nested locals.
 - **Metadata is computed at insert** from the kit pack (`sourceKitId` → `sourceLabel`) + `tagName` via `buildAtmMetadata` (trailing `.Fixed` stripped from effect label). Proposal `metadata` is ignored. Use proposal `metadataSuffix` (e.g. `+ SF` on **Talent** rows only) or `metadataOverride` (e.g. `OE Heal *3`) for custom labels. When `sourceLabel` is already `SF`, `metadataSuffix: "+ SF"` is ignored (no `SF … + SF`). CLI output includes `metadataResolved` per row.
 
@@ -120,6 +121,17 @@ Example (Caecus): *"Deal DMG, enjoying a 50% Tentacle DMG bonus"* → parent `At
 - Ambiguous enjoy → `needs_review`.
 
 Helpers: [`src/lib/kit-reader/proposal-heuristics.ts`](../../src/lib/kit-reader/proposal-heuristics.ts) (`detectEnjoyClause`, `detectEnjoyTentacleDmgClause`, `parseEnjoyPercentFactor`).
+
+## Direct modifier → direct_modifier
+
+When kit text grants **card-specific or record-specific self-contained buffs** (e.g. *Temporary Enhance on specific cards in hand*, *this card gains +N% Crit DMG*, or other intrinsic card multipliers that must not broadcast to all cards of that awakener):
+
+- Attach a **local** on the **subject** ATM with `mode: direct_modifier`.
+- Do **not** create a global Support ATM (which would enter the global tag pool and affect all skills).
+- `modifierTagName` = semantic tag (e.g. `Support.Enhance`, `Support.Crit Damage`), `targetTagName: null`.
+- `valueScalar` = direct factor/multiplier (e.g. `0.5` for 50% Enhance).
+- `mathOperation: multiply_one_plus` (or `add_scaled`), `targetType: self`.
+- Layer is resolved from the semantic tag (e.g. `Support.Enhance` → `add`) or explicit `layer`.
 
 ## Steal → STR Down + STR Up
 

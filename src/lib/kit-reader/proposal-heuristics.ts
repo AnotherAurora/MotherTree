@@ -200,10 +200,10 @@ export type StealMissingStrUpWarning = {
 /** Minimal proposal shape for Steal pair validation (insert CLI). */
 export type StealPairProposalLike = {
   clientKey: string;
-  status: string;
+  status?: string;
   tagName: string;
   sourceKitId: string;
-  sourceQuote: string;
+  sourceQuote?: string | null;
   valueScalar: number | null;
   dependencyStat: AllStats | null;
   requiredEnlightenment?: number;
@@ -345,7 +345,7 @@ export function warnPercentDepValueScalarLooksLinear(
   clientKey: string,
   dependencyStat: AllStats | null,
   valueScalar: number | null,
-  sourceQuote: string,
+  sourceQuote?: string | null,
   rationale?: string | null,
 ): PercentDepValueScalarWarning | null {
   if (dependencyStat == null || valueScalar == null) return null;
@@ -456,8 +456,8 @@ export type DevourWhenTriggerWarning = {
 /** Minimal proposal shape for Devour copy-provider validation (insert CLI). */
 export type DevourProposalLike = {
   clientKey: string;
-  status: string;
-  sourceQuote: string;
+  status?: string;
+  sourceQuote?: string | null;
   triggerConditionTagName?: string | null;
   copyProviderGroupName?: string | null;
 };

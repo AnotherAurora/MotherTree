@@ -149,10 +149,10 @@ export type ScalarMathStep =
       /** Effective layer band for this op (local unique_scaling layer wins when set). */
       layer: Layer | null;
       /**
-       * Phase 3b — unique_scaling provenance for Review Tags debug.
+       * Phase 3b / 3h — unique_scaling / direct_modifier provenance for Review Tags debug.
        * Absent for plain tag_default_interaction ops.
        */
-      uniqueScaling?: "patch" | "invent" | "base_stat";
+      uniqueScaling?: "patch" | "invent" | "base_stat" | "direct_modifier";
       /** Subject path key (sourceKind:id or phase1-create) for debug regrouping. */
       subjectKey: string;
       /** Subject path display label for debug regrouping. */
@@ -966,7 +966,7 @@ function applyOpAndRecord(
   modifierLayer: Layer | null,
   buffRestrictionMet?: SourceType,
   leafContext?: SourceType | null,
-  uniqueScaling?: "patch" | "invent" | "base_stat",
+  uniqueScaling?: "patch" | "invent" | "base_stat" | "direct_modifier",
   presenceBandRank?: number,
 ): void {
   if (op === "presence_multiply" && modifierTagId != null) {
@@ -2092,6 +2092,49 @@ function applyUniqueScalingInvents(
         : null;
 
     for (const local of m.interactionOverrides) {
+      if (local.mode === "direct_modifier") {
+        if (local.isDisabled) continue;
+        const applyLayer = effectiveUniqueScalingLayer(local, tagsById);
+        if (layerRank(applyLayer) !== bandRank) continue;
+
+        const modifierTagId = local.modifierTagId;
+        const modifierTag =
+          modifierTagId != null ? tagsById[modifierTagId] : undefined;
+        const modifierTagName =
+          modifierTag?.tagName ?? local.modifierTagName ?? "direct_modifier";
+
+        let modValue = 1;
+        let factor = local.valueScalar ?? 0;
+        if (local.dependencyStat != null) {
+          modValue = baseStatUniqueScalingModifierValue(
+            ownerAwakener,
+            local.dependencyStat,
+          );
+        }
+
+        const op = local.mathOperation ?? "multiply_one_plus";
+        applyOpAndRecord(
+          next,
+          owner,
+          target,
+          modifierTagName,
+          modValue,
+          factor,
+          op,
+          steps,
+          pass,
+          modifierTagId,
+          presenceApplied,
+          [sourceLabelFor(m, awakenerNamesById)],
+          applyLayer,
+          undefined,
+          leafContext,
+          "direct_modifier",
+          bandRank,
+        );
+        continue;
+      }
+
       if (local.mode !== "unique_scaling") continue;
 
       const applyLayer = effectiveUniqueScalingLayer(local, tagsById);

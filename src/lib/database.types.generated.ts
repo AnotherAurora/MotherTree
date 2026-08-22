@@ -56,7 +56,6 @@ export type Database = {
           id: number
           keyflare_regen: number | null
           name: string | null
-          notes: string | null
           realm: number | null
           realm_mastery: number | null
           sigil_yield: number | null
@@ -78,7 +77,6 @@ export type Database = {
           id?: number
           keyflare_regen?: number | null
           name?: string | null
-          notes?: string | null
           realm?: number | null
           realm_mastery?: number | null
           sigil_yield?: number | null
@@ -100,7 +98,6 @@ export type Database = {
           id?: number
           keyflare_regen?: number | null
           name?: string | null
-          notes?: string | null
           realm?: number | null
           realm_mastery?: number | null
           sigil_yield?: number | null
@@ -1439,7 +1436,10 @@ export type Database = {
         | "team_max_hp"
         | "enemy_max_hp"
         | "base_aliemus"
-      awakener_local_interaction_mode: "unique_scaling" | "aftereffect"
+      awakener_local_interaction_mode:
+        | "unique_scaling"
+        | "aftereffect"
+        | "direct_modifier"
       curve_type: "linear" | "exponential" | "logarithmic"
       desire_type: "general" | "specific"
       layer: "pre_add" | "add" | "post_add"
@@ -1607,7 +1607,11 @@ export const Constants = {
         "enemy_max_hp",
         "base_aliemus",
       ],
-      awakener_local_interaction_mode: ["unique_scaling", "aftereffect"],
+      awakener_local_interaction_mode: [
+        "unique_scaling",
+        "aftereffect",
+        "direct_modifier",
+      ],
       curve_type: ["linear", "exponential", "logarithmic"],
       desire_type: ["general", "specific"],
       layer: ["pre_add", "add", "post_add"],
