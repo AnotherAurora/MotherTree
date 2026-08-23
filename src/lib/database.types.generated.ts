@@ -56,6 +56,7 @@ export type Database = {
           id: number
           keyflare_regen: number | null
           name: string | null
+          notes: string | null
           realm: number | null
           realm_mastery: number | null
           sigil_yield: number | null
@@ -77,6 +78,7 @@ export type Database = {
           id?: number
           keyflare_regen?: number | null
           name?: string | null
+          notes?: string | null
           realm?: number | null
           realm_mastery?: number | null
           sigil_yield?: number | null
@@ -98,6 +100,7 @@ export type Database = {
           id?: number
           keyflare_regen?: number | null
           name?: string | null
+          notes?: string | null
           realm?: number | null
           realm_mastery?: number | null
           sigil_yield?: number | null
@@ -211,6 +214,7 @@ export type Database = {
           trigger_condition: number | null
           updated_at: string | null
           value_scalar: number | null
+          verified: boolean
         }
         Insert: {
           awakener_id: number
@@ -236,6 +240,7 @@ export type Database = {
           trigger_condition?: number | null
           updated_at?: string | null
           value_scalar?: number | null
+          verified?: boolean
         }
         Update: {
           awakener_id?: number
@@ -261,6 +266,7 @@ export type Database = {
           trigger_condition?: number | null
           updated_at?: string | null
           value_scalar?: number | null
+          verified?: boolean
         }
         Relationships: [
           {
@@ -1433,7 +1439,10 @@ export type Database = {
         | "team_max_hp"
         | "enemy_max_hp"
         | "base_aliemus"
-      awakener_local_interaction_mode: "unique_scaling" | "aftereffect"
+      awakener_local_interaction_mode:
+        | "unique_scaling"
+        | "aftereffect"
+        | "direct_modifier"
       curve_type: "linear" | "exponential" | "logarithmic"
       desire_type: "general" | "specific"
       layer: "pre_add" | "add" | "post_add"
@@ -1453,7 +1462,7 @@ export type Database = {
         | "ultra"
         | "singularity ultra"
       realm_match_mode: "present" | "exclusive" | "combo"
-      source_type: "command card" | "exalt" | "tentacle" | "rouse" | "talent"
+      source_type: "command card" | "exalt" | "rouse" | "talent"
       target_type: "self" | "single" | "aoe"
     }
     CompositeTypes: {
@@ -1601,7 +1610,11 @@ export const Constants = {
         "enemy_max_hp",
         "base_aliemus",
       ],
-      awakener_local_interaction_mode: ["unique_scaling", "aftereffect"],
+      awakener_local_interaction_mode: [
+        "unique_scaling",
+        "aftereffect",
+        "direct_modifier",
+      ],
       curve_type: ["linear", "exponential", "logarithmic"],
       desire_type: ["general", "specific"],
       layer: ["pre_add", "add", "post_add"],
@@ -1623,7 +1636,7 @@ export const Constants = {
         "singularity ultra",
       ],
       realm_match_mode: ["present", "exclusive", "combo"],
-      source_type: ["command card", "exalt", "tentacle", "rouse", "talent"],
+      source_type: ["command card", "exalt", "rouse", "talent"],
       target_type: ["self", "single", "aoe"],
     },
   },

@@ -1,7 +1,7 @@
 "use server";
 
 import { headers } from "next/headers";
-import { fetchPublicTable } from "@/lib/public-read/fetch";
+import { fetchAllPublicTable } from "@/lib/public-read/fetch";
 import { checkPublicRateLimit } from "@/lib/public-read/rate-limit";
 import type { PublicRow } from "@/lib/public-read/allowlist";
 import {
@@ -15,7 +15,12 @@ export type RunPublicSearchResult =
   | {
       success: true;
       rows: SearchResultRow[];
+      /** True when source catalog or results display hit a row cap. */
       truncated: boolean;
+      /** Incomplete allowlisted catalog load (results may be wrong). */
+      sourceTruncated: boolean;
+      /** More than 500 matching rows after sort; top 500 by Value shown. */
+      resultsTruncated: boolean;
     }
   | { success: false; error: string };
 
@@ -84,80 +89,80 @@ export async function runPublicSearch(
     ptmResult,
     ctmResult,
   ] = await Promise.all([
-    fetchPublicTable("tag"),
-    fetchPublicTable("realm"),
+    fetchAllPublicTable("tag"),
+    fetchAllPublicTable("realm"),
     needAwakener
-      ? fetchPublicTable("awakener")
+      ? fetchAllPublicTable("awakener")
       : Promise.resolve({
           success: true as const,
           data: [] as PublicRow<"awakener">[],
           truncated: false,
         }),
     needWheel
-      ? fetchPublicTable("wheel")
+      ? fetchAllPublicTable("wheel")
       : Promise.resolve({
           success: true as const,
           data: [] as PublicRow<"wheel">[],
           truncated: false,
         }),
     needPosse
-      ? fetchPublicTable("posse")
+      ? fetchAllPublicTable("posse")
       : Promise.resolve({
           success: true as const,
           data: [] as PublicRow<"posse">[],
           truncated: false,
         }),
     needCovenant
-      ? fetchPublicTable("covenant")
+      ? fetchAllPublicTable("covenant")
       : Promise.resolve({
           success: true as const,
           data: [] as PublicRow<"covenant">[],
           truncated: false,
         }),
     needAwakener
-      ? fetchPublicTable("awakener_tag_manifestation")
+      ? fetchAllPublicTable("awakener_tag_manifestation")
       : Promise.resolve({
           success: true as const,
           data: [] as PublicRow<"awakener_tag_manifestation">[],
           truncated: false,
         }),
     needAwakener
-      ? fetchPublicTable("awakener_local_manifestation_interaction")
+      ? fetchAllPublicTable("awakener_local_manifestation_interaction")
       : Promise.resolve({
           success: true as const,
           data: emptyLocal,
           truncated: false,
         }),
     needAwakener
-      ? fetchPublicTable("realm_tag_manifestation")
+      ? fetchAllPublicTable("realm_tag_manifestation")
       : Promise.resolve({
           success: true as const,
           data: emptyRtm,
           truncated: false,
         }),
     needAwakener
-      ? fetchPublicTable("tag_default_interaction")
+      ? fetchAllPublicTable("tag_default_interaction")
       : Promise.resolve({
           success: true as const,
           data: emptyTdi,
           truncated: false,
         }),
     needWheel
-      ? fetchPublicTable("wheel_tag_manifestation")
+      ? fetchAllPublicTable("wheel_tag_manifestation")
       : Promise.resolve({
           success: true as const,
           data: [] as PublicRow<"wheel_tag_manifestation">[],
           truncated: false,
         }),
     needPosse
-      ? fetchPublicTable("posse_tag_manifestation")
+      ? fetchAllPublicTable("posse_tag_manifestation")
       : Promise.resolve({
           success: true as const,
           data: [] as PublicRow<"posse_tag_manifestation">[],
           truncated: false,
         }),
     needCovenant
-      ? fetchPublicTable("covenant_tag_manifestation")
+      ? fetchAllPublicTable("covenant_tag_manifestation")
       : Promise.resolve({
           success: true as const,
           data: [] as PublicRow<"covenant_tag_manifestation">[],
@@ -238,6 +243,8 @@ export async function runPublicSearch(
   return {
     success: true,
     rows: built.rows,
+    sourceTruncated,
+    resultsTruncated: built.truncated,
     truncated: built.truncated || sourceTruncated,
   };
 }

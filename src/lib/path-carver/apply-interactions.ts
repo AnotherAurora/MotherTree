@@ -10,6 +10,25 @@ import {
 } from "@/lib/path-carver/effective-value-scalar";
 import { manifestationHitCountKey } from "@/lib/path-carver/copy-instances";
 import { combineSameTagScalar } from "@/lib/path-carver/combine-same-tag-scalar";
+import {
+  ATTACKER_POISON_FIXED_TAG_ID,
+  ATTACKER_TENTACLE_TAG_ID,
+  buildHitTentacleSynthetics,
+  collectPrePoolTentacleAttackBuckets,
+  combineTentacleHitPoisonScalarForOwner,
+  combineTduFamilyPoolBreakdown,
+  computeHitTentacleProduct,
+  isHitTentacleSkipModifier,
+  SPECIAL_TENTACLE_HIT_POISON_TAG_ID,
+  TENTACLE_TDU_FAMILY_POOL_LABEL,
+} from "@/lib/path-carver/hit-tentacle-attack";
+import {
+  computeTentacleCritDamage,
+  computeTentacleCritRate,
+  formatTentacleCritDetail,
+  TENTACLE_CRIT_DAMAGE_LABEL,
+  TENTACLE_CRIT_RATE_LABEL,
+} from "@/lib/path-carver/tentacle-crit";
 import { matchesDemandTag } from "@/lib/simulator/tag-matching";
 import type { TeamRealmResolution } from "@/lib/team-data/resolve-team-realms";
 import {
@@ -66,16 +85,16 @@ const DEFERRED_STACK_AMPLIFY_SUBJECT_LABEL =
   "Deferred stack amplify (closure0)";
 const DEFERRED_AMPLIFY_SUBJECT_KEY = "deferred-amplify";
 const DEFERRED_AMPLIFY_SUBJECT_LABEL = "Deferred amplify (closure)";
+const HIT_TENTACLE_SUBJECT_LABEL = "Hit = Tentacle Attack";
+const TENTACLE_HIT_POISON_SUBJECT_LABEL = "Tentacle Hit = Poison";
+const TENTACLE_TDU_POOL_SUBJECT_LABEL = "Tentacle TDU pool";
+const SPECIAL_HIT_TENTACLE_ATTACK = "Special.Hit = Tentacle Attack";
+const SPECIAL_TENTACLE_HIT_POISON = "Special.Tentacle Hit = Poison";
+const TENTACLE_TDU_POOL_ID_OFFSET = 6_000_000;
+const TENTACLE_POISON_FIXED_ID_OFFSET = 6_200_000;
 
-const SPECIAL_CORROSION_CONVERSION = "Special.Corrosion Conversion";
-const SPECIAL_EMBERS_CONVERSION = "Special.Ancient Embers Conversion";
-const DEBUFF_CORROSION = "Support.Debuff.Corrosion";
-const DEBUFF_EMBERS = "Support.Debuff.Ancient Embers";
-const ACTIVE_DAMAGE = "Attacker.Active Damage";
+const ATTACKER_POISON_FIXED = "Attacker.Poison.Fixed";
 const TENTACLE = "Attacker.Tentacle";
-const NON_ACTIVE_DAMAGE = "Attacker.Non-Active Damage";
-const CORROSION_DAMAGE = "Attacker.Corrosion Damage";
-const EMBERS_DAMAGE = "Attacker.Ancient Embers Damage";
 
 type OwnerKey = string;
 type OwnerTotals = Map<OwnerKey, Map<number, number>>;
@@ -130,10 +149,10 @@ export type ScalarMathStep =
       /** Effective layer band for this op (local unique_scaling layer wins when set). */
       layer: Layer | null;
       /**
-       * Phase 3b — unique_scaling provenance for Review Tags debug.
+       * Phase 3b / 3h — unique_scaling / direct_modifier provenance for Review Tags debug.
        * Absent for plain tag_default_interaction ops.
        */
-      uniqueScaling?: "patch" | "invent" | "base_stat";
+      uniqueScaling?: "patch" | "invent" | "base_stat" | "direct_modifier";
       /** Subject path key (sourceKind:id or phase1-create) for debug regrouping. */
       subjectKey: string;
       /** Subject path display label for debug regrouping. */
@@ -571,14 +590,167 @@ function buildOwnerStackSnapshot(
   return { ...base, sourceName: "(aftereffect stack)" };
 }
 
-function findTagIdByName(
-  tagsById: Record<number, Tag>,
-  tagName: string,
-): number | null {
-  for (const tag of Object.values(tagsById)) {
-    if (tag.tagName === tagName) return tag.id;
+const HOP_4D_FINALIZED_SNAPSHOT_ID_OFFSET = 6_100_000;
+
+function hop4dFinalizedSnapshotId(owner: OwnerKey, tagId: number): number {
+  const awakenerId = awakenerIdFromOwnerKey(owner);
+  if (awakenerId != null) {
+    return -(HOP_4D_FINALIZED_SNAPSHOT_ID_OFFSET + awakenerId * 1000 + tagId);
   }
-  return null;
+  if (owner === REALM_OWNER) {
+    return -(HOP_4D_FINALIZED_SNAPSHOT_ID_OFFSET + 1_000_000 + tagId);
+  }
+  if (owner === "posse") {
+    return -(HOP_4D_FINALIZED_SNAPSHOT_ID_OFFSET + 2_000_000 + tagId);
+  }
+  if (owner === TEAM_POOL_OWNER) {
+    return -(HOP_4D_FINALIZED_SNAPSHOT_ID_OFFSET + 3_000_000 + tagId);
+  }
+  return -(HOP_4D_FINALIZED_SNAPSHOT_ID_OFFSET + 4_000_000 + tagId);
+}
+
+function finalizedSnapshotTargetType(
+  sourceManifestations: readonly Manifestation[],
+  owner: OwnerKey,
+  tagId: number,
+): TargetType {
+  let sawOwnerMatch = false;
+  for (const m of sourceManifestations) {
+    if (m.tagId !== tagId) continue;
+    if (ownerKeyFor(m) !== owner) continue;
+    sawOwnerMatch = true;
+    if (m.targetType === "self") return "self";
+  }
+  return sawOwnerMatch ? "aoe" : "aoe";
+}
+
+function buildHop4dFinalizedSnapshot(
+  tag: Tag,
+  owner: OwnerKey,
+  value: number,
+  sourceManifestations: readonly Manifestation[],
+): Manifestation | null {
+  const snapshot = buildOwnerStackSnapshot(tag, owner, value);
+  if (snapshot == null) return null;
+  return {
+    ...snapshot,
+    id: hop4dFinalizedSnapshotId(owner, tag.id),
+    sourceName: "(hop 4d finalized)",
+    targetType: finalizedSnapshotTargetType(sourceManifestations, owner, tag.id),
+  };
+}
+
+function tentacleTduPoolManifestationId(owner: OwnerKey): number {
+  const awakenerId = awakenerIdFromOwnerKey(owner);
+  if (awakenerId != null) return -(TENTACLE_TDU_POOL_ID_OFFSET + 100 + awakenerId);
+  if (owner === REALM_OWNER) return -(TENTACLE_TDU_POOL_ID_OFFSET + 1);
+  if (owner === "posse") return -(TENTACLE_TDU_POOL_ID_OFFSET + 2);
+  return -(TENTACLE_TDU_POOL_ID_OFFSET + 3);
+}
+
+function tentaclePoisonFixedManifestationId(owner: OwnerKey): number {
+  const awakenerId = awakenerIdFromOwnerKey(owner);
+  if (awakenerId != null) {
+    return -(TENTACLE_POISON_FIXED_ID_OFFSET + 100 + awakenerId);
+  }
+  if (owner === REALM_OWNER) return -(TENTACLE_POISON_FIXED_ID_OFFSET + 1);
+  if (owner === "posse") return -(TENTACLE_POISON_FIXED_ID_OFFSET + 2);
+  return -(TENTACLE_POISON_FIXED_ID_OFFSET + 3);
+}
+
+/**
+ * Per-owner Tentacle bucket for the default (non-Hit) TDU pool hop.
+ * Hits use their own channel synthetics. Other owners keep posse/realm/
+ * awakener so ownerKeyFor matches the snapshot bucket.
+ */
+function buildTentaclePoolSynthetic(
+  tag: Tag,
+  owner: OwnerKey,
+  value: number,
+): Manifestation {
+  const base = buildCreatedBaseManifestation(tag, value);
+  const awakenerId = awakenerIdFromOwnerKey(owner);
+  if (awakenerId != null) {
+    return {
+      ...base,
+      id: tentacleTduPoolManifestationId(owner),
+      sourceKind: "awakener",
+      awakenerId,
+      sourceName: TENTACLE_TDU_POOL_SUBJECT_LABEL,
+      sourceType: null,
+    };
+  }
+  if (owner === "posse") {
+    return {
+      ...base,
+      id: tentacleTduPoolManifestationId(owner),
+      sourceKind: "posse",
+      sourceName: TENTACLE_TDU_POOL_SUBJECT_LABEL,
+      sourceType: null,
+    };
+  }
+  if (owner === REALM_OWNER) {
+    return {
+      ...base,
+      id: tentacleTduPoolManifestationId(owner),
+      sourceKind: "realm",
+      sourceName: TENTACLE_TDU_POOL_SUBJECT_LABEL,
+      sourceType: null,
+    };
+  }
+  return {
+    ...base,
+    id: tentacleTduPoolManifestationId(owner),
+    sourceName: TENTACLE_TDU_POOL_SUBJECT_LABEL,
+    sourceType: null,
+  };
+}
+
+function buildTentaclePoisonFixedSynthetic(
+  tag: Tag,
+  owner: OwnerKey,
+  value: number,
+): Manifestation {
+  const base = buildCreatedBaseManifestation(tag, value);
+  const awakenerId = awakenerIdFromOwnerKey(owner);
+  if (awakenerId != null) {
+    return {
+      ...base,
+      id: tentaclePoisonFixedManifestationId(owner),
+      sourceKind: "awakener",
+      awakenerId,
+      sourceName: TENTACLE_HIT_POISON_SUBJECT_LABEL,
+      sourceType: null,
+      metadata: "Special.Tentacle Hit = Poison",
+    };
+  }
+  if (owner === "posse") {
+    return {
+      ...base,
+      id: tentaclePoisonFixedManifestationId(owner),
+      sourceKind: "posse",
+      sourceName: TENTACLE_HIT_POISON_SUBJECT_LABEL,
+      sourceType: null,
+      metadata: "Special.Tentacle Hit = Poison",
+    };
+  }
+  if (owner === REALM_OWNER) {
+    return {
+      ...base,
+      id: tentaclePoisonFixedManifestationId(owner),
+      sourceKind: "realm",
+      sourceName: TENTACLE_HIT_POISON_SUBJECT_LABEL,
+      sourceType: null,
+      metadata: "Special.Tentacle Hit = Poison",
+    };
+  }
+  return {
+    ...base,
+    id: tentaclePoisonFixedManifestationId(owner),
+    sourceName: TENTACLE_HIT_POISON_SUBJECT_LABEL,
+    sourceType: null,
+    metadata: "Special.Tentacle Hit = Poison",
+  };
 }
 
 function getOwnerValue(
@@ -794,7 +966,7 @@ function applyOpAndRecord(
   modifierLayer: Layer | null,
   buffRestrictionMet?: SourceType,
   leafContext?: SourceType | null,
-  uniqueScaling?: "patch" | "invent" | "base_stat",
+  uniqueScaling?: "patch" | "invent" | "base_stat" | "direct_modifier",
   presenceBandRank?: number,
 ): void {
   if (op === "presence_multiply" && modifierTagId != null) {
@@ -846,6 +1018,14 @@ function isExcluded(
 ): boolean {
   if (exclusionTagName == null || exclusionTagName === "") return false;
   return matchesDemandTag(tagName, exclusionTagName);
+}
+
+function interactionTargetsTagName(
+  interaction: DefaultInteraction,
+  tagName: string,
+): boolean {
+  if (!interaction.targetTagName) return false;
+  return matchesDemandTag(tagName, interaction.targetTagName);
 }
 
 function matchingTargetTags(
@@ -1034,23 +1214,147 @@ function sumTeamTagPrefix(
 }
 
 /**
- * Fold prefix-matched modifier tag totals for the given owners.
- * Per-tag combine uses each tag’s additive/percent; across tags uses root flags.
+ * Resolves the modifier value for a target owner under self/non-self scoping rules.
+ *
+ * Scoping rules:
+ * - targetOwner receives their own modifier bucket in full (both self and non-self rows).
+ * - targetOwner receives teammates' non-self (aoe/team-wide) modifier rows only (self rows excluded).
+ * - TEAM_POOL_OWNER (synthesized or created base modifiers) is always included.
+ * - When targetOwner is TEAM_POOL_OWNER (e.g. writeToTeamPool), only non-self modifier rows from all owners
+ *   plus TEAM_POOL_OWNER are included.
  */
-function combinePrefixModifierValue(
-  ownerValues: OwnerTotals,
+function computeScopedModifierValue(
+  current: OwnerTotals,
+  appliedManifestations: Manifestation[],
+  modifierTagId: number,
+  tagsById: Record<number, Tag>,
+  targetOwner: OwnerKey | typeof TEAM_POOL_OWNER,
+  awakenersById?: ReadonlyMap<number, Awakener>,
+  scalarOpts?: EffectiveScalarOptions,
+): number {
+  const modifierTag = tagsById[modifierTagId];
+  const modifierManifests = collectModifierManifestations(
+    appliedManifestations,
+    modifierTagId,
+  );
+
+  if (modifierManifests.length === 0) {
+    let combined: number | undefined;
+    for (const [owner, map] of current) {
+      const v = map.get(modifierTagId) ?? 0;
+      if (v === 0) continue;
+      combined = combineSameTagScalar(
+        combined,
+        v,
+        modifierTag?.isAdditive !== false,
+        modifierTag?.isPercent === true,
+      );
+    }
+    return combined ?? 0;
+  }
+
+  const manifestsByOwner = new Map<OwnerKey, Manifestation[]>();
+  for (const m of modifierManifests) {
+    const owner = ownerKeyFor(m);
+    let list = manifestsByOwner.get(owner);
+    if (!list) {
+      list = [];
+      manifestsByOwner.set(owner, list);
+    }
+    list.push(m);
+  }
+
+  let combined: number | undefined;
+
+  for (const [owner, manifests] of manifestsByOwner) {
+    if (owner === targetOwner) {
+      const v = getOwnerValue(current, owner, modifierTagId);
+      if (v !== 0) {
+        combined = combineSameTagScalar(
+          combined,
+          v,
+          modifierTag?.isAdditive !== false,
+          modifierTag?.isPercent === true,
+        );
+      }
+    } else {
+      const nonSelfRows = manifests.filter(
+        (m) => effectiveModifierTargetType(m, modifierTagId) !== "self",
+      );
+      if (nonSelfRows.length === 0) continue;
+
+      if (nonSelfRows.length === manifests.length) {
+        const v = getOwnerValue(current, owner, modifierTagId);
+        if (v !== 0) {
+          combined = combineSameTagScalar(
+            combined,
+            v,
+            modifierTag?.isAdditive !== false,
+            modifierTag?.isPercent === true,
+          );
+        }
+      } else {
+        let ownerNonSelf: number | undefined;
+        for (const m of nonSelfRows) {
+          const scalar = effectiveManifestationScalar(
+            m,
+            awakenersById ?? new Map(),
+            tagsById,
+            scalarOpts,
+          );
+          if (scalar === 0) continue;
+          ownerNonSelf = combineSameTagScalar(
+            ownerNonSelf,
+            scalar,
+            modifierTag?.isAdditive !== false,
+            modifierTag?.isPercent === true,
+          );
+        }
+        if (ownerNonSelf != null && ownerNonSelf !== 0) {
+          combined = combineSameTagScalar(
+            combined,
+            ownerNonSelf,
+            modifierTag?.isAdditive !== false,
+            modifierTag?.isPercent === true,
+          );
+        }
+      }
+    }
+  }
+
+  const teamVal = getOwnerValue(current, TEAM_POOL_OWNER, modifierTagId);
+  if (teamVal !== 0) {
+    combined = combineSameTagScalar(
+      combined,
+      teamVal,
+      modifierTag?.isAdditive !== false,
+      modifierTag?.isPercent === true,
+    );
+  }
+
+  return combined ?? 0;
+}
+
+function computeScopedPrefixModifierValue(
+  current: OwnerTotals,
+  appliedManifestations: Manifestation[],
   matchingTagIds: readonly number[],
   tagsById: Record<number, Tag>,
   rootModifierTag: Tag | undefined,
-  owners: Iterable<OwnerKey>,
+  targetOwner: OwnerKey,
+  awakenersById?: ReadonlyMap<number, Awakener>,
+  scalarOpts?: EffectiveScalarOptions,
 ): number {
   let combined: number | undefined;
   for (const tagId of matchingTagIds) {
-    const partial = combineTagAcrossOwners(
-      ownerValues,
+    const partial = computeScopedModifierValue(
+      current,
+      appliedManifestations,
       tagId,
-      tagsById[tagId],
-      owners,
+      tagsById,
+      targetOwner,
+      awakenersById,
+      scalarOpts,
     );
     if (partial === 0) continue;
     combined = combineSameTagScalar(
@@ -1392,110 +1696,6 @@ function applyInteractionOnto(
     return;
   }
 
-  const selfOwners = new Set<OwnerKey>();
-  let hasNonSelfModifier = false;
-
-  for (const m of modifierManifests) {
-    const targetType = effectiveModifierTargetType(m, modifierTagId);
-    if (targetType === "self") {
-      selfOwners.add(ownerKeyFor(m));
-    } else {
-      hasNonSelfModifier = true;
-    }
-  }
-  // Synthesized modifier value lives on *team* / owners without a manifestation row.
-  if (modifierManifests.length === 0 && synthesizedModifierValue !== 0) {
-    hasNonSelfModifier = true;
-  }
-
-  for (const owner of selfOwners) {
-    const modValue = combineTagAcrossOwners(
-      current,
-      modifierTagId,
-      tagsById[modifierTagId],
-      [owner, TEAM_POOL_OWNER],
-    );
-    const ownerHasModifier = modifierManifests.some(
-      (m) => ownerKeyFor(m) === owner,
-    );
-    const ownerAwakenerId = awakenerIdFromOwnerKey(owner);
-    const ownerAwakener =
-      ownerAwakenerId != null
-        ? (awakenersById.get(ownerAwakenerId) ?? null)
-        : null;
-
-    for (const target of targets) {
-      const requireBase = requiresTargetBasePresence(
-        interaction,
-        target.tagName,
-      );
-      if (requireBase && !isBasePresent(base, owner, target.id)) continue;
-
-      const override = findTargetOverride(
-        appliedManifestations,
-        owner,
-        target.id,
-        modifierTagId,
-      );
-      if (!ownerMatchesInteractionBand(override, modifierLayer, bandRank)) {
-        continue;
-      }
-      const resolved = resolveOpAndFactor(
-        interaction,
-        override,
-        ownerAwakener,
-        modifierTagIsPercent,
-        teamMaxHp,
-      );
-      if (resolved.disabled) continue;
-
-      if (resolved.op === "presence_multiply") {
-        if (!(modValue !== 0 || ownerHasModifier)) continue;
-      }
-
-      const applyLayer = effectiveInteractionLayerForOwner(
-        override,
-        modifierLayer,
-      );
-      applyOpAndRecord(
-        next,
-        owner,
-        target,
-        modifierTagName,
-        resolved.op === "presence_multiply" ? 1 : modValue,
-        resolved.factor,
-        resolved.op,
-        steps,
-        pass,
-        modifierTagId,
-        presenceApplied,
-        effectSources,
-        applyLayer,
-        buffRestrictionMet,
-        leafContext,
-        override != null ? "patch" : undefined,
-        bandRank,
-      );
-    }
-  }
-
-  if (!hasNonSelfModifier) return;
-
-  // Non-self uses only non-self owners' modifier contributions (not self buckets).
-  const nonSelfOwners = new Set<OwnerKey>();
-  for (const m of modifierManifests) {
-    if (effectiveModifierTargetType(m, modifierTagId) === "self") continue;
-    nonSelfOwners.add(ownerKeyFor(m));
-  }
-  const modValue = combineTagAcrossOwners(
-    current,
-    modifierTagId,
-    tagsById[modifierTagId],
-    [...nonSelfOwners, TEAM_POOL_OWNER],
-  );
-
-  const present = modValue !== 0 || nonSelfOwners.size > 0;
-
   for (const target of targets) {
     const requireBase = requiresTargetBasePresence(
       interaction,
@@ -1520,45 +1720,6 @@ function applyInteractionOnto(
     }
 
     const teamMatchesBand = layerRank(modifierLayer) === bandRank;
-
-    if (requireBase && ownersInBand.size === 0) continue;
-
-    let defaultOp: OperationType = interaction.mathOperation;
-    let defaultFactor = interaction.defaultFactor ?? 0;
-    let allDisabled = ownersInBand.size > 0;
-
-    if (ownersInBand.size === 0) {
-      allDisabled = false;
-    } else {
-      for (const owner of ownersInBand) {
-        const override = findTargetOverride(
-          appliedManifestations,
-          owner,
-          target.id,
-          modifierTagId,
-        );
-        if (override?.isDisabled) continue;
-        allDisabled = false;
-        const ownerAwakenerId = awakenerIdFromOwnerKey(owner);
-        const ownerAwakener =
-          ownerAwakenerId != null
-            ? (awakenersById.get(ownerAwakenerId) ?? null)
-            : null;
-        const resolved = resolveOpAndFactor(
-          interaction,
-          override,
-          ownerAwakener,
-          modifierTagIsPercent,
-          teamMaxHp,
-        );
-        defaultOp = resolved.op;
-        defaultFactor = resolved.factor;
-        break;
-      }
-    }
-
-    if (allDisabled) continue;
-
     const writeToTeamPool =
       interaction.createsBase && !interaction.amplifiesSubject;
 
@@ -1566,193 +1727,25 @@ function applyInteractionOnto(
       foldTeamPoolIntoCanonicalOwner(next, base, target.id, requireBase);
     }
 
-    if (defaultOp === "presence_multiply") {
-      if (!present) continue;
-      if (writeToTeamPool) {
-        if (!teamMatchesBand) continue;
-        applyOpAndRecord(
-          next,
-          TEAM_POOL_OWNER,
-          target,
-          modifierTagName,
-          1,
-          defaultFactor,
-          "presence_multiply",
-          steps,
-          pass,
-          modifierTagId,
-          presenceApplied,
-          effectSources,
-          modifierLayer,
-          buffRestrictionMet,
-          leafContext,
-          undefined,
-          bandRank,
-        );
-        continue;
-      }
-      for (const owner of ownersInBand) {
-        const override = findTargetOverride(
-          appliedManifestations,
-          owner,
-          target.id,
-          modifierTagId,
-        );
-        if (override?.isDisabled) continue;
-        const ownerAwakenerId = awakenerIdFromOwnerKey(owner);
-        const ownerAwakener =
-          ownerAwakenerId != null
-            ? (awakenersById.get(ownerAwakenerId) ?? null)
-            : null;
-        const resolved = resolveOpAndFactor(
-          interaction,
-          override,
-          ownerAwakener,
-          modifierTagIsPercent,
-          teamMaxHp,
-        );
-        applyOpAndRecord(
-          next,
-          owner,
-          target,
-          modifierTagName,
-          1,
-          resolved.factor,
-          "presence_multiply",
-          steps,
-          pass,
-          modifierTagId,
-          presenceApplied,
-          effectSources,
-          effectiveInteractionLayerForOwner(override, modifierLayer),
-          buffRestrictionMet,
-          leafContext,
-          override != null ? "patch" : undefined,
-          bandRank,
-        );
-      }
-      if (
-        !requireBase &&
-        teamMatchesBand &&
-        getOwnerValue(next, TEAM_POOL_OWNER, target.id) !== 0
-      ) {
-        applyOpAndRecord(
-          next,
-          TEAM_POOL_OWNER,
-          target,
-          modifierTagName,
-          1,
-          defaultFactor,
-          "presence_multiply",
-          steps,
-          pass,
-          modifierTagId,
-          presenceApplied,
-          effectSources,
-          modifierLayer,
-          buffRestrictionMet,
-          leafContext,
-          undefined,
-          bandRank,
-        );
-      }
-      continue;
-    }
-
-    if (defaultOp === "add_scaled") {
-      if (writeToTeamPool) {
-        if (!teamMatchesBand) continue;
-        applyOpAndRecord(
-          next,
-          TEAM_POOL_OWNER,
-          target,
-          modifierTagName,
-          modValue,
-          defaultFactor,
-          "add_scaled",
-          steps,
-          pass,
-          modifierTagId,
-          presenceApplied,
-          effectSources,
-          modifierLayer,
-          buffRestrictionMet,
-          leafContext,
-        );
-      } else if (ownersInBand.size > 0) {
-        for (const owner of ownersInBand) {
-          const override = findTargetOverride(
-            appliedManifestations,
-            owner,
-            target.id,
-            modifierTagId,
-          );
-          if (override?.isDisabled) continue;
-          const ownerAwakenerId = awakenerIdFromOwnerKey(owner);
-          const ownerAwakener =
-            ownerAwakenerId != null
-              ? (awakenersById.get(ownerAwakenerId) ?? null)
-              : null;
-          const resolved = resolveOpAndFactor(
-            interaction,
-            override,
-            ownerAwakener,
-            modifierTagIsPercent,
-            teamMaxHp,
-          );
-          applyOpAndRecord(
-            next,
-            owner,
-            target,
-            modifierTagName,
-            modValue,
-            resolved.factor,
-            "add_scaled",
-            steps,
-            pass,
-            modifierTagId,
-            presenceApplied,
-            effectSources,
-            effectiveInteractionLayerForOwner(override, modifierLayer),
-            buffRestrictionMet,
-            leafContext,
-            override != null ? "patch" : undefined,
-          );
-        }
-      } else if (!requireBase && teamMatchesBand) {
-        // Substitute with no base: synthesize once into *team*.
-        applyOpAndRecord(
-          next,
-          TEAM_POOL_OWNER,
-          target,
-          modifierTagName,
-          modValue,
-          defaultFactor,
-          "add_scaled",
-          steps,
-          pass,
-          modifierTagId,
-          presenceApplied,
-          effectSources,
-          modifierLayer,
-          buffRestrictionMet,
-          leafContext,
-        );
-      }
-      continue;
-    }
-
-    // multiply_one_plus / multiply
     if (writeToTeamPool) {
       if (!teamMatchesBand) continue;
+      const modValue = computeScopedModifierValue(
+        current,
+        appliedManifestations,
+        modifierTagId,
+        tagsById,
+        TEAM_POOL_OWNER,
+        awakenersById,
+      );
+      if (modValue === 0) continue;
       applyOpAndRecord(
         next,
         TEAM_POOL_OWNER,
         target,
         modifierTagName,
         modValue,
-        defaultFactor,
-        defaultOp,
+        interaction.defaultFactor ?? 0,
+        interaction.mathOperation,
         steps,
         pass,
         modifierTagId,
@@ -1762,59 +1755,92 @@ function applyInteractionOnto(
         buffRestrictionMet,
         leafContext,
       );
-    } else if (ownersInBand.size > 0) {
-      for (const owner of ownersInBand) {
-        const override = findTargetOverride(
-          appliedManifestations,
-          owner,
-          target.id,
-          modifierTagId,
-        );
-        if (override?.isDisabled) continue;
-        const ownerAwakenerId = awakenerIdFromOwnerKey(owner);
-        const ownerAwakener =
-          ownerAwakenerId != null
-            ? (awakenersById.get(ownerAwakenerId) ?? null)
-            : null;
-        const resolved = resolveOpAndFactor(
-          interaction,
-          override,
-          ownerAwakener,
-          modifierTagIsPercent,
-          teamMaxHp,
-        );
-        applyOpAndRecord(
-          next,
-          owner,
-          target,
-          modifierTagName,
-          modValue,
-          resolved.factor,
-          resolved.op,
-          steps,
-          pass,
-          modifierTagId,
-          presenceApplied,
-          effectSources,
-          effectiveInteractionLayerForOwner(override, modifierLayer),
-          buffRestrictionMet,
-          leafContext,
-          override != null ? "patch" : undefined,
-        );
-      }
-      if (
-        !requireBase &&
-        teamMatchesBand &&
-        getOwnerValue(next, TEAM_POOL_OWNER, target.id) !== 0
-      ) {
+      continue;
+    }
+
+    for (const owner of ownersInBand) {
+      if (requireBase && !isBasePresent(base, owner, target.id)) continue;
+
+      const override = findTargetOverride(
+        appliedManifestations,
+        owner,
+        target.id,
+        modifierTagId,
+      );
+      if (override?.isDisabled) continue;
+
+      const modValue = computeScopedModifierValue(
+        current,
+        appliedManifestations,
+        modifierTagId,
+        tagsById,
+        owner,
+        awakenersById,
+      );
+      if (modValue === 0) continue;
+
+      const ownerAwakenerId = awakenerIdFromOwnerKey(owner);
+      const ownerAwakener =
+        ownerAwakenerId != null
+          ? (awakenersById.get(ownerAwakenerId) ?? null)
+          : null;
+      const resolved = resolveOpAndFactor(
+        interaction,
+        override,
+        ownerAwakener,
+        modifierTagIsPercent,
+        teamMaxHp,
+      );
+      if (resolved.disabled) continue;
+
+      const applyLayer = effectiveInteractionLayerForOwner(
+        override,
+        modifierLayer,
+      );
+
+      applyOpAndRecord(
+        next,
+        owner,
+        target,
+        modifierTagName,
+        resolved.op === "presence_multiply" ? 1 : modValue,
+        resolved.factor,
+        resolved.op,
+        steps,
+        pass,
+        modifierTagId,
+        presenceApplied,
+        effectSources,
+        applyLayer,
+        buffRestrictionMet,
+        leafContext,
+        override != null ? "patch" : undefined,
+        bandRank,
+      );
+    }
+
+    if (
+      !requireBase &&
+      teamMatchesBand &&
+      getOwnerValue(next, TEAM_POOL_OWNER, target.id) !== 0
+    ) {
+      const modValue = computeScopedModifierValue(
+        current,
+        appliedManifestations,
+        modifierTagId,
+        tagsById,
+        TEAM_POOL_OWNER,
+        awakenersById,
+      );
+      if (modValue !== 0) {
         applyOpAndRecord(
           next,
           TEAM_POOL_OWNER,
           target,
           modifierTagName,
           modValue,
-          defaultFactor,
-          defaultOp,
+          interaction.defaultFactor ?? 0,
+          interaction.mathOperation,
           steps,
           pass,
           modifierTagId,
@@ -1825,77 +1851,8 @@ function applyInteractionOnto(
           leafContext,
         );
       }
-    } else if (!requireBase && teamMatchesBand) {
-      applyOpAndRecord(
-        next,
-        TEAM_POOL_OWNER,
-        target,
-        modifierTagName,
-        modValue,
-        defaultFactor,
-        defaultOp,
-        steps,
-        pass,
-        modifierTagId,
-        presenceApplied,
-        effectSources,
-        modifierLayer,
-        buffRestrictionMet,
-        leafContext,
-      );
     }
   }
-}
-
-function applySpecialConversion(
-  ownerValues: OwnerTotals,
-  tagsById: Record<number, Tag>,
-  appliedManifestations: Manifestation[],
-  conversionTagName: string,
-  debuffTagName: string,
-  damageTagName: string,
-  steps: ScalarMathStep[],
-): void {
-  const hasConversion = appliedManifestations.some(
-    (m) => m.tagName === conversionTagName,
-  );
-  if (!hasConversion) return;
-
-  const debuffId = findTagIdByName(tagsById, debuffTagName);
-  const damageId = findTagIdByName(tagsById, damageTagName);
-  const activeId = findTagIdByName(tagsById, ACTIVE_DAMAGE);
-  const tentacleId = findTagIdByName(tagsById, TENTACLE);
-  const nonActiveId = findTagIdByName(tagsById, NON_ACTIVE_DAMAGE);
-
-  if (debuffId == null || damageId == null) return;
-
-  const debuff = sumTeamTag(ownerValues, debuffId);
-  if (debuff <= 0) return;
-
-  const active = activeId != null ? sumTeamTag(ownerValues, activeId) : 0;
-  const tentacle =
-    tentacleId != null ? sumTeamTag(ownerValues, tentacleId) : 0;
-  const nonActive =
-    nonActiveId != null ? sumTeamTag(ownerValues, nonActiveId) : 0;
-
-  const capacity = Math.max(0, active * 1 + tentacle * 1 + nonActive * 0.5);
-  const lost = Math.min(debuff, capacity);
-  if (lost <= 0) return;
-
-  const scale = lost / debuff;
-  for (const [, map] of ownerValues) {
-    const current = map.get(debuffId);
-    if (current == null || current === 0) continue;
-    map.set(debuffId, current * (1 - scale));
-  }
-
-  addOwnerValue(ownerValues, TEAM_POOL_OWNER, damageId, lost * 3);
-
-  steps.push({
-    kind: "special",
-    label: conversionTagName,
-    detail: `${debuffTagName} lost ${lost.toFixed(4)} (capacity ${capacity.toFixed(4)}); +${(lost * 3).toFixed(4)} → ${damageTagName}`,
-  });
 }
 
 type RunInteractionsOptions = {
@@ -1907,8 +1864,6 @@ type RunInteractionsOptions = {
   awakenerNamesById?: ReadonlyMap<number, string>;
   /** When false, skip recording base steps (caller already recorded them). */
   recordBaseSteps: boolean;
-  /** When false, skip Special conversions (caller runs once after merge). */
-  runSpecial: boolean;
   /**
    * Phase 3b — invent unique_scaling with no matching default (subject path).
    * Off for Phase 1 unrestricted creates.
@@ -1965,6 +1920,49 @@ function applyUniqueScalingInvents(
         : null;
 
     for (const local of m.interactionOverrides) {
+      if (local.mode === "direct_modifier") {
+        if (local.isDisabled) continue;
+        const applyLayer = effectiveUniqueScalingLayer(local, tagsById);
+        if (layerRank(applyLayer) !== bandRank) continue;
+
+        const modifierTagId = local.modifierTagId;
+        const modifierTag =
+          modifierTagId != null ? tagsById[modifierTagId] : undefined;
+        const modifierTagName =
+          modifierTag?.tagName ?? local.modifierTagName ?? "direct_modifier";
+
+        let modValue = 1;
+        let factor = local.valueScalar ?? 0;
+        if (local.dependencyStat != null) {
+          modValue = baseStatUniqueScalingModifierValue(
+            ownerAwakener,
+            local.dependencyStat,
+          );
+        }
+
+        const op = local.mathOperation ?? "multiply_one_plus";
+        applyOpAndRecord(
+          next,
+          owner,
+          target,
+          modifierTagName,
+          modValue,
+          factor,
+          op,
+          steps,
+          pass,
+          modifierTagId,
+          presenceApplied,
+          [sourceLabelFor(m, awakenerNamesById)],
+          applyLayer,
+          undefined,
+          leafContext,
+          "direct_modifier",
+          bandRank,
+        );
+        continue;
+      }
+
       if (local.mode !== "unique_scaling") continue;
 
       const applyLayer = effectiveUniqueScalingLayer(local, tagsById);
@@ -2044,48 +2042,16 @@ function applyUniqueScalingInvents(
           ? effectSourcesFromManifests(modifierManifests, awakenerNamesById)
           : ["(synthesized)"];
 
-      const selfOwners = new Set<OwnerKey>();
-      let hasNonSelfModifier = false;
-      for (const modM of modifierManifests) {
-        // Per-row tag id so modifier-ATM overrides key off that manifestation’s tag.
-        const targetType = effectiveModifierTargetType(modM, modM.tagId);
-        if (targetType === "self") {
-          selfOwners.add(ownerKeyFor(modM));
-        } else {
-          hasNonSelfModifier = true;
-        }
-      }
-      if (modifierManifests.length === 0 && synthesizedModifierValue !== 0) {
-        hasNonSelfModifier = true;
-      }
-
-      let modValue = 0;
-      if (selfOwners.has(owner)) {
-        modValue = combinePrefixModifierValue(
-          current,
-          matchingTagIds,
-          tagsById,
-          modifierTag,
-          [owner, TEAM_POOL_OWNER],
-        );
-      } else if (hasNonSelfModifier) {
-        const nonSelfOwners = new Set<OwnerKey>();
-        for (const modM of modifierManifests) {
-          if (effectiveModifierTargetType(modM, modM.tagId) === "self") {
-            continue;
-          }
-          nonSelfOwners.add(ownerKeyFor(modM));
-        }
-        modValue = combinePrefixModifierValue(
-          current,
-          matchingTagIds,
-          tagsById,
-          modifierTag,
-          [...nonSelfOwners, TEAM_POOL_OWNER],
-        );
-      } else {
-        continue;
-      }
+      const modValue = computeScopedPrefixModifierValue(
+        current,
+        appliedManifestations,
+        matchingTagIds,
+        tagsById,
+        modifierTag,
+        owner,
+        awakenersById,
+      );
+      if (modValue === 0) continue;
 
       const op = local.mathOperation ?? "multiply_one_plus";
       const factor = effectiveOverrideFactor(
@@ -2156,7 +2122,13 @@ function runInteractionsForLeafContext(
   const steps: ScalarMathStep[] = [];
   const base: OwnerTotals = new Map();
 
-  for (const m of options.appliedManifestations) {
+  const eligibleManifestations = options.appliedManifestations.filter(
+    (m) =>
+      m.buffTargetTypeRestriction == null ||
+      m.buffTargetTypeRestriction === options.leafContext,
+  );
+
+  for (const m of eligibleManifestations) {
     const raw = m.valueScalar ?? 0;
     const scalar = effectiveManifestationScalar(
       m,
@@ -2211,7 +2183,7 @@ function runInteractionsForLeafContext(
       for (const interaction of interactionsInIdOpOrder) {
         applyInteractionOnto(
           interaction,
-          options.appliedManifestations,
+          eligibleManifestations,
           base,
           current,
           next,
@@ -2228,7 +2200,7 @@ function runInteractionsForLeafContext(
       }
       if (options.applyUniqueScalingInvents) {
         applyUniqueScalingInvents(
-          options.appliedManifestations,
+          eligibleManifestations,
           options.uniqueScalingMatchInteractions ??
             options.defaultInteractions,
           base,
@@ -2257,27 +2229,6 @@ function runInteractionsForLeafContext(
   }
 
   steps.push(...lastPassOpSteps);
-
-  if (options.runSpecial) {
-    applySpecialConversion(
-      current,
-      options.tagsById,
-      options.appliedManifestations,
-      SPECIAL_CORROSION_CONVERSION,
-      DEBUFF_CORROSION,
-      CORROSION_DAMAGE,
-      steps,
-    );
-    applySpecialConversion(
-      current,
-      options.tagsById,
-      options.appliedManifestations,
-      SPECIAL_EMBERS_CONVERSION,
-      DEBUFF_EMBERS,
-      EMBERS_DAMAGE,
-      steps,
-    );
-  }
 
   return { ownerValues: current, steps };
 }
@@ -2384,8 +2335,7 @@ function collectAmplifyTargetIds(
 }
 
 /**
- * Layer B — apply tag_default_interaction (+ unique_scaling / aftereffect) and
- * Special conversions.
+ * Layer B — apply tag_default_interaction (+ unique_scaling / aftereffect).
  *
  * Matching: exact modifier; creates_base invent = exact target_tag_id;
  * amplifies_subject = prefix target + exclusion (tag + descendants).
@@ -2408,7 +2358,15 @@ function collectAmplifyTargetIds(
  * 4b. Deferred thin create (combined stack, *team* OK).
  * 4c. Deferred thin amplify on created synthetics (Trigger → Damage;
  *    leafContext = synthetic sourceType null). Not a subject loop.
- * 5. Special conversions last inside Layer B.
+ * 4d. Tentacle TDU pool: default Attacker.Tentacle (RTM, Generate) ×
+ *    (Unique TDU + TDU + TDU.Fixed) from finalized owner totals; Hit channels
+ *    ceil(hits×factor×pool) separately (realm Hit summed; each non-realm Hit
+ *    row own channel). Then × (1 + Tentacle Crit Damage) (multiply_one_plus).
+ *    Skip TDU-family TDI on Tentacle subjects; remaining Tentacle TDI
+ *    (Vulnerability) runs on post-crit pooled synthetics against finalized
+ *    non-Tentacle snapshots, then merge. Tentacle Crit Rate is display-only.
+ *    Corrosion / Ancient Embers are ordinary creates_base interactions
+ *    (debuff ×3 → damage); no engine special-case.
  *
  * Phase 2b.1: isBaseStatTransfer / realm / Support isCreatedBase subjects contribute
  * absolute scalar only (no inbound ops) but remain in other subjects' cohorts as modifiers.
@@ -2532,7 +2490,6 @@ export function applyInteractions(
       leafContext: null,
       awakenerNamesById: input.awakenerNamesById,
       recordBaseSteps: false,
-      runSpecial: false,
       applyUniqueScalingInvents: false,
       teamMaxHp: input.teamMaxHp,
       realmMasteryTotal: input.realmMasteryTotal,
@@ -2718,9 +2675,15 @@ export function applyInteractions(
       }
 
       const cohort = cohortForSubject(phase2Applied, subject);
+      const tentacleAmplifyLive =
+        subject.tagId === ATTACKER_TENTACLE_TAG_ID
+          ? amplifyRowsLive.filter(
+              (i) => !isHitTentacleSkipModifier(i.modifierTagId),
+            )
+          : amplifyRowsLive;
       const subjectInteractions = [
         ...restrictedCreatesLive,
-        ...amplifyRowsLive,
+        ...tentacleAmplifyLive,
       ];
       const result = runInteractionsForLeafContext({
         appliedManifestations: cohort,
@@ -2730,7 +2693,6 @@ export function applyInteractions(
         leafContext: subject.sourceType,
         awakenerNamesById: input.awakenerNamesById,
         recordBaseSteps: false,
-        runSpecial: false,
         applyUniqueScalingInvents: true,
         uniqueScalingMatchInteractions: input.defaultInteractions,
         teamMaxHp: input.teamMaxHp,
@@ -2812,7 +2774,6 @@ export function applyInteractions(
         leafContext: null,
         awakenerNamesById: input.awakenerNamesById,
         recordBaseSteps: false,
-        runSpecial: false,
         applyUniqueScalingInvents: false,
         teamMaxHp: input.teamMaxHp,
         realmMasteryTotal: input.realmMasteryTotal,
@@ -2871,7 +2832,6 @@ export function applyInteractions(
         leafContext: null,
         awakenerNamesById: input.awakenerNamesById,
         recordBaseSteps: false,
-        runSpecial: false,
         applyUniqueScalingInvents: false,
         teamMaxHp: input.teamMaxHp,
         realmMasteryTotal: input.realmMasteryTotal,
@@ -2924,7 +2884,6 @@ export function applyInteractions(
       leafContext: null,
       awakenerNamesById: input.awakenerNamesById,
       recordBaseSteps: false,
-      runSpecial: false,
       applyUniqueScalingInvents: false,
       teamMaxHp: input.teamMaxHp,
       realmMasteryTotal: input.realmMasteryTotal,
@@ -2978,31 +2937,478 @@ export function applyInteractions(
     }
   }
 
-  steps.push(...opSteps, ...aftereffectSteps, ...hitCountSteps);
-
-  const phase2AppliedForSpecial = [
-    ...phase2Applied,
-    ...deferredSynthetics,
-  ];
-
-  // Special conversions once on merged totals (all applied + created for presence).
-  applySpecialConversion(
-    mergedOwnerValues,
+  const hitTentacleSteps: ScalarMathStep[] = [];
+  const hitSynthetics = buildHitTentacleSynthetics(
+    applied,
+    awakenersById,
     input.tagsById,
-    phase2AppliedForSpecial,
-    SPECIAL_CORROSION_CONVERSION,
-    DEBUFF_CORROSION,
-    CORROSION_DAMAGE,
-    steps,
+    hitCountByKey,
+    scalarOpts,
   );
-  applySpecialConversion(
+  const tentacleTag = input.tagsById[ATTACKER_TENTACLE_TAG_ID];
+  const tentacleUnits = new Map<OwnerKey, number>();
+  if (tentacleTag != null) {
+    for (const [owner, map] of mergedOwnerValues) {
+      if (owner === TEAM_POOL_OWNER) continue;
+      const units = map.get(tentacleTag.id) ?? 0;
+      if (units !== 0) tentacleUnits.set(owner, units);
+    }
+  }
+  const prePoolTentacleBuckets = collectPrePoolTentacleAttackBuckets(
     mergedOwnerValues,
-    input.tagsById,
-    phase2AppliedForSpecial,
-    SPECIAL_EMBERS_CONVERSION,
-    DEBUFF_EMBERS,
-    EMBERS_DAMAGE,
-    steps,
+    hitSynthetics,
+  );
+
+  if (
+    tentacleTag != null &&
+    (tentacleUnits.size > 0 || hitSynthetics.length > 0)
+  ) {
+    const tentacle = tentacleTag;
+    const tentacleAmplify = amplifyRows.filter(
+      (i) =>
+        interactionTargetsTagName(i, TENTACLE) &&
+        !isHitTentacleSkipModifier(i.modifierTagId),
+    );
+
+    // Layer B subject loop has already finalized TDU-family totals (incl.
+    // unique_scaling and TDU-prefix amplifies). Do not rebuild from a warmup
+    // snapshot — that path skipped unique_scaling and dropped Fixed TDU.
+    const tentaclePoolApplied = [
+      ...applied,
+      ...createdSynthetics,
+      ...deferredSynthetics,
+    ];
+    const tentacleCritInput = {
+      awakeners: [...awakenersById.values()],
+      appliedManifestations: tentaclePoolApplied,
+      awakenersById,
+      tagsById: input.tagsById,
+      scalarOpts,
+    };
+    const tentacleCritDamage = computeTentacleCritDamage(tentacleCritInput);
+    const tentacleCritRate = computeTentacleCritRate(tentacleCritInput);
+    const tduOwnerValues = mergedOwnerValues;
+    const finalizedModifierSnapshots: Manifestation[] = [];
+    for (const [owner, tagMap] of mergedOwnerValues) {
+      for (const [tagId, value] of tagMap) {
+        if (tagId === ATTACKER_TENTACLE_TAG_ID || value === 0) continue;
+        const tag = input.tagsById[tagId];
+        if (!tag) continue;
+        const snapshot = buildHop4dFinalizedSnapshot(
+          tag,
+          owner,
+          value,
+          tentaclePoolApplied,
+        );
+        if (snapshot != null) finalizedModifierSnapshots.push(snapshot);
+      }
+    }
+
+    const detailParts: string[] = [];
+    const hitDetailParts: string[] = [];
+    const poisonDetailParts: string[] = [];
+
+    const emitTentacleProduct = (
+      owner: OwnerKey,
+      productSynthetic: Manifestation,
+      before: number,
+      factor: number,
+      pool: number,
+      product: number,
+      subjectLabel: string,
+      write: "set" | "merge",
+    ): void => {
+      const sourceLabel = sourceLabelFor(
+        productSynthetic,
+        input.awakenerNamesById,
+      );
+      const subjectKey = manifestationHitCountKey(productSynthetic);
+      hitTentacleSteps.push({
+        kind: "base",
+        tagId: tentacle.id,
+        tagName: tentacle.tagName,
+        owner,
+        scalar: before,
+        rawScalar: before,
+        sourceLabel,
+        subjectKey,
+        subjectLabel,
+        metadata: productSynthetic.metadata,
+      });
+      const pushPoolOp = (
+        modifierTagName: string,
+        modifierValue: number,
+        opBefore: number,
+        afterRaw: number,
+        after: number,
+      ): void => {
+        if (after === opBefore && afterRaw === opBefore) return;
+        hitTentacleSteps.push({
+          kind: "op",
+          tagId: tentacle.id,
+          tagName: tentacle.tagName,
+          owner,
+          op: "multiply",
+          modifierTagName,
+          modifierValue,
+          factor: 1,
+          before: opBefore,
+          afterRaw,
+          after,
+          rounded: after !== afterRaw,
+          pass: 0,
+          effectSources: [subjectLabel],
+          layer: "add",
+          leafContext: null,
+          subjectKey,
+          subjectLabel,
+        });
+      };
+      if (product !== before) {
+        const tduAfterRaw = before * pool;
+        if (factor === 1) {
+          pushPoolOp(
+            TENTACLE_TDU_FAMILY_POOL_LABEL,
+            pool,
+            before,
+            tduAfterRaw,
+            product,
+          );
+        } else {
+          pushPoolOp(
+            TENTACLE_TDU_FAMILY_POOL_LABEL,
+            pool,
+            before,
+            tduAfterRaw,
+            tduAfterRaw,
+          );
+          pushPoolOp(
+            SPECIAL_HIT_TENTACLE_ATTACK,
+            factor,
+            tduAfterRaw,
+            tduAfterRaw * factor,
+            product,
+          );
+        }
+      }
+
+      let afterCrit = product;
+      let critSynthetic = productSynthetic;
+      if (product !== 0 && tentacleCritDamage.total > 0) {
+        const critAfterRaw = product * (1 + tentacleCritDamage.total);
+        afterCrit = Math.ceil(critAfterRaw - 1e-10);
+        hitTentacleSteps.push({
+          kind: "op",
+          tagId: tentacle.id,
+          tagName: tentacle.tagName,
+          owner,
+          op: "multiply_one_plus",
+          modifierTagName: TENTACLE_CRIT_DAMAGE_LABEL,
+          modifierValue: tentacleCritDamage.total,
+          factor: 1,
+          before: product,
+          afterRaw: critAfterRaw,
+          after: afterCrit,
+          rounded: afterCrit !== critAfterRaw,
+          pass: 0,
+          effectSources: [subjectLabel],
+          layer: "add",
+          leafContext: null,
+          subjectKey,
+          subjectLabel,
+        });
+        if (afterCrit !== product) {
+          critSynthetic = { ...productSynthetic, valueScalar: afterCrit };
+        }
+      }
+
+      let finished = afterCrit;
+      if (afterCrit !== 0 && tentacleAmplify.length > 0) {
+        const cohort = cohortForSubject(
+          [...finalizedModifierSnapshots, critSynthetic],
+          critSynthetic,
+        );
+        const amplifyResult = runInteractionsForLeafContext({
+          appliedManifestations: cohort,
+          defaultInteractions: tentacleAmplify,
+          tagsById: input.tagsById,
+          awakenersById,
+          leafContext: null,
+          awakenerNamesById: input.awakenerNamesById,
+          recordBaseSteps: false,
+          applyUniqueScalingInvents: true,
+          uniqueScalingMatchInteractions: input.defaultInteractions,
+          teamMaxHp: input.teamMaxHp,
+          realmMasteryTotal: input.realmMasteryTotal,
+          teamRealms: input.teamRealms,
+        });
+        finished = getOwnerValue(
+          amplifyResult.ownerValues,
+          owner,
+          productSynthetic.tagId,
+        );
+        for (const step of amplifyResult.steps) {
+          if (step.kind !== "op") continue;
+          if (step.tagId !== productSynthetic.tagId) continue;
+          hitTentacleSteps.push({
+            ...step,
+            subjectKey,
+            subjectLabel,
+            leafContext: null,
+          });
+        }
+      }
+
+      if (write === "set") {
+        setOwnerValue(mergedOwnerValues, owner, tentacle.id, finished);
+      } else if (finished !== 0) {
+        mergeOwnerValue(
+          mergedOwnerValues,
+          owner,
+          tentacle,
+          tentacle.id,
+          finished,
+        );
+      }
+    };
+
+    const poisonFixedTag = input.tagsById[ATTACKER_POISON_FIXED_TAG_ID];
+    const poisonFixedAmplify = amplifyRows.filter((i) =>
+      interactionTargetsTagName(i, ATTACKER_POISON_FIXED),
+    );
+    if (
+      poisonFixedTag != null &&
+      input.tagsById[SPECIAL_TENTACLE_HIT_POISON_TAG_ID] != null &&
+      prePoolTentacleBuckets.length > 0
+    ) {
+      const attacksByOwner = new Map<OwnerKey, number>();
+      const ownerBucketDetails = new Map<OwnerKey, string[]>();
+      for (const bucket of prePoolTentacleBuckets) {
+        attacksByOwner.set(
+          bucket.owner,
+          (attacksByOwner.get(bucket.owner) ?? 0) + bucket.attacks,
+        );
+        const label =
+          bucket.kind === "existing_tentacle"
+            ? `existing=${bucket.attacks}`
+            : `hit:${bucket.channelLabel}=${bucket.attacks}`;
+        const details = ownerBucketDetails.get(bucket.owner) ?? [];
+        details.push(label);
+        ownerBucketDetails.set(bucket.owner, details);
+      }
+
+      for (const owner of [...attacksByOwner.keys()].sort()) {
+        const attacks = attacksByOwner.get(owner) ?? 0;
+        if (attacks === 0) continue;
+        const factor = combineTentacleHitPoisonScalarForOwner(
+          applied,
+          owner,
+          awakenersById,
+          input.tagsById,
+          scalarOpts,
+        );
+        if (factor === 0) continue;
+        const product = attacks * factor;
+        if (product === 0) continue;
+        const productSynthetic = buildTentaclePoisonFixedSynthetic(
+          poisonFixedTag,
+          owner,
+          product,
+        );
+        const sourceLabel = sourceLabelFor(
+          productSynthetic,
+          input.awakenerNamesById,
+        );
+        const subjectKey = manifestationHitCountKey(productSynthetic);
+        hitTentacleSteps.push({
+          kind: "base",
+          tagId: poisonFixedTag.id,
+          tagName: poisonFixedTag.tagName,
+          owner,
+          scalar: product,
+          rawScalar: product,
+          sourceLabel,
+          subjectKey,
+          subjectLabel: TENTACLE_HIT_POISON_SUBJECT_LABEL,
+          metadata: productSynthetic.metadata,
+        });
+        hitTentacleSteps.push({
+          kind: "op",
+          tagId: poisonFixedTag.id,
+          tagName: poisonFixedTag.tagName,
+          owner,
+          op: "multiply",
+          modifierTagName: SPECIAL_TENTACLE_HIT_POISON,
+          modifierValue: factor,
+          factor: 1,
+          before: attacks,
+          afterRaw: product,
+          after: product,
+          rounded: false,
+          pass: 0,
+          effectSources: [TENTACLE_HIT_POISON_SUBJECT_LABEL],
+          layer: "add",
+          leafContext: null,
+          subjectKey,
+          subjectLabel: TENTACLE_HIT_POISON_SUBJECT_LABEL,
+        });
+
+        let finished = product;
+        if (poisonFixedAmplify.length > 0) {
+          const cohort = cohortForSubject(
+            [...finalizedModifierSnapshots, productSynthetic],
+            productSynthetic,
+          );
+          const amplifyResult = runInteractionsForLeafContext({
+            appliedManifestations: cohort,
+            defaultInteractions: poisonFixedAmplify,
+            tagsById: input.tagsById,
+            awakenersById,
+            leafContext: null,
+            awakenerNamesById: input.awakenerNamesById,
+            recordBaseSteps: false,
+            applyUniqueScalingInvents: true,
+            uniqueScalingMatchInteractions: input.defaultInteractions,
+            teamMaxHp: input.teamMaxHp,
+            realmMasteryTotal: input.realmMasteryTotal,
+            teamRealms: input.teamRealms,
+          });
+          finished = getOwnerValue(
+            amplifyResult.ownerValues,
+            owner,
+            productSynthetic.tagId,
+          );
+          for (const step of amplifyResult.steps) {
+            if (step.kind !== "op") continue;
+            if (step.tagId !== productSynthetic.tagId) continue;
+            hitTentacleSteps.push({
+              ...step,
+              subjectKey,
+              subjectLabel: TENTACLE_HIT_POISON_SUBJECT_LABEL,
+              leafContext: null,
+            });
+          }
+        }
+
+        mergeOwnerValue(
+          mergedOwnerValues,
+          owner,
+          poisonFixedTag,
+          poisonFixedTag.id,
+          finished,
+        );
+        poisonDetailParts.push(
+          `${owner} attacks=${attacks} factor=${factor} product=${product}` +
+            ` buckets=[${(ownerBucketDetails.get(owner) ?? []).join(", ")}]` +
+            (finished !== product ? ` finished=${finished}` : ""),
+        );
+      }
+    }
+
+    for (const owner of [...tentacleUnits.keys()].sort()) {
+      const units = tentacleUnits.get(owner) ?? 0;
+      if (units === 0) continue;
+      const poolBreakdown = combineTduFamilyPoolBreakdown(
+        tduOwnerValues,
+        tentaclePoolApplied,
+        owner,
+        input.tagsById,
+      );
+      const pool = poolBreakdown.total;
+      const product = computeHitTentacleProduct(units, 1, pool);
+      const productSynthetic = buildTentaclePoolSynthetic(
+        tentacle,
+        owner,
+        product,
+      );
+      detailParts.push(
+        `${owner} units=${units} pool=${pool}` +
+          ` (Unique=${poolBreakdown.unique}+TDU=${poolBreakdown.tdu}+Fixed=${poolBreakdown.fixed})` +
+          ` product=${product}`,
+      );
+      emitTentacleProduct(
+        owner,
+        productSynthetic,
+        units,
+        1,
+        pool,
+        product,
+        TENTACLE_TDU_POOL_SUBJECT_LABEL,
+        "set",
+      );
+    }
+
+    for (const hit of hitSynthetics) {
+      const owner = ownerKeyFor(hit.manifestation);
+      const poolBreakdown = combineTduFamilyPoolBreakdown(
+        tduOwnerValues,
+        tentaclePoolApplied,
+        owner,
+        input.tagsById,
+      );
+      const pool = poolBreakdown.total;
+      const product = computeHitTentacleProduct(hit.hits, hit.factor, pool);
+      const productSynthetic = {
+        ...hit.manifestation,
+        valueScalar: product,
+      };
+      const hitLine =
+        `${owner} channel=${hit.channelLabel} hits=${hit.hits}` +
+        ` attacks=${hit.attacks} factor=${hit.factor}` +
+        ` pool=${pool} (Unique=${poolBreakdown.unique}+TDU=${poolBreakdown.tdu}+Fixed=${poolBreakdown.fixed})` +
+        ` product=${product}`;
+      detailParts.push(hitLine);
+      hitDetailParts.push(hitLine);
+      emitTentacleProduct(
+        owner,
+        productSynthetic,
+        hit.hits,
+        hit.factor,
+        pool,
+        product,
+        HIT_TENTACLE_SUBJECT_LABEL,
+        "merge",
+      );
+    }
+
+    if (detailParts.length > 0) {
+      hitTentacleSteps.push({
+        kind: "special",
+        label: TENTACLE_TDU_POOL_SUBJECT_LABEL,
+        detail: detailParts.join("; "),
+      });
+    }
+    if (hitDetailParts.length > 0) {
+      hitTentacleSteps.push({
+        kind: "special",
+        label: "Special.Hit = Tentacle Attack",
+        detail: hitDetailParts.join("; "),
+      });
+    }
+    if (poisonDetailParts.length > 0) {
+      hitTentacleSteps.push({
+        kind: "special",
+        label: SPECIAL_TENTACLE_HIT_POISON,
+        detail: poisonDetailParts.join("; "),
+      });
+    }
+    hitTentacleSteps.push({
+      kind: "special",
+      label: TENTACLE_CRIT_RATE_LABEL,
+      detail: formatTentacleCritDetail(tentacleCritRate),
+    });
+    hitTentacleSteps.push({
+      kind: "special",
+      label: TENTACLE_CRIT_DAMAGE_LABEL,
+      detail: formatTentacleCritDetail(tentacleCritDamage),
+    });
+  }
+
+  steps.push(
+    ...opSteps,
+    ...aftereffectSteps,
+    ...hitCountSteps,
+    ...hitTentacleSteps,
   );
 
   const totalsByTagId = sumOwnerTotalsToTagMap(

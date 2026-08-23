@@ -18,5 +18,6 @@ export const config = {
     "/tables/:path*",
     "/path-carver/:path*",
     "/simulator/:path*",
+    "/kit-reader/:path*",
   ],
 };

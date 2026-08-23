@@ -5,13 +5,14 @@
  */
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import {
+  PUBLIC_BULK_MAX_ROWS,
   PUBLIC_READ_TABLES,
   PUBLIC_ROW_LIMIT,
   PUBLIC_TABLE_COLUMNS,
   type PublicReadTable,
 } from "../src/lib/public-read/allowlist";
 import { resetPublicReadCacheForTests } from "../src/lib/public-read/cache";
-import { fetchPublicTable } from "../src/lib/public-read/fetch";
+import { fetchAllPublicTable, fetchPublicTable } from "../src/lib/public-read/fetch";
 import {
   checkPublicRateLimit,
   resetPublicRateLimitForTests,
@@ -208,6 +209,59 @@ async function main() {
     assert(
       fromCount() === 2,
       `different limit is a cache miss (got ${fromCount()} .from calls)`,
+    );
+    resetPublicReadCacheForTests();
+  }
+
+  console.log("\n8) fetchAllPublicTable paginates awakener_tag_manifestation");
+  {
+    resetPublicReadCacheForTests();
+    const capped = await fetchPublicTable("awakener_tag_manifestation", {
+      client: anon,
+      limit: PUBLIC_ROW_LIMIT,
+    });
+    assert(capped.success, "ATM capped fetch succeeded");
+
+    const { client, fromCount } = withFromCounter(anon);
+    const all = await fetchAllPublicTable("awakener_tag_manifestation", {
+      client,
+    });
+    assert(all.success, "ATM fetch-all succeeded");
+    if (all.success && capped.success) {
+      assert(
+        all.data.length >= capped.data.length,
+        `fetch-all ≥ capped fetch (${all.data.length} vs ${capped.data.length})`,
+      );
+      assert(
+        all.data.length <= PUBLIC_BULK_MAX_ROWS,
+        `fetch-all ≤ ${PUBLIC_BULK_MAX_ROWS} (got ${all.data.length})`,
+      );
+      if (capped.truncated) {
+        assert(
+          all.data.length > capped.data.length,
+          "fetch-all returns more rows than 500-cap when table exceeds cap",
+        );
+      }
+      assert(!all.truncated, "ATM fetch-all not truncated under safety cap");
+    }
+    assert(fromCount() >= 1, "fetch-all issued at least one Supabase page");
+    resetPublicReadCacheForTests();
+  }
+
+  console.log("\n9) Phase 6 — fetchAllPublicTable cache hit skips Supabase");
+  {
+    resetPublicReadCacheForTests();
+    const { client, fromCount } = withFromCounter(anon);
+    const first = await fetchAllPublicTable("realm", { client });
+    assert(first.success, "realm fetch-all cold succeeded");
+    const coldCalls = fromCount();
+    assert(coldCalls >= 1, `cold fetch-all called .from (got ${coldCalls})`);
+
+    const second = await fetchAllPublicTable("realm", { client });
+    assert(second.success, "realm fetch-all warm succeeded");
+    assert(
+      fromCount() === coldCalls,
+      `warm fetch-all did not call .from again (got ${fromCount()})`,
     );
     resetPublicReadCacheForTests();
   }

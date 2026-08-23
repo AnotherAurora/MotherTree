@@ -69,7 +69,7 @@ export function CopyProviderGroupFormDialog({
   record,
   onSuccess,
 }: CopyProviderGroupFormDialogProps) {
-  const isEditing = Boolean(record);
+  const isEditing = Boolean(record?.id != null);
   const childConfig = config.childTables?.[0];
   const memberFields = childConfig?.fields ?? [];
 

@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import type { ComponentType } from "react";
 import {
   Anchor,
+  BookOpen,
   CircleDot,
   Database,
   FlaskConical,
@@ -104,6 +105,12 @@ export function Sidebar() {
           active={pathname === "/path-carver"}
           icon={PenLine}
           label="Path Carver"
+        />
+        <SidebarNavLink
+          href="/kit-reader"
+          active={pathname === "/kit-reader"}
+          icon={BookOpen}
+          label="Kit Reader"
         />
 
         {SIDEBAR_NAV_GROUPS.map((group) => (

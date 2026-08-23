@@ -138,7 +138,8 @@ async function fetchAwakenerManifestations(
     .select(AWAKENER_MANIFESTATION_SELECT)
     .eq("awakener_id", awakenerId)
     .lte("required_enlightenment", effectiveEnlightenment(enlightenment))
-    .is("deleted_at", null);
+    .is("deleted_at", null)
+    .eq("verified", true);
 
   if (error) throw new Error(error.message);
   return data ?? [];

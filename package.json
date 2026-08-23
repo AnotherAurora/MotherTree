@@ -6,10 +6,17 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "typecheck": "tsc --noEmit",
     "start": "next start",
     "lint": "eslint",
     "db:types": "tsx scripts/generate-database-types.ts",
     "db:dump": "tsx --env-file=.env.local scripts/export-sample-data.ts",
+    "kit:export": "tsx --env-file=.env.local scripts/export-kit-pack.ts",
+    "kit:insert-pending": "tsx --env-file=.env.local scripts/insert-kit-pending.ts",
+    "audit:atm-dependency-stat": "tsx --env-file=.env.local scripts/audit-atm-dependency-stat.ts",
+    "smoke:kit-reader-percent-dep": "tsx scripts/smoke-kit-reader-percent-dep.ts",
+    "smoke:kit-pack-arg-meta": "tsx scripts/smoke-kit-pack-arg-meta.ts",
+    "smoke:kit-reader-steal": "tsx scripts/smoke-kit-reader-steal.ts",
     "db:dump-skeydb-assets": "tsx --env-file=.env.local scripts/export-skeydb-asset-names.ts",
     "db:seed-simulator": "tsx --env-file=.env.local scripts/seed-simulator-data.ts",
     "db:unseed-simulator": "tsx --env-file=.env.local scripts/unseed-simulator-data.ts",
@@ -35,7 +42,8 @@
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "sonner": "^2.0.7",
-    "tailwind-merge": "^3.6.0"
+    "tailwind-merge": "^3.6.0",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

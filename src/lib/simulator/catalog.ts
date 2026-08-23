@@ -224,7 +224,8 @@ export async function loadSimulatorCatalog(
       .select(
         "awakener_id, tag_id, value_scalar, required_realm, required_realm_ref:realm!required_realm(name), required_enlightenment, replaces_manifestation_id",
       )
-      .is("deleted_at", null),
+      .is("deleted_at", null)
+      .eq("verified", true),
     supabase
       .from("wheel_tag_manifestation")
       .select(

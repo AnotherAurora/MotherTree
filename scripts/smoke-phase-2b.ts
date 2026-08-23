@@ -236,7 +236,7 @@ console.log("Part B — leaf-gated buff_target_type_restriction");
       tagId: active.id,
       tagName: active.tagName,
       valueScalar: 50,
-      sourceType: "tentacle",
+      sourceType: null,
       targetType: "single",
     }),
   ];
@@ -278,7 +278,7 @@ console.log("Part B — leaf-gated buff_target_type_restriction");
   const activeTotal = result.totalsByTagId.get(active.id) ?? 0;
   // Command-card leaf: Final Damage gets Enhance (0.2 → (1+0.2)*(1+1)-1 = 1.4),
   // then Active 100 * (1+1.4) = 240 (ceil).
-  // Tentacle leaf: Enhance skipped, Final stays 0.2, Active 50 * (1+0.2) = 60 (ceil).
+  // Null-source leaf: Enhance skipped, Final stays 0.2, Active 50 * (1+0.2) = 60 (ceil).
   // Sum ≈ 240 + 60 = 300.
   assert(activeTotal > 150, `Active Damage summed across leaves (${activeTotal})`);
   assert(
@@ -294,15 +294,15 @@ console.log("Part B — leaf-gated buff_target_type_restriction");
     `restricted op emitted when leaf matches (${restrictionSteps.length} steps)`,
   );
 
-  const tentacleRestrictionSteps = result.steps.filter(
+  const nullRestrictionSteps = result.steps.filter(
     (s) =>
       s.kind === "op" &&
       s.buffRestrictionMet === "command card" &&
-      s.leafContext === "tentacle",
+      s.leafContext === null,
   );
   assert(
-    tentacleRestrictionSteps.length === 0,
-    "no restricted op line for tentacle leaf path",
+    nullRestrictionSteps.length === 0,
+    "no restricted op line for null leaf path",
   );
 
   // dependency_stat on Active Damage leaf
@@ -331,6 +331,79 @@ console.log("Part B — leaf-gated buff_target_type_restriction");
       baseStep.rawScalar === 2 &&
       baseStep.scalar === 200,
     "base step shows raw vs effective",
+  );
+
+  // Manifestation-level buff_target_type_restriction gating
+  const exaltRestrictedFinalDmg = makeManifestation({
+    id: 15,
+    tagId: finalDmg.id,
+    tagName: finalDmg.tagName,
+    valueScalar: 0.2,
+    buffTargetTypeRestriction: "exalt",
+    targetType: "aoe",
+  });
+  const unrestrictedFinalDmg = makeManifestation({
+    id: 16,
+    tagId: finalDmg.id,
+    tagName: finalDmg.tagName,
+    valueScalar: 0.1,
+    buffTargetTypeRestriction: null,
+    targetType: "aoe",
+  });
+  const cmdCardActive = makeManifestation({
+    id: 17,
+    tagId: active.id,
+    tagName: active.tagName,
+    valueScalar: 100,
+    sourceType: "command card",
+    targetType: "single",
+  });
+  const exaltActive = makeManifestation({
+    id: 18,
+    tagId: active.id,
+    tagName: active.tagName,
+    valueScalar: 100,
+    sourceType: "exalt",
+    targetType: "single",
+  });
+  const finalToActiveInteraction = makeInteraction({
+    id: 3,
+    modifierTagId: finalDmg.id,
+    modifierTagName: finalDmg.tagName,
+    targetTagId: active.id,
+    targetTagName: active.tagName,
+    mathOperation: "multiply_one_plus",
+    defaultFactor: 1,
+    createsBase: false,
+    amplifiesSubject: true,
+  });
+
+  const manifestationGatingResult = applyInteractions({
+    manifestations: [
+      exaltRestrictedFinalDmg,
+      unrestrictedFinalDmg,
+      cmdCardActive,
+      exaltActive,
+    ],
+    appliedManifestations: [
+      exaltRestrictedFinalDmg,
+      unrestrictedFinalDmg,
+      cmdCardActive,
+      exaltActive,
+    ],
+    defaultInteractions: [finalToActiveInteraction],
+    tagsById,
+    awakenersById,
+  });
+
+  // cmdCardActive gets only unrestricted (0.1): 100 * (1 + 0.1) = 110
+  // exaltActive gets both (multiplicative fold-back: 1.2 * 1.1 - 1 = 0.32): 100 * (1 + 0.32) = 131
+  // Total Active Damage = 110 + 131 = 241 (if exalt leaked to command card it would be 131 + 131 = 262)
+  const totalGatedActive =
+    manifestationGatingResult.totalsByTagId.get(active.id) ?? 0;
+  assert(
+    totalGatedActive === 241,
+    `manifestation buffTargetTypeRestriction gates modifier presence (expected 241, got ${totalGatedActive})`,
   );
 }
 
@@ -1124,6 +1197,7 @@ console.log("creates_base focused — Tentacle invent + unrestricted Fiamma");
 
   const generate = makeTag(58, "Support.Generate Permanent Tentacle");
   const tentacle = makeTag(5, "Attacker.Tentacle");
+  const tdu = makeTag(29, "Support.Tentacle Damage Up");
   const fiamma = makeTag(100, "Support.Fiamma", true);
   const finalDmg = makeTag(14, "Support.Final Damage", true);
   const active = makeTag(42, "Attacker.Active Damage");
@@ -1132,12 +1206,20 @@ console.log("creates_base focused — Tentacle invent + unrestricted Fiamma");
     const tagsById: Record<number, Tag> = {
       [generate.id]: generate,
       [tentacle.id]: tentacle,
+      [tdu.id]: tdu,
     };
     const manifests = [
       makeManifestation({
         id: 1,
         tagId: generate.id,
         tagName: generate.tagName,
+        valueScalar: 1,
+        targetType: "aoe",
+      }),
+      makeManifestation({
+        id: 2,
+        tagId: tdu.id,
+        tagName: tdu.tagName,
         valueScalar: 1,
         targetType: "aoe",
       }),
@@ -1369,6 +1451,170 @@ console.log("creates_base exact target — no prefix fan-out to Heal.Fixed");
   assert(
     createOps.every((s) => s.kind !== "op" || s.tagId !== healFixed.id),
     "Phase 1 create op does not write Heal.Fixed",
+  );
+}
+
+console.log("Mixed self and aoe modifier rows apply once per target owner");
+{
+  const jenkin = makeAwakener({ id: 27, atk: 100 });
+  const ally = makeAwakener({ id: 28, atk: 100 });
+  const awakenersById = buildAwakenersById([jenkin, ally]);
+
+  const critDmg = makeTag(17, "Support.Crit Damage", true);
+  const activeDmg = makeTag(42, "Attacker.Active Damage");
+
+  const tagsById: Record<number, Tag> = {
+    [critDmg.id]: critDmg,
+    [activeDmg.id]: activeDmg,
+  };
+
+  const manifests: Manifestation[] = [
+    // Jenkin has Active Damage (100)
+    makeManifestation({
+      id: 1,
+      awakenerId: 27,
+      tagId: activeDmg.id,
+      tagName: activeDmg.tagName,
+      valueScalar: 100,
+      sourceType: "command card",
+      targetType: "aoe",
+    }),
+    // Ally has Active Damage (100)
+    makeManifestation({
+      id: 2,
+      awakenerId: 28,
+      tagId: activeDmg.id,
+      tagName: activeDmg.tagName,
+      valueScalar: 100,
+      sourceType: "command card",
+      targetType: "aoe",
+    }),
+    // Jenkin self Crit Damage (0.75 + 0.75 + 0.50 = 2.0)
+    makeManifestation({
+      id: 3,
+      awakenerId: 27,
+      tagId: critDmg.id,
+      tagName: critDmg.tagName,
+      valueScalar: 0.75,
+      targetType: "self",
+    }),
+    makeManifestation({
+      id: 4,
+      awakenerId: 27,
+      tagId: critDmg.id,
+      tagName: critDmg.tagName,
+      valueScalar: 0.75,
+      targetType: "self",
+    }),
+    makeManifestation({
+      id: 5,
+      awakenerId: 27,
+      tagId: critDmg.id,
+      tagName: critDmg.tagName,
+      valueScalar: 0.5,
+      targetType: "self",
+    }),
+    // Jenkin aoe Crit Damage (0.75 + 0.75 = 1.5)
+    makeManifestation({
+      id: 6,
+      awakenerId: 27,
+      tagId: critDmg.id,
+      tagName: critDmg.tagName,
+      valueScalar: 0.75,
+      targetType: "aoe",
+    }),
+    makeManifestation({
+      id: 7,
+      awakenerId: 27,
+      tagId: critDmg.id,
+      tagName: critDmg.tagName,
+      valueScalar: 0.75,
+      targetType: "aoe",
+    }),
+  ];
+
+  const interactions: DefaultInteraction[] = [
+    makeInteraction({
+      id: 10,
+      modifierTagId: critDmg.id,
+      modifierTagName: critDmg.tagName,
+      targetTagId: activeDmg.id,
+      targetTagName: activeDmg.tagName,
+      mathOperation: "multiply_one_plus",
+      defaultFactor: 1,
+    }),
+  ];
+
+  // 1) Solo Jenkin test
+  const soloResult = applyInteractions({
+    manifestations: manifests.filter((m) => m.awakenerId === 27),
+    appliedManifestations: manifests.filter((m) => m.awakenerId === 27),
+    defaultInteractions: interactions,
+    tagsById,
+    awakenersById: buildAwakenersById([jenkin]),
+  });
+
+  const soloOps = soloResult.steps.filter(
+    (s): s is Extract<typeof s, { kind: "op" }> =>
+      s.kind === "op" && s.modifierTagName === critDmg.tagName,
+  );
+  assert(
+    soloOps.length === 1,
+    `Solo Jenkin receives Crit Damage op exactly once (got ${soloOps.length})`,
+  );
+  assert(
+    soloOps[0]?.modifierValue === 3.5,
+    `Solo Jenkin modifier value is 3.5 (got ${soloOps[0]?.modifierValue})`,
+  );
+  // 100 * (1 + 3.5) = 450 (NOT 2025 from double 4.5x)
+  const soloActive = soloResult.totalsByTagId.get(activeDmg.id) ?? 0;
+  assert(
+    soloActive === 450,
+    `Solo Jenkin Active Damage is 450 (got ${soloActive})`,
+  );
+
+  // 2) Team test: Jenkin gets 4.5x, Ally gets 2.5x (1.5 aoe only)
+  const teamResult = applyInteractions({
+    manifestations: manifests,
+    appliedManifestations: manifests,
+    defaultInteractions: interactions,
+    tagsById,
+    awakenersById,
+  });
+
+  const jenkinOps = teamResult.steps.filter(
+    (s): s is Extract<typeof s, { kind: "op" }> =>
+      s.kind === "op" &&
+      s.owner === "awakener:27" &&
+      s.modifierTagName === critDmg.tagName,
+  );
+  const allyOps = teamResult.steps.filter(
+    (s): s is Extract<typeof s, { kind: "op" }> =>
+      s.kind === "op" &&
+      s.owner === "awakener:28" &&
+      s.modifierTagName === critDmg.tagName,
+  );
+  assert(
+    jenkinOps.length === 1,
+    `Jenkin receives Crit Damage op once in team (got ${jenkinOps.length})`,
+  );
+  assert(
+    jenkinOps[0]?.modifierValue === 3.5,
+    `Jenkin modifier value in team is 3.5 (got ${jenkinOps[0]?.modifierValue})`,
+  );
+  assert(
+    allyOps.length === 1,
+    `Ally receives Crit Damage op once in team (got ${allyOps.length})`,
+  );
+  assert(
+    allyOps[0]?.modifierValue === 1.5,
+    `Ally modifier value in team is 1.5 (got ${allyOps[0]?.modifierValue})`,
+  );
+  // Total Active Damage: Jenkin 450 + Ally 250 = 700
+  const teamActive = teamResult.totalsByTagId.get(activeDmg.id) ?? 0;
+  assert(
+    teamActive === 700,
+    `Team Active Damage is 700 (got ${teamActive})`,
   );
 }
 

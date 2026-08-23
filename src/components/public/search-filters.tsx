@@ -15,11 +15,13 @@ import type {
 import {
   SEARCH_AWAKENER_ENLIGHTENMENT_OPTIONS,
   SEARCH_DEFAULT_AWAKENER_ENLIGHTENMENT,
+  formatAwakenerEnlightenmentLabel,
   formatSearchBuffRestrictionLabel,
   formatSearchDependencyStatLabel,
   formatSearchRealmLabel,
   formatSearchTagLabel,
   formatSearchTargetTypeLabel,
+  isAwakenerEnlightenmentValue,
 } from "@/lib/public/search-filter-options";
 import type { SearchResultRow } from "@/lib/public/search-results";
 import { cn } from "@/lib/utils";
@@ -87,21 +89,6 @@ function parseOptionalNumber(value: string): number | null {
   if (!value) return null;
   const n = Number(value);
   return Number.isFinite(n) ? n : null;
-}
-
-function isSearchAwakenerEnlightenmentValue(
-  value: number,
-): value is SearchAwakenerEnlightenmentValue {
-  return SEARCH_AWAKENER_ENLIGHTENMENT_OPTIONS.some((o) => o.value === value);
-}
-
-function formatAwakenerEnlightenmentLabel(
-  value: SearchAwakenerEnlightenmentValue,
-): string {
-  return (
-    SEARCH_AWAKENER_ENLIGHTENMENT_OPTIONS.find((o) => o.value === value)
-      ?.label ?? String(value)
-  );
 }
 
 function findTagLabel(
@@ -208,6 +195,8 @@ type SearchResultsState =
       status: "success";
       rows: SearchResultRow[];
       truncated: boolean;
+      sourceTruncated: boolean;
+      resultsTruncated: boolean;
     };
 
 export function SearchFilters({ options }: SearchFiltersProps) {
@@ -270,6 +259,8 @@ export function SearchFilters({ options }: SearchFiltersProps) {
         status: "success",
         rows: result.rows,
         truncated: result.truncated,
+        sourceTruncated: result.sourceTruncated,
+        resultsTruncated: result.resultsTruncated,
       });
     });
   }
@@ -340,7 +331,7 @@ export function SearchFilters({ options }: SearchFiltersProps) {
             value={awakenerEnlightenment}
             onChange={(e) => {
               const n = Number(e.target.value);
-              if (isSearchAwakenerEnlightenmentValue(n)) {
+              if (isAwakenerEnlightenmentValue(n)) {
                 setAwakenerEnlightenment(n);
               }
             }}
@@ -698,7 +689,19 @@ export function SearchFilters({ options }: SearchFiltersProps) {
             {results.rows.length === 1
               ? "1 record"
               : `${results.rows.length} records`}
-            {results.truncated ? " (truncated)" : ""}
+            {results.resultsTruncated ? " (top 500 by value)" : ""}
+          </p>
+        ) : null}
+
+        {!loading &&
+        results.status === "success" &&
+        results.sourceTruncated ? (
+          <p
+            role="alert"
+            className="rounded-md border border-[var(--mt-border)] bg-[rgb(255_245_235_/_0.35)] px-4 py-3 text-sm text-[var(--mt-ink)]"
+          >
+            Search catalog data was incomplete. Results may be missing rows —
+            narrow your filters or contact the maintainer.
           </p>
         ) : null}
 
@@ -724,7 +727,7 @@ export function SearchFilters({ options }: SearchFiltersProps) {
         {!loading && results.status === "success" ? (
           <SearchResultsTable
             rows={results.rows}
-            truncated={results.truncated}
+            resultsTruncated={results.resultsTruncated}
           />
         ) : null}
       </section>

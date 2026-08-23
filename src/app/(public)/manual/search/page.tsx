@@ -168,7 +168,7 @@ export default function ManualSearchPage() {
         <div className="space-y-3">
           <h3 className={manualStepHeadingClass}>How values are chosen</h3>
           <p className={manualBodyClass}>
-            Effects are cataloged as close to real combat as practical, while
+            Effects are cataloged as close to real combat as possible, while
             keeping comparisons fair within each source type.
           </p>
           <dl className="max-w-3xl space-y-4">

@@ -38,15 +38,22 @@ import {
   softDeleteRecord,
   type ForeignKeyOption,
 } from "@/lib/actions/crud";
-import type { FieldConfig, TableConfig } from "@/lib/schema-config";
-import { getListFields } from "@/lib/schema-config";
+import type {
+  FieldConfig,
+  ListSortDirection,
+  ListSortState,
+  TableConfig,
+} from "@/lib/schema-config";
+import { getDefaultListSort, getListFields } from "@/lib/schema-config";
 import {
   CREATES_AMPLIFY_CONFLICT_HINT,
   LOCAL_INTERACTION_COLUMN_MISMATCH_HINT,
   NON_POSITIVE_INSTANCE_OR_COPIES_HINT,
+  UNIQUE_SCALING_NON_SELF_TARGET_TYPE_HINT,
   hasCreatesAmplifyConflict,
   hasLocalInteractionColumnMismatch,
   hasNonPositiveInstanceOrCopies,
+  hasUniqueScalingNonSelfTargetType,
 } from "@/lib/admin-form-warnings";
 import { cn } from "@/lib/utils";
 
@@ -54,13 +61,8 @@ type TableManagerProps = {
   config: TableConfig;
   initialRecords: Record<string, unknown>[];
   initialFkLabels: Record<string, string>;
-};
-
-type SortDirection = "asc" | "desc";
-
-type SortState = {
-  field: string | null;
-  direction: SortDirection;
+  initialTotalCount: number;
+  initialTruncated: boolean;
 };
 
 type ListViewMode = "table" | "tree";
@@ -112,7 +114,7 @@ function getSortValue(
 function compareSortValues(
   a: string | number | boolean | null,
   b: string | number | boolean | null,
-  direction: SortDirection,
+  direction: ListSortDirection,
 ) {
   if (a == null && b == null) return 0;
   if (a == null) return 1;
@@ -136,7 +138,7 @@ function compareSortValues(
 function sortRecords(
   records: Record<string, unknown>[],
   listFields: FieldConfig[],
-  sort: SortState,
+  sort: ListSortState,
   fkLabels: Record<string, string>,
 ) {
   if (!sort.field) return records;
@@ -157,11 +159,15 @@ export function TableManager({
   config,
   initialRecords,
   initialFkLabels,
+  initialTotalCount,
+  initialTruncated,
 }: TableManagerProps) {
   const [records, setRecords] =
     React.useState<Record<string, unknown>[]>(initialRecords);
   const [fkLabels, setFkLabels] =
     React.useState<Record<string, string>>(initialFkLabels);
+  const [totalCount, setTotalCount] = React.useState(initialTotalCount);
+  const [listTruncated, setListTruncated] = React.useState(initialTruncated);
   const [showDeletedOnly, setShowDeletedOnly] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
   const [dialogOpen, setDialogOpen] = React.useState(false);
@@ -170,10 +176,9 @@ export function TableManager({
   >(null);
   const [deletingId, setDeletingId] = React.useState<number | null>(null);
   const [restoringId, setRestoringId] = React.useState<number | null>(null);
-  const [sort, setSort] = React.useState<SortState>({
-    field: null,
-    direction: "asc",
-  });
+  const [sort, setSort] = React.useState<ListSortState>(() =>
+    getDefaultListSort(config),
+  );
   const [editingCell, setEditingCell] = React.useState<EditingCellState>(null);
   const [fkOptionsByField, setFkOptionsByField] = React.useState<
     Record<string, ForeignKeyOption[]>
@@ -198,7 +203,7 @@ export function TableManager({
   const inlineFields = listFields.filter((field) => field.inlineEditable);
 
   React.useEffect(() => {
-    setSort({ field: null, direction: "asc" });
+    setSort(getDefaultListSort(config));
     setEditingCell(null);
   }, [config.name]);
 
@@ -283,6 +288,8 @@ export function TableManager({
     );
 
     setRecords(result.data);
+    setTotalCount(result.totalCount);
+    setListTruncated(result.truncated);
     if (labelResult.success) {
       setFkLabels(labelResult.data);
     }
@@ -420,7 +427,18 @@ export function TableManager({
         <CardHeader className="flex flex-row items-start justify-between gap-4">
           <div>
             <CardTitle>{config.label}</CardTitle>
-            <CardDescription>{config.description}</CardDescription>
+            <CardDescription>
+              {config.description}
+              {totalCount > 0 ? (
+                <>
+                  {" "}
+                  ·{" "}
+                  {totalCount === 1
+                    ? "1 record"
+                    : `${totalCount.toLocaleString()} records`}
+                </>
+              ) : null}
+            </CardDescription>
           </div>
           <div className="flex items-center gap-2">
             {treeListView && (
@@ -468,6 +486,8 @@ export function TableManager({
                         result.data,
                       );
                       setRecords(result.data);
+                      setTotalCount(result.totalCount);
+                      setListTruncated(result.truncated);
                       if (labelResult.success) setFkLabels(labelResult.data);
                     }
                     setLoading(false);
@@ -485,6 +505,12 @@ export function TableManager({
           </div>
         </CardHeader>
         <CardContent>
+          {listTruncated ? (
+            <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+              Record list was truncated at the safety cap. Not all rows were
+              loaded — contact the maintainer if you need the full table.
+            </div>
+          ) : null}
           {loading ? (
             <div className="flex items-center justify-center py-16 text-zinc-500">
               <Loader2 className="mr-2 h-5 w-5 animate-spin" />
@@ -578,27 +604,45 @@ export function TableManager({
                         "awakener_local_manifestation_interaction" &&
                       !isDeleted &&
                       hasLocalInteractionColumnMismatch(record);
+                    const uniqueScalingNonSelfTargetType =
+                      config.name ===
+                        "awakener_local_manifestation_interaction" &&
+                      !isDeleted &&
+                      hasUniqueScalingNonSelfTargetType(record);
                     const nonPositiveCopies =
                       config.name === "awakener_tag_manifestation" &&
                       !isDeleted &&
                       hasNonPositiveInstanceOrCopies(record);
+                    const isUnverified =
+                      config.name === "awakener_tag_manifestation" &&
+                      !isDeleted &&
+                      record.verified === false;
                     const rowWarn =
-                      flagConflict || localColumnMismatch || nonPositiveCopies;
+                      flagConflict ||
+                      localColumnMismatch ||
+                      uniqueScalingNonSelfTargetType ||
+                      nonPositiveCopies;
                     return (
                       <tr
                         key={String(record.id)}
                         className={cn(
-                          isDeleted && "bg-zinc-50 text-zinc-400",
+                          // Precedence (last wins via twMerge): unverified < warn < deleted
+                          isUnverified && "bg-red-100",
                           rowWarn && "bg-amber-50",
+                          isDeleted && "bg-zinc-50 text-zinc-400",
                         )}
                         title={
                           flagConflict
                             ? CREATES_AMPLIFY_CONFLICT_HINT
                             : localColumnMismatch
                               ? LOCAL_INTERACTION_COLUMN_MISMATCH_HINT
-                              : nonPositiveCopies
-                                ? NON_POSITIVE_INSTANCE_OR_COPIES_HINT
-                                : undefined
+                              : uniqueScalingNonSelfTargetType
+                                ? UNIQUE_SCALING_NON_SELF_TARGET_TYPE_HINT
+                                : nonPositiveCopies
+                                  ? NON_POSITIVE_INSTANCE_OR_COPIES_HINT
+                                  : isUnverified
+                                    ? "Unverified (pending)"
+                                    : undefined
                         }
                         onDoubleClick={() => {
                           if (!showDeletedOnly && !isDeleted) {

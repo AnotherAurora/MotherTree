@@ -20,6 +20,10 @@ export const PUBLIC_READ_TABLES = [
 export type PublicReadTable = (typeof PUBLIC_READ_TABLES)[number];
 
 export const PUBLIC_ROW_LIMIT = 500;
+/** PostgREST page size for paginated fetch-all reads. */
+export const PUBLIC_FETCH_PAGE_SIZE = 1000;
+/** Safety valve when fetch-all paginating public catalog tables. */
+export const PUBLIC_BULK_MAX_ROWS = 5000;
 export const PUBLIC_RATE_LIMIT_PER_MINUTE = 60;
 
 const HIDDEN_COLUMNS = ["created_at", "updated_at", "deleted_at"] as const;

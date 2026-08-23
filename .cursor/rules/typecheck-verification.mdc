@@ -1,0 +1,20 @@
+---
+description: Always run TypeScript typecheck before completing tasks
+globs: *
+alwaysApply: true
+---
+
+# Typecheck and Schema Verification Rule
+
+Before completing any task, replying that work is finished, or concluding your turn after modifying code:
+
+1. **Run Typecheck**:
+   Execute `npm run typecheck` (or `npx tsc --noEmit`) to verify that all TypeScript files, components, server actions, and scripts compile without type errors.
+
+2. **Fix Type Errors Promptly**:
+   If typecheck reports any errors, fix them before finishing your response.
+
+3. **Database Schema & Types Sync**:
+   When database tables/columns are modified, migrations are created, or schema structures change:
+   - Verify that `src/lib/database.types.generated.ts` and `src/lib/schema-config.ts` are updated to match the database changes.
+   - Run `npm run typecheck` to ensure no Supabase query typing or Server Action is broken.

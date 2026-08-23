@@ -71,7 +71,7 @@ function makeLocal(
     layer: null,
     mathOperation: "multiply_one_plus",
     valueScalar: 1,
-    targetType: "aoe",
+    targetType: "self",
     dependencyStat: null,
     isDisabled: false,
     ...partial,

@@ -24,7 +24,7 @@ const COLUMNS = [
 
 type SearchResultsTableProps = {
   rows: SearchResultRow[];
-  truncated: boolean;
+  resultsTruncated: boolean;
 };
 
 function isCoarsePointer(): boolean {
@@ -93,7 +93,7 @@ function NameCell({ row }: { row: SearchResultRow }) {
 
 export function SearchResultsTable({
   rows,
-  truncated,
+  resultsTruncated,
 }: SearchResultsTableProps) {
   if (rows.length === 0) {
     return (
@@ -160,10 +160,10 @@ export function SearchResultsTable({
           </tbody>
         </table>
       </div>
-      {truncated ? (
+      {resultsTruncated ? (
         <p className="text-sm text-[var(--mt-ink-muted)]">
-          Results were truncated to the row cap. Narrow your filters for a
-          complete list.
+          Showing the top 500 matches by Value. Narrow your filters for a
+          shorter list.
         </p>
       ) : null}
     </div>

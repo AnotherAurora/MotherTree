@@ -74,7 +74,7 @@ export function DesireFormDialog({
   record,
   onSuccess,
 }: DesireFormDialogProps) {
-  const isEditing = Boolean(record);
+  const isEditing = Boolean(record?.id != null);
   const childConfig = config.childTables?.[0];
   const anchorFields = childConfig?.fields ?? [];
 

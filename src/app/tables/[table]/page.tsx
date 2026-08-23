@@ -31,6 +31,8 @@ export default async function TablePage({ params }: PageProps) {
   const config = TABLE_CONFIG_MAP[table];
   const recordsResult = await listRecords(table);
   const records = recordsResult.success ? recordsResult.data : [];
+  const totalCount = recordsResult.success ? recordsResult.totalCount : 0;
+  const listTruncated = recordsResult.success ? recordsResult.truncated : false;
   const labelsResult = await resolveForeignKeyLabels(table, records);
   const fkLabels = labelsResult.success ? labelsResult.data : {};
 
@@ -50,6 +52,8 @@ export default async function TablePage({ params }: PageProps) {
             config={config}
             initialRecords={records}
             initialFkLabels={fkLabels}
+            initialTotalCount={totalCount}
+            initialTruncated={listTruncated}
           />
         </div>
       </main>

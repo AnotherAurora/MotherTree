@@ -51,6 +51,10 @@ import {
   type TeamMaxHpResult,
 } from "@/lib/path-carver/team-max-hp";
 import {
+  SPECIAL_CAUSE_LEMURIAN_TAG_ID,
+  mergeLemurianSynergyTriggerCounts,
+} from "@/lib/path-carver/lemurian-synergy";
+import {
   buildTriggerCounts,
   triggerApplyMultiplier,
 } from "@/lib/path-carver/trigger-condition";
@@ -311,6 +315,26 @@ export function computeReviewTagTotals(
     earlyScalarOpts,
   );
   const triggerCounts = buildTriggerCounts(causeTotals);
+  const lemurianCount = Math.floor(
+    causeTotals.get(SPECIAL_CAUSE_LEMURIAN_TAG_ID) ?? 0,
+  );
+  const lemurianBreakdown = mergeLemurianSynergyTriggerCounts(
+    triggerCounts,
+    lemurianCount,
+  );
+  const lemurianSteps: ScalarMathStep[] =
+    lemurianBreakdown.tier > 0
+      ? [
+          {
+            kind: "special",
+            label: "Lemurian Synergy",
+            detail:
+              `count=${lemurianBreakdown.lemurianCount}` +
+              ` others=${lemurianBreakdown.others}` +
+              ` tier=${lemurianBreakdown.tier}`,
+          },
+        ]
+      : [];
   const applyWithTriggers: ManifestationApplyContext = {
     ...applyContext,
     triggerCounts,
@@ -451,6 +475,7 @@ export function computeReviewTagTotals(
     steps: [
       ...harmonySteps,
       ...keyflareSteps,
+      ...lemurianSteps,
       ...tentacleSteps,
       ...result.steps,
     ],

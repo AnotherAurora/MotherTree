@@ -38,6 +38,10 @@ Each dated folder contains:
 
 Exports include soft-deleted rows (`deleted_at` is not null).
 
+## Kit Reader packs
+
+Local Kit Reader writes working files under `sample-data/kit-reader/` (`*.kit.json`, `*.proposal.json`). Those are gitignored — see [docs/admin/kit-reader.md](../docs/admin/kit-reader.md).
+
 ## Git
 
 The `sample-data/dumps/` directory is listed in [`.gitignore`](../.gitignore) so SKeyDB-derived data is not committed to the repository. Only this README and the export script are tracked.

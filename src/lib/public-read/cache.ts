@@ -13,6 +13,10 @@ export function publicReadCacheKey(table: string, limit: number): string {
   return `${table}:${limit}`;
 }
 
+export function publicReadCacheKeyAll(table: string): string {
+  return `${table}:all`;
+}
+
 export function getPublicReadCacheEntry(
   key: string,
   nowMs = Date.now(),
