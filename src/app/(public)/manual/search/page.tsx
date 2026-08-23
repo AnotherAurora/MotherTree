@@ -354,6 +354,13 @@ export default function ManualSearchPage() {
                 set. For damage / heal / shield tags on Awakener results, the
                 burst-turn value is used.
               </dd>
+              <dd className={manualBodyClass}>
+                <strong className="font-medium text-[var(--mt-ink)]">
+                  Value breakdown:
+                </strong>{" "}
+                Hover over a result row on desktop (or tap on mobile) to see the
+                source contributing to that value.
+              </dd>
             </div>
           </dl>
         </section>
