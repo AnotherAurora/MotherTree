@@ -111,7 +111,7 @@ SKeyDB commit: {SKEYDB_COMMIT}
 2. Propose ATM + local rows for Path Carver (enlighten replace-vs-add;
    Soulforge kit-specific only). Resolve tagName via pack
    lexicon.flavorTagSynonyms; prefer .Fixed except Attacker.Active Damage
-   (rarely fixed — only Fixed Damage / Max HP when kit says so); never invent tags.
+   (rarely fixed — only Fixed Damage when kit says so); never invent tags.
 3. Never create ATMs for Gnostic Potential, Madness Omen, Dimensional Image,
    or Soulforge Astral Reign / CON·ATK·DEF% / first-Rouse Keyflare.
 4. Run the insert CLI to write pending rows with verified=false only.
@@ -211,7 +211,7 @@ Resolve SKeyDB kit wording / brace overlays to existing MotherTree `tag_name`s o
 
 1. Never invent `tag_name` — only names present in `lexicon.tags`.
 2. Prefer longest / most specific synonym key (case-insensitive).
-3. **`.Fixed` is the default** when MotherTree has both a parent and a `*.Fixed` (or Fixed child) for the same effect. Most in-game effects are fixed. Use non-Fixed only when kit text clearly means percentage / non-fixed (or explicitly says “increase gain” → `Support.Increase Gain.*`). **Exception:** do **not** apply Fixed-preferred to the `Attacker.Active Damage` tree — Active Damage is rarely fixed. Default “Deal DMG / Active Damage” → `Attacker.Active Damage` (or Strike child when typed); use `Attacker.Active Damage.Fixed Damage` / `.Max HP` only when kit text explicitly means Fixed / Max HP DMG.
+3. **`.Fixed` is the default** when MotherTree has both a parent and a `*.Fixed` (or Fixed child) for the same effect. Most in-game effects are fixed. Use non-Fixed only when kit text clearly means percentage / non-fixed (or explicitly says “increase gain” → `Support.Increase Gain.*`). **Exception:** do **not** apply Fixed-preferred to the `Attacker.Active Damage` tree — Active Damage is rarely fixed. Default “Deal DMG / Active Damage” → `Attacker.Active Damage` (or Strike child when typed); use `Attacker.Active Damage.Fixed Damage` only when kit text explicitly means Fixed / Max HP DMG.
 4. Ambiguous or unmapped flavor → proposal `status: needs_review` (or `unsupported` if ignore-list), never guess a new string.
 5. Stat wording that is a **dependency** (e.g. Aliemus Regen Level, Realm Mastery as scaling input) maps to `dependency_stat`, not a Support tag, when that is the ATM/local pattern.
 
@@ -269,7 +269,7 @@ Resolver fails closed if a Fixed child is missing from the live lexicon — fall
 | Active Damage / Deal DMG (damage base) | `Attacker.Active Damage` (not Fixed — exception) |
 | Strike (damage type) | `Attacker.Active Damage.Strike` |
 | Fixed DMG / Fixed Damage | `Attacker.Active Damage.Fixed Damage` (only when kit says Fixed) |
-| Max HP DMG | `Attacker.Active Damage.Fixed Damage.Max HP` |
+| Max HP DMG | `Attacker.Active Damage.Fixed Damage` |
 | Tentacle (count / have N) | `Attacker.Tentacle` |
 
 ### Contextual (review heuristics — not blind auto-map)

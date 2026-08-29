@@ -45,7 +45,7 @@ npx tsx --env-file=.env.local scripts/insert-kit-pending.ts sample-data/kit-read
 ```
 
 Appends by default; pass `--patch` to replace existing pending ATMs.
-5. **Compact report only:** Report ONLY (a) total count of inserted rows & locals, (b) any `needs_review` items with rationale, and (c) ignored items. Do **not** print tables, breakdown lists, or summaries of successfully inserted rows (the operator reviews rows directly in the Kit Reader UI at `/kit-reader`). Do **not** hand the user JSON to paste into admin. For minor row adjustments, guide the user to `/kit-reader`.
+5. **Compact report only:** Report ONLY (a) total count of inserted rows & locals, (b) any `needs_review` items with rationale, and (c) ignored items. Do **not** print tables, breakdown lists, or summaries of successfully inserted rows (the operator reviews rows directly in the Kit Reader UI at `/kit-reader`). Do **not** hand the user JSON to paste into admin. For minor row adjustments, guide the user to `/kit-reader`. For surgical pending edits after insert, use the **MotherTree Kit Reader Review** skill in a new chat.
 
 ## Metadata (mandatory)
 
@@ -161,7 +161,7 @@ When **ATM** `tagName` matches any prefix in `lexicon.aoeTagPrefixes` (includes 
 ## Tag resolution
 
 - Resolve via pack `lexicon.flavorTagSynonyms` (longest / most specific key, case-insensitive).
-- Prefer `*.Fixed` when both parent and Fixed exist — **except** the `Attacker.Active Damage` tree (rarely fixed). Default Deal DMG → `Attacker.Active Damage`; use Fixed / Max HP only when kit text says so.
+- Prefer `*.Fixed` when both parent and Fixed exist — **except** the `Attacker.Active Damage` tree (rarely fixed). Default Deal DMG → `Attacker.Active Damage`; use Fixed Damage only when kit text says Fixed / Max HP DMG.
 - Ambiguous / unmapped → `status: "needs_review"` (or `unsupported` for ignore-list). Never guess a new tag string.
 - Dependency wording (Aliemus Regen Level, etc.) → `dependencyStat`, not a Support tag, when that is the ATM/local pattern.
 - **Percent vs linear `dependencyStat`:** kit says **“every 1%”** of DR / Damage AMP / Crit Rate / etc. (see pack `lexicon.percentDependencyStats`) → `valueScalarPerPercentPointOfPercentDep(R)` (`R/10000`). Kit says **“every 1”** RM / level / flat unit → `valueScalarPerUnitLinearDep(R)` (`R/100`). **Do not** copy Casiah RM `0.002` onto `death_resist`. Use `previewAtmEffectiveScalar` to sanity-check (e.g. Cinders: 33.6% DR → +1.68% Shield at `0.000005`).

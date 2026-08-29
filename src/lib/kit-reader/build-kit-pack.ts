@@ -29,7 +29,7 @@ import {
   type KitDescriptionArg,
   type ResolvedArgMetaEntry,
 } from "./description-args";
-import { kitPackAbsolutePath, kitPackRelativePath } from "./paths";
+import { kitPackAbsolutePath, kitPackRelativePath, kitProposalRelativePath } from "./paths";
 
 export type { ResolvedArgMetaEntry } from "./description-args";
 
@@ -42,7 +42,8 @@ export type MotherTreeSourceType =
   | "command card"
   | "exalt"
   | "rouse"
-  | "talent";
+  | "talent"
+  | "buff";
 
 type SkillUpgrade = {
   id?: string;
@@ -582,6 +583,56 @@ function buildEnlightenPackEntry(
       },
       expanded.text,
     ),
+  };
+}
+
+export async function resolveAwakenerKitSlug(
+  supabase: SupabaseClient<Database>,
+  motherTreeAwakenerId: number,
+): Promise<{
+  awakenerName: string;
+  slug: string;
+  proposalPath: string;
+  packPath: string;
+}> {
+  const { data: awakener, error: awakenerError } = await supabase
+    .from("awakener")
+    .select("id, name")
+    .eq("id", motherTreeAwakenerId)
+    .is("deleted_at", null)
+    .maybeSingle();
+
+  if (awakenerError) {
+    throw new Error(`Failed to load awakener: ${awakenerError.message}`);
+  }
+  if (!awakener) {
+    throw new Error(`Awakener id ${motherTreeAwakenerId} not found`);
+  }
+
+  if (!awakener.name) {
+    throw new Error(`Awakener id ${motherTreeAwakenerId} has no name`);
+  }
+
+  const catalog = await fetchJson<CatalogFile>(
+    `${RAW_BASE}/src/data/public-v3/catalogs/awakeners.json`,
+  );
+  if (!catalog) throw new Error("Failed to load SKeyDB awakeners catalog");
+
+  const catalogAwakener = catalog.records.find(
+    (row) => row.name === awakener.name,
+  );
+  if (!catalogAwakener) {
+    throw new Error(
+      `No SKeyDB catalog awakener matching name "${awakener.name}"`,
+    );
+  }
+
+  const slug = catalogAwakener.route.slug;
+  return {
+    awakenerName: awakener.name,
+    slug,
+    proposalPath: kitProposalRelativePath(slug),
+    packPath: kitPackRelativePath(slug),
   };
 }
 

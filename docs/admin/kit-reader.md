@@ -17,10 +17,14 @@ UI: `/kit-reader` (sidebar Tools). Export writes the repo file `sample-data/kit-
 2. **Export kit pack & fill prompt** → writes `sample-data/kit-reader/{slug}.kit.json`.
 3. **Copy Cursor prompt** → paste into Cursor Agent mode. The generated prompt instructs the agent to read only that awakener's pack and avoid reading other proposal files to conserve token context.
 4. Agent proposes + runs insert CLI (`verified=false` only) and reports only inserted counts, `needs_review` items, and ignored items (omits tables of inserted rows to save tokens). Never write ad-hoc patch scripts (`scripts/apply-*.ts`); use `insert-kit-pending.ts --patch`/`--append` or the UI.
-5. Back in Kit Reader: **Edit** pending rows as needed → **Verify** (or soft-delete). The Awakener Manifestations table remains available for broader CRUD.
+5. Back in Kit Reader:
+   - **Simple tweaks:** use the inline editable cells or **Edit** dialog directly in `/kit-reader`.
+   - **Surgical edits / row copy:** click **Copy agent prompt** on a row, or select multiple rows and click **Copy review prompt (N selected)**, or use **Fill review prompt** for a blank template. Paste this into a **NEW Agent chat** (using the `kit-reader-review` skill) to keep context small and token-efficient.
+   - **Verify:** click **Verify** on individual rows or **Verify all** once verified.
 
 ```text
-Export → Copy prompt → Cursor Agent → insert-kit-pending.ts → pending Edit / Verify
+Initial Read:  Export → Copy prompt → Agent insert → Verify in UI
+Review Edits:  Row/Multi Copy prompt → NEW Agent chat (surgical) → compact report
 ```
 
 ## Insert CLI

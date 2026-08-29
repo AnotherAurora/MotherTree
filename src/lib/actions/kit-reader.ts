@@ -7,6 +7,7 @@ import {
 } from "@/lib/admin-runtime";
 import {
   buildKitPackForAwakener,
+  resolveAwakenerKitSlug,
   writeKitPackToSampleData,
 } from "@/lib/kit-reader/build-kit-pack";
 import { buildKitReaderCursorPrompt } from "@/lib/kit-reader/cursor-prompt";
@@ -256,6 +257,34 @@ export async function listPendingAtmsForAwakener(
   awakenerId: number,
 ): Promise<ActionResult<PendingAtmRow[]>> {
   return listAtmsForAwakener(awakenerId, "pending");
+}
+
+export async function resolveKitReaderSlug(
+  awakenerId: number,
+): Promise<
+  ActionResult<{
+    awakenerName: string;
+    slug: string;
+    proposalPath: string;
+    packPath: string;
+  }>
+> {
+  if (!isAdminRuntimeEnabled()) return adminUnavailableResult();
+
+  try {
+    const supabase = createAdminClient();
+    const result = await resolveAwakenerKitSlug(supabase, awakenerId);
+    return {
+      success: true,
+      data: result,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : "Failed to resolve awakener slug",
+    };
+  }
 }
 
 export async function exportKitPackAndPrompt(

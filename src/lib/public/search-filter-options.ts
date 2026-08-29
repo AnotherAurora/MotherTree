@@ -239,7 +239,7 @@ export function buildSearchFilterOptions(
     targetType: ENUM_VALUES.target_type,
     dependencyStat: ENUM_VALUES.all_stats,
     buffRestriction: ENUM_VALUES.source_type.filter(
-      (v) => v !== "rouse" && v !== "talent",
+      (v) => v !== "rouse" && v !== "talent" && v !== "buff",
     ),
     from: SEARCH_FROM_OPTIONS,
   };

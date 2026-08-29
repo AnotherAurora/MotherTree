@@ -82,7 +82,7 @@ If a gate fails, the row is **not applied** (Review Tags shows Applied = no). It
 | `required_enlightenment` | Admin enters **E0 / E1 / E2 / E3 / OE / AA** (stored as `0 / 1 / 2 / 3 / 7 / 15`, same breakpoints as Search Awakener Enlightenment). Path Carver load/resolve and Search gate with `required_enlightenment <=` assumed enlightenment; Review Tags apply path does not currently gate on it the same way as realm. |
 | `trigger_condition` | FK to a **When.\*** tag. Null = always eligible on the null-trigger pass. Set = applied only after Cause→When counts, scaled ×N times. |
 | `target_type` | **`self`:** this Support/Defender-style contribution is scoped to the owner (and Attacker.\* still needs damage-dealer). Used for interaction self-scoping when this row is a **modifier**. |
-| `source_type` | Leaf type (`command card` / `exalt` / `rouse` / `talent`). Used as **subject context** when this ATM is the interaction subject so `buff_target_type_restriction` (on TDI or modifier manifestations) can match. |
+| `source_type` | Leaf type (`command card` / `exalt` / `rouse` / `talent` / `buff`). Used as **subject context** when this ATM is the interaction subject so `buff_target_type_restriction` (on TDI or modifier manifestations) can match. `buff` is admin-assigned only (not Kit Reader auto-mapped). |
 | `buff_target_type_restriction` | Gates modifier presence during interaction resolution against the subject's `source_type` (`leafContext`). When set (e.g. `exalt`), this buff modifier only applies to subjects with matching `source_type`. |
 | Tag name `Attacker.*` | Applied only if this awakener is marked **damage dealer** on the desire build (any `target_type`). |
 

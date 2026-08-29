@@ -5,6 +5,7 @@ import {
   ArrowDown,
   ArrowUp,
   ArrowUpDown,
+  Copy,
   Loader2,
   Pencil,
   Plus,
@@ -31,11 +32,13 @@ import {
 } from "@/components/ui/card";
 import {
   getForeignKeyOptions,
+  listCopyProviderGroupMembers,
   listRecords,
   permanentDeleteRecord,
   resolveForeignKeyLabels,
   restoreRecord,
   softDeleteRecord,
+  type CopyProviderGroupMemberInput,
   type ForeignKeyOption,
 } from "@/lib/actions/crud";
 import type {
@@ -174,6 +177,11 @@ export function TableManager({
   const [editingRecord, setEditingRecord] = React.useState<
     Record<string, unknown> | null
   >(null);
+  const [initialCloneMembers, setInitialCloneMembers] = React.useState<
+    CopyProviderGroupMemberInput[] | undefined
+  >(undefined);
+  const [cloneSourceId, setCloneSourceId] = React.useState<number | null>(null);
+  const [cloningId, setCloningId] = React.useState<number | null>(null);
   const [deletingId, setDeletingId] = React.useState<number | null>(null);
   const [restoringId, setRestoringId] = React.useState<number | null>(null);
   const [sort, setSort] = React.useState<ListSortState>(() =>
@@ -351,15 +359,59 @@ export function TableManager({
     }
   }
 
+  function clearCloneState() {
+    setInitialCloneMembers(undefined);
+    setCloneSourceId(null);
+  }
+
   function openCreate() {
     setEditingRecord(null);
+    clearCloneState();
     setDialogOpen(true);
   }
 
   function openEdit(record: Record<string, unknown>) {
     setEditingCell(null);
     setEditingRecord(record);
+    clearCloneState();
     setDialogOpen(true);
+  }
+
+  async function openClone(record: Record<string, unknown>) {
+    setEditingCell(null);
+    const groupId = Number(record.id);
+    setCloningId(groupId);
+
+    const result = await listCopyProviderGroupMembers(groupId);
+    setCloningId(null);
+
+    if (!result.success) {
+      toast.error(result.error);
+      return;
+    }
+
+    const cloneRecord = { ...record };
+    delete cloneRecord.id;
+    if (typeof cloneRecord.name === "string") {
+      cloneRecord.name = `${cloneRecord.name} (copy)`;
+    }
+
+    setEditingRecord(cloneRecord);
+    setInitialCloneMembers(
+      result.data.map((row) => ({
+        tag_id: row.tag_id == null ? null : Number(row.tag_id),
+      })),
+    );
+    setCloneSourceId(groupId);
+    setDialogOpen(true);
+  }
+
+  function handleCopyProviderGroupDialogOpenChange(open: boolean) {
+    setDialogOpen(open);
+    if (!open) {
+      setEditingRecord(null);
+      clearCloneState();
+    }
   }
 
   function patchFkLabelsFromRecordChange(
@@ -734,6 +786,22 @@ export function TableManager({
                                   <Pencil className="h-3.5 w-3.5" />
                                   Edit
                                 </Button>
+                                {config.name === "copy_provider_group" && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    disabled={cloningId === Number(record.id)}
+                                    onClick={() => void openClone(record)}
+                                    title="Duplicate as a new copy provider group"
+                                  >
+                                    {cloningId === Number(record.id) ? (
+                                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                    ) : (
+                                      <Copy className="h-3.5 w-3.5" />
+                                    )}
+                                    Clone
+                                  </Button>
+                                )}
                                 <Button
                                   variant="destructive"
                                   size="sm"
@@ -773,8 +841,10 @@ export function TableManager({
         <CopyProviderGroupFormDialog
           config={config}
           open={dialogOpen}
-          onOpenChange={setDialogOpen}
+          onOpenChange={handleCopyProviderGroupDialogOpenChange}
           record={editingRecord}
+          initialMembers={initialCloneMembers}
+          cloneSourceId={cloneSourceId}
           onSuccess={refresh}
         />
       ) : config.name === "desire" ? (

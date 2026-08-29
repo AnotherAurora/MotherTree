@@ -23,6 +23,7 @@ const sourceType = z.enum([
   "exalt",
   "rouse",
   "talent",
+  "buff",
 ]);
 
 const targetType = z.enum(["self", "single", "aoe"]);

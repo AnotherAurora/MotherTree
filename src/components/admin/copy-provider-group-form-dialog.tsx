@@ -29,6 +29,8 @@ type CopyProviderGroupFormDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   record?: Record<string, unknown> | null;
+  initialMembers?: CopyProviderGroupMemberInput[];
+  cloneSourceId?: number | null;
   onSuccess: () => void;
 };
 
@@ -67,6 +69,8 @@ export function CopyProviderGroupFormDialog({
   open,
   onOpenChange,
   record,
+  initialMembers,
+  cloneSourceId = null,
   onSuccess,
 }: CopyProviderGroupFormDialogProps) {
   const isEditing = Boolean(record?.id != null);
@@ -85,7 +89,9 @@ export function CopyProviderGroupFormDialog({
   const formSessionKey = open
     ? isEditing
       ? `edit:${String(record?.id ?? "")}`
-      : "create"
+      : cloneSourceId != null
+        ? `clone:${cloneSourceId}`
+        : "create"
     : "closed";
 
   React.useEffect(() => {
@@ -93,7 +99,14 @@ export function CopyProviderGroupFormDialog({
 
     setCreateMore(false);
     setValues(getInitialValues(config, record));
-    setMembers([]);
+    setMembers(
+      !isEditing && initialMembers
+        ? initialMembers.map((member) => ({
+            clientKey: crypto.randomUUID(),
+            tag_id: member.tag_id == null ? null : Number(member.tag_id),
+          }))
+        : [],
+    );
 
     const groupFkFields = getFormFields(config).filter(
       (field) => field.type === "foreignKey" && field.foreignKey,

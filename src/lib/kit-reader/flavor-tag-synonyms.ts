@@ -132,7 +132,7 @@ export const FLAVOR_TAG_SYNONYMS: readonly FlavorTagSynonym[] = [
   },
   {
     flavor: "Max HP DMG",
-    tagName: "Attacker.Active Damage.Fixed Damage.Max HP",
+    tagName: "Attacker.Active Damage.Fixed Damage",
     skipFixedPrefer: true,
   },
   { flavor: "Tentacle", tagName: "Attacker.Tentacle" },
