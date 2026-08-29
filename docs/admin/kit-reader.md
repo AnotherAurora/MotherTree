@@ -14,11 +14,10 @@ UI: `/kit-reader` (sidebar Tools). Export writes the repo file `sample-data/kit-
 ## Operator flow
 
 1. Open **Kit Reader**, pick **one** awakener.
-2. If that awakener has pending ATMs: **Verify** or soft-delete until the queue is empty. Export / new batch is blocked while pending remain.
-3. **Export kit pack & fill prompt** → writes `sample-data/kit-reader/{slug}.kit.json`.
-4. **Copy Cursor prompt** → paste into Cursor Agent mode.
-5. Agent proposes + runs insert CLI (`verified=false` only). Never write ad-hoc patch scripts (`scripts/apply-*.ts`); use `insert-kit-pending.ts --patch`/`--append` or the UI.
-6. Back in Kit Reader: **Edit** pending rows as needed → **Verify** (or soft-delete). The Awakener Manifestations table remains available for broader CRUD.
+2. **Export kit pack & fill prompt** → writes `sample-data/kit-reader/{slug}.kit.json`.
+3. **Copy Cursor prompt** → paste into Cursor Agent mode. The generated prompt instructs the agent to read only that awakener's pack and avoid reading other proposal files to conserve token context.
+4. Agent proposes + runs insert CLI (`verified=false` only) and reports only inserted counts, `needs_review` items, and ignored items (omits tables of inserted rows to save tokens). Never write ad-hoc patch scripts (`scripts/apply-*.ts`); use `insert-kit-pending.ts --patch`/`--append` or the UI.
+5. Back in Kit Reader: **Edit** pending rows as needed → **Verify** (or soft-delete). The Awakener Manifestations table remains available for broader CRUD.
 
 ```text
 Export → Copy prompt → Cursor Agent → insert-kit-pending.ts → pending Edit / Verify
@@ -31,7 +30,7 @@ npx tsx --env-file=.env.local scripts/insert-kit-pending.ts sample-data/kit-read
 ```
 
 - Requires `ADMIN_ENABLED=true` (local).
-- Aborts if any alive pending ATM exists for that awakener unless `--append` / `--patch` is passed (or `KIT_READER_APPEND=true`). **No `--force`.**
+- Appends to pending records by default. Pass `--patch` to replace existing pending ATMs.
 - Inserts only `status: "ok"` rows (default if omitted); always `verified = false`.
 - Supports sparse proposals: default fields (`instanceCount: 1`, `baseCopies: 1`, `locals: []`, `status: "ok"`, `dependencyStat: null`, etc.) and `sourceQuote` can be omitted to minimize token overhead.
 - Two-pass for `replacesClientKey` → `replaces_manifestation_id`, then nested locals.
@@ -98,7 +97,12 @@ Aurita examples: Gland Division → `0 Cost Active Damage` / `0 Cost Active Dama
 
 ## Enjoy → unique_scaling
 
-When kit text uses **enjoy / enjoys / enjoying**, scale the **subject** ATM via a **local** (`mode: unique_scaling`), not a separate Support ATM for the modifier tag. Default op is `multiply_one_plus`, `targetType: self`. Modifier tag is the **root**, not `.Fixed`.
+When kit text uses **enjoy / enjoys / enjoying**, scale the **subject** ATM via a **local** (`mode: unique_scaling`), not a separate Support ATM for the modifier tag. Modifier tag is the **root**, not `.Fixed`.
+
+**`mathOperation` selection**:
+- When overriding an additive default interaction (e.g. `Support.STR Up`, `Support.Unique STR Up`, `Support.Strike Damage Up`, `Defender.Alert`, `Attacker.Counter`, `Support.Fixed Heal Increase`), `mathOperation` **must be `add_scaled`**, matching the default interaction.
+- Tentacle DMG enjoy (`Support.Tentacle Damage Up`, `Support.Unique Tentacle Damage Up`) uses `add_scaled`.
+- Multiplicative modifiers without an additive default interaction (e.g. `Support.Base Damage`, `Support.Crit Damage`, `Support.Damage AMP`, `Support.Final Damage`) use `multiply_one_plus`.
 
 **Tentacle DMG:** when enjoy is followed in the same clause by Tentacle DMG / Tentacle Damage, attach **two** locals with identical fields except `modifierTagName`. Unique TDU is a sibling of TDU, not a prefix child.
 
@@ -113,7 +117,7 @@ Example (Caecus): *"Deal DMG, enjoying a 50% Tentacle DMG bonus"* → parent `At
 | `targetType` | `self` | `self` |
 | `layer` | `add` | `add` |
 
-`"24"` Aequor *"enjoys a 75% Tentacle DMG bonus"* → same pair at `0.75`. Counter / STR enjoy stay a single unique_scaling.
+`"24"` Aequor *"enjoys a 75% Tentacle DMG bonus"* → same pair at `0.75`. Kathigu-Ra Solarflare *"enjoys a 300% STR bonus"* → single unique_scaling with `modifierTagName: "Support.STR Up"`, `mathOperation: "add_scaled"`, `valueScalar: 3`.
 
 - Pack layers with `hasEnjoyClause` / `hasEnjoyTentacleDmgClause` flag text to inspect.
 - Flat grants (“gain Shield”, “+STR”) → ATM on that tag, not enjoy local.

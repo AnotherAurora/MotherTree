@@ -39,8 +39,11 @@ export {
   LOCAL_INTERACTION_COLUMN_MISMATCH_HINT,
   UNIQUE_SCALING_NON_SELF_TARGET_TYPE_HINT,
   UNIQUE_SCALING_TAG_AND_DEP_HINT,
+  findMatchingDefaultInteraction,
+  getUniqueScalingOpMismatchHint,
   hasLocalInteractionColumnMismatch,
   hasUniqueScalingNonSelfTargetType,
+  hasUniqueScalingOpMismatch,
   hasUniqueScalingTagAndDepHint,
   isBaseStatUniqueScaling,
 } from "@/lib/admin-local-interaction";

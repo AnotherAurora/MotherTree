@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isAddScaledUniqueScalingModifier } from "./proposal-heuristics";
 
 const allStats = z.enum([
   "con",
@@ -65,6 +66,17 @@ export const kitLocalProposalSchema = z
           code: z.ZodIssueCode.custom,
           message: "unique_scaling: need modifierTagName or dependencyStat",
           path: ["dependencyStat"],
+        });
+      }
+      if (
+        row.modifierTagName != null &&
+        isAddScaledUniqueScalingModifier(row.modifierTagName) &&
+        row.mathOperation === "multiply_one_plus"
+      ) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `unique_scaling: modifier "${row.modifierTagName}" is an additive modifier and must use mathOperation "add_scaled", not "multiply_one_plus"`,
+          path: ["mathOperation"],
         });
       }
     }

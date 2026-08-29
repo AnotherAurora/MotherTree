@@ -1,12 +1,11 @@
 ---
-description: Always run TypeScript typecheck before completing tasks
-globs: *
-alwaysApply: true
+description: Run TypeScript typecheck and verify database schema
+alwaysApply: false
 ---
 
-# Typecheck and Schema Verification Rule
+# Typecheck and Schema Verification
 
-Before completing any task, replying that work is finished, or concluding your turn after modifying code:
+When this rule is referenced (`@typecheck-verification`) or when the user explicitly asks to run typecheck:
 
 1. **Run Typecheck**:
    Execute `npm run typecheck` (or `npx tsc --noEmit`) to verify that all TypeScript files, components, server actions, and scripts compile without type errors.

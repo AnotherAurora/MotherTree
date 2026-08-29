@@ -4,8 +4,8 @@
  * Usage:
  *   npx tsx --env-file=.env.local scripts/insert-kit-pending.ts sample-data/kit-reader/{slug}.proposal.json
  *
- * Requires local ADMIN_ENABLED=true (not Vercel). Aborts if the awakener already
- * has alive pending ATMs. No --force.
+ * Requires local ADMIN_ENABLED=true (not Vercel). Inserts new pending ATMs
+ * (appends by default). Pass --patch to replace existing pending ATMs.
  */
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { readFileSync } from "node:fs";
@@ -27,6 +27,7 @@ import {
 import {
   defaultTargetTypeForTag,
   isAoeTagPrefix,
+  isAddScaledUniqueScalingModifier,
   DEVOUR_COPY_PROVIDER_GROUP_NAME,
   detectDevourClause,
   warnPercentDepValueScalarLooksLinear,
@@ -266,13 +267,23 @@ function resolveLocalRow(
     throw new Error(`Unknown targetTagName "${local.targetTagName}"`);
   }
 
+  let mathOperation = local.mathOperation;
+  if (
+    local.mode === "unique_scaling" &&
+    local.modifierTagName != null &&
+    isAddScaledUniqueScalingModifier(local.modifierTagName) &&
+    mathOperation === "multiply_one_plus"
+  ) {
+    mathOperation = "add_scaled";
+  }
+
   const row = {
     manifestation_id: manifestationId,
     mode: local.mode,
     modifier_tag_id: modifierTagId,
     target_tag_id: targetTagId,
     dependency_stat: local.dependencyStat,
-    math_operation: local.mathOperation,
+    math_operation: mathOperation,
     value_scalar: local.valueScalar,
     target_type: local.targetType,
     layer: local.layer,
@@ -348,11 +359,10 @@ async function main() {
     process.exit(1);
   }
 
-  const isAppendMode =
-    flags.has("--append") ||
-    flags.has("--upsert") ||
+  const isPatchMode =
     flags.has("--patch") ||
-    process.env.KIT_READER_APPEND === "true";
+    flags.has("--clean-pending") ||
+    flags.has("--replace-pending");
 
   const absolute = resolve(process.cwd(), proposalArg);
   const raw = JSON.parse(readFileSync(absolute, "utf8"));
@@ -368,11 +378,25 @@ async function main() {
   const awakener = await resolveAwakenerId(supabase, file);
 
   const pending = await countPending(supabase, awakener.id);
-  if (pending > 0 && !isAppendMode) {
-    console.error(
-      `Abort: awakener ${awakener.name} (id=${awakener.id}) has ${pending} pending ATM(s). Verify or soft-delete them before a new Kit Reader batch. No --force. Pass --append / --patch (or set KIT_READER_APPEND=true) to add/patch rows in an existing pending batch.`,
+  if (pending > 0 && !isPatchMode) {
+    console.log(
+      `Awakener ${awakener.name} (id=${awakener.id}) currently has ${pending} pending ATM(s). Appending new proposal rows.`,
     );
-    process.exit(1);
+  }
+
+  if (isPatchMode && pending > 0) {
+    const { error: delError } = await supabase
+      .from("awakener_tag_manifestation")
+      .update({ deleted_at: nowIso(), updated_at: nowIso() } as never)
+      .eq("awakener_id", awakener.id)
+      .eq("verified", false)
+      .is("deleted_at", null);
+    if (delError) {
+      throw new Error(`Failed to clean existing pending ATMs: ${delError.message}`);
+    }
+    console.log(
+      `Soft-deleted ${pending} existing pending ATM(s) for ${awakener.name} (--patch mode).`,
+    );
   }
 
   const maps = await loadNameMaps(supabase);

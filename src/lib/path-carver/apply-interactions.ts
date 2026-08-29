@@ -1118,7 +1118,11 @@ function hasMatchingDefaultForUniqueScaling(
 function baseStatUniqueScalingModifierValue(
   awakener: Awakener | null,
   dependencyStat: NonNullable<AwakenerLocalManifestationInteraction["dependencyStat"]>,
+  teamMaxHp?: number | null,
 ): number {
+  if (dependencyStat === "team_max_hp") {
+    return teamMaxHp ?? 0;
+  }
   const raw =
     awakener != null
       ? (awakenerStatForDependency(awakener, dependencyStat) ?? 0)
@@ -1937,6 +1941,7 @@ function applyUniqueScalingInvents(
           modValue = baseStatUniqueScalingModifierValue(
             ownerAwakener,
             local.dependencyStat,
+            teamMaxHp,
           );
         }
 
@@ -1976,6 +1981,7 @@ function applyUniqueScalingInvents(
         const modValue = baseStatUniqueScalingModifierValue(
           ownerAwakener,
           local.dependencyStat,
+          teamMaxHp,
         );
         const factor = local.valueScalar ?? 1;
         const op = local.mathOperation ?? "multiply_one_plus";

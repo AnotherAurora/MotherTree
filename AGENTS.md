@@ -6,10 +6,9 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 # Verification Requirements
 
-Before completing any task or concluding a turn where TypeScript code, database types, or scripts were modified:
-1. Always run `npm run typecheck` (`tsc --noEmit`).
-2. Fix any type errors immediately.
-3. If database schema or migrations were touched, ensure `src/lib/database.types.generated.ts` is in sync.
+- Run `npm run typecheck` (`tsc --noEmit`) when explicitly requested by the user, when `@typecheck-verification` is invoked, or when verifying database schema synchronization.
+- If typecheck is run and reports errors, fix them promptly.
+- If database schema or migrations were touched, ensure `src/lib/database.types.generated.ts` is in sync.
 
 # Script & Database Modification Rules
 

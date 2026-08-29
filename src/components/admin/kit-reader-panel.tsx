@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { AwakenerKitNotes } from "@/components/admin/awakener-kit-notes";
+import { KitReaderAwakenerCombobox } from "@/components/admin/kit-reader-awakener-combobox";
 import {
   EditableCell,
   formatCellDisplayValue,
@@ -312,12 +313,15 @@ function formatStaticPendingValue(
 export function KitReaderPanel({
   initialAwakenerId,
   initialMode = "pending",
+  initialAwakeners = [],
 }: {
   initialAwakenerId: number | null;
   initialMode?: KitReaderAtmMode;
+  initialAwakeners?: KitReaderAwakenerOption[];
 }) {
   const router = useRouter();
-  const [awakeners, setAwakeners] = useState<KitReaderAwakenerOption[]>([]);
+  const [awakeners, setAwakeners] =
+    useState<KitReaderAwakenerOption[]>(initialAwakeners);
   const [selectedId, setSelectedId] = useState<number | null>(initialAwakenerId);
   const [mode, setMode] = useState<KitReaderAtmMode>(initialMode);
   const [filters, setFilters] = useState<KitReaderFiltersState>(
@@ -495,8 +499,6 @@ export function KitReaderPanel({
       cancelled = true;
     };
   }, []);
-
-  const hasPending = (selected?.pendingCount ?? 0) > 0;
 
   const onExport = () => {
     if (selectedId == null) return;
@@ -719,22 +721,13 @@ export function KitReaderPanel({
 
       {/* Awakener Selection */}
       <section className="space-y-3">
-        <Label htmlFor="kit-reader-awakener">Awakener</Label>
-        <select
-          id="kit-reader-awakener"
-          className="w-full max-w-md rounded-md border border-border bg-white px-3 py-2 text-sm text-zinc-900"
-          value={selectedId ?? ""}
-          onChange={(event) => {
-            const value = Number(event.target.value);
-            if (Number.isFinite(value)) selectAwakener(value);
-          }}
-        >
-          {awakeners.map((row) => (
-            <option key={row.id} value={row.id}>
-              {row.name} ({row.pendingCount} pending / {row.verifiedCount} verified)
-            </option>
-          ))}
-        </select>
+        <Label>Awakener</Label>
+        <KitReaderAwakenerCombobox
+          value={selectedId}
+          onChange={selectAwakener}
+          awakeners={awakeners}
+          disabled={rowsLoading || busy || awakeners.length === 0}
+        />
       </section>
 
       {/* Awakener Notes Scratchpad */}
@@ -848,13 +841,6 @@ export function KitReaderPanel({
       {/* Pending Mode Ingestion Tools */}
       {mode === "pending" && (
         <div className="space-y-4">
-          {hasPending && (
-            <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-              Pending ATMs must be verified or soft-deleted before exporting a new kit pack
-              for this awakener.
-            </div>
-          )}
-
           <form
             autoComplete="off"
             className="flex flex-wrap gap-3"
@@ -862,7 +848,7 @@ export function KitReaderPanel({
           >
             <Button
               type="button"
-              disabled={busy || selectedId == null || hasPending}
+              disabled={busy || selectedId == null}
               onClick={onExport}
             >
               {busy ? (

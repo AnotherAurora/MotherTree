@@ -239,10 +239,12 @@ Let:
 
 | `math_operation` | Result on target |
 | --- | --- |
-| `multiply_one_plus` (**default**) | Non-%: `before × (1 + modifierValue × factor)` · %-tag: `(1+before)×(1+modifierValue×factor)−1` |
-| `add_scaled` | `before + modifierValue × factor` |
+| `multiply_one_plus` (**default for general mod**) | Non-%: `before × (1 + modifierValue × factor)` · %-tag: `(1+before)×(1+modifierValue×factor)−1` |
+| `add_scaled` (**default for additive mod**) | `before + modifierValue × factor` |
 | `multiply` | Non-%: `before × (modifierValue × factor)` · %-tag: `(1+before)×(modifierValue×factor)−1` |
 | `presence_multiply` | If modifier present: `before × factor` (once per modifier/target) |
+
+**`math_operation` matching & soft warning:** When overriding a `tag_default_interaction` (e.g. `Support.STR Up` or `Support.Strike Damage Up`), `math_operation` should generally match the default interaction's operation (`add_scaled`). The Admin form automatically pre-fills matching operations from `tag_default_interaction` and displays a soft warning if a `unique_scaling` local changes `math_operation` away from the matching default interaction.
 
 Kit Reader: kit text with **enjoy / enjoys / enjoying** usually means `unique_scaling` on the subject ATM (modifier tag root, not `.Fixed`). Enjoy followed by **Tentacle DMG** attaches **two** `add_scaled` locals (`Support.Tentacle Damage Up` and `Support.Unique Tentacle Damage Up`). See [`docs/admin/kit-reader.md`](kit-reader.md).
 

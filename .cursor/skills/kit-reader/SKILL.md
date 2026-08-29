@@ -16,7 +16,8 @@ description: >-
 - Write path = **validated insert CLI only**. Never invent an admin JSON import UI.
 - Never write or generate ad-hoc one-time patch/update scripts (`scripts/apply-*.ts`, `scripts/patch-*.ts`). All updates must be made via proposal JSON with `insert-kit-pending.ts --patch` / `--append`, or via the Kit Reader UI (`/kit-reader`).
 - Every inserted ATM must be **`verified = false`**. The CLI forces this; never set verified true.
-- One awakener per run. Clear pending (verify or soft-delete) before a new batch — CLI aborts if pending exist; **no `--force`**.
+- One awakener per proposal file. Inserts append to pending ATMs by default (pass `--patch` to replace existing pending ATMs).
+- **Isolated execution:** Read **only** the target awakener's `{slug}.kit.json` and the documentation files below. Do **not** read or search other awakener `.proposal.json` or `.kit.json` files in `sample-data/kit-reader/` as reference examples. All schema definitions and sparse rules are in `src/lib/kit-reader/proposal-schema.ts` and this skill.
 - Locals inherit pending/live from parent ATM (no separate verified column).
 - Prefer existing MotherTree tags only (`lexicon.tags`). Never invent `tag_name`s.
 
@@ -43,8 +44,8 @@ description: >-
 npx tsx --env-file=.env.local scripts/insert-kit-pending.ts sample-data/kit-reader/{slug}.proposal.json
 ```
 
-Pass `--append` or `--patch` if appending/updating rows in an existing pending batch.
-5. Summarize inserted vs skipped (`needs_review`) vs failed. Do **not** hand the user JSON to paste into admin. For minor row adjustments, guide the user to the Kit Reader UI (`/kit-reader`).
+Appends by default; pass `--patch` to replace existing pending ATMs.
+5. **Compact report only:** Report ONLY (a) total count of inserted rows & locals, (b) any `needs_review` items with rationale, and (c) ignored items. Do **not** print tables, breakdown lists, or summaries of successfully inserted rows (the operator reviews rows directly in the Kit Reader UI at `/kit-reader`). Do **not** hand the user JSON to paste into admin. For minor row adjustments, guide the user to `/kit-reader`.
 
 ## Metadata (mandatory)
 
@@ -89,13 +90,17 @@ When kit text has **enjoy / enjoys / enjoying** (`hasEnjoyClause: true` on pack 
 - Do **not** create a separate Support ATM for the modifier tag.
 - `mode: unique_scaling`, `modifierTagName` = modifier **root** (not `.Fixed`).
 - `valueScalar` = percent as factor (`50%` → `0.5`; use `parseEnjoyPercentFactor` or manual parse).
-- Default `mathOperation: multiply_one_plus`, `targetType: self`.
+- **`mathOperation` selection**:
+  - When overriding an additive default interaction (e.g. `Support.STR Up`, `Support.Unique STR Up`, `Support.Strike Damage Up`, `Defender.Alert`, `Attacker.Counter`, `Support.Fixed Heal Increase`), `mathOperation` **must be `add_scaled`**, matching the default interaction.
+  - Tentacle DMG enjoy (`Support.Tentacle Damage Up`, `Support.Unique Tentacle Damage Up`) uses `add_scaled`.
+  - Multiplicative modifiers without an additive default interaction (e.g. `Support.Base Damage`, `Support.Crit Damage`, `Support.Damage AMP`, `Support.Final Damage`) use `multiply_one_plus`.
+- `targetType: self`.
 - **Not** aftereffect; flat grants stay as ATMs.
 - Ambiguous → `needs_review`.
 
 **Tentacle DMG exception** (`hasEnjoyTentacleDmgClause` / `detectEnjoyTentacleDmgClause`): when enjoy is followed in the same clause by **Tentacle DMG** or **Tentacle Damage**, attach **two** locals with the **same** fields except `modifierTagName` — `Support.Tentacle Damage Up` **and** `Support.Unique Tentacle Damage Up` (Unique is a sibling, not a TDU prefix child). Both: `add_scaled`, `valueScalar` from the percent, `targetType: self`, `layer: add`. Use pack `lexicon.enjoyTentacleDmgModifierTagNames`. Do **not** dual-tag Counter / STR enjoy.
 
-Examples: Caecus *"enjoying a 50% Tentacle DMG bonus"* → both TDU locals `add_scaled` `0.5`; `"24"` Aequor *"enjoys a 75% Tentacle DMG bonus"* → same pair at `0.75`; other `"24"` Rouse realm lines stay a single unique_scaling.
+Examples: Caecus *"enjoying a 50% Tentacle DMG bonus"* → both TDU locals `add_scaled` `0.5`; `"24"` Aequor *"enjoys a 75% Tentacle DMG bonus"* → same pair at `0.75`; Kathigu-Ra Solarflare *"enjoys a 300% STR bonus"* → single unique_scaling with `modifierTagName: "Support.STR Up"`, `mathOperation: "add_scaled"`, `valueScalar: 3`.
 
 ## Direct modifier → local direct_modifier
 
