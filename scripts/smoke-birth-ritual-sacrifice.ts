@@ -84,6 +84,8 @@ function makeManifestation(
     valueScalar: partial.valueScalar ?? 0,
     instanceCount: partial.instanceCount ?? 1,
     baseCopies: partial.baseCopies ?? 1,
+    copyProviderGroupId: null,
+    copyProviderGroupName: null,
     copyProviderTagIds: partial.copyProviderTagIds ?? [],
     dependencyStat: partial.dependencyStat ?? null,
     sourceType: partial.sourceType ?? null,
@@ -126,10 +128,9 @@ function makeInteraction(
     defaultFactor: partial.defaultFactor ?? 1,
     createsBase: partial.createsBase ?? false,
     amplifiesSubject: partial.amplifiesSubject ?? true,
-    exclusionSuffixTagId: partial.exclusionSuffixTagId ?? null,
-    exclusionSuffixTagName: partial.exclusionSuffixTagName ?? null,
+    exclusionTagId: partial.exclusionTagId ?? null,
+    exclusionTagName: partial.exclusionTagName ?? null,
     buffTargetTypeRestriction: partial.buffTargetTypeRestriction ?? null,
-    layer: partial.layer ?? "add",
     ...partial,
   };
 }
