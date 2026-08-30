@@ -259,6 +259,14 @@ When kit text matches Lemurian team synergy (e.g. *“When there are 1/2/3 other
 
 Helpers: [`proposal-heuristics.ts`](../../src/lib/kit-reader/proposal-heuristics.ts) (`detectLemurianSynergyClause`, `parseLemurianSynergyTiers`). Engine: [`lemurian-synergy.ts`](../../src/lib/path-carver/lemurian-synergy.ts).
 
+## Special.All Tentacle Attack
+
+Propose **`Special.All Tentacle Attack`** (tag **180**) for kit lines that grant extra tentacle attacks from the team Generate pool (e.g. Faros SF Tentacle, Murphy Exalt Tentacle). Do **not** use zero-base `Attacker.Tentacle` + Generate `unique_scaling` locals — the engine hop doubles Generate-sourced tentacle via `value_scalar` (typically `1`).
+
+- **`targetType`:** usually `single` when the kit line is self-scoped; inherited onto hop-added `Attacker.Tentacle` synthetics
+- **`sourceType`:** match kit slot (`talent`, `exalt`, etc.)
+- Engine: [`all-tentacle-attack.ts`](../../src/lib/path-carver/all-tentacle-attack.ts) hop **4f** (after deferred hops, before Tentacle TDU pool)
+
 ## Always-aoe tags (ATM only)
 
 When **ATM** `tagName` matches any prefix in pack `lexicon.aoeTagPrefixes` (including subtags), set ATM `targetType: "aoe"`. Insert CLI normalizes if Agent omits it. unique_scaling locals always use `targetType: "self"`.
@@ -274,6 +282,7 @@ Never ATM: Gnostic Potential, Madness Omen, Dimensional Image; Soulforge Astral 
 - On `awakener_tag_manifestation` only; locals follow parent.
 - Insert CLI → always `false`.
 - Manual admin creates / backfill → default `true`.
+- UI **Clone** preserves the source row's verified status.
 - Edits to verified rows stay verified.
 - Live Path Carver / simulator / public Search: `verified = true` (and anon RLS).
 

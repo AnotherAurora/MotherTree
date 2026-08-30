@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
+import { indexCopyProviderMembersByGroupId } from "@/lib/path-carver/copy-instances";
 import { REQUIRED_BASE_STAT_TAG_IDS } from "@/lib/path-carver/awakener-base-stats";
 import {
   applyManifestationReplacements,
@@ -532,8 +533,7 @@ async function loadCopyProviderMembersByGroupId(
   supabase: SupabaseClient<Database>,
   groupIds: number[],
 ): Promise<Map<number, number[]>> {
-  const membersByGroupId = new Map<number, number[]>();
-  if (groupIds.length === 0) return membersByGroupId;
+  if (groupIds.length === 0) return new Map();
 
   const { data, error } = await supabase
     .from("copy_provider_group_member")
@@ -543,18 +543,7 @@ async function loadCopyProviderMembersByGroupId(
 
   if (error) throw new Error(error.message);
 
-  for (const row of data ?? []) {
-    const groupId = row.group_id;
-    const tagId = row.tag_id;
-    if (groupId == null || tagId == null) continue;
-    const existing = membersByGroupId.get(groupId);
-    if (existing) {
-      existing.push(tagId);
-    } else {
-      membersByGroupId.set(groupId, [tagId]);
-    }
-  }
-  return membersByGroupId;
+  return indexCopyProviderMembersByGroupId(data ?? []);
 }
 
 export async function fetchTeamData(

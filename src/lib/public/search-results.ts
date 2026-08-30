@@ -78,6 +78,7 @@ export type SearchResultsInput = {
   covenants: PublicRow<"covenant">[];
   awakenerManifestations: PublicRow<"awakener_tag_manifestation">[];
   awakenerLocalInteractions: PublicRow<"awakener_local_manifestation_interaction">[];
+  copyProviderMembers?: PublicRow<"copy_provider_group_member">[];
   realmManifestations?: PublicRow<"realm_tag_manifestation">[];
   defaultInteractions?: PublicRow<"tag_default_interaction">[];
   wheelManifestations: PublicRow<"wheel_tag_manifestation">[];
@@ -354,6 +355,7 @@ export function buildSearchResults(
       defaultInteractions: input.defaultInteractions ?? [],
       awakenerManifestations: input.awakenerManifestations,
       awakenerLocalInteractions: input.awakenerLocalInteractions,
+      copyProviderMembers: input.copyProviderMembers ?? [],
     };
 
     // Phase 7: Attacker/Defender Values from solo-kit Review Tags totals.

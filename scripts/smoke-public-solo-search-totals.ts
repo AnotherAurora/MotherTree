@@ -263,6 +263,7 @@ const catalog = {
   defaultInteractions: [],
   awakenerManifestations: [aequorDamageAtm],
   awakenerLocalInteractions: [poisonAftereffect],
+  copyProviderMembers: [],
 };
 const aequorTotals = computeSoloAwakenerTotals(
   awakener24,
@@ -520,6 +521,7 @@ console.log("realm gimmick — RTM applied vs not");
 const gimmickCatalog = {
   ...catalog,
   realmManifestations: [aequorRealmRtm],
+  copyProviderMembers: [],
 };
 const aequorWithRtm = computeSoloAwakenerTotals(
   awakener24,
@@ -721,6 +723,115 @@ assert(
   healCaroWithRtm.metadata ===
     `Caro exalt crimson furnace +\n${REALM_GIMMICK_METADATA}`,
   `ATM notes + Realm gimmick stub only (got ${JSON.stringify(healCaroWithRtm.metadata)})`,
+);
+
+console.log("copy provider — hitCount via member rows");
+const COPY_PROVIDER_GROUP_ID = 1;
+const tagsWithProvider = [
+  ...tags,
+  {
+    id: 56,
+    tag_name: "Support.Create.Command Card",
+    layer: "add",
+    is_percent: false,
+    is_additive: true,
+    is_searchable: true,
+  },
+] as PublicRow<"tag">[];
+
+const copyProviderAwakener = {
+  ...otherAwakener,
+  id: 99,
+  name: "CopyProviderTest",
+} as PublicRow<"awakener">;
+
+const providerAtm = {
+  ...aequorDamageAtm,
+  id: 501,
+  awakener_id: 99,
+  tag_id: 56,
+  metadata: null,
+  value_scalar: 2,
+  instance_count: 1,
+  base_copies: 1,
+  required_realm: null,
+  copy_provider_group_id: null,
+  dependency_stat: null,
+} as PublicRow<"awakener_tag_manifestation">;
+
+const damageWithCopyGroupAtm = {
+  ...aequorDamageAtm,
+  id: 502,
+  awakener_id: 99,
+  tag_id: 1,
+  metadata: null,
+  value_scalar: 10,
+  instance_count: 3,
+  base_copies: 1,
+  required_realm: null,
+  dependency_stat: null,
+  copy_provider_group_id: COPY_PROVIDER_GROUP_ID,
+} as PublicRow<"awakener_tag_manifestation">;
+
+const copyProviderMember = {
+  id: 1,
+  group_id: COPY_PROVIDER_GROUP_ID,
+  tag_id: 56,
+} as PublicRow<"copy_provider_group_member">;
+
+const copyProviderCatalog = {
+  tags: tagsWithProvider,
+  realms,
+  realmManifestations: [],
+  defaultInteractions: [],
+  awakenerManifestations: [providerAtm, damageWithCopyGroupAtm],
+  awakenerLocalInteractions: [],
+  copyProviderMembers: [copyProviderMember],
+};
+
+const copyProviderTotals = computeSoloAwakenerTotals(
+  copyProviderAwakener,
+  AEQUOR_REALM_ID,
+  3,
+  copyProviderCatalog,
+);
+assert(
+  copyProviderTotals.totalsByTagId.get(1) === 90,
+  `Active Damage 10 × hitCount 9 = 90 (got ${copyProviderTotals.totalsByTagId.get(1)})`,
+);
+
+const copyProviderSearch = buildSearchResults({
+  filters: { ...filtersBase, tagId: 1, from: "awakener" },
+  tags: tagsWithProvider,
+  realms,
+  awakeners: [copyProviderAwakener],
+  awakenerManifestations: [providerAtm, damageWithCopyGroupAtm],
+  awakenerLocalInteractions: [],
+  copyProviderMembers: [copyProviderMember],
+  ...emptyGear,
+});
+const copyProviderRow = copyProviderSearch.rows.find(
+  (r) => r.id === `awakener-solo:99:1:${AEQUOR_REALM_ID}`,
+);
+assert(copyProviderRow, "copy provider solo Active Damage row");
+assert(
+  copyProviderRow.value === 90,
+  `Search solo value 90 (got ${copyProviderRow.value})`,
+);
+
+const noMembersCatalog = {
+  ...copyProviderCatalog,
+  copyProviderMembers: [],
+};
+const noMembersTotals = computeSoloAwakenerTotals(
+  copyProviderAwakener,
+  AEQUOR_REALM_ID,
+  3,
+  noMembersCatalog,
+);
+assert(
+  noMembersTotals.totalsByTagId.get(1) === 30,
+  `without members: 10 × hitCount 3 = 30 (got ${noMembersTotals.totalsByTagId.get(1)})`,
 );
 
 console.log("smoke-public-solo-search-totals: ok");

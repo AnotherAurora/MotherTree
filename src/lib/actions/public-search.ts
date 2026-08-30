@@ -73,6 +73,8 @@ export async function runPublicSearch(
     [];
   const emptyRtm: PublicRow<"realm_tag_manifestation">[] = [];
   const emptyTdi: PublicRow<"tag_default_interaction">[] = [];
+  const emptyCopyProviderMembers: PublicRow<"copy_provider_group_member">[] =
+    [];
 
   const [
     tagsResult,
@@ -85,6 +87,7 @@ export async function runPublicSearch(
     localResult,
     rtmResult,
     tdiResult,
+    copyProviderMembersResult,
     wtmResult,
     ptmResult,
     ctmResult,
@@ -147,6 +150,13 @@ export async function runPublicSearch(
           data: emptyTdi,
           truncated: false,
         }),
+    needAwakener
+      ? fetchAllPublicTable("copy_provider_group_member")
+      : Promise.resolve({
+          success: true as const,
+          data: emptyCopyProviderMembers,
+          truncated: false,
+        }),
     needWheel
       ? fetchAllPublicTable("wheel_tag_manifestation")
       : Promise.resolve({
@@ -181,6 +191,7 @@ export async function runPublicSearch(
     localResult,
     rtmResult,
     tdiResult,
+    copyProviderMembersResult,
     wtmResult,
     ptmResult,
     ctmResult,
@@ -201,6 +212,7 @@ export async function runPublicSearch(
     !localResult.success ||
     !rtmResult.success ||
     !tdiResult.success ||
+    !copyProviderMembersResult.success ||
     !wtmResult.success ||
     !ptmResult.success ||
     !ctmResult.success
@@ -219,6 +231,7 @@ export async function runPublicSearch(
     localResult.truncated ||
     rtmResult.truncated ||
     tdiResult.truncated ||
+    copyProviderMembersResult.truncated ||
     wtmResult.truncated ||
     ptmResult.truncated ||
     ctmResult.truncated;
@@ -235,6 +248,7 @@ export async function runPublicSearch(
     awakenerLocalInteractions: localResult.data,
     realmManifestations: rtmResult.data,
     defaultInteractions: tdiResult.data,
+    copyProviderMembers: copyProviderMembersResult.data,
     wheelManifestations: wtmResult.data,
     posseManifestations: ptmResult.data,
     covenantManifestations: ctmResult.data,

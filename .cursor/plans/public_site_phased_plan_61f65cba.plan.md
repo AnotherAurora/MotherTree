@@ -569,7 +569,7 @@ _Awakener Values for `Attacker.*` / `Defender.*` become solo Path Carver Review 
 | `"24"` | Expand across `SEARCH_REQUIRED_REALM_IDS` `[1,2,4,6]` when Required Realm unset; when set, that realm only. Identify by `awakener.name === "24"` |
 | Damage dealer | Solo sim always marks the single awakener as damage dealer |
 | Math | `computeReviewTagTotals` / `createManifestationApplyContext` — no formula fork |
-| Fidelity gap | No public `copy_provider_*` tables — ATM `instance_count` / `base_copies` only |
+| Fidelity gap | Gear / signature wheel not in solo kit; copy-provider hit scaling via public `copy_provider_group_member` |
 | Metadata filters | Apply to raw manifestation rows only; solo-total rows show `—` for ATM-level columns |
 
 ### Implementation touchpoints
@@ -581,7 +581,7 @@ _Awakener Values for `Attacker.*` / `Defender.*` become solo Path Carver Review 
 
 ### Out of scope
 
-- Solo-mode undiluted slot math; signature wheel/gear; public `copy_provider_*`; shareable URLs / entity pickers; simulator/recommend
+- Solo-mode undiluted slot math; signature wheel/gear; shareable URLs / entity pickers; simulator/recommend
 
 **Exit:** Attacker/Defender awakener Search Values match solo-kit Review Tags totals (incl. `"24"` multi-realm emit-if-present); Support stays raw; no ATM+total double rows.
 

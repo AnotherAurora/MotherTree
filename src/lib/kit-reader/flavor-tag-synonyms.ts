@@ -98,6 +98,14 @@ export const FLAVOR_TAG_SYNONYMS: readonly FlavorTagSynonym[] = [
   { flavor: "Self-Harm", tagName: "Special.Self Damage" },
   { flavor: "Creativity", tagName: "Special.Creativity" },
   {
+    flavor: "All Tentacle Attack",
+    tagName: "Special.All Tentacle Attack",
+  },
+  {
+    flavor: "SF Tentacle",
+    tagName: "Special.All Tentacle Attack",
+  },
+  {
     flavor: "Generate Temporary Tentacle",
     tagName: "Support.Generate Temporary Tentacle",
   },

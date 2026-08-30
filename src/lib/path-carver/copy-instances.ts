@@ -41,6 +41,24 @@ export function buildLayerAProviderPool(
   return pool;
 }
 
+/** group_id → member tag ids (order preserved from input). */
+export function indexCopyProviderMembersByGroupId(
+  members: readonly { group_id: number; tag_id: number }[],
+): Map<number, number[]> {
+  const membersByGroupId = new Map<number, number[]>();
+  for (const row of members) {
+    const groupId = row.group_id;
+    const tagId = row.tag_id;
+    const existing = membersByGroupId.get(groupId);
+    if (existing) {
+      existing.push(tagId);
+    } else {
+      membersByGroupId.set(groupId, [tagId]);
+    }
+  }
+  return membersByGroupId;
+}
+
 /** base_copies + Σ max(0, floor(pool[providerTag])). */
 export function effectiveCopiesForManifestation(
   m: Manifestation,

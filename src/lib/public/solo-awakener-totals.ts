@@ -3,6 +3,7 @@
  * Builds a one-slot TeamData from allowlisted public rows and runs Path Carver math.
  */
 import { computeReviewTagTotals } from "@/lib/path-carver/aggregate-tag-scalars";
+import { indexCopyProviderMembersByGroupId } from "@/lib/path-carver/copy-instances";
 import { REQUIRED_BASE_STAT_TAG_IDS } from "@/lib/path-carver/awakener-base-stats";
 import {
   createManifestationApplyContext,
@@ -84,6 +85,7 @@ export type SoloAwakenerCatalog = {
   defaultInteractions: readonly PublicRow<"tag_default_interaction">[];
   awakenerManifestations: readonly PublicRow<"awakener_tag_manifestation">[];
   awakenerLocalInteractions: readonly PublicRow<"awakener_local_manifestation_interaction">[];
+  copyProviderMembers: readonly PublicRow<"copy_provider_group_member">[];
 };
 
 export type SoloAwakenerTotalsResult = {
@@ -201,9 +203,11 @@ function mapAtm(
   tagsById: Readonly<Record<number, Tag>>,
   locals: AwakenerLocalManifestationInteraction[],
   realmsById: ReadonlyMap<number, PublicRow<"realm">>,
+  membersByGroupId: ReadonlyMap<number, number[]>,
 ): Manifestation {
   const tag = tagsById[row.tag_id];
   const requiredRealmId = row.required_realm ?? null;
+  const copyProviderGroupId = row.copy_provider_group_id ?? null;
   return {
     id: row.id,
     sourceKind: "awakener",
@@ -216,10 +220,13 @@ function mapAtm(
     valueScalar: row.value_scalar,
     instanceCount: row.instance_count ?? 1,
     baseCopies: row.base_copies ?? 1,
-    // Public allowlist has copy_provider_group_id but not member tables.
-    copyProviderGroupId: row.copy_provider_group_id ?? null,
-    copyProviderGroupName: null,
-    copyProviderTagIds: [],
+    copyProviderGroupId,
+    copyProviderGroupName:
+      copyProviderGroupId != null ? `#${copyProviderGroupId}` : null,
+    copyProviderTagIds:
+      copyProviderGroupId != null
+        ? (membersByGroupId.get(copyProviderGroupId) ?? [])
+        : [],
     dependencyStat: row.dependency_stat,
     sourceType: row.source_type,
     targetType: row.target_type,
@@ -323,6 +330,9 @@ function buildSoloTeamData(
   const realms = realmLookupRows(catalog.realms);
   const realmsById = new Map(catalog.realms.map((r) => [r.id, r]));
   const awakener = toSoloAwakener(awakenerRow, simulatedRealmId, realmsById);
+  const membersByGroupId = indexCopyProviderMembersByGroupId(
+    catalog.copyProviderMembers,
+  );
 
   const localsByAtmId = new Map<number, AwakenerLocalManifestationInteraction[]>();
   for (const local of catalog.awakenerLocalInteractions) {
@@ -354,6 +364,7 @@ function buildSoloTeamData(
         tagsById,
         localsByAtmId.get(atm.id) ?? [],
         realmsById,
+        membersByGroupId,
       ),
     );
   }

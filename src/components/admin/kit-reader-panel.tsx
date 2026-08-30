@@ -716,7 +716,6 @@ export function KitReaderPanel({
   const onClone = (row: PendingAtmRow) => {
     const record = pendingRowToEditRecord(row);
     delete record.id;
-    record.verified = true;
     setEditingRecord(record);
     setEditingOverrides(
       row.locals.map((local) => ({

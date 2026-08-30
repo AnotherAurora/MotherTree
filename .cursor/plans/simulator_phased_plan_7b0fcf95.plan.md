@@ -1,6 +1,6 @@
 ---
 name: Simulator Phased Plan
-overview: Path Carver–first roadmap. Phase 1–2c.1 + 3a + 3a.1 + 3a.2 + 3a.3 + 3b + 3b.1 + 3c + 3c.1 + 3d + 3e + 3f + 3g + 3h (direct_modifier mode) done. Next is Phase 4 (desire_demand / radar / simulator, Calculation List layer breakdown). Phase 5 smart recommend.
+overview: Path Carver–first roadmap. Phase 1–2c.1 + 3a + 3a.1 + 3a.2 + 3a.3 + 3b + 3b.1 + 3c + 3c.1 + 3d + 3e + 3f + 3g + 3h + 3i (Birth Ritual → Sacrifice) done. Next is Phase 4 (desire_demand / radar / simulator, Calculation List layer breakdown). Phase 5 smart recommend.
 todos:
   - id: seed-data
     content: Create scripts/seed-simulator-data.ts with 2-3 desires, demand rows, anchored awakeners; add npm script
@@ -79,6 +79,12 @@ todos:
     status: completed
   - id: phase-3g-remove-source-type-tentacle
     content: Phase 3g — Remove source_type tentacle enum via recreate-type swap; Hit/TDU/poison synthetics use sourceType null
+    status: completed
+  - id: phase-3h-direct-modifier
+    content: Phase 3h — direct_modifier local interaction mode on ATM rows
+    status: completed
+  - id: phase-3i-birth-ritual-sacrifice
+    content: Phase 3i — Special.Birth Ritual cap 75 team-wide; hop 4e converts 1%/pt of finalized Active Damage family + Tentacle into Attacker.Non-Active Damage.Sacrifice
     status: completed
   - id: layer-breakdown-ui
     content: Phase 4 — Wire Summary / Calculation List to show layer-by-layer breakdown
@@ -1860,6 +1866,53 @@ Introduce a third local interaction mode, `direct_modifier`, on `awakener_local_
 - Engine: [`src/lib/path-carver/apply-interactions.ts`](src/lib/path-carver/apply-interactions.ts)
 - Kit Reader: [`src/lib/kit-reader/proposal-schema.ts`](src/lib/kit-reader/proposal-schema.ts), [`scripts/insert-kit-pending.ts`](scripts/insert-kit-pending.ts), [`src/lib/kit-reader/cursor-prompt.ts`](src/lib/kit-reader/cursor-prompt.ts), [`.cursor/skills/kit-reader/SKILL.md`](.cursor/skills/kit-reader/SKILL.md), [`docs/admin/kit-reader.md`](docs/admin/kit-reader.md)
 - Manual: [`docs/admin/atm-and-local-interaction-inputs.md`](docs/admin/atm-and-local-interaction-inputs.md)
+
+---
+
+## Phase 3i — Special.Birth Ritual → Sacrifice (DONE)
+
+**Depends on:** 3e (finalized Tentacle totals after hop 4d).
+
+### Goal
+
+Team-wide `Special.Birth Ritual` (tag **54**) capped at **75**, then converted at end of Layer B into `Attacker.Non-Active Damage.Sacrifice` (tag **50**): **1% of the damage pool per Birth Ritual point** (75 → 75%).
+
+### Locks
+
+- **Scope:** team-wide — pool Birth Ritual and damage across all owners; Sacrifice written to `*team*` bucket
+- **Cap:** displayed Birth Ritual total and conversion both use `min(raw, 75)`; over-cap owner buckets scaled proportionally
+- **Damage pool:** sum finalized post–hop 4d values for `Attacker.Active Damage` prefix + `Attacker.Tentacle` (both count; no dedup between Active Damage and Tentacle)
+- **Timing:** hop **4e** in [`apply-interactions.ts`](src/lib/path-carver/apply-interactions.ts) — after hop 4d, before `sumOwnerTotalsToTagMap`
+- **Sacrifice merge:** additive with any existing Layer A Sacrifice via `combineSameTagScalar`; `Math.ceil(pool × capped / 100)`
+
+### Files
+
+- [`src/lib/path-carver/birth-ritual-sacrifice.ts`](src/lib/path-carver/birth-ritual-sacrifice.ts)
+- [`src/lib/path-carver/apply-interactions.ts`](src/lib/path-carver/apply-interactions.ts) hop 4e
+- Smoke: `npx tsx scripts/smoke-birth-ritual-sacrifice.ts`
+
+---
+
+## Phase 3j — Special.All Tentacle Attack (DONE)
+
+**Depends on:** 3e (Tentacle TDU pool hop 4d consumes pre-pool tentacle units).
+
+### Goal
+
+Replace zero-base `Attacker.Tentacle` + Generate `unique_scaling` carriers with tag **`Special.All Tentacle Attack`** (tag **180**): team Generate Temporary + Permanent pool × holder multiplier → additive `Attacker.Tentacle` on holder owner; synthetic inherits ATM `target_type`.
+
+### Locks
+
+- **Pool input:** team non-self effective scalars for tags **57** + **58**
+- **Timing:** hop **4f** in [`apply-interactions.ts`](src/lib/path-carver/apply-interactions.ts) — after deferred create/amplify merges, **before** hop 4d
+- **With `value_scalar = 1`:** doubles Generate-sourced tentacle on top of Phase 1 `creates_base` (TDI 91/92)
+- **Migration:** soft-delete ATMs **567** / **1948** and locals **87, 88, 321, 322**; insert Faros/Murphy Special replacements
+
+### Files
+
+- [`src/lib/path-carver/all-tentacle-attack.ts`](src/lib/path-carver/all-tentacle-attack.ts)
+- [`supabase/migrations/20260831120000_special_all_tentacle_attack.sql`](supabase/migrations/20260831120000_special_all_tentacle_attack.sql)
+- Smoke: `npm run smoke:all-tentacle-attack`
 
 ---
 

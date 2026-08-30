@@ -22,6 +22,8 @@ import {
   SPECIAL_TENTACLE_HIT_POISON_TAG_ID,
   TENTACLE_TDU_FAMILY_POOL_LABEL,
 } from "@/lib/path-carver/hit-tentacle-attack";
+import { applyBirthRitualSacrificeConversion } from "@/lib/path-carver/birth-ritual-sacrifice";
+import { applyAllTentacleAttackHop } from "@/lib/path-carver/all-tentacle-attack";
 import {
   computeTentacleCritDamage,
   computeTentacleCritRate,
@@ -2364,6 +2366,9 @@ function collectAmplifyTargetIds(
  * 4b. Deferred thin create (combined stack, *team* OK).
  * 4c. Deferred thin amplify on created synthetics (Trigger → Damage;
  *    leafContext = synthetic sourceType null). Not a subject loop.
+ * 4f. Special.All Tentacle Attack: team Generate Temporary + Permanent pool
+ *    × holder multiplier → Attacker.Tentacle on holder owner (target_type
+ *    inherited from Special ATM). Runs after deferred hops, before 4d.
  * 4d. Tentacle TDU pool: default Attacker.Tentacle (RTM, Generate) ×
  *    (Unique TDU + TDU + TDU.Fixed) from finalized owner totals; Hit channels
  *    ceil(hits×factor×pool) separately (realm Hit summed; each non-realm Hit
@@ -2943,6 +2948,18 @@ export function applyInteractions(
     }
   }
 
+  const { steps: allTentacleAttackSteps, synthetics: allTentacleAttackSynthetics } =
+    applyAllTentacleAttackHop({
+      ownerValues: mergedOwnerValues,
+      appliedManifestations: applied,
+      tagsById: input.tagsById,
+      awakenersById,
+      awakenerNamesById: input.awakenerNamesById,
+      teamMaxHp: input.teamMaxHp,
+      realmMasteryTotal: input.realmMasteryTotal,
+      teamRealms: input.teamRealms,
+    });
+
   const hitTentacleSteps: ScalarMathStep[] = [];
   const hitSynthetics = buildHitTentacleSynthetics(
     applied,
@@ -2983,6 +3000,7 @@ export function applyInteractions(
       ...applied,
       ...createdSynthetics,
       ...deferredSynthetics,
+      ...allTentacleAttackSynthetics,
     ];
     const tentacleCritInput = {
       awakeners: [...awakenersById.values()],
@@ -3414,8 +3432,15 @@ export function applyInteractions(
     ...opSteps,
     ...aftereffectSteps,
     ...hitCountSteps,
+    ...allTentacleAttackSteps,
     ...hitTentacleSteps,
   );
+
+  const { steps: birthRitualSteps } = applyBirthRitualSacrificeConversion({
+    ownerValues: mergedOwnerValues,
+    tagsById: input.tagsById,
+  });
+  steps.push(...birthRitualSteps);
 
   const totalsByTagId = sumOwnerTotalsToTagMap(
     mergedOwnerValues,
