@@ -157,7 +157,7 @@ Debug merge **must equal** that tag’s Tag total. Merge sums `committedContribu
 | ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `target_type` apply rules                        | Loaded and shown in debug; **not applied** in aggregation                                                                                            |
 | Interaction application                          | `tag_default_interaction` + overrides loaded in `TeamData` but **not applied**                                                                       |
-| `dependency_stat` → `value_scalar`               | **Phase 2b done** — ATM/covenant/wheel/override scaled; posse + team/enemy max HP ignored                                                            |
+| `dependency_stat` → `value_scalar`               | **Phase 2b done** — ATM/covenant/wheel/override scaled; posse scales `team_max_hp` only; enemy max HP ignored on ATM/override |
 | `buff_target_type_restriction` leaf-gating       | **Phase 2b done** — materialize-then-amplify + `creates_base` / `amplifies_subject`; Option B subject `source_type` context                          |
 | Pass-order damage layers                         | **Phase 2c done**                                                                                                                                    |
 | Remove leftover `layer.final` enum value         | **Phase 2c.1 done**                                                                                                                                  |
@@ -421,13 +421,13 @@ Optional: show which interactions applied to which target tags (lightweight; ful
 
 When `dependency_stat` is non-null, the row’s `value_scalar` is **stat-dependent**. For realm manifestations, `dependency_stat` is the **base stat/source quantity**. When `dependency_rate` and `dependency_rate_stat` are both non-null, `dependency_rate_stat` is the stat that scales the conversion rate rather than replacing the base-stat role of `dependency_stat`.
 
-**Scope:** `dependency_rate` / `dependency_rate_stat` / `pure_bonus_target` and the rate-scaled / two-row Fiesta rules apply to **`realm_tag_manifestation` only**. Other tables use `dependency_stat` multiply only (posse ignores it).
+**Scope:** `dependency_rate` / `dependency_rate_stat` / `pure_bonus_target` and the rate-scaled / two-row Fiesta rules apply to **`realm_tag_manifestation` only**. Other tables use `dependency_stat` multiply only (posse scales `team_max_hp` only).
 
 | Table                                                                                          | Scalar column  | Notes                                                 |
 | ---------------------------------------------------------------------------------------------- | -------------- | ----------------------------------------------------- |
 | `awakener_tag_manifestation` / `covenant_tag_manifestation` / `wheel_tag_manifestation`        | `value_scalar` | scale when `dependency_stat` set                      |
 | `awakener_local_manifestation_interaction` (was `manifestation_interaction_override` until 2c) | `value_scalar` | same formula (renamed from `override_default_factor`) |
-| `posse_tag_manifestation`                                                                      | `value_scalar` | **ignore** `dependency_stat`                          |
+| `posse_tag_manifestation`                                                                      | `value_scalar` | scale when `dependency_stat=team_max_hp`; ignore other stats |
 
 ```text
 rate_mult   = 2 when pure_bonus_target = dependency_rate and team is pure, else 1
@@ -524,13 +524,13 @@ flowchart TD
   parent --> aid
   cov --> slot[Equipped slot awakener after Path Carver Build]
   wheel --> slot
-  posse --> skip[Ignore dependency_stat entirely]
+  posse --> skip[Scale team_max_hp only]
 ```
 
 - **ATM:** `awakener_id`
 - **Override:** parent ATM’s `awakener_id` (already loaded on `Manifestation.interactionOverrides` in [`load-team-data.ts`](src/lib/team-data/load-team-data.ts))
 - **Covenant / wheel:** slot owner after Build (manifestation already carries `awakenerId` / `slotIndex` once equipped)
-- **Posse:** ignore `dependency_stat` (always use raw `value_scalar`)
+- **Posse:** scale `team_max_hp` only (same formula as other gear); ignore other `dependency_stat`
 
 ATM and override each scale their own `value_scalar` independently.
 

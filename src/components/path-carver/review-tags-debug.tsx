@@ -68,7 +68,6 @@ function formatScalarCell(
   );
   const teamMaxHp = scalarOpts.teamMaxHp;
   if (
-    m.sourceKind === "posse" ||
     (m.sourceKind !== "realm" &&
       m.dependencyStat == null &&
       effective === raw) ||

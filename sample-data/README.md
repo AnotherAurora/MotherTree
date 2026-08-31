@@ -42,6 +42,10 @@ Exports include soft-deleted rows (`deleted_at` is not null).
 
 Local Kit Reader writes working files under `sample-data/kit-reader/` (`*.kit.json`, `*.proposal.json`). Those are gitignored — see [docs/admin/kit-reader.md](../docs/admin/kit-reader.md).
 
+## Gear Audit packs
+
+Full-table gear audit exports live under `sample-data/gear-audit/{posse,wheel,covenant}/` (`full.skeydb.json`, `full.mothertree.json`, `full.findings.json`). Generate with `npm run gear:export` and `npm run gear:audit`. Gitignored — see [docs/admin/gear-audit.md](../docs/admin/gear-audit.md).
+
 ## Git
 
 The `sample-data/dumps/` directory is listed in [`.gitignore`](../.gitignore) so SKeyDB-derived data is not committed to the repository. Only this README and the export script are tracked.

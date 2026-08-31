@@ -247,7 +247,7 @@ function resolveRealmRateStat(
 /**
  * Phase 2b Part A — resolve effective value_scalar via dependency_stat.
  *
- * - posse: always raw (ignore dependency_stat)
+ * - posse: raw unless dependency_stat=team_max_hp (same team_max_hp branch as other gear)
  * - realm: flat / multiply / rate-scaled + pure + combo (see scaleRealmValueScalar)
  * - enemy_max_hp: raw
  * - team_max_hp: raw when teamMaxHp context missing; else raw × teamMaxHp
@@ -267,8 +267,8 @@ export function scaleValueScalar(
   teamMaxHp?: number | null,
 ): number {
   if (raw == null) return 0;
-  if (sourceKind === "posse") return raw;
   if (dependencyStat == null) return raw;
+  if (sourceKind === "posse" && dependencyStat !== "team_max_hp") return raw;
   if (ALWAYS_IGNORED_DEPENDENCY_STATS.has(dependencyStat)) return raw;
 
   if (dependencyStat === "team_max_hp") {

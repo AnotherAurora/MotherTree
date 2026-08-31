@@ -248,6 +248,18 @@ console.log("\nteam_max_hp dependency scaling");
       10,
     "enemy_max_hp still ignored",
   );
+  assert(
+    scaleValueScalar(0.01, "team_max_hp", null, "posse") === 0.01,
+    "posse team_max_hp ignored without context",
+  );
+  assert(
+    scaleValueScalar(0.01, "team_max_hp", null, "posse", false, 1529) === 16,
+    "posse team_max_hp × 1529 → ceil(15.29)=16",
+  );
+  assert(
+    scaleValueScalar(0.01, "team_max_hp", null, "posse", true, 1529) === 15.29,
+    "posse team_max_hp percent tag → ceil 2dp",
+  );
 }
 
 console.log("\nDR synthetic Max HP Up + computeReviewTagTotals");
