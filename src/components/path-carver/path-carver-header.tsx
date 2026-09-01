@@ -17,6 +17,7 @@ type PathCarverHeaderProps = {
   showDesireName: boolean;
   onPosseChange: (value: number | null) => void;
   onLoad: () => void;
+  onImport: () => void;
   onCancel?: () => void;
   onBack: () => void;
   onNext: () => void;
@@ -24,6 +25,7 @@ type PathCarverHeaderProps = {
   canAdvance: boolean;
   saving: boolean;
   loading: boolean;
+  importing: boolean;
 };
 
 const STEPS: { key: WizardStep; label: string }[] = [
@@ -49,6 +51,7 @@ export function PathCarverHeader({
   showDesireName,
   onPosseChange,
   onLoad,
+  onImport,
   onCancel,
   onBack,
   onNext,
@@ -56,6 +59,7 @@ export function PathCarverHeader({
   canAdvance,
   saving,
   loading,
+  importing,
 }: PathCarverHeaderProps) {
   const stepIndex = STEPS.findIndex((s) => s.key === step);
 
@@ -128,9 +132,24 @@ export function PathCarverHeader({
 
         <div className="flex flex-wrap items-center gap-2">
           {step === "build" && (
-            <Button type="button" variant="outline" onClick={onLoad} disabled={loading}>
-              Load
-            </Button>
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onImport}
+                disabled={loading || importing}
+              >
+                Import
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onLoad}
+                disabled={loading || importing}
+              >
+                Load
+              </Button>
+            </>
           )}
           {step !== "build" && (
             <Button type="button" variant="outline" onClick={onBack} disabled={loading || saving}>

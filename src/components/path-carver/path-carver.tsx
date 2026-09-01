@@ -7,6 +7,7 @@ import {
 } from "@/components/simulator/awakener-selection";
 import { createEmptySlots } from "@/components/simulator/mock-data";
 import { BuildStep } from "@/components/path-carver/build-step";
+import { ImportTeamModal } from "@/components/path-carver/import-team-modal";
 import { LoadDesireModal } from "@/components/path-carver/load-desire-modal";
 import { PathCarverHeader } from "@/components/path-carver/path-carver-header";
 import {
@@ -20,6 +21,7 @@ import { ReviewTagsStep } from "@/components/path-carver/review-tags-step";
 import {
   getPathCarverDesireBundle,
   savePathCarverDesire,
+  type ImportTeamResult,
 } from "@/lib/actions/path-carver";
 import type { SimulatorGearOptions } from "@/lib/actions/simulator-flow";
 import type { SimulatorAwakenerOption } from "@/lib/actions/simulator";
@@ -40,6 +42,7 @@ import {
   validateReview1Selections,
 } from "@/lib/path-carver/validation";
 import type { SlotState } from "@/lib/simulator/types";
+import { formatIngameImportWarningMessage } from "@/lib/team-import";
 
 type PathCarverProps = {
   awakenerOptions: SimulatorAwakenerOption[];
@@ -67,11 +70,14 @@ export function PathCarver({
   const [deletedDemandIds, setDeletedDemandIds] = useState<number[]>([]);
   const [newDemandForms, setNewDemandForms] = useState<DemandFormValues[]>([]);
   const [loadModalOpen, setLoadModalOpen] = useState(false);
+  const [importModalOpen, setImportModalOpen] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [templateWarning, setTemplateWarning] = useState<string | null>(null);
+  const [importWarning, setImportWarning] = useState<string | null>(null);
 
   const optionMap = useMemo(
     () => buildAwakenerOptionMap(awakenerOptions),
@@ -131,6 +137,7 @@ export function PathCarver({
     setError(null);
     setSuccessMessage(null);
     setTemplateWarning(null);
+    setImportWarning(null);
 
     const result = await getPathCarverDesireBundle(id);
     setLoading(false);
@@ -191,6 +198,26 @@ export function PathCarver({
     }
   }
 
+  function handleImportTeam(result: ImportTeamResult) {
+    setMode("create");
+    setDesireId(null);
+    setDesireName("");
+    setDesireDescription("");
+    setExistingDemands([]);
+    setDeletedDemandIds([]);
+    setNewDemandSelections([]);
+    setNewDemandForms([]);
+    setAnchoredAwakeners([]);
+    setSlots(result.slots);
+    setPosseId(result.posseId);
+    setStep("build");
+    setTemplateWarning(null);
+    setError(null);
+    setSuccessMessage("Team imported successfully.");
+    setImportWarning(formatIngameImportWarningMessage(result.warnings));
+    setImportModalOpen(false);
+  }
+
   function handleCancelEdit() {
     setMode("create");
     setDesireId(null);
@@ -199,6 +226,7 @@ export function PathCarver({
     setNewDemandSelections([]);
     setNewDemandForms([]);
     setTemplateWarning(null);
+    setImportWarning(null);
     setError(null);
     setSuccessMessage(null);
   }
@@ -290,6 +318,12 @@ export function PathCarver({
         </div>
       )}
 
+      {importWarning && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          {importWarning}
+        </div>
+      )}
+
       <PathCarverHeader
         step={step}
         realm={realmDisplay}
@@ -299,6 +333,7 @@ export function PathCarver({
         showDesireName={showDesireName}
         onPosseChange={setPosseId}
         onLoad={() => setLoadModalOpen(true)}
+        onImport={() => setImportModalOpen(true)}
         onCancel={
           desireId != null && step === "build" ? handleCancelEdit : undefined
         }
@@ -308,6 +343,7 @@ export function PathCarver({
         canAdvance={canAdvance}
         saving={saving}
         loading={loading}
+        importing={importing}
       />
 
       {step === "build" && (
@@ -354,6 +390,14 @@ export function PathCarver({
         onOpenChange={setLoadModalOpen}
         onSelect={handleLoadDesire}
         loading={loading}
+      />
+
+      <ImportTeamModal
+        open={importModalOpen}
+        onOpenChange={setImportModalOpen}
+        onImport={handleImportTeam}
+        importing={importing}
+        onImportingChange={setImporting}
       />
     </div>
   );

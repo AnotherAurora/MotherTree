@@ -28,6 +28,11 @@ import {
   buildCovenantOptionMap,
   buildWheelOptionMap,
 } from "@/lib/simulator/gear-selection";
+import {
+  buildMotherTreeNameMaps,
+  importIngameTeamFromCode,
+  type ImportTeamResult,
+} from "@/lib/team-import";
 
 function nowIso(): string {
   return new Date().toISOString();
@@ -447,6 +452,44 @@ export async function savePathCarverDesire(
       success: false,
       error:
         error instanceof Error ? error.message : "Failed to save desire",
+    };
+  }
+}
+
+export type { ImportTeamResult };
+
+export async function importIngameTeamCode(
+  code: string,
+): Promise<ActionResult<ImportTeamResult>> {
+  if (!isAdminRuntimeEnabled()) return adminUnavailableResult();
+
+  try {
+    const [awakenerOptionsResult, gearOptionsResult] = await Promise.all([
+      getSimulatorAwakenerOptions(),
+      getSimulatorGearOptions(),
+    ]);
+
+    if (!awakenerOptionsResult.success) {
+      return { success: false, error: awakenerOptionsResult.error };
+    }
+    if (!gearOptionsResult.success) {
+      return { success: false, error: gearOptionsResult.error };
+    }
+
+    const nameMaps = buildMotherTreeNameMaps({
+      awakeners: awakenerOptionsResult.data,
+      wheels: gearOptionsResult.data.wheel,
+      covenants: gearOptionsResult.data.covenant,
+      posses: gearOptionsResult.data.posse,
+    });
+
+    const result = await importIngameTeamFromCode(code, nameMaps);
+    return { success: true, data: result };
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : "Failed to import team code",
     };
   }
 }
