@@ -3,16 +3,16 @@ name: kit-reader
 description: >-
   Propose MotherTree ATM + local-interaction rows from an exported SKeyDB kit
   pack, then insert them as pending (verified=false) via the Kit Reader CLI.
-  Use when the user pastes a Kit Reader Cursor prompt, mentions kit-reader,
-  sample-data/kit-reader, insert-kit-pending, or asks to read an awakener kit
-  into pending ATMs.
+  Use when the user pastes a Kit Reader agent prompt (Copilot/Claude/Cursor),
+  mentions kit-reader, sample-data/kit-reader, insert-kit-pending, or asks to
+  read an awakener kit into pending ATMs.
 ---
 
 # MotherTree Kit Reader
 
 ## Locked rules
 
-- Cursor-assisted only — do **not** call in-app LLMs or ask for provider API keys.
+- Editor-agent assisted only (Copilot/Claude/Cursor) — do **not** call in-app LLMs or ask for provider API keys.
 - Write path = **validated insert CLI only**. Never invent an admin JSON import UI.
 - Never write or generate ad-hoc one-time patch/update scripts (`scripts/apply-*.ts`, `scripts/patch-*.ts`). All updates must be made via proposal JSON with `insert-kit-pending.ts --patch` / `--append`, or via the Kit Reader UI (`/kit-reader`).
 - Every inserted ATM must be **`verified = false`**. The CLI forces this; never set verified true.
@@ -23,12 +23,14 @@ description: >-
 
 ## Required reading
 
+All paths below are repo-root-relative — read each from the workspace root.
+
 1. The exported kit pack path from the prompt (usually `sample-data/kit-reader/{slug}.kit.json`)
-2. [`docs/admin/kit-reader.md`](docs/admin/kit-reader.md)
-3. [`docs/admin/atm-and-local-interaction-inputs.md`](docs/admin/atm-and-local-interaction-inputs.md)
-4. [`src/lib/kit-reader/proposal-schema.ts`](src/lib/kit-reader/proposal-schema.ts)
-5. [`src/lib/kit-reader/atm-metadata.ts`](src/lib/kit-reader/atm-metadata.ts) — `buildAtmMetadata` / `detectIsAccumulating`
-6. [`src/lib/kit-reader/proposal-heuristics.ts`](src/lib/kit-reader/proposal-heuristics.ts) — enjoy detection, Steal STR pairing, **Devour copy provider group**, Tentacle DMG dual locals, aoe tag prefixes, **percent vs linear dependency_stat helpers**
+2. `docs/admin/kit-reader.md`
+3. `docs/admin/atm-and-local-interaction-inputs.md`
+4. `src/lib/kit-reader/proposal-schema.ts`
+5. `src/lib/kit-reader/atm-metadata.ts` — `buildAtmMetadata` / `detectIsAccumulating`
+6. `src/lib/kit-reader/proposal-heuristics.ts` — enjoy detection, Steal STR pairing, **Devour copy provider group**, Tentacle DMG dual locals, aoe tag prefixes, **percent vs linear dependency_stat helpers**
 
 ## Workflow
 
@@ -44,8 +46,7 @@ description: >-
 npx tsx --env-file=.env.local scripts/insert-kit-pending.ts sample-data/kit-reader/{slug}.proposal.json
 ```
 
-Appends by default; pass `--patch` to replace existing pending ATMs.
-5. **Compact report only:** Report ONLY (a) total count of inserted rows & locals, (b) any `needs_review` items with rationale, and (c) ignored items. Do **not** print tables, breakdown lists, or summaries of successfully inserted rows (the operator reviews rows directly in the Kit Reader UI at `/kit-reader`). Do **not** hand the user JSON to paste into admin. For minor row adjustments, guide the user to `/kit-reader`. For surgical pending edits after insert, use the **MotherTree Kit Reader Review** skill in a new chat.
+Appends by default; pass `--patch` to replace existing pending ATMs. 5. **Compact report only:** Report ONLY (a) total count of inserted rows & locals, (b) any `needs_review` items with rationale, and (c) ignored items. Do **not** print tables, breakdown lists, or summaries of successfully inserted rows (the operator reviews rows directly in the Kit Reader UI at `/kit-reader`). Do **not** hand the user JSON to paste into admin. For minor row adjustments, guide the user to `/kit-reader`. For surgical pending edits after insert, use the **MotherTree Kit Reader Review** skill in a new chat.
 
 ## Metadata (mandatory)
 
@@ -68,13 +69,13 @@ metadata = "{sourceLabel} Devour {effectLabel}" [+ " E1"|" E2"|" E3"]
 - **E-suffix:** only when `requiredEnlightenment` is 1 / 2 / 3. Never append OE/AA again when source is already `OE` / `AA`.
 - **Proposal `metadata` field:** documentation-only; insert CLI ignores it. Use `metadataSuffix` (appended to canonical, e.g. `+ SF` on **Talent** rows) or `metadataOverride` (full custom label, e.g. `OE Heal *3`) when the formula is not enough. Do **not** set `metadataSuffix: "+ SF"` when pack `sourceLabel` is already `SF` — insert skips redundant suffixes.
 
-| `tagName` (DB) | Inserted metadata |
-| --- | --- |
-| `Defender.Shield.Fixed` | `{sourceLabel} Shield` |
-| `Defender.Heal.Fixed` | `{sourceLabel} Heal` |
-| `Support.Tentacle Damage Up.Fixed` | `{sourceLabel} Tentacle Damage Up` |
-| `Support.STR Up.Fixed` | `{sourceLabel} STR Up` |
-| `Attacker.Active Damage` | `{sourceLabel} Active Damage` (no `.Fixed` on this tree) |
+| `tagName` (DB)                     | Inserted metadata                                        |
+| ---------------------------------- | -------------------------------------------------------- |
+| `Defender.Shield.Fixed`            | `{sourceLabel} Shield`                                   |
+| `Defender.Heal.Fixed`              | `{sourceLabel} Heal`                                     |
+| `Support.Tentacle Damage Up.Fixed` | `{sourceLabel} Tentacle Damage Up`                       |
+| `Support.STR Up.Fixed`             | `{sourceLabel} STR Up`                                   |
+| `Attacker.Active Damage`           | `{sourceLabel} Active Damage` (no `.Fixed` on this tree) |
 
 Examples: `0 Cost Active Damage`, `0 Cost Active Damage E2`, `Exalt Active Damage`, `OE STR Up`, `Talent Tentacle Damage Up + SF`, `AA Tentacle Damage Up`, `Strike …`, `Defense …`.
 
@@ -100,11 +101,11 @@ When kit text has **enjoy / enjoys / enjoying** (`hasEnjoyClause: true` on pack 
 
 **Tentacle DMG exception** (`hasEnjoyTentacleDmgClause` / `detectEnjoyTentacleDmgClause`): when enjoy is followed in the same clause by **Tentacle DMG** or **Tentacle Damage**, attach **two** locals with the **same** fields except `modifierTagName` — `Support.Tentacle Damage Up` **and** `Support.Unique Tentacle Damage Up` (Unique is a sibling, not a TDU prefix child). Both: `add_scaled`, `valueScalar` from the percent, `targetType: self`, `layer: add`. Use pack `lexicon.enjoyTentacleDmgModifierTagNames`. Do **not** dual-tag Counter / STR enjoy.
 
-Examples: Caecus *"enjoying a 50% Tentacle DMG bonus"* → both TDU locals `add_scaled` `0.5`; `"24"` Aequor *"enjoys a 75% Tentacle DMG bonus"* → same pair at `0.75`; Kathigu-Ra Solarflare *"enjoys a 300% STR bonus"* → single unique_scaling with `modifierTagName: "Support.STR Up"`, `mathOperation: "add_scaled"`, `valueScalar: 3`.
+Examples: Caecus _"enjoying a 50% Tentacle DMG bonus"_ → both TDU locals `add_scaled` `0.5`; `"24"` Aequor _"enjoys a 75% Tentacle DMG bonus"_ → same pair at `0.75`; Kathigu-Ra Solarflare _"enjoys a 300% STR bonus"_ → single unique_scaling with `modifierTagName: "Support.STR Up"`, `mathOperation: "add_scaled"`, `valueScalar: 3`.
 
 ## Direct modifier → local direct_modifier
 
-When kit text grants **card-specific or record-specific self-contained buffs** (e.g. *Temporary Enhance on specific cards in hand*, *this card gains +N% Crit DMG*, or other intrinsic card multipliers that must not broadcast to all cards of that awakener):
+When kit text grants **card-specific or record-specific self-contained buffs** (e.g. _Temporary Enhance on specific cards in hand_, _this card gains +N% Crit DMG_, or other intrinsic card multipliers that must not broadcast to all cards of that awakener):
 
 - Attach a **local** on the **subject** ATM with `mode: direct_modifier`.
 - Do **not** create a global Support ATM (which would pollute the global tag pool and apply to all skills).
@@ -113,7 +114,7 @@ When kit text grants **card-specific or record-specific self-contained buffs** (
 - Default `mathOperation: multiply_one_plus` (or `add_scaled`), `targetType: self`.
 - Layer is resolved from the semantic tag (e.g. `Support.Enhance` → `add`) or explicit `layer`.
 
-Example: Helot: Catena AA *"grant each unique 'Helot: Catena' Command Card in hand 50 stacks of Temporary Enhance"* → attach `mode: direct_modifier`, `modifierTagName: "Support.Enhance"`, `valueScalar: 0.5`, `mathOperation: "multiply_one_plus"`, `targetType: "self"` to the affected Command Card damage ATMs.
+Example: Helot: Catena AA _"grant each unique 'Helot: Catena' Command Card in hand 50 stacks of Temporary Enhance"_ → attach `mode: direct_modifier`, `modifierTagName: "Support.Enhance"`, `valueScalar: 0.5`, `mathOperation: "multiply_one_plus"`, `targetType: "self"` to the affected Command Card damage ATMs.
 
 ## Steal → STR Down + STR Up
 
@@ -143,7 +144,7 @@ Insert CLI warns when Devour rows use When/Cause triggers or omit the copy provi
 
 ## Lemurian synergy → four ATMs
 
-When kit text matches Lemurian team synergy (`detectLemurianSynergyClause` — e.g. *“1/2/3 other Lemurian Awakeners … DMG Amplification +20%/50%/100%”*):
+When kit text matches Lemurian team synergy (`detectLemurianSynergyClause` — e.g. _“1/2/3 other Lemurian Awakeners … DMG Amplification +20%/50%/100%”_):
 
 - Propose **four** `status: ok` ATMs (not locals, not one flat AMP row).
 - Row 1: `Special.Cause.Lemurian`, `valueScalar: 1`, `triggerConditionTagName: null`, `isPermanent: true`, `metadataOverride: "Lemurian"`.
@@ -152,7 +153,7 @@ When kit text matches Lemurian team synergy (`detectLemurianSynergyClause` — e
 - **`sourceType`:** usually `talent`. Engine applies **one** tier When gate per team size — do not stack all three AMP rows on one awakener.
 - Ambiguous tiers → `needs_review`.
 
-See [`docs/admin/kit-reader.md`](docs/admin/kit-reader.md#lemurian-synergy) and [`lemurian-synergy.ts`](src/lib/path-carver/lemurian-synergy.ts).
+See `docs/admin/kit-reader.md` (§ Lemurian synergy) and `src/lib/path-carver/lemurian-synergy.ts`.
 
 ## Always-aoe tags (ATM only)
 
@@ -186,6 +187,7 @@ Covers **`[Power:Arg]` → STR**, **`[Block:Arg]` → Shield**, **`[Damage:Arg]`
 ## Ignore list (omit from proposal JSON)
 
 Do not output proposals for:
+
 - Gnostic Potential
 - Madness Omen
 - Dimensional Image
@@ -205,11 +207,11 @@ Use pack `sourceTypeHint`: Strike/Defense/Skill1/Skill2/derived → `command car
 
 ## Proposal status
 
-| Status | Insert? |
-|--------|---------|
-| `ok` | Yes (pending) |
-| `needs_review` | No |
-| `unsupported` | No |
+| Status         | Insert?       |
+| -------------- | ------------- |
+| `ok`           | Yes (pending) |
+| `needs_review` | No            |
+| `unsupported`  | No            |
 
 ## Locals
 

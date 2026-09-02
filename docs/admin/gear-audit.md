@@ -38,61 +38,61 @@ npm run gear:audit
 
 Run **posse**, **wheel**, and **covenant** in parallel — no cross-table dependencies.
 
-| Component | Path |
-| --- | --- |
-| Export script | [`scripts/export-gear-audit-pack.ts`](../../scripts/export-gear-audit-pack.ts) |
-| Audit script | [`scripts/audit-gear-manifestations.ts`](../../scripts/audit-gear-manifestations.ts) |
-| Audit logic | [`src/lib/gear-audit/audit-run.ts`](../../src/lib/gear-audit/audit-run.ts) |
+| Component      | Path                                                                                 |
+| -------------- | ------------------------------------------------------------------------------------ |
+| Export script  | [`scripts/export-gear-audit-pack.ts`](../../scripts/export-gear-audit-pack.ts)       |
+| Audit script   | [`scripts/audit-gear-manifestations.ts`](../../scripts/audit-gear-manifestations.ts) |
+| Audit logic    | [`src/lib/gear-audit/audit-run.ts`](../../src/lib/gear-audit/audit-run.ts)           |
 | Finding schema | [`src/lib/gear-audit/finding-schema.ts`](../../src/lib/gear-audit/finding-schema.ts) |
-| Agent prompts | [`src/lib/gear-audit/cursor-prompt.ts`](../../src/lib/gear-audit/cursor-prompt.ts) |
-| Agent skill | [`.cursor/skills/gear-audit/SKILL.md`](../../.cursor/skills/gear-audit/SKILL.md) |
+| Agent prompts  | [`src/lib/gear-audit/cursor-prompt.ts`](../../src/lib/gear-audit/cursor-prompt.ts)   |
+| Agent skill    | [`.github/skills/gear-audit/SKILL.md`](../../.github/skills/gear-audit/SKILL.md)     |
 
 ## File layout
 
 Gitignored under `sample-data/gear-audit/`:
 
-| File | Writer | Contents |
-| --- | --- | --- |
-| `{kind}/full.skeydb.json` | `gear:export` | SKeyDB catalog + all records at chosen commit |
+| File                          | Writer        | Contents                                                |
+| ----------------------------- | ------------- | ------------------------------------------------------- |
+| `{kind}/full.skeydb.json`     | `gear:export` | SKeyDB catalog + all records at chosen commit           |
 | `{kind}/full.mothertree.json` | `gear:export` | All parents + manifestations + tag/realm/awakener joins |
-| `{kind}/full.findings.json` | `gear:audit` | Full-table deterministic findings + stats |
+| `{kind}/full.findings.json`   | `gear:audit`  | Full-table deterministic findings + stats               |
 
 ## Deterministic checks (script)
 
 ### All kinds
 
-| Check | Severity | Category |
-| --- | --- | --- |
-| SKeyDB parent missing in MotherTree | definite | `missing_in_db` |
-| MotherTree parent missing in SKeyDB | suspicious | `missing_in_skeydb` |
-| SKeyDB has effect text, zero MT rows | suspicious | `missing_in_db` |
-| Manifestation references deleted/missing parent | definite | `orphan_parent` |
-| Duplicate logical key per parent | definite | `duplicate_row` |
+| Check                                           | Severity   | Category            |
+| ----------------------------------------------- | ---------- | ------------------- |
+| SKeyDB parent missing in MotherTree             | definite   | `missing_in_db`     |
+| MotherTree parent missing in SKeyDB             | suspicious | `missing_in_skeydb` |
+| SKeyDB has effect text, zero MT rows            | suspicious | `missing_in_db`     |
+| Manifestation references deleted/missing parent | definite   | `orphan_parent`     |
+| Duplicate logical key per parent                | definite   | `duplicate_row`     |
 
 Wheel duplicate key: `wheel_id` + tag name + `required_realm` + `trigger_condition` + `value_scalar` + `target_type` + `buff_target_type_restriction`. Rows that differ only in `metadata` (e.g. assumption notes) may still match.
 
 ### Wheel
 
-| Check | Severity | Category |
-| --- | --- | --- |
-| `rarity` mismatch vs SKeyDB catalog | definite | `rarity_mismatch` |
-| `stat` mismatch vs SKeyDB `mainstatKey` | definite | `parent_stat_mismatch` |
+| Check                                          | Severity   | Category                  |
+| ---------------------------------------------- | ---------- | ------------------------- |
+| `rarity` mismatch vs SKeyDB catalog            | definite   | `rarity_mismatch`         |
+| `stat` mismatch vs SKeyDB `mainstatKey`        | definite   | `parent_stat_mismatch`    |
 | Fractional non-percent, null `dependency_stat` | suspicious | `dependency_stat_missing` |
 
 Skipped from audit (intentional): rarity **N/R**, and named wheels in `audit-exclusions.ts`.
 
 ### Covenant
 
-| Check | Severity | Category |
-| --- | --- | --- |
-| Row count < SKeyDB `setEffects` minus 1 (first set → `covenant.stat`) | suspicious | `structural_error` |
-| Broken `replaces_manifestation_id` chain | definite | `replacement_chain_error` |
-| Fractional non-percent, null `dependency_stat` | suspicious | `dependency_stat_missing` |
+| Check                                                                 | Severity   | Category                  |
+| --------------------------------------------------------------------- | ---------- | ------------------------- |
+| Row count < SKeyDB `setEffects` minus 1 (first set → `covenant.stat`) | suspicious | `structural_error`        |
+| Broken `replaces_manifestation_id` chain                              | definite   | `replacement_chain_error` |
+| Fractional non-percent, null `dependency_stat`                        | suspicious | `dependency_stat_missing` |
 
 ### Posse
 
-| Check | Severity | Category |
-| --- | --- | --- |
+| Check                                             | Severity   | Category                     |
+| ------------------------------------------------- | ---------- | ---------------------------- |
 | Non-null `dependency_stat` (except `team_max_hp`) | suspicious | `dependency_stat_unexpected` |
 
 Skipped from audit: `Primordial Memory: *` (see `audit-exclusions.ts`).
@@ -117,7 +117,7 @@ Semantic checks (tag mapping from `descriptionTemplate`, trigger conditions, exa
     "missingInDb": 5,
     "missingInSkeydb": 3
   },
-  "findings": [ "…" ],
+  "findings": ["…"],
   "summary": { "definite": 2, "suspicious": 8, "needsReview": 0 }
 }
 ```

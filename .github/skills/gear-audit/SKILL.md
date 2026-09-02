@@ -21,11 +21,13 @@ description: >-
 
 ## Required reading
 
+All paths below are repo-root-relative — read each from the workspace root.
+
 1. Full pack paths from the prompt (`sample-data/gear-audit/{kind}/full.*.json`)
-2. [`docs/admin/gear-audit.md`](docs/admin/gear-audit.md)
-3. [`src/lib/gear-audit/finding-schema.ts`](src/lib/gear-audit/finding-schema.ts)
-4. For tag / scalar encoding: [`docs/admin/kit-reader.md`](docs/admin/kit-reader.md) (§ SKeyDB arg scaling)
-5. [`src/lib/kit-reader/flavor-tag-synonyms.ts`](src/lib/kit-reader/flavor-tag-synonyms.ts)
+2. `docs/admin/gear-audit.md`
+3. `src/lib/gear-audit/finding-schema.ts`
+4. For tag / scalar encoding: `docs/admin/kit-reader.md` (§ SKeyDB arg scaling)
+5. `src/lib/kit-reader/flavor-tag-synonyms.ts`
 
 ## Workflow (agent semantic pass)
 
@@ -52,11 +54,11 @@ Do **not** re-report unless you disagree with rationale:
 
 ## Semantic checks (agent responsibility)
 
-| Kind | Focus |
-| --- | --- |
-| Posse | `group_key` tiers, `required_awakener`, `required_realm`, tag from descriptionTemplate |
-| Wheel | Graded `descriptionArgs` → realm/enlightenment rows, `trigger_condition`, exact scalars |
-| Covenant | `setEffects[]` → rows + `replaces_manifestation_id`, dual realm gates, triggers |
+| Kind     | Focus                                                                                   |
+| -------- | --------------------------------------------------------------------------------------- |
+| Posse    | `group_key` tiers, `required_awakener`, `required_realm`, tag from descriptionTemplate  |
+| Wheel    | Graded `descriptionArgs` → realm/enlightenment rows, `trigger_condition`, exact scalars |
+| Covenant | `setEffects[]` → rows + `replaces_manifestation_id`, dual realm gates, triggers         |
 
 When alignment is ambiguous → `needs_review` with rationale.
 

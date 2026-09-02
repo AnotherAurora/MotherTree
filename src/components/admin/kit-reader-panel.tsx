@@ -68,10 +68,7 @@ import {
   type ReviewPromptRowContext,
 } from "@/lib/kit-reader/cursor-prompt";
 import { formatAwakenerEnlightenmentLabel } from "@/lib/enlightenment-options";
-import {
-  TABLE_CONFIG_MAP,
-  type FieldConfig,
-} from "@/lib/schema-config";
+import { TABLE_CONFIG_MAP, type FieldConfig } from "@/lib/schema-config";
 import { cn } from "@/lib/utils";
 
 const FOCUS_REFRESH_DEBOUNCE_MS = 300;
@@ -162,22 +159,21 @@ function mergePendingFromUpdate(
   return {
     ...row,
     awakener_id:
-      updated.awakener_id == null ? row.awakener_id : Number(updated.awakener_id),
+      updated.awakener_id == null
+        ? row.awakener_id
+        : Number(updated.awakener_id),
     tag_id: updated.tag_id == null ? row.tag_id : Number(updated.tag_id),
     trigger_condition:
       updated.trigger_condition == null
         ? null
         : Number(updated.trigger_condition),
-    metadata:
-      updated.metadata == null ? null : String(updated.metadata),
+    metadata: updated.metadata == null ? null : String(updated.metadata),
     replaces_manifestation_id:
       updated.replaces_manifestation_id == null
         ? null
         : Number(updated.replaces_manifestation_id),
     dependency_stat:
-      updated.dependency_stat == null
-        ? null
-        : String(updated.dependency_stat),
+      updated.dependency_stat == null ? null : String(updated.dependency_stat),
     value_scalar:
       updated.value_scalar == null ? null : Number(updated.value_scalar),
     instance_count: Number(updated.instance_count ?? row.instance_count),
@@ -350,7 +346,9 @@ export function KitReaderPanel({
   const router = useRouter();
   const [awakeners, setAwakeners] =
     useState<KitReaderAwakenerOption[]>(initialAwakeners);
-  const [selectedId, setSelectedId] = useState<number | null>(initialAwakenerId);
+  const [selectedId, setSelectedId] = useState<number | null>(
+    initialAwakenerId,
+  );
   const [mode, setMode] = useState<KitReaderAtmMode>(initialMode);
   const [filters, setFilters] = useState<KitReaderFiltersState>(
     INITIAL_KIT_READER_FILTERS,
@@ -582,7 +580,9 @@ export function KitReaderPanel({
       await navigator.clipboard.writeText(reviewPrompt);
       toast.success("Review prompt copied");
     } catch {
-      toast.error("Clipboard failed — select the prompt text and copy manually");
+      toast.error(
+        "Clipboard failed — select the prompt text and copy manually",
+      );
     }
   };
 
@@ -648,9 +648,11 @@ export function KitReaderPanel({
     }
     try {
       await navigator.clipboard.writeText(prompt);
-      toast.success("Cursor prompt copied");
+      toast.success("Agent prompt copied");
     } catch {
-      toast.error("Clipboard failed — select the prompt text and copy manually");
+      toast.error(
+        "Clipboard failed — select the prompt text and copy manually",
+      );
     }
   };
 
@@ -804,10 +806,18 @@ export function KitReaderPanel({
       if (filters.searchQuery.trim() !== "") {
         const q = filters.searchQuery.trim().toLowerCase();
         const matchesTag = row.tag_name?.toLowerCase().includes(q) ?? false;
-        const matchesMetadata = row.metadata?.toLowerCase().includes(q) ?? false;
-        const matchesDependency = row.dependency_stat?.toLowerCase().includes(q) ?? false;
-        const matchesId = String(row.id).includes(q) || String(row.tag_id).includes(q);
-        if (!matchesTag && !matchesMetadata && !matchesDependency && !matchesId) {
+        const matchesMetadata =
+          row.metadata?.toLowerCase().includes(q) ?? false;
+        const matchesDependency =
+          row.dependency_stat?.toLowerCase().includes(q) ?? false;
+        const matchesId =
+          String(row.id).includes(q) || String(row.tag_id).includes(q);
+        if (
+          !matchesTag &&
+          !matchesMetadata &&
+          !matchesDependency &&
+          !matchesId
+        ) {
           return false;
         }
       }
@@ -826,9 +836,9 @@ export function KitReaderPanel({
           Kit Reader &amp; Editor
         </h1>
         <p className="max-w-2xl text-sm text-zinc-600">
-          Triage and verify proposed kit packs, or view and tune live Awakener kits
-          with inline cell editing, notes scratchpad, and local interaction overrides.
-          The{" "}
+          Triage and verify proposed kit packs, or view and tune live Awakener
+          kits with inline cell editing, notes scratchpad, and local interaction
+          overrides. The{" "}
           <Link
             href="/tables/awakener_tag_manifestation"
             className="underline underline-offset-2 hover:text-zinc-950"
@@ -990,7 +1000,7 @@ export function KitReaderPanel({
                 onClick={() => void onCopyPrompt()}
               >
                 <Copy className="mr-2 h-4 w-4" />
-                Copy Cursor prompt
+                Copy agent prompt
               </Button>
               {packPath && (
                 <p className="self-center text-xs text-zinc-500">
@@ -1000,7 +1010,7 @@ export function KitReaderPanel({
             </div>
 
             <section className="space-y-2">
-              <Label htmlFor="kit-reader-prompt">Cursor Agent prompt</Label>
+              <Label htmlFor="kit-reader-prompt">Agent prompt</Label>
               <Textarea
                 id="kit-reader-prompt"
                 readOnly
@@ -1454,9 +1464,7 @@ function PendingField({
       <dt className="text-xs text-zinc-500">{label}</dt>
       <dd
         className={
-          truncate
-            ? "truncate text-sm text-zinc-900"
-            : "text-sm text-zinc-900"
+          truncate ? "truncate text-sm text-zinc-900" : "text-sm text-zinc-900"
         }
         title={title}
       >

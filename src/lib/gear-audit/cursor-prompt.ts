@@ -30,7 +30,7 @@ function sharedPromptTail(input: GearAuditPromptInput): string {
   const findingsPath = findingsFullRelativePath(input.auditKind);
   const table = TABLE_BY_KIND[input.auditKind];
 
-  return `Use the MotherTree Gear Audit skill.
+  return `Use the MotherTree Gear Audit skill. If the skill is not auto-loaded, read .github/skills/gear-audit/SKILL.md and follow it.
 Scope: full_table
 Audit kind: ${input.auditKind}
 Manifestation table: ${table}
@@ -77,7 +77,9 @@ Wheel-specific semantic checks:
 }
 
 /** Optional agent pass after deterministic audit — covenant full table. */
-export function buildCovenantGearAuditPrompt(input: GearAuditPromptInput): string {
+export function buildCovenantGearAuditPrompt(
+  input: GearAuditPromptInput,
+): string {
   return `${AUDIT_KIND_LABEL.covenant} — Gear Audit (full table): semantic review after deterministic pass.
 
 ${sharedPromptTail({ ...input, auditKind: "covenant" })}

@@ -1,6 +1,15 @@
 # Kit Reader (local admin)
 
-Propose-then-verify pipeline: export one awakener’s SKeyDB kit → paste a Cursor Agent prompt → Agent inserts **pending** ATMs (`verified = false`) via CLI → you Edit / Verify in Kit Reader → live loaders use verified rows.
+Propose-then-verify pipeline: export one awakener’s SKeyDB kit → paste an agent prompt → Agent inserts **pending** ATMs (`verified = false`) via CLI → you Edit / Verify in Kit Reader → live loaders use verified rows.
+
+## Agent skills
+
+The AI agent skills for this workflow live in `.github/skills/` (read by VS Code Copilot Agent, Claude Code, and Cursor):
+
+- Propose + insert pending rows: `.github/skills/kit-reader/SKILL.md`
+- Surgical review edits: `.github/skills/kit-reader-review/SKILL.md`
+
+Pasted prompts reference these by name and also carry a fallback path so the agent can read the `SKILL.md` directly if skill auto-loading is unavailable.
 
 ## Local-only gate
 
@@ -15,7 +24,7 @@ UI: `/kit-reader` (sidebar Tools). Export writes the repo file `sample-data/kit-
 
 1. Open **Kit Reader**, pick **one** awakener.
 2. **Export kit pack & fill prompt** → writes `sample-data/kit-reader/{slug}.kit.json`.
-3. **Copy Cursor prompt** → paste into Cursor Agent mode. The generated prompt instructs the agent to read only that awakener's pack and avoid reading other proposal files to conserve token context.
+3. **Copy agent prompt** → paste into an Agent chat (Copilot Agent mode, Cursor, or Claude). The generated prompt instructs the agent to read only that awakener's pack and avoid reading other proposal files to conserve token context.
 4. Agent proposes + runs insert CLI (`verified=false` only) and reports only inserted counts, `needs_review` items, and ignored items (omits tables of inserted rows to save tokens). Never write ad-hoc patch scripts (`scripts/apply-*.ts`); use `insert-kit-pending.ts --patch`/`--append` or the UI.
 5. Back in Kit Reader:
    - **Simple tweaks:** use the inline editable cells or **Edit** dialog directly in `/kit-reader`.
@@ -44,12 +53,12 @@ Proposal schema: [`src/lib/kit-reader/proposal-schema.ts`](../../src/lib/kit-rea
 
 ## Pack assumptions
 
-| Field | Value |
-| --- | --- |
-| Awakener level | 60 |
-| Soulforge | 10 (clamped to talent max; 0 if absent) |
-| Gnostic | 0, except SKeyDB `defaultMaxed` → lv5 |
-| Skill level | lv6 (last scaling index) |
+| Field          | Value                                   |
+| -------------- | --------------------------------------- |
+| Awakener level | 60                                      |
+| Soulforge      | 10 (clamped to talent max; 0 if absent) |
+| Gnostic        | 0, except SKeyDB `defaultMaxed` → lv5   |
+| Skill level    | lv6 (last scaling index)                |
 
 Pinned SKeyDB commit: [`SKEYDB_COMMIT`](../../src/lib/assets/skeydb-base.ts).
 
@@ -77,16 +86,16 @@ Devour-bracketed effects (copy provider group `"2x Devour"`):
 {sourceLabel} Devour {effectLabel}[ E1|E2|E3]
 ```
 
-| Kit source | `sourceLabel` (from pack) |
-| --- | --- |
-| Non-Soulforge talent | `Talent` |
-| Soulforge Aptitude (kit-specific) | `SF` |
-| Exalt | `Exalt` |
-| OverExalt (OE / enlightenment 7) | `OE` |
-| Absolute Axiom upgrade (AA / enlightenment **15**) | `AA` |
-| Rouse base | `Rouse` |
-| Strike / Defense | card name |
-| Other Command / Derived | `{N} Cost` from SKeyDB `cost`, or **card name** if cost missing/`—` or duplicated |
+| Kit source                                         | `sourceLabel` (from pack)                                                         |
+| -------------------------------------------------- | --------------------------------------------------------------------------------- |
+| Non-Soulforge talent                               | `Talent`                                                                          |
+| Soulforge Aptitude (kit-specific)                  | `SF`                                                                              |
+| Exalt                                              | `Exalt`                                                                           |
+| OverExalt (OE / enlightenment 7)                   | `OE`                                                                              |
+| Absolute Axiom upgrade (AA / enlightenment **15**) | `AA`                                                                              |
+| Rouse base                                         | `Rouse`                                                                           |
+| Strike / Defense                                   | card name                                                                         |
+| Other Command / Derived                            | `{N} Cost` from SKeyDB `cost`, or **card name** if cost missing/`—` or duplicated |
 
 - `effectLabel`: strip leading `Attacker.` / `Support.` / `Defender.` / `Special.` / `When.` from `tagName`, then strip trailing `.Fixed` (e.g. `Defender.Shield.Fixed` → `Shield`; tag resolution still prefers `.Fixed`).
 - Append `E1`/`E2`/`E3` only when `required_enlightenment` is 1/2/3. Do not double-append OE/AA.
@@ -104,24 +113,25 @@ Aurita examples: Gland Division → `0 Cost Active Damage` / `0 Cost Active Dama
 When kit text uses **enjoy / enjoys / enjoying**, scale the **subject** ATM via a **local** (`mode: unique_scaling`), not a separate Support ATM for the modifier tag. Modifier tag is the **root**, not `.Fixed`.
 
 **`mathOperation` selection**:
+
 - When overriding an additive default interaction (e.g. `Support.STR Up`, `Support.Unique STR Up`, `Support.Strike Damage Up`, `Defender.Alert`, `Attacker.Counter`, `Support.Fixed Heal Increase`), `mathOperation` **must be `add_scaled`**, matching the default interaction.
 - Tentacle DMG enjoy (`Support.Tentacle Damage Up`, `Support.Unique Tentacle Damage Up`) uses `add_scaled`.
 - Multiplicative modifiers without an additive default interaction (e.g. `Support.Base Damage`, `Support.Crit Damage`, `Support.Damage AMP`, `Support.Final Damage`) use `multiply_one_plus`.
 
 **Tentacle DMG:** when enjoy is followed in the same clause by Tentacle DMG / Tentacle Damage, attach **two** locals with identical fields except `modifierTagName`. Unique TDU is a sibling of TDU, not a prefix child.
 
-Example (Caecus): *"Deal DMG, enjoying a 50% Tentacle DMG bonus"* → parent `Attacker.Active Damage` + both locals:
+Example (Caecus): _"Deal DMG, enjoying a 50% Tentacle DMG bonus"_ → parent `Attacker.Active Damage` + both locals:
 
-| Field | Local 1 | Local 2 |
-| --- | --- | --- |
-| `mode` | `unique_scaling` | `unique_scaling` |
+| Field             | Local 1                      | Local 2                             |
+| ----------------- | ---------------------------- | ----------------------------------- |
+| `mode`            | `unique_scaling`             | `unique_scaling`                    |
 | `modifierTagName` | `Support.Tentacle Damage Up` | `Support.Unique Tentacle Damage Up` |
-| `valueScalar` | `0.5` | `0.5` |
-| `mathOperation` | `add_scaled` | `add_scaled` |
-| `targetType` | `self` | `self` |
-| `layer` | `add` | `add` |
+| `valueScalar`     | `0.5`                        | `0.5`                               |
+| `mathOperation`   | `add_scaled`                 | `add_scaled`                        |
+| `targetType`      | `self`                       | `self`                              |
+| `layer`           | `add`                        | `add`                               |
 
-`"24"` Aequor *"enjoys a 75% Tentacle DMG bonus"* → same pair at `0.75`. Kathigu-Ra Solarflare *"enjoys a 300% STR bonus"* → single unique_scaling with `modifierTagName: "Support.STR Up"`, `mathOperation: "add_scaled"`, `valueScalar: 3`.
+`"24"` Aequor _"enjoys a 75% Tentacle DMG bonus"_ → same pair at `0.75`. Kathigu-Ra Solarflare _"enjoys a 300% STR bonus"_ → single unique_scaling with `modifierTagName: "Support.STR Up"`, `mathOperation: "add_scaled"`, `valueScalar: 3`.
 
 - Pack layers with `hasEnjoyClause` / `hasEnjoyTentacleDmgClause` flag text to inspect.
 - Flat grants (“gain Shield”, “+STR”) → ATM on that tag, not enjoy local.
@@ -132,7 +142,7 @@ Helpers: [`src/lib/kit-reader/proposal-heuristics.ts`](../../src/lib/kit-reader/
 
 ## Direct modifier → direct_modifier
 
-When kit text grants **card-specific or record-specific self-contained buffs** (e.g. *Temporary Enhance on specific cards in hand*, *this card gains +N% Crit DMG*, or other intrinsic card multipliers that must not broadcast to all cards of that awakener):
+When kit text grants **card-specific or record-specific self-contained buffs** (e.g. _Temporary Enhance on specific cards in hand_, _this card gains +N% Crit DMG_, or other intrinsic card multipliers that must not broadcast to all cards of that awakener):
 
 - Attach a **local** on the **subject** ATM with `mode: direct_modifier`.
 - Do **not** create a global Support ATM (which would enter the global tag pool and affect all skills).
@@ -145,10 +155,10 @@ When kit text grants **card-specific or record-specific self-contained buffs** (
 
 When kit text uses **`{Steal}`** or **Steal** in a clause that transfers **STR**, propose **two** `status: ok` ATMs with **identical** scalars and source context:
 
-| Half | `tagName` | `targetType` |
-| --- | --- | --- |
-| Enemy loses STR | `Defender.STR Down` | `aoe` |
-| Self gains STR | `Support.STR Up.Fixed` | `aoe` |
+| Half            | `tagName`              | `targetType` |
+| --------------- | ---------------------- | ------------ |
+| Enemy loses STR | `Defender.STR Down`    | `aoe`        |
+| Self gains STR  | `Support.STR Up.Fixed` | `aoe`        |
 
 Both rows share the same `sourceKitId`, `sourceQuote`, `sourceLayer`, `requiredEnlightenment`, `isPermanent`, `sourceType`, and `metadataSuffix`.
 
@@ -201,13 +211,13 @@ When `resolvedArgMeta.ArgN` has **`stat`** (`atk` / `def` / `con`) and **`suffix
 
 Applies across channel tokens — not only `[Damage:Arg]`:
 
-| Channel / token | Typical tag | Example |
-| --- | --- | --- |
-| `[Damage:Arg]` | `Attacker.Active Damage` | Deal 20% ATK DMG → `0.2`, `atk` |
-| `[Block:Arg]` | `Defender.Shield.Fixed` | Gain 20% DEF Shield → `0.2`, `def` |
-| `[Power:Arg]` | `Support.STR Up.Fixed` | Obtain 4% ATK STR → `0.04`, `atk` (not flat STR) |
-| `[{Poison}:Arg]` | `Attacker.Poison` | Inflict 150% ATK Poison → `1.5`, `atk` |
-| `[Exhaustion:Arg]` | `Defender.STR Down` | Reduce by N% DEF → `N/100`, `def` |
+| Channel / token    | Typical tag              | Example                                          |
+| ------------------ | ------------------------ | ------------------------------------------------ |
+| `[Damage:Arg]`     | `Attacker.Active Damage` | Deal 20% ATK DMG → `0.2`, `atk`                  |
+| `[Block:Arg]`      | `Defender.Shield.Fixed`  | Gain 20% DEF Shield → `0.2`, `def`               |
+| `[Power:Arg]`      | `Support.STR Up.Fixed`   | Obtain 4% ATK STR → `0.04`, `atk` (not flat STR) |
+| `[{Poison}:Arg]`   | `Attacker.Poison`        | Inflict 150% ATK Poison → `1.5`, `atk`           |
+| `[Exhaustion:Arg]` | `Defender.STR Down`      | Reduce by N% DEF → `N/100`, `def`                |
 
 **`hasSubstatBonus: true`** (e.g. Agrippa Pale Blessing Poison × Sigil Yield) → **`status: needs_review`** — multi-stat formula; one ATM cannot express it (`argMetaRequiresReview`).
 
@@ -221,11 +231,11 @@ Helpers: [`description-args.ts`](../../src/lib/kit-reader/description-args.ts), 
 
 Kit packs export `lexicon.percentDependencyStats` (`damage_amp`, `crit_rate`, `crit_dmg`, `sigil_yield`, `death_resist`). Path Carver scales these with `(value_scalar×100) × (stat×100)` where awakener stat is a **fraction** (33.6% → `0.336`). Linear stats (`realm_mastery`, `con`, `atk`, …) use `value_scalar × stat` only.
 
-| Kit wording | `dependency_stat` | `value_scalar` formula | Example |
-| --- | --- | --- | --- |
-| +0.2% effect **per 1** Realm Mastery | `realm_mastery` (linear) | `R / 100` | 0.2 → **0.002** (Casiah Master of Magic) |
-| +0.2% effect **per 1%** Death Resistance | `death_resist` (percent) | `R / 10000` | 0.2 → **0.00002** (Corposant Cinders Base DMG) |
-| +0.05% Shield **per 1%** DR | `death_resist` (percent) | `R / 10000` | 0.05 → **0.000005** |
+| Kit wording                              | `dependency_stat`        | `value_scalar` formula | Example                                        |
+| ---------------------------------------- | ------------------------ | ---------------------- | ---------------------------------------------- |
+| +0.2% effect **per 1** Realm Mastery     | `realm_mastery` (linear) | `R / 100`              | 0.2 → **0.002** (Casiah Master of Magic)       |
+| +0.2% effect **per 1%** Death Resistance | `death_resist` (percent) | `R / 10000`            | 0.2 → **0.00002** (Corposant Cinders Base DMG) |
+| +0.05% Shield **per 1%** DR              | `death_resist` (percent) | `R / 10000`            | 0.05 → **0.000005**                            |
 
 **Never** reuse the linear RM `0.002` pattern on percent deps — it overshoots by **100×**.
 
@@ -242,14 +252,14 @@ Insert CLI emits non-blocking **warnings** when a percent-dep row’s `value_sca
 
 ## Lemurian synergy
 
-When kit text matches Lemurian team synergy (e.g. *“When there are 1/2/3 other Lemurian Awakeners in the team, DMG Amplification +20%/50%/100%”*), propose **four** `status: ok` ATMs on that awakener — not a single flat AMP row, not a local interaction.
+When kit text matches Lemurian team synergy (e.g. _“When there are 1/2/3 other Lemurian Awakeners in the team, DMG Amplification +20%/50%/100%”_), propose **four** `status: ok` ATMs on that awakener — not a single flat AMP row, not a local interaction.
 
-| # | `tagName` | `valueScalar` | `triggerConditionTagName` | Other fields |
-| --- | --- | --- | --- | --- |
-| 1 | `Special.Cause.Lemurian` | `1` | null | `isPermanent: true`, `metadataOverride: "Lemurian"` |
-| 2 | `Support.Damage AMP` | `0.2` | `Special.When.Lemurian Synergy 1` | `targetType: "aoe"` |
-| 3 | `Support.Damage AMP` | `0.5` | `Special.When.Lemurian Synergy 2` | `targetType: "aoe"` |
-| 4 | `Support.Damage AMP` | `1.0` | `Special.When.Lemurian Synergy 3` | `targetType: "aoe"` |
+| #   | `tagName`                | `valueScalar` | `triggerConditionTagName`         | Other fields                                        |
+| --- | ------------------------ | ------------- | --------------------------------- | --------------------------------------------------- |
+| 1   | `Special.Cause.Lemurian` | `1`           | null                              | `isPermanent: true`, `metadataOverride: "Lemurian"` |
+| 2   | `Support.Damage AMP`     | `0.2`         | `Special.When.Lemurian Synergy 1` | `targetType: "aoe"`                                 |
+| 3   | `Support.Damage AMP`     | `0.5`         | `Special.When.Lemurian Synergy 2` | `targetType: "aoe"`                                 |
+| 4   | `Support.Damage AMP`     | `1.0`         | `Special.When.Lemurian Synergy 3` | `targetType: "aoe"`                                 |
 
 - **Client keys:** `lemurian-marker`, `lemurian-synergy-1`, `lemurian-synergy-2`, `lemurian-synergy-3`
 - **`sourceType`:** usually `talent` (Soulforge / permanent trait)

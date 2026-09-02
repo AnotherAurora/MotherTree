@@ -33,7 +33,9 @@ export function formatReviewPromptRow(row: ReviewPromptRowContext): string {
   const parts: string[] = [];
   if (row.valueScalar != null) {
     parts.push(
-      row.dependencyStat ? `${row.valueScalar} (${row.dependencyStat})` : `${row.valueScalar}`,
+      row.dependencyStat
+        ? `${row.valueScalar} (${row.dependencyStat})`
+        : `${row.valueScalar}`,
     );
   }
   if (row.instanceCount > 1) {
@@ -57,7 +59,7 @@ export function formatReviewPromptRow(row: ReviewPromptRowContext): string {
   return `- #${row.id} · ${tagLabel}${metaLabel}${details}`;
 }
 
-/** Paste-ready Cursor Agent prompt after kit pack export. */
+/** Paste-ready agent prompt (Copilot/Claude/Cursor) after kit pack export. */
 export function buildKitReaderCursorPrompt(input: CursorPromptInput): string {
   const commit = input.skeydbCommit ?? SKEYDB_COMMIT;
   const packPath = kitPackRelativePath(input.slug);
@@ -65,7 +67,7 @@ export function buildKitReaderCursorPrompt(input: CursorPromptInput): string {
 
   return `${input.awakenerName} — Kit Reader: Propose and insert pending ATMs.
 
-Use the MotherTree Kit Reader skill.
+Use the MotherTree Kit Reader skill. If the skill is not auto-loaded, read .github/skills/kit-reader/SKILL.md and follow it.
 Kit pack: ${packPath}
 Proposal destination: ${proposalPath}
 SKeyDB commit: ${commit}
@@ -77,7 +79,7 @@ SKeyDB commit: ${commit}
 4. Report ONLY: (a) total count of inserted rows & locals, (b) any needs_review items with rationale, and (c) ignored items. Do NOT print tables, breakdowns, or lists of successfully inserted rows.`;
 }
 
-/** Paste-ready Cursor Agent prompt for surgical review edits in a new chat. */
+/** Paste-ready agent prompt for surgical review edits in a new chat. */
 export function buildKitReaderReviewPrompt(input: ReviewPromptInput): string {
   const proposalPath = kitProposalRelativePath(input.slug);
   const packPath = kitPackRelativePath(input.slug);
@@ -89,7 +91,7 @@ export function buildKitReaderReviewPrompt(input: ReviewPromptInput): string {
 
   return `${input.awakenerName} — Kit Reader review edit (surgical).
 
-Use the MotherTree Kit Reader Review skill.
+Use the MotherTree Kit Reader Review skill. If the skill is not auto-loaded, read .github/skills/kit-reader-review/SKILL.md and follow it.
 Do NOT read ${packPath} or other awakener kit/proposal files.
 Do NOT regenerate or re-insert all pending rows.
 Do NOT touch any records except those explicitly specified below.

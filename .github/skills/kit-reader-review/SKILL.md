@@ -17,7 +17,7 @@ Use this skill for **surgical adjustments** to existing pending ATMs after the i
 - **Touch ONLY the records specified** in the prompt or review instructions. Never modify, wipe, or regenerate unmentioned records.
 - Preserve all existing fields on touched records unless explicitly asked to change them.
 - **Synchronize proposal JSON:** Whenever database rows are updated, deleted, or added, update `sample-data/kit-reader/{slug}.proposal.json` to keep proposal definitions in sync with database state.
-- **Write safety:** For single-row adjustments, use direct database tool calls or UI endpoints rather than generating one-off ad-hoc scripts (`scripts/patch-*.ts`).
+- **Write safety:** For single-row adjustments, use direct database tool calls via the connected Supabase MCP (e.g. `execute_sql`) or the app's UI endpoints, rather than generating one-off ad-hoc scripts (`scripts/patch-*.ts`).
 - **Soft-delete awareness (`deleted_at`):**
   - Always include `deleted_at IS NULL` in all `SELECT` and `UPDATE` queries to avoid inspecting or modifying soft-deleted records.
   - To delete/remove an ATM row, set `deleted_at = NOW()`. Never run hard `DELETE` statements.
@@ -25,17 +25,19 @@ Use this skill for **surgical adjustments** to existing pending ATMs after the i
   1. Changed / deleted / added row IDs
   2. Skipped IDs
   3. Any unresolved blockers or questions
-  Do **not** output full manifestation markdown tables or recaps of untouched rows.
+     Do **not** output full manifestation markdown tables or recaps of untouched rows.
 
 ## Required reading
 
-1. [`src/lib/kit-reader/proposal-schema.ts`](../../../src/lib/kit-reader/proposal-schema.ts) — proposal types and schema definitions
-2. [`docs/admin/kit-reader.md`](../../../docs/admin/kit-reader.md) — operator review workflow
+All paths below are repo-root-relative — read each from the workspace root.
+
+1. `src/lib/kit-reader/proposal-schema.ts` — proposal types and schema definitions
+2. `docs/admin/kit-reader.md` — operator review workflow
 
 ## Typical workflow
 
 1. Identify the targeted rows from the user's prompt (by ATM `#id` or exact tag/metadata criteria).
 2. Inspect the current row state in the database using targeted SQL queries (`WHERE id IN (...)` or `WHERE awakener_id = ... AND ...`).
-3. Apply requested updates via Supabase tool / verified queries.
+3. Apply requested updates via the connected Supabase MCP (targeted `SELECT` / `UPDATE` / soft-delete SQL through `execute_sql`), honoring `deleted_at IS NULL` filters.
 4. Update `sample-data/kit-reader/{slug}.proposal.json` to reflect the changes (update matching `clientKey`, add new items, or remove deleted ones).
 5. Output a concise summary of changed IDs and status.
