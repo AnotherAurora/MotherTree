@@ -78,7 +78,6 @@ function formatScalarCell(
       m.requiredRealmMode !== "combo" &&
       effective === raw) ||
     (m.dependencyStat === "team_max_hp" && teamMaxHp == null) ||
-    m.dependencyStat === "enemy_max_hp" ||
     effective === raw
   ) {
     return String(raw);

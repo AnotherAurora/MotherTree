@@ -1,7 +1,8 @@
 "use client";
 
-import { Fragment, useId, useState, useTransition } from "react";
+import { Fragment, useEffect, useId, useState, useTransition } from "react";
 import type { Enums } from "@/lib/database.types";
+import { CalculatorPendingHydration } from "@/components/public/calculator-pending-hydration";
 import { SearchTagCombobox } from "@/components/public/search-tag-combobox";
 import { SearchResultsTable } from "@/components/public/search-results-table";
 import { runPublicSearch } from "@/lib/actions/public-search";
@@ -51,6 +52,144 @@ const EMPTY_STATE: SearchFilterState = {
   triggerConditionTagId: null,
   requiredRealmId: null,
 };
+
+const SEARCH_FILTERS_STORAGE_KEY = "mt.search.filters";
+
+type StoredSearchSelections = {
+  filters: SearchFilterState;
+  awakenerEnlightenment: SearchAwakenerEnlightenmentValue;
+};
+
+function isSearchTagFamily(value: unknown): value is SearchTagFamily {
+  return value === "attacker" || value === "defender" || value === "support";
+}
+
+function tagIdsForFamily(
+  options: SearchFilterOptions,
+  family: SearchTagFamily,
+): Set<number> {
+  const pools =
+    family === "attacker"
+      ? [
+          ...options.attacker.pre_add,
+          ...options.attacker.add,
+          ...options.attacker.post_add,
+        ]
+      : family === "defender"
+        ? options.defender
+        : options.support;
+  return new Set(pools.map((t) => t.id));
+}
+
+/**
+ * Restore the last saved filter state, validating every field against the
+ * current option lists so the summary line / comboboxes / query can never
+ * diverge (e.g. a saved tag id whose tag was renamed or is no longer
+ * searchable, or an empty-string enum that would silently filter everything
+ * out). Invalid or absent fields fall back to null instead of being kept.
+ */
+function normalizeStoredFilters(
+  value: unknown,
+  options: SearchFilterOptions,
+): SearchFilterState {
+  if (typeof value !== "object" || value === null) return EMPTY_STATE;
+  const o = value as Record<string, unknown>;
+
+  let tagId: number | null = null;
+  let tagFamily: SearchTagFamily | null = null;
+  if (
+    typeof o.tagId === "number" &&
+    Number.isInteger(o.tagId) &&
+    isSearchTagFamily(o.tagFamily) &&
+    tagIdsForFamily(options, o.tagFamily).has(o.tagId)
+  ) {
+    tagId = o.tagId;
+    tagFamily = o.tagFamily;
+  }
+
+  let from: SearchFilterState["from"] = null;
+  if (typeof o.from === "string") {
+    const match = options.from.find((f) => f.value === o.from);
+    from = match ? match.value : null;
+  }
+
+  let targetType: SearchFilterState["targetType"] = null;
+  if (
+    typeof o.targetType === "string" &&
+    o.targetType.length > 0 &&
+    options.targetType.some((v) => v === o.targetType)
+  ) {
+    targetType = o.targetType as SearchFilterState["targetType"];
+  }
+
+  let dependencyStat: SearchFilterState["dependencyStat"] = null;
+  if (
+    typeof o.dependencyStat === "string" &&
+    o.dependencyStat.length > 0 &&
+    options.dependencyStat.some((v) => v === o.dependencyStat)
+  ) {
+    dependencyStat = o.dependencyStat as SearchFilterState["dependencyStat"];
+  }
+
+  let buffRestriction: SearchFilterState["buffRestriction"] = null;
+  if (
+    typeof o.buffRestriction === "string" &&
+    o.buffRestriction.length > 0 &&
+    options.buffRestriction.some((v) => v === o.buffRestriction)
+  ) {
+    buffRestriction = o.buffRestriction as SearchFilterState["buffRestriction"];
+  }
+
+  let triggerConditionTagId: number | null = null;
+  if (
+    typeof o.triggerConditionTagId === "number" &&
+    Number.isInteger(o.triggerConditionTagId) &&
+    options.triggerCondition.some((t) => t.id === o.triggerConditionTagId)
+  ) {
+    triggerConditionTagId = o.triggerConditionTagId;
+  }
+
+  let requiredRealmId: SearchFilterState["requiredRealmId"] = null;
+  if (
+    typeof o.requiredRealmId === "number" &&
+    options.requiredRealm.some((r) => r.id === o.requiredRealmId)
+  ) {
+    requiredRealmId = o.requiredRealmId as SearchFilterState["requiredRealmId"];
+  }
+
+  return {
+    tagId,
+    tagFamily,
+    from,
+    targetType,
+    dependencyStat,
+    buffRestriction,
+    everyTurn: o.everyTurn === true ? true : null,
+    triggerConditionTagId,
+    requiredRealmId,
+  };
+}
+
+function readStoredSearchSelections(
+  options: SearchFilterOptions,
+): StoredSearchSelections | null {
+  try {
+    const raw = window.localStorage.getItem(SEARCH_FILTERS_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as unknown;
+    if (typeof parsed !== "object" || parsed === null) return null;
+    const o = parsed as Record<string, unknown>;
+    const filters = normalizeStoredFilters(o.filters, options);
+    const awakenerEnlightenment: SearchAwakenerEnlightenmentValue =
+      typeof o.awakenerEnlightenment === "number" &&
+      isAwakenerEnlightenmentValue(o.awakenerEnlightenment)
+        ? o.awakenerEnlightenment
+        : SEARCH_DEFAULT_AWAKENER_ENLIGHTENMENT;
+    return { filters, awakenerEnlightenment };
+  } catch {
+    return null;
+  }
+}
 
 const selectClassName = cn(
   "h-10 w-full min-w-0 rounded-md border border-[var(--mt-border)] bg-[rgb(255_245_235_/_0.55)] px-2 text-sm text-[var(--mt-ink)]",
@@ -211,6 +350,34 @@ export function SearchFilters({ options }: SearchFiltersProps) {
     status: "idle",
   });
   const [isPending, startTransition] = useTransition();
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    const stored = readStoredSearchSelections(options);
+    if (stored) {
+      // Restoring persisted filters post-hydration is a one-time, client-only
+      // read (window.localStorage) deferred out of render to avoid an SSR /
+      // hydration mismatch. This is the documented exception to
+      // set-state-in-effect, not a per-change cascade.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setState(stored.filters);
+      setAwakenerEnlightenment(stored.awakenerEnlightenment);
+    }
+    setHydrated(true);
+  }, [options]);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    try {
+      window.localStorage.setItem(
+        SEARCH_FILTERS_STORAGE_KEY,
+        JSON.stringify({ filters: state, awakenerEnlightenment }),
+      );
+    } catch {
+      // Ignore quota / private-mode failures.
+    }
+  }, [state, awakenerEnlightenment, hydrated]);
+
   const empty = isSearchFilterEmpty(state);
   const enlightenmentSummary = `Awakener Enlightenment: ${formatAwakenerEnlightenmentLabel(awakenerEnlightenment)}`;
   const filterSummary = empty ? "" : summarizeSearchFilters(state, options);
@@ -279,6 +446,10 @@ export function SearchFilters({ options }: SearchFiltersProps) {
   function supportValue(): number | null {
     if (state.tagFamily !== "support" || state.tagId == null) return null;
     return state.tagId;
+  }
+
+  if (!hydrated) {
+    return <CalculatorPendingHydration />;
   }
 
   return (
@@ -693,9 +864,7 @@ export function SearchFilters({ options }: SearchFiltersProps) {
           </p>
         ) : null}
 
-        {!loading &&
-        results.status === "success" &&
-        results.sourceTruncated ? (
+        {!loading && results.status === "success" && results.sourceTruncated ? (
           <p
             role="alert"
             className="rounded-md border border-[var(--mt-border)] bg-[rgb(255_245_235_/_0.35)] px-4 py-3 text-sm text-[var(--mt-ink)]"

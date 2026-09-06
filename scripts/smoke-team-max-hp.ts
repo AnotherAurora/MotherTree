@@ -36,11 +36,7 @@ function assert(cond: boolean, msg: string): void {
   console.log(`  ok — ${msg}`);
 }
 
-function makeTag(
-  id: number,
-  tagName: string,
-  isPercent = false,
-): Tag {
+function makeTag(id: number, tagName: string, isPercent = false): Tag {
   return { id, tagName, layer: null, isPercent, isAdditive: true };
 }
 
@@ -126,35 +122,31 @@ console.log("\nDatamine baseline examples");
 {
   // Example A: acct 70, levels 60×4, CON 614 → 1597
   const a = computeTeamMaxHp({
-    awakeners: [
-      { con: 120 },
-      { con: 162 },
-      { con: 152 },
-      { con: 180 },
-    ],
+    awakeners: [{ con: 120 }, { con: 162 }, { con: 152 }, { con: 180 }],
     maxHpUpTotal: 0,
     accountLevel: 70,
     awakenerLevels: [60, 60, 60, 60],
   });
   assert(a.effectiveHpLevel === 70, "example A effective level 70");
-  assert(a.baselineMaxHp === 1597, `example A baseline 1597 (got ${a.baselineMaxHp})`);
+  assert(
+    a.baselineMaxHp === 1597,
+    `example A baseline 1597 (got ${a.baselineMaxHp})`,
+  );
   assert(a.finalMaxHp === 1597, "example A final = baseline");
 
   // Example B: acct 70, levels 80/70/70/80, CON 583 → 1540
   const b = computeTeamMaxHp({
-    awakeners: [
-      { con: 154 },
-      { con: 153 },
-      { con: 121 },
-      { con: 155 },
-    ],
+    awakeners: [{ con: 154 }, { con: 153 }, { con: 121 }, { con: 155 }],
     maxHpUpTotal: 0,
     accountLevel: 70,
     awakenerLevels: [80, 70, 70, 80],
   });
   assert(b.awakenerAverageLevel === 75, "example B avg 75");
   assert(b.effectiveHpLevel === 73, "example B effective 73");
-  assert(b.baselineMaxHp === 1540, `example B baseline 1540 (got ${b.baselineMaxHp})`);
+  assert(
+    b.baselineMaxHp === 1540,
+    `example B baseline 1540 (got ${b.baselineMaxHp})`,
+  );
 }
 
 console.log("\nPath Carver defaults (60/60)");
@@ -162,18 +154,16 @@ console.log("\nPath Carver defaults (60/60)");
   assert(DEFAULT_ACCOUNT_LEVEL === 60, "default account 60");
   assert(DEFAULT_AWAKENER_LEVEL === 60, "default awakener 60");
   const r = computeTeamMaxHp({
-    awakeners: [
-      { con: 135 },
-      { con: 108 },
-      { con: 170 },
-      { con: 145 },
-    ],
+    awakeners: [{ con: 135 }, { con: 108 }, { con: 170 }, { con: 145 }],
     maxHpUpTotal: 0,
   });
   assert(r.effectiveHpLevel === 60, "defaults → effective 60");
   assert(r.hpMultiplier === 2.26, "defaults use HpMultiplier 2.26");
   assert(r.totalCon === 558, "CON sum 558");
-  assert(r.baselineMaxHp === 1262, `baseline ceil(558*2.26)=1262 (got ${r.baselineMaxHp})`);
+  assert(
+    r.baselineMaxHp === 1262,
+    `baseline ceil(558*2.26)=1262 (got ${r.baselineMaxHp})`,
+  );
 }
 
 console.log("\nEffective HP level blend");
@@ -246,7 +236,7 @@ console.log("\nteam_max_hp dependency scaling");
   assert(
     scaleValueScalar(10, "enemy_max_hp", awakener, "awakener", false, 1529) ===
       10,
-    "enemy_max_hp still ignored",
+    "enemy_max_hp not stat-scaled; whole 10 percent-ceil no-op",
   );
   assert(
     scaleValueScalar(0.01, "team_max_hp", null, "posse") === 0.01,
@@ -259,6 +249,23 @@ console.log("\nteam_max_hp dependency scaling");
   assert(
     scaleValueScalar(0.01, "team_max_hp", null, "posse", true, 1529) === 15.29,
     "posse team_max_hp percent tag → ceil 2dp",
+  );
+}
+
+console.log("\nenemy_max_hp percent-ceil (mimics tag.is_percent=true)");
+{
+  const awakener = makeAwakener({ id: 1, atk: 100 });
+  assert(
+    scaleValueScalar(0.005, "enemy_max_hp", awakener, "awakener") === 0.01,
+    "enemy_max_hp 0.005 → percent-ceil 0.01 (non-percent tag)",
+  );
+  assert(
+    scaleValueScalar(0.25, "enemy_max_hp", awakener, "awakener", true) === 0.25,
+    "enemy_max_hp percent tag 0.25 unchanged at 2 dp",
+  );
+  assert(
+    scaleValueScalar(0.005, "enemy_max_hp", null, "posse") === 0.005,
+    "posse enemy_max_hp stays raw (guard before percent-ceil)",
   );
 }
 

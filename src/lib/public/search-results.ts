@@ -225,6 +225,18 @@ function ceilSearchValue(value: number, tagIsPercent: boolean): number {
 }
 
 /**
+ * A Search row is percent-valued when its tag is percent OR its dependency is
+ * enemy_max_hp — the value_scalar is then a % of the enemy's max HP (e.g. Fixed
+ * Damage / Corrosion) and must be percent-ceiled + displayed with a % sign.
+ */
+function isPercentSearchValue(
+  tagIsPercent: boolean,
+  dependencyStat: Enums<"all_stats"> | null,
+): boolean {
+  return tagIsPercent || dependencyStat === "enemy_max_hp";
+}
+
+/**
  * Aftereffect contribution: op(finishedOnce, factor). `before` is not in the op.
  * Search only supports multiply / add_scaled (default multiply).
  */
@@ -423,8 +435,9 @@ export function buildSearchResults(
     }
 
     // Mirror Path Carver load/resolve: enlightenment gate, then replacements,
-    // then Search filters on survivors. is_search_simulated tags are already
-    // served by the solo-sim aggregate above; never also emit direct rows.
+    // then Search filters on survivors. is_search_simulated tags appear only
+    // via the solo-sim aggregate when that tag is selected; never emit direct
+    // rows for them (and never in tag-less browse-all).
     const enlightenmentGated = input.awakenerManifestations.filter(
       (m) => (m.required_enlightenment ?? 0) <= filters.awakenerEnlightenment,
     );
@@ -440,9 +453,10 @@ export function buildSearchResults(
 
     for (const m of resolvedAwakenerManifestations) {
       const tag = tagsById.get(m.tag_id);
-      // Flagged tags are served by the solo-sim aggregate only; never emit
-      // direct per-manifestation rows for them. Unflagged tags (whether
-      // Support.* or AD-named) always fall through to direct rows.
+      // Flagged tags are served by the solo-sim aggregate only (when that tag
+      // is the selected filter); never emit direct per-manifestation rows for
+      // them. Unflagged tags (whether Support.* or AD-named) always fall
+      // through to direct rows.
       if (tag != null && tag.is_search_simulated) {
         continue;
       }
@@ -484,12 +498,16 @@ export function buildSearchResults(
         scalingAwakener,
         tag?.is_percent === true,
       );
+      const isPercent = isPercentSearchValue(
+        tag?.is_percent === true,
+        m.dependency_stat,
+      );
       const value =
         finishedOnce == null
           ? null
           : ceilSearchValue(
               finishedOnce * instanceCount(m.instance_count),
-              tag?.is_percent === true,
+              isPercent,
             );
 
       rows.push({
@@ -507,7 +525,7 @@ export function buildSearchResults(
           formatSearchDependencyStatLabel,
         ),
         value,
-        valueDisplay: formatValueDisplay(value, tag?.is_percent === true),
+        valueDisplay: formatValueDisplay(value, isPercent),
         buffRestriction: formatOptionalEnum(
           m.buff_target_type_restriction,
           formatSearchBuffRestrictionLabel,

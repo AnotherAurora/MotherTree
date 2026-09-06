@@ -462,7 +462,9 @@ effective = ceil(raw) or ceil(raw * 100) / 100
 - Non-percent tags: ceil to a **whole number** (e.g. Enhance `15 + 0.0075 × 434 × 2 = 21.51 → 22`)
 - Percent tags: ceil to **2 decimal places**
 - Unscaled flat rows with no pure double stay raw (no ceil)
-- ATM/override: `team_max_hp` / `enemy_max_hp` still **ignore** scaling (keep raw `value_scalar`). Realm rows that use those as `dependency_stat` **do** resolve them as `base_stat`.
+- ATM/override: `team_max_hp` still **ignores** scaling when no context (keep raw `value_scalar`). Realm rows that use those as `dependency_stat` **do** resolve them as `base_stat`.
+
+**Superseded for `enemy_max_hp` on ATM/covenant/wheel/override (2026-09-06):** `dependency_stat = enemy_max_hp` rows are **not** ×stat-scaled, but their raw `value_scalar` is **percent-ceiled to 2 dp** (`ceil(value×100)/100`), mimicking `tag.is_percent = true`, because the value is a % of the enemy's max HP (e.g. Fixed Damage / Corrosion). Realm multiply-only rows with `enemy_max_hp` still return raw × scalarMult (`REALM_IGNORED_DEPENDENCY_STATS`); posse stays raw.
 
 If `dependency_stat` is null and there is no rate pair → flat branch above.
 

@@ -464,17 +464,18 @@ export function computeSoloAwakenerTotals(
 }
 
 /**
- * True when Search should run solo sims: any in-scope tag (the expanded
- * matching set, or all tags when no tag filter is set) is flagged
- * `is_search_simulated`. Tags flagged false are served by direct
- * per-manifestation rows instead.
+ * True when Search should run solo sims. Only runs when a specific tag
+ * filter is active and the expanded matching set contains at least one tag
+ * flagged `is_search_simulated`. With no tag filter set (browse-all), solo
+ * sims never run, so flagged tags' aggregate rows are excluded from results;
+ * unflagged tags are served by direct per-manifestation rows instead.
  */
 export function shouldRunSoloAwakenerTotals(
   matchingTagIds: Set<number> | null,
   tagsById: ReadonlyMap<number, PublicRow<"tag">>,
 ): boolean {
-  const inScope = matchingTagIds ?? new Set(tagsById.keys());
-  for (const id of inScope) {
+  if (matchingTagIds == null) return false;
+  for (const id of matchingTagIds) {
     if (tagsById.get(id)?.is_search_simulated === true) return true;
   }
   return false;

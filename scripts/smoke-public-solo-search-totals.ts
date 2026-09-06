@@ -433,8 +433,8 @@ assert(
   "unflagged Support tag does not trigger solo sim",
 );
 assert(
-  shouldRunSoloAwakenerTotals(null, tagById),
-  "no-tag scope triggers solo sim when any tag is simulated",
+  !shouldRunSoloAwakenerTotals(null, tagById),
+  "no-tag scope never triggers solo sim (browse-all excludes simulated rows)",
 );
 
 console.log("flag routing — unflagged AD tag behaves like Support");
@@ -486,7 +486,56 @@ assert(
   "unflagged AD tag never emits solo aggregate rows",
 );
 
-console.log("flag routing — mixed scope keeps direct rows for unflagged tags");
+console.log("enemy_max_hp direct row displays as percent (not whole unit)");
+const tagsWithEnemyFixed = [
+  ...tagsWithDirectAd,
+  {
+    id: 6,
+    tag_name: "Attacker.Active Damage.Fixed Damage",
+    layer: "pre_add",
+    is_percent: false,
+    is_additive: true,
+    is_searchable: true,
+    is_search_simulated: false,
+  },
+] as PublicRow<"tag">[];
+
+const enemyFixedAtm = {
+  ...aequorDamageAtm,
+  id: 702,
+  tag_id: 6,
+  metadata: null,
+  value_scalar: 0.25,
+  dependency_stat: "enemy_max_hp",
+  required_realm: null,
+  target_type: "aoe",
+} as PublicRow<"awakener_tag_manifestation">;
+
+const enemyFixedSearch = buildSearchResults({
+  filters: { ...filtersBase, tagId: 6 },
+  tags: tagsWithEnemyFixed,
+  realms,
+  awakeners: [awakener24],
+  awakenerManifestations: [enemyFixedAtm],
+  awakenerLocalInteractions: [],
+  ...emptyGear,
+});
+assert(
+  enemyFixedSearch.rows.length === 1 &&
+    enemyFixedSearch.rows[0]!.id === "awakener:702",
+  `enemy_max_hp Fixed Damage emits one direct row (got ${enemyFixedSearch.rows.length})`,
+);
+const enemyFixedRow = enemyFixedSearch.rows[0]!;
+assert(
+  enemyFixedRow.value === 0.25,
+  `enemy_max_hp 0.25 value stays fraction, not whole unit (got ${enemyFixedRow.value})`,
+);
+assert(
+  enemyFixedRow.valueDisplay === "25%",
+  `enemy_max_hp 0.25 displays as 25% (got ${enemyFixedRow.valueDisplay})`,
+);
+
+console.log("flag routing — browse-all (no tag) excludes flagged sim rows");
 const mixedSearch = buildSearchResults({
   filters: { ...filtersBase },
   tags: tagsWithDirectAd,
@@ -497,14 +546,14 @@ const mixedSearch = buildSearchResults({
   ...emptyGear,
 });
 assert(
-  mixedSearch.rows.some(
+  !mixedSearch.rows.some(
     (r) => r.id === `awakener-solo:24:1:${AEQUOR_REALM_ID}`,
   ),
-  "browse-all keeps flagged sim aggregate row",
+  "browse-all (no tag) excludes flagged sim aggregate row",
 );
 assert(
   mixedSearch.rows.some((r) => r.id === "awakener:701"),
-  "browse-all keeps unflagged AD tag direct row when sim runs",
+  "browse-all keeps unflagged AD tag direct row",
 );
 assert(
   !mixedSearch.rows.some(
