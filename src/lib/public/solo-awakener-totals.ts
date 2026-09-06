@@ -150,7 +150,8 @@ function mapLocalInteraction(
   row: PublicRow<"awakener_local_manifestation_interaction">,
   tagsById: Readonly<Record<number, Tag>>,
 ): AwakenerLocalManifestationInteraction {
-  const modifier = row.modifier_tag_id != null ? tagsById[row.modifier_tag_id] : null;
+  const modifier =
+    row.modifier_tag_id != null ? tagsById[row.modifier_tag_id] : null;
   const target = row.target_tag_id != null ? tagsById[row.target_tag_id] : null;
   return {
     id: row.id,
@@ -330,7 +331,10 @@ function buildSoloTeamData(
     catalog.copyProviderMembers,
   );
 
-  const localsByAtmId = new Map<number, AwakenerLocalManifestationInteraction[]>();
+  const localsByAtmId = new Map<
+    number,
+    AwakenerLocalManifestationInteraction[]
+  >();
   for (const local of catalog.awakenerLocalInteractions) {
     if (local.manifestation_id == null) continue;
     const mapped = mapLocalInteraction(local, tagsById);
@@ -486,7 +490,10 @@ function atmAppliesInRealmSim(
   return true;
 }
 
-function joinUnique(values: Iterable<string>, separator: string): string | null {
+function joinUnique(
+  values: Iterable<string>,
+  separator: string,
+): string | null {
   const seen = new Set<string>();
   const parts: string[] = [];
   for (const raw of values) {
@@ -516,8 +523,12 @@ function joinUniqueTargetTypes(
   }
   if (unique.length === 0) return null;
   unique.sort((a, b) => {
-    const ai = TARGET_TYPE_ORDER.get(a as (typeof ENUM_VALUES.target_type)[number]);
-    const bi = TARGET_TYPE_ORDER.get(b as (typeof ENUM_VALUES.target_type)[number]);
+    const ai = TARGET_TYPE_ORDER.get(
+      a as (typeof ENUM_VALUES.target_type)[number],
+    );
+    const bi = TARGET_TYPE_ORDER.get(
+      b as (typeof ENUM_VALUES.target_type)[number],
+    );
     if (ai == null && bi == null) return a.localeCompare(b);
     if (ai == null) return 1;
     if (bi == null) return -1;

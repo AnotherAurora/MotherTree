@@ -1,9 +1,6 @@
 import type { Enums } from "@/lib/database.types";
 import { scaleValueScalar } from "@/lib/path-carver/effective-value-scalar";
-import {
-  PUBLIC_ROW_LIMIT,
-  type PublicRow,
-} from "@/lib/public-read/allowlist";
+import { PUBLIC_ROW_LIMIT, type PublicRow } from "@/lib/public-read/allowlist";
 import {
   SEARCH_FROM_OPTIONS,
   formatSearchBuffRestrictionLabel,
@@ -113,10 +110,7 @@ function formatOptionalEnum(
   return format(value);
 }
 
-function formatValueDisplay(
-  value: number | null,
-  isPercent: boolean,
-): string {
+function formatValueDisplay(value: number | null, isPercent: boolean): string {
   if (value == null) return EMPTY_DISPLAY;
   if (!isPercent) return String(value);
   // Stored fraction → percent points (0.3 → 30%); trim float noise.
@@ -220,9 +214,7 @@ function computeAwakenerValue(
 }
 
 /** ATM instance_count (NOT NULL default 1); treat null/missing as 1. */
-function instanceCount(
-  raw: number | null | undefined,
-): number {
+function instanceCount(raw: number | null | undefined): number {
   return raw == null ? 1 : raw;
 }
 
@@ -434,8 +426,7 @@ export function buildSearchResults(
     // then Search filters on survivors. is_search_simulated tags are already
     // served by the solo-sim aggregate above; never also emit direct rows.
     const enlightenmentGated = input.awakenerManifestations.filter(
-      (m) =>
-        (m.required_enlightenment ?? 0) <= filters.awakenerEnlightenment,
+      (m) => (m.required_enlightenment ?? 0) <= filters.awakenerEnlightenment,
     );
     const resolvedAwakenerManifestations = applyManifestationReplacements(
       enlightenmentGated.map((row) => ({
@@ -522,14 +513,8 @@ export function buildSearchResults(
           formatSearchBuffRestrictionLabel,
         ),
         everyTurn: formatEveryTurn(m.is_accumulating),
-        triggerCondition: formatTriggerCondition(
-          m.trigger_condition,
-          tagsById,
-        ),
-        requiredRealm: formatRequiredRealmSingle(
-          m.required_realm,
-          realmsById,
-        ),
+        triggerCondition: formatTriggerCondition(m.trigger_condition, tagsById),
+        requiredRealm: formatRequiredRealmSingle(m.required_realm, realmsById),
         metadata: formatMetadata(m.metadata),
       });
     }
@@ -631,23 +616,14 @@ export function buildSearchResults(
           formatSearchDependencyStatLabel,
         ),
         value,
-        valueDisplay: formatValueDisplay(
-          value,
-          targetTag?.is_percent === true,
-        ),
+        valueDisplay: formatValueDisplay(value, targetTag?.is_percent === true),
         buffRestriction: formatOptionalEnum(
           m.buff_target_type_restriction,
           formatSearchBuffRestrictionLabel,
         ),
         everyTurn: formatEveryTurn(m.is_accumulating),
-        triggerCondition: formatTriggerCondition(
-          m.trigger_condition,
-          tagsById,
-        ),
-        requiredRealm: formatRequiredRealmSingle(
-          m.required_realm,
-          realmsById,
-        ),
+        triggerCondition: formatTriggerCondition(m.trigger_condition, tagsById),
+        requiredRealm: formatRequiredRealmSingle(m.required_realm, realmsById),
         metadata: formatMetadata(m.metadata),
       });
     }
@@ -710,14 +686,8 @@ export function buildSearchResults(
           formatSearchBuffRestrictionLabel,
         ),
         everyTurn: formatEveryTurn(m.is_accumulating),
-        triggerCondition: formatTriggerCondition(
-          m.trigger_condition,
-          tagsById,
-        ),
-        requiredRealm: formatRequiredRealmSingle(
-          m.required_realm,
-          realmsById,
-        ),
+        triggerCondition: formatTriggerCondition(m.trigger_condition, tagsById),
+        requiredRealm: formatRequiredRealmSingle(m.required_realm, realmsById),
         metadata: null,
       });
     }
@@ -844,10 +814,7 @@ export function buildSearchResults(
           formatSearchBuffRestrictionLabel,
         ),
         everyTurn: formatEveryTurn(m.is_accumulating),
-        triggerCondition: formatTriggerCondition(
-          m.trigger_condition,
-          tagsById,
-        ),
+        triggerCondition: formatTriggerCondition(m.trigger_condition, tagsById),
         requiredRealm: formatRequiredRealmCovenant(
           m.required_realm1,
           m.required_realm2,

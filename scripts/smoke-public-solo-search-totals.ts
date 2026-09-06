@@ -257,7 +257,8 @@ assert(
   "24 with realm filter sims only that realm",
 );
 assert(
-  realmSimsForAwakener(otherAwakener, null).join(",") === String(AEQUOR_REALM_ID),
+  realmSimsForAwakener(otherAwakener, null).join(",") ===
+    String(AEQUOR_REALM_ID),
   "other awakener uses native realm only",
 );
 assert(
@@ -288,12 +289,18 @@ const chaosTotals = computeSoloAwakenerTotals(
   catalog,
 );
 assert(aequorTotals.totalsByTagId.has(1), "aequor has Active Damage in totals");
-assert(aequorTotals.totalsByTagId.has(2), "aequor has Poison in totals (aftereffect)");
+assert(
+  aequorTotals.totalsByTagId.has(2),
+  "aequor has Poison in totals (aftereffect)",
+);
 assert(
   !aequorTotals.hasAppliedRealmManifestation,
   "no catalog RTM → hasAppliedRealmManifestation false",
 );
-assert(!chaosTotals.totalsByTagId.has(1), "chaos has no Active Damage (realm-gated ATM)");
+assert(
+  !chaosTotals.totalsByTagId.has(1),
+  "chaos has no Active Damage (realm-gated ATM)",
+);
 assert(!chaosTotals.totalsByTagId.has(2), "chaos has no Poison");
 
 console.log("buildSearchResults — Poison filter for 24");
@@ -320,7 +327,9 @@ assert(
   "no raw aftereffect row for Attacker.Poison",
 );
 assert(
-  !poisonSearch.rows.some((r) => r.id.startsWith("awakener:") && !r.id.includes("solo")),
+  !poisonSearch.rows.some(
+    (r) => r.id.startsWith("awakener:") && !r.id.includes("solo"),
+  ),
   "no raw ATM row for Attacker tags when solo ran",
 );
 assert(
@@ -469,8 +478,7 @@ const slashSearch = buildSearchResults({
   ...emptyGear,
 });
 assert(
-  slashSearch.rows.length === 1 &&
-    slashSearch.rows[0]!.id === "awakener:701",
+  slashSearch.rows.length === 1 && slashSearch.rows[0]!.id === "awakener:701",
   `unflagged AD tag emits one direct per-manifestation row (got ${slashSearch.rows.length})`,
 );
 assert(
@@ -700,8 +708,7 @@ const dualWithGimmickRow = dualWithGimmickSearch.rows.find(
 );
 assert(dualWithGimmickRow, "dual ATM Active Damage with RTM");
 assert(
-  dualWithGimmickRow.metadata ===
-    `noteA +\nnoteB +\n${REALM_GIMMICK_METADATA}`,
+  dualWithGimmickRow.metadata === `noteA +\nnoteB +\n${REALM_GIMMICK_METADATA}`,
   `notes then Realm gimmick once (got ${JSON.stringify(dualWithGimmickRow.metadata)})`,
 );
 

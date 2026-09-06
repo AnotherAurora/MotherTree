@@ -176,9 +176,10 @@ export function TableManager({
   const [showDeletedOnly, setShowDeletedOnly] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
   const [dialogOpen, setDialogOpen] = React.useState(false);
-  const [editingRecord, setEditingRecord] = React.useState<
-    Record<string, unknown> | null
-  >(null);
+  const [editingRecord, setEditingRecord] = React.useState<Record<
+    string,
+    unknown
+  > | null>(null);
   const [initialCloneMembers, setInitialCloneMembers] = React.useState<
     CopyProviderGroupMemberInput[] | undefined
   >(undefined);
@@ -220,9 +221,7 @@ export function TableManager({
   React.useEffect(() => {
     const inlineFkFields = getListFields(config).filter(
       (field) =>
-        field.inlineEditable &&
-        field.type === "foreignKey" &&
-        field.foreignKey,
+        field.inlineEditable && field.type === "foreignKey" && field.foreignKey,
     );
 
     if (inlineFkFields.length === 0) {
@@ -241,11 +240,9 @@ export function TableManager({
       if (!cacheKeyToPromise.has(cacheKey)) {
         cacheKeyToPromise.set(
           cacheKey,
-          getForeignKeyOptions(
-            fk.table,
-            fk.displayColumn,
-            fk.labelKind,
-          ).then((result) => (result.success ? result.data : [])),
+          getForeignKeyOptions(fk.table, fk.displayColumn, fk.labelKind).then(
+            (result) => (result.success ? result.data : []),
+          ),
         );
       }
       const options = await cacheKeyToPromise.get(cacheKey)!;
@@ -292,10 +289,7 @@ export function TableManager({
       return;
     }
 
-    const labelResult = await resolveForeignKeyLabels(
-      config.name,
-      result.data,
-    );
+    const labelResult = await resolveForeignKeyLabels(config.name, result.data);
 
     setRecords(result.data);
     setTotalCount(result.totalCount);
@@ -318,7 +312,9 @@ export function TableManager({
     setDeletingId(null);
 
     if (result.success) {
-      toast.success(config.softDelete ? "Record soft-deleted" : "Record deleted");
+      toast.success(
+        config.softDelete ? "Record soft-deleted" : "Record deleted",
+      );
       await refresh();
     } else {
       toast.error(result.error);
@@ -342,9 +338,7 @@ export function TableManager({
 
   async function handlePermanentDelete(id: number) {
     if (
-      !window.confirm(
-        "Permanently delete this record? This cannot be undone.",
-      )
+      !window.confirm("Permanently delete this record? This cannot be undone.")
     ) {
       return;
     }
@@ -450,9 +444,7 @@ export function TableManager({
     }
 
     setRecords((current) =>
-      current.map((record) =>
-        record.id === updated.id ? updated : record,
-      ),
+      current.map((record) => (record.id === updated.id ? updated : record)),
     );
   }
 
@@ -460,9 +452,7 @@ export function TableManager({
     if (editingRecord) {
       patchFkLabelsFromRecordChange(editingRecord, saved);
       setRecords((current) =>
-        current.map((record) =>
-          record.id === saved.id ? saved : record,
-        ),
+        current.map((record) => (record.id === saved.id ? saved : record)),
       );
 
       const labelResult = await resolveForeignKeyLabels(config.name, [saved]);
@@ -530,10 +520,7 @@ export function TableManager({
                     const deletedOnly = event.target.checked;
                     setShowDeletedOnly(deletedOnly);
                     setLoading(true);
-                    const result = await listRecords(
-                      config.name,
-                      deletedOnly,
-                    );
+                    const result = await listRecords(config.name, deletedOnly);
                     if (result.success) {
                       const labelResult = await resolveForeignKeyLabels(
                         config.name,
@@ -728,7 +715,9 @@ export function TableManager({
                                 "max-w-[10rem] overflow-hidden",
                             )}
                           >
-                            {field.inlineEditable && !showDeletedOnly && !isDeleted ? (
+                            {field.inlineEditable &&
+                            !showDeletedOnly &&
+                            !isDeleted ? (
                               <EditableCell
                                 tableName={config.name}
                                 recordId={Number(record.id)}
@@ -823,7 +812,9 @@ export function TableManager({
                                   variant="destructive"
                                   size="sm"
                                   disabled={deletingId === Number(record.id)}
-                                  onClick={() => handleDelete(Number(record.id))}
+                                  onClick={() =>
+                                    handleDelete(Number(record.id))
+                                  }
                                 >
                                   {deletingId === Number(record.id) ? (
                                     <Loader2 className="h-3.5 w-3.5 animate-spin" />

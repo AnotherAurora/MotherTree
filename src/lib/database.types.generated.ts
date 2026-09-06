@@ -4,1428 +4,1432 @@ export type Json =
   | boolean
   | null
   | { [key: string]: Json | undefined }
-  | Json[]
+  | Json[];
 
 export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.5"
-  }
+    PostgrestVersion: "14.5";
+  };
   graphql_public: {
     Tables: {
-      [_ in never]: never
-    }
+      [_ in never]: never;
+    };
     Views: {
-      [_ in never]: never
-    }
+      [_ in never]: never;
+    };
     Functions: {
       graphql: {
         Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
+          extensions?: Json;
+          operationName?: string;
+          query?: string;
+          variables?: Json;
+        };
+        Returns: Json;
+      };
+    };
     Enums: {
-      [_ in never]: never
-    }
+      [_ in never]: never;
+    };
     CompositeTypes: {
-      [_ in never]: never
-    }
-  }
+      [_ in never]: never;
+    };
+  };
   public: {
     Tables: {
       awakener: {
         Row: {
-          aliemus_regen: number | null
-          atk: number | null
-          base_aliemus: number | null
-          con: number | null
-          created_at: string | null
-          crit_dmg: number | null
-          crit_rate: number | null
-          damage_amp: number | null
-          death_resist: number | null
-          def: number | null
-          deleted_at: string | null
-          enlightenment: number | null
-          id: number
-          keyflare_regen: number | null
-          name: string | null
-          notes: string | null
-          realm: number | null
-          realm_mastery: number | null
-          sigil_yield: number | null
-          updated_at: string | null
-        }
+          aliemus_regen: number | null;
+          atk: number | null;
+          base_aliemus: number | null;
+          con: number | null;
+          created_at: string | null;
+          crit_dmg: number | null;
+          crit_rate: number | null;
+          damage_amp: number | null;
+          death_resist: number | null;
+          def: number | null;
+          deleted_at: string | null;
+          enlightenment: number | null;
+          id: number;
+          keyflare_regen: number | null;
+          name: string | null;
+          notes: string | null;
+          realm: number | null;
+          realm_mastery: number | null;
+          sigil_yield: number | null;
+          updated_at: string | null;
+        };
         Insert: {
-          aliemus_regen?: number | null
-          atk?: number | null
-          base_aliemus?: number | null
-          con?: number | null
-          created_at?: string | null
-          crit_dmg?: number | null
-          crit_rate?: number | null
-          damage_amp?: number | null
-          death_resist?: number | null
-          def?: number | null
-          deleted_at?: string | null
-          enlightenment?: number | null
-          id?: number
-          keyflare_regen?: number | null
-          name?: string | null
-          notes?: string | null
-          realm?: number | null
-          realm_mastery?: number | null
-          sigil_yield?: number | null
-          updated_at?: string | null
-        }
+          aliemus_regen?: number | null;
+          atk?: number | null;
+          base_aliemus?: number | null;
+          con?: number | null;
+          created_at?: string | null;
+          crit_dmg?: number | null;
+          crit_rate?: number | null;
+          damage_amp?: number | null;
+          death_resist?: number | null;
+          def?: number | null;
+          deleted_at?: string | null;
+          enlightenment?: number | null;
+          id?: number;
+          keyflare_regen?: number | null;
+          name?: string | null;
+          notes?: string | null;
+          realm?: number | null;
+          realm_mastery?: number | null;
+          sigil_yield?: number | null;
+          updated_at?: string | null;
+        };
         Update: {
-          aliemus_regen?: number | null
-          atk?: number | null
-          base_aliemus?: number | null
-          con?: number | null
-          created_at?: string | null
-          crit_dmg?: number | null
-          crit_rate?: number | null
-          damage_amp?: number | null
-          death_resist?: number | null
-          def?: number | null
-          deleted_at?: string | null
-          enlightenment?: number | null
-          id?: number
-          keyflare_regen?: number | null
-          name?: string | null
-          notes?: string | null
-          realm?: number | null
-          realm_mastery?: number | null
-          sigil_yield?: number | null
-          updated_at?: string | null
-        }
+          aliemus_regen?: number | null;
+          atk?: number | null;
+          base_aliemus?: number | null;
+          con?: number | null;
+          created_at?: string | null;
+          crit_dmg?: number | null;
+          crit_rate?: number | null;
+          damage_amp?: number | null;
+          death_resist?: number | null;
+          def?: number | null;
+          deleted_at?: string | null;
+          enlightenment?: number | null;
+          id?: number;
+          keyflare_regen?: number | null;
+          name?: string | null;
+          notes?: string | null;
+          realm?: number | null;
+          realm_mastery?: number | null;
+          sigil_yield?: number | null;
+          updated_at?: string | null;
+        };
         Relationships: [
           {
-            foreignKeyName: "awakener_realm_fkey"
-            columns: ["realm"]
-            isOneToOne: false
-            referencedRelation: "realm"
-            referencedColumns: ["id"]
+            foreignKeyName: "awakener_realm_fkey";
+            columns: ["realm"];
+            isOneToOne: false;
+            referencedRelation: "realm";
+            referencedColumns: ["id"];
           },
-        ]
-      }
+        ];
+      };
       awakener_local_manifestation_interaction: {
         Row: {
-          created_at: string | null
-          deleted_at: string | null
-          dependency_stat: Database["public"]["Enums"]["all_stats"] | null
-          id: number
-          is_disabled: boolean | null
-          layer: Database["public"]["Enums"]["layer"] | null
-          manifestation_id: number | null
-          math_operation: Database["public"]["Enums"]["operation_type"] | null
-          mode: Database["public"]["Enums"]["awakener_local_interaction_mode"]
-          modifier_tag_id: number | null
-          target_tag_id: number | null
-          target_type: Database["public"]["Enums"]["target_type"]
-          updated_at: string | null
-          value_scalar: number | null
-        }
+          created_at: string | null;
+          deleted_at: string | null;
+          dependency_stat: Database["public"]["Enums"]["all_stats"] | null;
+          id: number;
+          is_disabled: boolean | null;
+          layer: Database["public"]["Enums"]["layer"] | null;
+          manifestation_id: number | null;
+          math_operation: Database["public"]["Enums"]["operation_type"] | null;
+          mode: Database["public"]["Enums"]["awakener_local_interaction_mode"];
+          modifier_tag_id: number | null;
+          target_tag_id: number | null;
+          target_type: Database["public"]["Enums"]["target_type"];
+          updated_at: string | null;
+          value_scalar: number | null;
+        };
         Insert: {
-          created_at?: string | null
-          deleted_at?: string | null
-          dependency_stat?: Database["public"]["Enums"]["all_stats"] | null
-          id?: number
-          is_disabled?: boolean | null
-          layer?: Database["public"]["Enums"]["layer"] | null
-          manifestation_id?: number | null
-          math_operation?: Database["public"]["Enums"]["operation_type"] | null
-          mode?: Database["public"]["Enums"]["awakener_local_interaction_mode"]
-          modifier_tag_id?: number | null
-          target_tag_id?: number | null
-          target_type?: Database["public"]["Enums"]["target_type"]
-          updated_at?: string | null
-          value_scalar?: number | null
-        }
+          created_at?: string | null;
+          deleted_at?: string | null;
+          dependency_stat?: Database["public"]["Enums"]["all_stats"] | null;
+          id?: number;
+          is_disabled?: boolean | null;
+          layer?: Database["public"]["Enums"]["layer"] | null;
+          manifestation_id?: number | null;
+          math_operation?: Database["public"]["Enums"]["operation_type"] | null;
+          mode?: Database["public"]["Enums"]["awakener_local_interaction_mode"];
+          modifier_tag_id?: number | null;
+          target_tag_id?: number | null;
+          target_type?: Database["public"]["Enums"]["target_type"];
+          updated_at?: string | null;
+          value_scalar?: number | null;
+        };
         Update: {
-          created_at?: string | null
-          deleted_at?: string | null
-          dependency_stat?: Database["public"]["Enums"]["all_stats"] | null
-          id?: number
-          is_disabled?: boolean | null
-          layer?: Database["public"]["Enums"]["layer"] | null
-          manifestation_id?: number | null
-          math_operation?: Database["public"]["Enums"]["operation_type"] | null
-          mode?: Database["public"]["Enums"]["awakener_local_interaction_mode"]
-          modifier_tag_id?: number | null
-          target_tag_id?: number | null
-          target_type?: Database["public"]["Enums"]["target_type"]
-          updated_at?: string | null
-          value_scalar?: number | null
-        }
+          created_at?: string | null;
+          deleted_at?: string | null;
+          dependency_stat?: Database["public"]["Enums"]["all_stats"] | null;
+          id?: number;
+          is_disabled?: boolean | null;
+          layer?: Database["public"]["Enums"]["layer"] | null;
+          manifestation_id?: number | null;
+          math_operation?: Database["public"]["Enums"]["operation_type"] | null;
+          mode?: Database["public"]["Enums"]["awakener_local_interaction_mode"];
+          modifier_tag_id?: number | null;
+          target_tag_id?: number | null;
+          target_type?: Database["public"]["Enums"]["target_type"];
+          updated_at?: string | null;
+          value_scalar?: number | null;
+        };
         Relationships: [
           {
-            foreignKeyName: "awakener_local_manifestation_interaction_target_tag_id_fkey"
-            columns: ["target_tag_id"]
-            isOneToOne: false
-            referencedRelation: "tag"
-            referencedColumns: ["id"]
+            foreignKeyName: "awakener_local_manifestation_interaction_target_tag_id_fkey";
+            columns: ["target_tag_id"];
+            isOneToOne: false;
+            referencedRelation: "tag";
+            referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "manifestation_interaction_override_manifestation_id_fkey"
-            columns: ["manifestation_id"]
-            isOneToOne: false
-            referencedRelation: "awakener_tag_manifestation"
-            referencedColumns: ["id"]
+            foreignKeyName: "manifestation_interaction_override_manifestation_id_fkey";
+            columns: ["manifestation_id"];
+            isOneToOne: false;
+            referencedRelation: "awakener_tag_manifestation";
+            referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "manifestation_interaction_override_modifier_tag_id_fkey"
-            columns: ["modifier_tag_id"]
-            isOneToOne: false
-            referencedRelation: "tag"
-            referencedColumns: ["id"]
+            foreignKeyName: "manifestation_interaction_override_modifier_tag_id_fkey";
+            columns: ["modifier_tag_id"];
+            isOneToOne: false;
+            referencedRelation: "tag";
+            referencedColumns: ["id"];
           },
-        ]
-      }
+        ];
+      };
       awakener_tag_manifestation: {
         Row: {
-          awakener_id: number
-          base_copies: number
+          awakener_id: number;
+          base_copies: number;
           buff_target_type_restriction:
             | Database["public"]["Enums"]["source_type"]
-            | null
-          copy_provider_group_id: number | null
-          created_at: string | null
-          deleted_at: string | null
-          dependency_stat: Database["public"]["Enums"]["all_stats"] | null
-          id: number
-          instance_count: number
-          is_accumulating: boolean
-          is_permanent: boolean | null
-          metadata: string | null
-          replaces_manifestation_id: number | null
-          required_enlightenment: number | null
-          required_realm: number | null
-          source_type: Database["public"]["Enums"]["source_type"] | null
-          tag_id: number
-          target_type: Database["public"]["Enums"]["target_type"] | null
-          trigger_condition: number | null
-          updated_at: string | null
-          value_scalar: number | null
-          verified: boolean
-        }
+            | null;
+          copy_provider_group_id: number | null;
+          created_at: string | null;
+          deleted_at: string | null;
+          dependency_stat: Database["public"]["Enums"]["all_stats"] | null;
+          id: number;
+          instance_count: number;
+          is_accumulating: boolean;
+          is_permanent: boolean | null;
+          metadata: string | null;
+          replaces_manifestation_id: number | null;
+          required_enlightenment: number | null;
+          required_realm: number | null;
+          source_type: Database["public"]["Enums"]["source_type"] | null;
+          tag_id: number;
+          target_type: Database["public"]["Enums"]["target_type"] | null;
+          trigger_condition: number | null;
+          updated_at: string | null;
+          value_scalar: number | null;
+          verified: boolean;
+        };
         Insert: {
-          awakener_id: number
-          base_copies?: number
+          awakener_id: number;
+          base_copies?: number;
           buff_target_type_restriction?:
             | Database["public"]["Enums"]["source_type"]
-            | null
-          copy_provider_group_id?: number | null
-          created_at?: string | null
-          deleted_at?: string | null
-          dependency_stat?: Database["public"]["Enums"]["all_stats"] | null
-          id?: number
-          instance_count?: number
-          is_accumulating?: boolean
-          is_permanent?: boolean | null
-          metadata?: string | null
-          replaces_manifestation_id?: number | null
-          required_enlightenment?: number | null
-          required_realm?: number | null
-          source_type?: Database["public"]["Enums"]["source_type"] | null
-          tag_id: number
-          target_type?: Database["public"]["Enums"]["target_type"] | null
-          trigger_condition?: number | null
-          updated_at?: string | null
-          value_scalar?: number | null
-          verified?: boolean
-        }
+            | null;
+          copy_provider_group_id?: number | null;
+          created_at?: string | null;
+          deleted_at?: string | null;
+          dependency_stat?: Database["public"]["Enums"]["all_stats"] | null;
+          id?: number;
+          instance_count?: number;
+          is_accumulating?: boolean;
+          is_permanent?: boolean | null;
+          metadata?: string | null;
+          replaces_manifestation_id?: number | null;
+          required_enlightenment?: number | null;
+          required_realm?: number | null;
+          source_type?: Database["public"]["Enums"]["source_type"] | null;
+          tag_id: number;
+          target_type?: Database["public"]["Enums"]["target_type"] | null;
+          trigger_condition?: number | null;
+          updated_at?: string | null;
+          value_scalar?: number | null;
+          verified?: boolean;
+        };
         Update: {
-          awakener_id?: number
-          base_copies?: number
+          awakener_id?: number;
+          base_copies?: number;
           buff_target_type_restriction?:
             | Database["public"]["Enums"]["source_type"]
-            | null
-          copy_provider_group_id?: number | null
-          created_at?: string | null
-          deleted_at?: string | null
-          dependency_stat?: Database["public"]["Enums"]["all_stats"] | null
-          id?: number
-          instance_count?: number
-          is_accumulating?: boolean
-          is_permanent?: boolean | null
-          metadata?: string | null
-          replaces_manifestation_id?: number | null
-          required_enlightenment?: number | null
-          required_realm?: number | null
-          source_type?: Database["public"]["Enums"]["source_type"] | null
-          tag_id?: number
-          target_type?: Database["public"]["Enums"]["target_type"] | null
-          trigger_condition?: number | null
-          updated_at?: string | null
-          value_scalar?: number | null
-          verified?: boolean
-        }
+            | null;
+          copy_provider_group_id?: number | null;
+          created_at?: string | null;
+          deleted_at?: string | null;
+          dependency_stat?: Database["public"]["Enums"]["all_stats"] | null;
+          id?: number;
+          instance_count?: number;
+          is_accumulating?: boolean;
+          is_permanent?: boolean | null;
+          metadata?: string | null;
+          replaces_manifestation_id?: number | null;
+          required_enlightenment?: number | null;
+          required_realm?: number | null;
+          source_type?: Database["public"]["Enums"]["source_type"] | null;
+          tag_id?: number;
+          target_type?: Database["public"]["Enums"]["target_type"] | null;
+          trigger_condition?: number | null;
+          updated_at?: string | null;
+          value_scalar?: number | null;
+          verified?: boolean;
+        };
         Relationships: [
           {
-            foreignKeyName: "awakener_tag_manifestation_awakener_id_fkey"
-            columns: ["awakener_id"]
-            isOneToOne: false
-            referencedRelation: "awakener"
-            referencedColumns: ["id"]
+            foreignKeyName: "awakener_tag_manifestation_awakener_id_fkey";
+            columns: ["awakener_id"];
+            isOneToOne: false;
+            referencedRelation: "awakener";
+            referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "awakener_tag_manifestation_copy_provider_group_id_fkey"
-            columns: ["copy_provider_group_id"]
-            isOneToOne: false
-            referencedRelation: "copy_provider_group"
-            referencedColumns: ["id"]
+            foreignKeyName: "awakener_tag_manifestation_copy_provider_group_id_fkey";
+            columns: ["copy_provider_group_id"];
+            isOneToOne: false;
+            referencedRelation: "copy_provider_group";
+            referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "awakener_tag_manifestation_replaces_manifestation_id_fkey"
-            columns: ["replaces_manifestation_id"]
-            isOneToOne: false
-            referencedRelation: "awakener_tag_manifestation"
-            referencedColumns: ["id"]
+            foreignKeyName: "awakener_tag_manifestation_replaces_manifestation_id_fkey";
+            columns: ["replaces_manifestation_id"];
+            isOneToOne: false;
+            referencedRelation: "awakener_tag_manifestation";
+            referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "awakener_tag_manifestation_required_realm_fkey"
-            columns: ["required_realm"]
-            isOneToOne: false
-            referencedRelation: "realm"
-            referencedColumns: ["id"]
+            foreignKeyName: "awakener_tag_manifestation_required_realm_fkey";
+            columns: ["required_realm"];
+            isOneToOne: false;
+            referencedRelation: "realm";
+            referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "awakener_tag_manifestation_tag_id_fkey"
-            columns: ["tag_id"]
-            isOneToOne: false
-            referencedRelation: "tag"
-            referencedColumns: ["id"]
+            foreignKeyName: "awakener_tag_manifestation_tag_id_fkey";
+            columns: ["tag_id"];
+            isOneToOne: false;
+            referencedRelation: "tag";
+            referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "awakener_tag_manifestation_trigger_condition_fkey"
-            columns: ["trigger_condition"]
-            isOneToOne: false
-            referencedRelation: "tag"
-            referencedColumns: ["id"]
+            foreignKeyName: "awakener_tag_manifestation_trigger_condition_fkey";
+            columns: ["trigger_condition"];
+            isOneToOne: false;
+            referencedRelation: "tag";
+            referencedColumns: ["id"];
           },
-        ]
-      }
+        ];
+      };
       copy_provider_group: {
         Row: {
-          created_at: string | null
-          deleted_at: string | null
-          id: number
-          name: string
-          updated_at: string | null
-        }
+          created_at: string | null;
+          deleted_at: string | null;
+          id: number;
+          name: string;
+          updated_at: string | null;
+        };
         Insert: {
-          created_at?: string | null
-          deleted_at?: string | null
-          id?: number
-          name: string
-          updated_at?: string | null
-        }
+          created_at?: string | null;
+          deleted_at?: string | null;
+          id?: number;
+          name: string;
+          updated_at?: string | null;
+        };
         Update: {
-          created_at?: string | null
-          deleted_at?: string | null
-          id?: number
-          name?: string
-          updated_at?: string | null
-        }
-        Relationships: []
-      }
+          created_at?: string | null;
+          deleted_at?: string | null;
+          id?: number;
+          name?: string;
+          updated_at?: string | null;
+        };
+        Relationships: [];
+      };
       copy_provider_group_member: {
         Row: {
-          created_at: string | null
-          deleted_at: string | null
-          group_id: number
-          id: number
-          tag_id: number
-          updated_at: string | null
-        }
+          created_at: string | null;
+          deleted_at: string | null;
+          group_id: number;
+          id: number;
+          tag_id: number;
+          updated_at: string | null;
+        };
         Insert: {
-          created_at?: string | null
-          deleted_at?: string | null
-          group_id: number
-          id?: number
-          tag_id: number
-          updated_at?: string | null
-        }
+          created_at?: string | null;
+          deleted_at?: string | null;
+          group_id: number;
+          id?: number;
+          tag_id: number;
+          updated_at?: string | null;
+        };
         Update: {
-          created_at?: string | null
-          deleted_at?: string | null
-          group_id?: number
-          id?: number
-          tag_id?: number
-          updated_at?: string | null
-        }
+          created_at?: string | null;
+          deleted_at?: string | null;
+          group_id?: number;
+          id?: number;
+          tag_id?: number;
+          updated_at?: string | null;
+        };
         Relationships: [
           {
-            foreignKeyName: "copy_provider_group_member_group_id_fkey"
-            columns: ["group_id"]
-            isOneToOne: false
-            referencedRelation: "copy_provider_group"
-            referencedColumns: ["id"]
+            foreignKeyName: "copy_provider_group_member_group_id_fkey";
+            columns: ["group_id"];
+            isOneToOne: false;
+            referencedRelation: "copy_provider_group";
+            referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "copy_provider_group_member_tag_id_fkey"
-            columns: ["tag_id"]
-            isOneToOne: false
-            referencedRelation: "tag"
-            referencedColumns: ["id"]
+            foreignKeyName: "copy_provider_group_member_tag_id_fkey";
+            columns: ["tag_id"];
+            isOneToOne: false;
+            referencedRelation: "tag";
+            referencedColumns: ["id"];
           },
-        ]
-      }
+        ];
+      };
       covenant: {
         Row: {
-          created_at: string | null
-          deleted_at: string | null
-          id: number
-          name: string
-          stat: Database["public"]["Enums"]["all_stats"] | null
-          stat_amount: number | null
-          team_unique: boolean
-          updated_at: string | null
-        }
+          created_at: string | null;
+          deleted_at: string | null;
+          id: number;
+          name: string;
+          stat: Database["public"]["Enums"]["all_stats"] | null;
+          stat_amount: number | null;
+          team_unique: boolean;
+          updated_at: string | null;
+        };
         Insert: {
-          created_at?: string | null
-          deleted_at?: string | null
-          id?: number
-          name: string
-          stat?: Database["public"]["Enums"]["all_stats"] | null
-          stat_amount?: number | null
-          team_unique?: boolean
-          updated_at?: string | null
-        }
+          created_at?: string | null;
+          deleted_at?: string | null;
+          id?: number;
+          name: string;
+          stat?: Database["public"]["Enums"]["all_stats"] | null;
+          stat_amount?: number | null;
+          team_unique?: boolean;
+          updated_at?: string | null;
+        };
         Update: {
-          created_at?: string | null
-          deleted_at?: string | null
-          id?: number
-          name?: string
-          stat?: Database["public"]["Enums"]["all_stats"] | null
-          stat_amount?: number | null
-          team_unique?: boolean
-          updated_at?: string | null
-        }
-        Relationships: []
-      }
+          created_at?: string | null;
+          deleted_at?: string | null;
+          id?: number;
+          name?: string;
+          stat?: Database["public"]["Enums"]["all_stats"] | null;
+          stat_amount?: number | null;
+          team_unique?: boolean;
+          updated_at?: string | null;
+        };
+        Relationships: [];
+      };
       covenant_stat_set: {
         Row: {
-          created_at: string | null
-          deleted_at: string | null
-          id: number
-          stat: Database["public"]["Enums"]["all_stats"] | null
-          stat_amount: number | null
-          updated_at: string | null
-        }
+          created_at: string | null;
+          deleted_at: string | null;
+          id: number;
+          stat: Database["public"]["Enums"]["all_stats"] | null;
+          stat_amount: number | null;
+          updated_at: string | null;
+        };
         Insert: {
-          created_at?: string | null
-          deleted_at?: string | null
-          id?: number
-          stat?: Database["public"]["Enums"]["all_stats"] | null
-          stat_amount?: number | null
-          updated_at?: string | null
-        }
+          created_at?: string | null;
+          deleted_at?: string | null;
+          id?: number;
+          stat?: Database["public"]["Enums"]["all_stats"] | null;
+          stat_amount?: number | null;
+          updated_at?: string | null;
+        };
         Update: {
-          created_at?: string | null
-          deleted_at?: string | null
-          id?: number
-          stat?: Database["public"]["Enums"]["all_stats"] | null
-          stat_amount?: number | null
-          updated_at?: string | null
-        }
-        Relationships: []
-      }
+          created_at?: string | null;
+          deleted_at?: string | null;
+          id?: number;
+          stat?: Database["public"]["Enums"]["all_stats"] | null;
+          stat_amount?: number | null;
+          updated_at?: string | null;
+        };
+        Relationships: [];
+      };
       covenant_tag_manifestation: {
         Row: {
           buff_target_type_restriction:
             | Database["public"]["Enums"]["source_type"]
-            | null
-          covenant_id: number | null
-          created_at: string | null
-          deleted_at: string | null
-          dependency_stat: Database["public"]["Enums"]["all_stats"] | null
-          id: number
-          is_accumulating: boolean
-          is_permanent: boolean | null
-          metadata: string | null
-          replaces_manifestation_id: number | null
-          required_realm1: number | null
-          required_realm2: number | null
-          tag_id: number | null
-          target_type: Database["public"]["Enums"]["target_type"] | null
-          trigger_condition: number | null
-          updated_at: string | null
-          value_scalar: number | null
-        }
+            | null;
+          covenant_id: number | null;
+          created_at: string | null;
+          deleted_at: string | null;
+          dependency_stat: Database["public"]["Enums"]["all_stats"] | null;
+          id: number;
+          is_accumulating: boolean;
+          is_permanent: boolean | null;
+          metadata: string | null;
+          replaces_manifestation_id: number | null;
+          required_realm1: number | null;
+          required_realm2: number | null;
+          tag_id: number | null;
+          target_type: Database["public"]["Enums"]["target_type"] | null;
+          trigger_condition: number | null;
+          updated_at: string | null;
+          value_scalar: number | null;
+        };
         Insert: {
           buff_target_type_restriction?:
             | Database["public"]["Enums"]["source_type"]
-            | null
-          covenant_id?: number | null
-          created_at?: string | null
-          deleted_at?: string | null
-          dependency_stat?: Database["public"]["Enums"]["all_stats"] | null
-          id?: number
-          is_accumulating?: boolean
-          is_permanent?: boolean | null
-          metadata?: string | null
-          replaces_manifestation_id?: number | null
-          required_realm1?: number | null
-          required_realm2?: number | null
-          tag_id?: number | null
-          target_type?: Database["public"]["Enums"]["target_type"] | null
-          trigger_condition?: number | null
-          updated_at?: string | null
-          value_scalar?: number | null
-        }
+            | null;
+          covenant_id?: number | null;
+          created_at?: string | null;
+          deleted_at?: string | null;
+          dependency_stat?: Database["public"]["Enums"]["all_stats"] | null;
+          id?: number;
+          is_accumulating?: boolean;
+          is_permanent?: boolean | null;
+          metadata?: string | null;
+          replaces_manifestation_id?: number | null;
+          required_realm1?: number | null;
+          required_realm2?: number | null;
+          tag_id?: number | null;
+          target_type?: Database["public"]["Enums"]["target_type"] | null;
+          trigger_condition?: number | null;
+          updated_at?: string | null;
+          value_scalar?: number | null;
+        };
         Update: {
           buff_target_type_restriction?:
             | Database["public"]["Enums"]["source_type"]
-            | null
-          covenant_id?: number | null
-          created_at?: string | null
-          deleted_at?: string | null
-          dependency_stat?: Database["public"]["Enums"]["all_stats"] | null
-          id?: number
-          is_accumulating?: boolean
-          is_permanent?: boolean | null
-          metadata?: string | null
-          replaces_manifestation_id?: number | null
-          required_realm1?: number | null
-          required_realm2?: number | null
-          tag_id?: number | null
-          target_type?: Database["public"]["Enums"]["target_type"] | null
-          trigger_condition?: number | null
-          updated_at?: string | null
-          value_scalar?: number | null
-        }
+            | null;
+          covenant_id?: number | null;
+          created_at?: string | null;
+          deleted_at?: string | null;
+          dependency_stat?: Database["public"]["Enums"]["all_stats"] | null;
+          id?: number;
+          is_accumulating?: boolean;
+          is_permanent?: boolean | null;
+          metadata?: string | null;
+          replaces_manifestation_id?: number | null;
+          required_realm1?: number | null;
+          required_realm2?: number | null;
+          tag_id?: number | null;
+          target_type?: Database["public"]["Enums"]["target_type"] | null;
+          trigger_condition?: number | null;
+          updated_at?: string | null;
+          value_scalar?: number | null;
+        };
         Relationships: [
           {
-            foreignKeyName: "covenant_tag_manifestation_covenant_id_fkey"
-            columns: ["covenant_id"]
-            isOneToOne: false
-            referencedRelation: "covenant"
-            referencedColumns: ["id"]
+            foreignKeyName: "covenant_tag_manifestation_covenant_id_fkey";
+            columns: ["covenant_id"];
+            isOneToOne: false;
+            referencedRelation: "covenant";
+            referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "covenant_tag_manifestation_replaces_manifestation_id_fkey"
-            columns: ["replaces_manifestation_id"]
-            isOneToOne: false
-            referencedRelation: "covenant_tag_manifestation"
-            referencedColumns: ["id"]
+            foreignKeyName: "covenant_tag_manifestation_replaces_manifestation_id_fkey";
+            columns: ["replaces_manifestation_id"];
+            isOneToOne: false;
+            referencedRelation: "covenant_tag_manifestation";
+            referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "covenant_tag_manifestation_required_realm1_fkey"
-            columns: ["required_realm1"]
-            isOneToOne: false
-            referencedRelation: "realm"
-            referencedColumns: ["id"]
+            foreignKeyName: "covenant_tag_manifestation_required_realm1_fkey";
+            columns: ["required_realm1"];
+            isOneToOne: false;
+            referencedRelation: "realm";
+            referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "covenant_tag_manifestation_required_realm2_fkey"
-            columns: ["required_realm2"]
-            isOneToOne: false
-            referencedRelation: "realm"
-            referencedColumns: ["id"]
+            foreignKeyName: "covenant_tag_manifestation_required_realm2_fkey";
+            columns: ["required_realm2"];
+            isOneToOne: false;
+            referencedRelation: "realm";
+            referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "covenant_tag_manifestation_tag_id_fkey"
-            columns: ["tag_id"]
-            isOneToOne: false
-            referencedRelation: "tag"
-            referencedColumns: ["id"]
+            foreignKeyName: "covenant_tag_manifestation_tag_id_fkey";
+            columns: ["tag_id"];
+            isOneToOne: false;
+            referencedRelation: "tag";
+            referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "covenant_tag_manifestation_trigger_condition_fkey"
-            columns: ["trigger_condition"]
-            isOneToOne: false
-            referencedRelation: "tag"
-            referencedColumns: ["id"]
+            foreignKeyName: "covenant_tag_manifestation_trigger_condition_fkey";
+            columns: ["trigger_condition"];
+            isOneToOne: false;
+            referencedRelation: "tag";
+            referencedColumns: ["id"];
           },
-        ]
-      }
+        ];
+      };
       desire: {
         Row: {
-          created_at: string | null
-          deleted_at: string | null
-          description: string | null
-          desire_type: Database["public"]["Enums"]["desire_type"] | null
-          id: number
-          name: string | null
-          updated_at: string | null
-        }
+          created_at: string | null;
+          deleted_at: string | null;
+          description: string | null;
+          desire_type: Database["public"]["Enums"]["desire_type"] | null;
+          id: number;
+          name: string | null;
+          updated_at: string | null;
+        };
         Insert: {
-          created_at?: string | null
-          deleted_at?: string | null
-          description?: string | null
-          desire_type?: Database["public"]["Enums"]["desire_type"] | null
-          id?: number
-          name?: string | null
-          updated_at?: string | null
-        }
+          created_at?: string | null;
+          deleted_at?: string | null;
+          description?: string | null;
+          desire_type?: Database["public"]["Enums"]["desire_type"] | null;
+          id?: number;
+          name?: string | null;
+          updated_at?: string | null;
+        };
         Update: {
-          created_at?: string | null
-          deleted_at?: string | null
-          description?: string | null
-          desire_type?: Database["public"]["Enums"]["desire_type"] | null
-          id?: number
-          name?: string | null
-          updated_at?: string | null
-        }
-        Relationships: []
-      }
+          created_at?: string | null;
+          deleted_at?: string | null;
+          description?: string | null;
+          desire_type?: Database["public"]["Enums"]["desire_type"] | null;
+          id?: number;
+          name?: string | null;
+          updated_at?: string | null;
+        };
+        Relationships: [];
+      };
       desire_anchored_awakener: {
         Row: {
-          awakener_id: number
-          created_at: string | null
-          deleted_at: string | null
-          desire_id: number
-          id: number
-          is_damage_dealer: boolean
-          updated_at: string | null
-        }
+          awakener_id: number;
+          created_at: string | null;
+          deleted_at: string | null;
+          desire_id: number;
+          id: number;
+          is_damage_dealer: boolean;
+          updated_at: string | null;
+        };
         Insert: {
-          awakener_id: number
-          created_at?: string | null
-          deleted_at?: string | null
-          desire_id: number
-          id?: number
-          is_damage_dealer?: boolean
-          updated_at?: string | null
-        }
+          awakener_id: number;
+          created_at?: string | null;
+          deleted_at?: string | null;
+          desire_id: number;
+          id?: number;
+          is_damage_dealer?: boolean;
+          updated_at?: string | null;
+        };
         Update: {
-          awakener_id?: number
-          created_at?: string | null
-          deleted_at?: string | null
-          desire_id?: number
-          id?: number
-          is_damage_dealer?: boolean
-          updated_at?: string | null
-        }
+          awakener_id?: number;
+          created_at?: string | null;
+          deleted_at?: string | null;
+          desire_id?: number;
+          id?: number;
+          is_damage_dealer?: boolean;
+          updated_at?: string | null;
+        };
         Relationships: [
           {
-            foreignKeyName: "desire_anchored_awakener_awakener_id_fkey"
-            columns: ["awakener_id"]
-            isOneToOne: false
-            referencedRelation: "awakener"
-            referencedColumns: ["id"]
+            foreignKeyName: "desire_anchored_awakener_awakener_id_fkey";
+            columns: ["awakener_id"];
+            isOneToOne: false;
+            referencedRelation: "awakener";
+            referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "desire_anchored_awakener_desire_id_fkey"
-            columns: ["desire_id"]
-            isOneToOne: false
-            referencedRelation: "desire"
-            referencedColumns: ["id"]
+            foreignKeyName: "desire_anchored_awakener_desire_id_fkey";
+            columns: ["desire_id"];
+            isOneToOne: false;
+            referencedRelation: "desire";
+            referencedColumns: ["id"];
           },
-        ]
-      }
+        ];
+      };
       desire_demand: {
         Row: {
-          base_priority_weight: number | null
-          created_at: string | null
-          curve: Database["public"]["Enums"]["curve_type"] | null
-          decay_rate: number | null
-          deleted_at: string | null
-          desire_id: number
-          id: number
-          tag_id: number
-          target_value: number | null
-          updated_at: string | null
-        }
+          base_priority_weight: number | null;
+          created_at: string | null;
+          curve: Database["public"]["Enums"]["curve_type"] | null;
+          decay_rate: number | null;
+          deleted_at: string | null;
+          desire_id: number;
+          id: number;
+          tag_id: number;
+          target_value: number | null;
+          updated_at: string | null;
+        };
         Insert: {
-          base_priority_weight?: number | null
-          created_at?: string | null
-          curve?: Database["public"]["Enums"]["curve_type"] | null
-          decay_rate?: number | null
-          deleted_at?: string | null
-          desire_id: number
-          id?: number
-          tag_id: number
-          target_value?: number | null
-          updated_at?: string | null
-        }
+          base_priority_weight?: number | null;
+          created_at?: string | null;
+          curve?: Database["public"]["Enums"]["curve_type"] | null;
+          decay_rate?: number | null;
+          deleted_at?: string | null;
+          desire_id: number;
+          id?: number;
+          tag_id: number;
+          target_value?: number | null;
+          updated_at?: string | null;
+        };
         Update: {
-          base_priority_weight?: number | null
-          created_at?: string | null
-          curve?: Database["public"]["Enums"]["curve_type"] | null
-          decay_rate?: number | null
-          deleted_at?: string | null
-          desire_id?: number
-          id?: number
-          tag_id?: number
-          target_value?: number | null
-          updated_at?: string | null
-        }
+          base_priority_weight?: number | null;
+          created_at?: string | null;
+          curve?: Database["public"]["Enums"]["curve_type"] | null;
+          decay_rate?: number | null;
+          deleted_at?: string | null;
+          desire_id?: number;
+          id?: number;
+          tag_id?: number;
+          target_value?: number | null;
+          updated_at?: string | null;
+        };
         Relationships: [
           {
-            foreignKeyName: "desire_demand_desire_id_fkey"
-            columns: ["desire_id"]
-            isOneToOne: false
-            referencedRelation: "desire"
-            referencedColumns: ["id"]
+            foreignKeyName: "desire_demand_desire_id_fkey";
+            columns: ["desire_id"];
+            isOneToOne: false;
+            referencedRelation: "desire";
+            referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "desire_demand_tag_id_fkey"
-            columns: ["tag_id"]
-            isOneToOne: false
-            referencedRelation: "tag"
-            referencedColumns: ["id"]
+            foreignKeyName: "desire_demand_tag_id_fkey";
+            columns: ["tag_id"];
+            isOneToOne: false;
+            referencedRelation: "tag";
+            referencedColumns: ["id"];
           },
-        ]
-      }
+        ];
+      };
       desire_template: {
         Row: {
-          created_at: string | null
-          deleted_at: string | null
-          desire_id: number
-          id: number
-          posse_id: number | null
-          slot1_awakener_id: number | null
-          slot1_covenant_id: number | null
-          slot1_covenant_stat_set_id: number | null
-          slot1_wheel1_id: number | null
-          slot1_wheel2_id: number | null
-          slot2_awakener_id: number | null
-          slot2_covenant_id: number | null
-          slot2_covenant_stat_set_id: number | null
-          slot2_wheel1_id: number | null
-          slot2_wheel2_id: number | null
-          slot3_awakener_id: number | null
-          slot3_covenant_id: number | null
-          slot3_covenant_stat_set_id: number | null
-          slot3_wheel1_id: number | null
-          slot3_wheel2_id: number | null
-          slot4_awakener_id: number | null
-          slot4_covenant_id: number | null
-          slot4_covenant_stat_set_id: number | null
-          slot4_wheel1_id: number | null
-          slot4_wheel2_id: number | null
-          updated_at: string | null
-        }
+          created_at: string | null;
+          deleted_at: string | null;
+          desire_id: number;
+          id: number;
+          posse_id: number | null;
+          slot1_awakener_id: number | null;
+          slot1_covenant_id: number | null;
+          slot1_covenant_stat_set_id: number | null;
+          slot1_wheel1_id: number | null;
+          slot1_wheel2_id: number | null;
+          slot2_awakener_id: number | null;
+          slot2_covenant_id: number | null;
+          slot2_covenant_stat_set_id: number | null;
+          slot2_wheel1_id: number | null;
+          slot2_wheel2_id: number | null;
+          slot3_awakener_id: number | null;
+          slot3_covenant_id: number | null;
+          slot3_covenant_stat_set_id: number | null;
+          slot3_wheel1_id: number | null;
+          slot3_wheel2_id: number | null;
+          slot4_awakener_id: number | null;
+          slot4_covenant_id: number | null;
+          slot4_covenant_stat_set_id: number | null;
+          slot4_wheel1_id: number | null;
+          slot4_wheel2_id: number | null;
+          updated_at: string | null;
+        };
         Insert: {
-          created_at?: string | null
-          deleted_at?: string | null
-          desire_id: number
-          id?: number
-          posse_id?: number | null
-          slot1_awakener_id?: number | null
-          slot1_covenant_id?: number | null
-          slot1_covenant_stat_set_id?: number | null
-          slot1_wheel1_id?: number | null
-          slot1_wheel2_id?: number | null
-          slot2_awakener_id?: number | null
-          slot2_covenant_id?: number | null
-          slot2_covenant_stat_set_id?: number | null
-          slot2_wheel1_id?: number | null
-          slot2_wheel2_id?: number | null
-          slot3_awakener_id?: number | null
-          slot3_covenant_id?: number | null
-          slot3_covenant_stat_set_id?: number | null
-          slot3_wheel1_id?: number | null
-          slot3_wheel2_id?: number | null
-          slot4_awakener_id?: number | null
-          slot4_covenant_id?: number | null
-          slot4_covenant_stat_set_id?: number | null
-          slot4_wheel1_id?: number | null
-          slot4_wheel2_id?: number | null
-          updated_at?: string | null
-        }
+          created_at?: string | null;
+          deleted_at?: string | null;
+          desire_id: number;
+          id?: number;
+          posse_id?: number | null;
+          slot1_awakener_id?: number | null;
+          slot1_covenant_id?: number | null;
+          slot1_covenant_stat_set_id?: number | null;
+          slot1_wheel1_id?: number | null;
+          slot1_wheel2_id?: number | null;
+          slot2_awakener_id?: number | null;
+          slot2_covenant_id?: number | null;
+          slot2_covenant_stat_set_id?: number | null;
+          slot2_wheel1_id?: number | null;
+          slot2_wheel2_id?: number | null;
+          slot3_awakener_id?: number | null;
+          slot3_covenant_id?: number | null;
+          slot3_covenant_stat_set_id?: number | null;
+          slot3_wheel1_id?: number | null;
+          slot3_wheel2_id?: number | null;
+          slot4_awakener_id?: number | null;
+          slot4_covenant_id?: number | null;
+          slot4_covenant_stat_set_id?: number | null;
+          slot4_wheel1_id?: number | null;
+          slot4_wheel2_id?: number | null;
+          updated_at?: string | null;
+        };
         Update: {
-          created_at?: string | null
-          deleted_at?: string | null
-          desire_id?: number
-          id?: number
-          posse_id?: number | null
-          slot1_awakener_id?: number | null
-          slot1_covenant_id?: number | null
-          slot1_covenant_stat_set_id?: number | null
-          slot1_wheel1_id?: number | null
-          slot1_wheel2_id?: number | null
-          slot2_awakener_id?: number | null
-          slot2_covenant_id?: number | null
-          slot2_covenant_stat_set_id?: number | null
-          slot2_wheel1_id?: number | null
-          slot2_wheel2_id?: number | null
-          slot3_awakener_id?: number | null
-          slot3_covenant_id?: number | null
-          slot3_covenant_stat_set_id?: number | null
-          slot3_wheel1_id?: number | null
-          slot3_wheel2_id?: number | null
-          slot4_awakener_id?: number | null
-          slot4_covenant_id?: number | null
-          slot4_covenant_stat_set_id?: number | null
-          slot4_wheel1_id?: number | null
-          slot4_wheel2_id?: number | null
-          updated_at?: string | null
-        }
+          created_at?: string | null;
+          deleted_at?: string | null;
+          desire_id?: number;
+          id?: number;
+          posse_id?: number | null;
+          slot1_awakener_id?: number | null;
+          slot1_covenant_id?: number | null;
+          slot1_covenant_stat_set_id?: number | null;
+          slot1_wheel1_id?: number | null;
+          slot1_wheel2_id?: number | null;
+          slot2_awakener_id?: number | null;
+          slot2_covenant_id?: number | null;
+          slot2_covenant_stat_set_id?: number | null;
+          slot2_wheel1_id?: number | null;
+          slot2_wheel2_id?: number | null;
+          slot3_awakener_id?: number | null;
+          slot3_covenant_id?: number | null;
+          slot3_covenant_stat_set_id?: number | null;
+          slot3_wheel1_id?: number | null;
+          slot3_wheel2_id?: number | null;
+          slot4_awakener_id?: number | null;
+          slot4_covenant_id?: number | null;
+          slot4_covenant_stat_set_id?: number | null;
+          slot4_wheel1_id?: number | null;
+          slot4_wheel2_id?: number | null;
+          updated_at?: string | null;
+        };
         Relationships: [
           {
-            foreignKeyName: "desire_template_desire_id_fkey"
-            columns: ["desire_id"]
-            isOneToOne: true
-            referencedRelation: "desire"
-            referencedColumns: ["id"]
+            foreignKeyName: "desire_template_desire_id_fkey";
+            columns: ["desire_id"];
+            isOneToOne: true;
+            referencedRelation: "desire";
+            referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "desire_template_posse_id_fkey"
-            columns: ["posse_id"]
-            isOneToOne: false
-            referencedRelation: "posse"
-            referencedColumns: ["id"]
+            foreignKeyName: "desire_template_posse_id_fkey";
+            columns: ["posse_id"];
+            isOneToOne: false;
+            referencedRelation: "posse";
+            referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "desire_template_slot1_awakener_id_fkey"
-            columns: ["slot1_awakener_id"]
-            isOneToOne: false
-            referencedRelation: "awakener"
-            referencedColumns: ["id"]
+            foreignKeyName: "desire_template_slot1_awakener_id_fkey";
+            columns: ["slot1_awakener_id"];
+            isOneToOne: false;
+            referencedRelation: "awakener";
+            referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "desire_template_slot1_covenant_id_fkey"
-            columns: ["slot1_covenant_id"]
-            isOneToOne: false
-            referencedRelation: "covenant"
-            referencedColumns: ["id"]
+            foreignKeyName: "desire_template_slot1_covenant_id_fkey";
+            columns: ["slot1_covenant_id"];
+            isOneToOne: false;
+            referencedRelation: "covenant";
+            referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "desire_template_slot1_covenant_stat_set_id_fkey"
-            columns: ["slot1_covenant_stat_set_id"]
-            isOneToOne: false
-            referencedRelation: "covenant_stat_set"
-            referencedColumns: ["id"]
+            foreignKeyName: "desire_template_slot1_covenant_stat_set_id_fkey";
+            columns: ["slot1_covenant_stat_set_id"];
+            isOneToOne: false;
+            referencedRelation: "covenant_stat_set";
+            referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "desire_template_slot1_wheel1_id_fkey"
-            columns: ["slot1_wheel1_id"]
-            isOneToOne: false
-            referencedRelation: "wheel"
-            referencedColumns: ["id"]
+            foreignKeyName: "desire_template_slot1_wheel1_id_fkey";
+            columns: ["slot1_wheel1_id"];
+            isOneToOne: false;
+            referencedRelation: "wheel";
+            referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "desire_template_slot1_wheel2_id_fkey"
-            columns: ["slot1_wheel2_id"]
-            isOneToOne: false
-            referencedRelation: "wheel"
-            referencedColumns: ["id"]
+            foreignKeyName: "desire_template_slot1_wheel2_id_fkey";
+            columns: ["slot1_wheel2_id"];
+            isOneToOne: false;
+            referencedRelation: "wheel";
+            referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "desire_template_slot2_awakener_id_fkey"
-            columns: ["slot2_awakener_id"]
-            isOneToOne: false
-            referencedRelation: "awakener"
-            referencedColumns: ["id"]
+            foreignKeyName: "desire_template_slot2_awakener_id_fkey";
+            columns: ["slot2_awakener_id"];
+            isOneToOne: false;
+            referencedRelation: "awakener";
+            referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "desire_template_slot2_covenant_id_fkey"
-            columns: ["slot2_covenant_id"]
-            isOneToOne: false
-            referencedRelation: "covenant"
-            referencedColumns: ["id"]
+            foreignKeyName: "desire_template_slot2_covenant_id_fkey";
+            columns: ["slot2_covenant_id"];
+            isOneToOne: false;
+            referencedRelation: "covenant";
+            referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "desire_template_slot2_covenant_stat_set_id_fkey"
-            columns: ["slot2_covenant_stat_set_id"]
-            isOneToOne: false
-            referencedRelation: "covenant_stat_set"
-            referencedColumns: ["id"]
+            foreignKeyName: "desire_template_slot2_covenant_stat_set_id_fkey";
+            columns: ["slot2_covenant_stat_set_id"];
+            isOneToOne: false;
+            referencedRelation: "covenant_stat_set";
+            referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "desire_template_slot2_wheel1_id_fkey"
-            columns: ["slot2_wheel1_id"]
-            isOneToOne: false
-            referencedRelation: "wheel"
-            referencedColumns: ["id"]
+            foreignKeyName: "desire_template_slot2_wheel1_id_fkey";
+            columns: ["slot2_wheel1_id"];
+            isOneToOne: false;
+            referencedRelation: "wheel";
+            referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "desire_template_slot2_wheel2_id_fkey"
-            columns: ["slot2_wheel2_id"]
-            isOneToOne: false
-            referencedRelation: "wheel"
-            referencedColumns: ["id"]
+            foreignKeyName: "desire_template_slot2_wheel2_id_fkey";
+            columns: ["slot2_wheel2_id"];
+            isOneToOne: false;
+            referencedRelation: "wheel";
+            referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "desire_template_slot3_awakener_id_fkey"
-            columns: ["slot3_awakener_id"]
-            isOneToOne: false
-            referencedRelation: "awakener"
-            referencedColumns: ["id"]
+            foreignKeyName: "desire_template_slot3_awakener_id_fkey";
+            columns: ["slot3_awakener_id"];
+            isOneToOne: false;
+            referencedRelation: "awakener";
+            referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "desire_template_slot3_covenant_id_fkey"
-            columns: ["slot3_covenant_id"]
-            isOneToOne: false
-            referencedRelation: "covenant"
-            referencedColumns: ["id"]
+            foreignKeyName: "desire_template_slot3_covenant_id_fkey";
+            columns: ["slot3_covenant_id"];
+            isOneToOne: false;
+            referencedRelation: "covenant";
+            referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "desire_template_slot3_covenant_stat_set_id_fkey"
-            columns: ["slot3_covenant_stat_set_id"]
-            isOneToOne: false
-            referencedRelation: "covenant_stat_set"
-            referencedColumns: ["id"]
+            foreignKeyName: "desire_template_slot3_covenant_stat_set_id_fkey";
+            columns: ["slot3_covenant_stat_set_id"];
+            isOneToOne: false;
+            referencedRelation: "covenant_stat_set";
+            referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "desire_template_slot3_wheel1_id_fkey"
-            columns: ["slot3_wheel1_id"]
-            isOneToOne: false
-            referencedRelation: "wheel"
-            referencedColumns: ["id"]
+            foreignKeyName: "desire_template_slot3_wheel1_id_fkey";
+            columns: ["slot3_wheel1_id"];
+            isOneToOne: false;
+            referencedRelation: "wheel";
+            referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "desire_template_slot3_wheel2_id_fkey"
-            columns: ["slot3_wheel2_id"]
-            isOneToOne: false
-            referencedRelation: "wheel"
-            referencedColumns: ["id"]
+            foreignKeyName: "desire_template_slot3_wheel2_id_fkey";
+            columns: ["slot3_wheel2_id"];
+            isOneToOne: false;
+            referencedRelation: "wheel";
+            referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "desire_template_slot4_awakener_id_fkey"
-            columns: ["slot4_awakener_id"]
-            isOneToOne: false
-            referencedRelation: "awakener"
-            referencedColumns: ["id"]
+            foreignKeyName: "desire_template_slot4_awakener_id_fkey";
+            columns: ["slot4_awakener_id"];
+            isOneToOne: false;
+            referencedRelation: "awakener";
+            referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "desire_template_slot4_covenant_id_fkey"
-            columns: ["slot4_covenant_id"]
-            isOneToOne: false
-            referencedRelation: "covenant"
-            referencedColumns: ["id"]
+            foreignKeyName: "desire_template_slot4_covenant_id_fkey";
+            columns: ["slot4_covenant_id"];
+            isOneToOne: false;
+            referencedRelation: "covenant";
+            referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "desire_template_slot4_covenant_stat_set_id_fkey"
-            columns: ["slot4_covenant_stat_set_id"]
-            isOneToOne: false
-            referencedRelation: "covenant_stat_set"
-            referencedColumns: ["id"]
+            foreignKeyName: "desire_template_slot4_covenant_stat_set_id_fkey";
+            columns: ["slot4_covenant_stat_set_id"];
+            isOneToOne: false;
+            referencedRelation: "covenant_stat_set";
+            referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "desire_template_slot4_wheel1_id_fkey"
-            columns: ["slot4_wheel1_id"]
-            isOneToOne: false
-            referencedRelation: "wheel"
-            referencedColumns: ["id"]
+            foreignKeyName: "desire_template_slot4_wheel1_id_fkey";
+            columns: ["slot4_wheel1_id"];
+            isOneToOne: false;
+            referencedRelation: "wheel";
+            referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "desire_template_slot4_wheel2_id_fkey"
-            columns: ["slot4_wheel2_id"]
-            isOneToOne: false
-            referencedRelation: "wheel"
-            referencedColumns: ["id"]
+            foreignKeyName: "desire_template_slot4_wheel2_id_fkey";
+            columns: ["slot4_wheel2_id"];
+            isOneToOne: false;
+            referencedRelation: "wheel";
+            referencedColumns: ["id"];
           },
-        ]
-      }
+        ];
+      };
       path: {
         Row: {
-          awakener_id: number
-          desire_id: number
-          id: number
-        }
+          awakener_id: number;
+          desire_id: number;
+          id: number;
+        };
         Insert: {
-          awakener_id: number
-          desire_id: number
-          id?: number
-        }
+          awakener_id: number;
+          desire_id: number;
+          id?: number;
+        };
         Update: {
-          awakener_id?: number
-          desire_id?: number
-          id?: number
-        }
+          awakener_id?: number;
+          desire_id?: number;
+          id?: number;
+        };
         Relationships: [
           {
-            foreignKeyName: "path_awakener_id_fkey"
-            columns: ["awakener_id"]
-            isOneToOne: false
-            referencedRelation: "awakener"
-            referencedColumns: ["id"]
+            foreignKeyName: "path_awakener_id_fkey";
+            columns: ["awakener_id"];
+            isOneToOne: false;
+            referencedRelation: "awakener";
+            referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "path_desire_id_fkey"
-            columns: ["desire_id"]
-            isOneToOne: false
-            referencedRelation: "desire"
-            referencedColumns: ["id"]
+            foreignKeyName: "path_desire_id_fkey";
+            columns: ["desire_id"];
+            isOneToOne: false;
+            referencedRelation: "desire";
+            referencedColumns: ["id"];
           },
-        ]
-      }
+        ];
+      };
       posse: {
         Row: {
-          created_at: string | null
-          deleted_at: string | null
-          id: number
-          name: string
-          updated_at: string | null
-        }
+          created_at: string | null;
+          deleted_at: string | null;
+          id: number;
+          name: string;
+          updated_at: string | null;
+        };
         Insert: {
-          created_at?: string | null
-          deleted_at?: string | null
-          id?: number
-          name: string
-          updated_at?: string | null
-        }
+          created_at?: string | null;
+          deleted_at?: string | null;
+          id?: number;
+          name: string;
+          updated_at?: string | null;
+        };
         Update: {
-          created_at?: string | null
-          deleted_at?: string | null
-          id?: number
-          name?: string
-          updated_at?: string | null
-        }
-        Relationships: []
-      }
+          created_at?: string | null;
+          deleted_at?: string | null;
+          id?: number;
+          name?: string;
+          updated_at?: string | null;
+        };
+        Relationships: [];
+      };
       posse_tag_manifestation: {
         Row: {
           buff_target_type_restriction:
             | Database["public"]["Enums"]["source_type"]
-            | null
-          created_at: string | null
-          deleted_at: string | null
-          dependency_stat: Database["public"]["Enums"]["all_stats"] | null
-          group_key: string
-          id: number
-          is_accumulating: boolean
-          is_permanent: boolean | null
-          metadata: string | null
-          posse_id: number | null
-          required_awakener: number | null
-          required_realm: number | null
-          tag_id: number | null
-          target_type: Database["public"]["Enums"]["target_type"] | null
-          updated_at: string | null
-          value_scalar: number | null
-        }
+            | null;
+          created_at: string | null;
+          deleted_at: string | null;
+          dependency_stat: Database["public"]["Enums"]["all_stats"] | null;
+          group_key: string;
+          id: number;
+          is_accumulating: boolean;
+          is_permanent: boolean | null;
+          metadata: string | null;
+          posse_id: number | null;
+          required_awakener: number | null;
+          required_realm: number | null;
+          tag_id: number | null;
+          target_type: Database["public"]["Enums"]["target_type"] | null;
+          updated_at: string | null;
+          value_scalar: number | null;
+        };
         Insert: {
           buff_target_type_restriction?:
             | Database["public"]["Enums"]["source_type"]
-            | null
-          created_at?: string | null
-          deleted_at?: string | null
-          dependency_stat?: Database["public"]["Enums"]["all_stats"] | null
-          group_key?: string
-          id?: number
-          is_accumulating?: boolean
-          is_permanent?: boolean | null
-          metadata?: string | null
-          posse_id?: number | null
-          required_awakener?: number | null
-          required_realm?: number | null
-          tag_id?: number | null
-          target_type?: Database["public"]["Enums"]["target_type"] | null
-          updated_at?: string | null
-          value_scalar?: number | null
-        }
+            | null;
+          created_at?: string | null;
+          deleted_at?: string | null;
+          dependency_stat?: Database["public"]["Enums"]["all_stats"] | null;
+          group_key?: string;
+          id?: number;
+          is_accumulating?: boolean;
+          is_permanent?: boolean | null;
+          metadata?: string | null;
+          posse_id?: number | null;
+          required_awakener?: number | null;
+          required_realm?: number | null;
+          tag_id?: number | null;
+          target_type?: Database["public"]["Enums"]["target_type"] | null;
+          updated_at?: string | null;
+          value_scalar?: number | null;
+        };
         Update: {
           buff_target_type_restriction?:
             | Database["public"]["Enums"]["source_type"]
-            | null
-          created_at?: string | null
-          deleted_at?: string | null
-          dependency_stat?: Database["public"]["Enums"]["all_stats"] | null
-          group_key?: string
-          id?: number
-          is_accumulating?: boolean
-          is_permanent?: boolean | null
-          metadata?: string | null
-          posse_id?: number | null
-          required_awakener?: number | null
-          required_realm?: number | null
-          tag_id?: number | null
-          target_type?: Database["public"]["Enums"]["target_type"] | null
-          updated_at?: string | null
-          value_scalar?: number | null
-        }
+            | null;
+          created_at?: string | null;
+          deleted_at?: string | null;
+          dependency_stat?: Database["public"]["Enums"]["all_stats"] | null;
+          group_key?: string;
+          id?: number;
+          is_accumulating?: boolean;
+          is_permanent?: boolean | null;
+          metadata?: string | null;
+          posse_id?: number | null;
+          required_awakener?: number | null;
+          required_realm?: number | null;
+          tag_id?: number | null;
+          target_type?: Database["public"]["Enums"]["target_type"] | null;
+          updated_at?: string | null;
+          value_scalar?: number | null;
+        };
         Relationships: [
           {
-            foreignKeyName: "posse_tag_manifestation_posse_id_fkey"
-            columns: ["posse_id"]
-            isOneToOne: false
-            referencedRelation: "posse"
-            referencedColumns: ["id"]
+            foreignKeyName: "posse_tag_manifestation_posse_id_fkey";
+            columns: ["posse_id"];
+            isOneToOne: false;
+            referencedRelation: "posse";
+            referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "posse_tag_manifestation_required_awakener_fkey"
-            columns: ["required_awakener"]
-            isOneToOne: false
-            referencedRelation: "awakener"
-            referencedColumns: ["id"]
+            foreignKeyName: "posse_tag_manifestation_required_awakener_fkey";
+            columns: ["required_awakener"];
+            isOneToOne: false;
+            referencedRelation: "awakener";
+            referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "posse_tag_manifestation_required_realm_fkey"
-            columns: ["required_realm"]
-            isOneToOne: false
-            referencedRelation: "realm"
-            referencedColumns: ["id"]
+            foreignKeyName: "posse_tag_manifestation_required_realm_fkey";
+            columns: ["required_realm"];
+            isOneToOne: false;
+            referencedRelation: "realm";
+            referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "posse_tag_manifestation_tag_id_fkey"
-            columns: ["tag_id"]
-            isOneToOne: false
-            referencedRelation: "tag"
-            referencedColumns: ["id"]
+            foreignKeyName: "posse_tag_manifestation_tag_id_fkey";
+            columns: ["tag_id"];
+            isOneToOne: false;
+            referencedRelation: "tag";
+            referencedColumns: ["id"];
           },
-        ]
-      }
+        ];
+      };
       realm: {
         Row: {
-          created_at: string | null
-          deleted_at: string | null
-          id: number
-          name: string
-          replace: number | null
-          updated_at: string | null
-        }
+          created_at: string | null;
+          deleted_at: string | null;
+          id: number;
+          name: string;
+          replace: number | null;
+          updated_at: string | null;
+        };
         Insert: {
-          created_at?: string | null
-          deleted_at?: string | null
-          id?: number
-          name: string
-          replace?: number | null
-          updated_at?: string | null
-        }
+          created_at?: string | null;
+          deleted_at?: string | null;
+          id?: number;
+          name: string;
+          replace?: number | null;
+          updated_at?: string | null;
+        };
         Update: {
-          created_at?: string | null
-          deleted_at?: string | null
-          id?: number
-          name?: string
-          replace?: number | null
-          updated_at?: string | null
-        }
+          created_at?: string | null;
+          deleted_at?: string | null;
+          id?: number;
+          name?: string;
+          replace?: number | null;
+          updated_at?: string | null;
+        };
         Relationships: [
           {
-            foreignKeyName: "realm_replace_fkey"
-            columns: ["replace"]
-            isOneToOne: false
-            referencedRelation: "realm"
-            referencedColumns: ["id"]
+            foreignKeyName: "realm_replace_fkey";
+            columns: ["replace"];
+            isOneToOne: false;
+            referencedRelation: "realm";
+            referencedColumns: ["id"];
           },
-        ]
-      }
+        ];
+      };
       realm_tag_manifestation: {
         Row: {
-          created_at: string | null
-          deleted_at: string | null
-          dependency_rate: number | null
-          dependency_rate_stat: Database["public"]["Enums"]["all_stats"] | null
-          dependency_stat: Database["public"]["Enums"]["all_stats"] | null
-          id: number
-          is_accumulating: boolean
-          is_permanent: boolean | null
-          metadata: string | null
-          pure_bonus_target: Database["public"]["Enums"]["pure_bonus_target"]
-          realm_id: number
-          required_realm_mode: Database["public"]["Enums"]["realm_match_mode"]
-          tag_id: number
-          trigger_condition: number | null
-          updated_at: string | null
-          value_scalar: number | null
-        }
+          created_at: string | null;
+          deleted_at: string | null;
+          dependency_rate: number | null;
+          dependency_rate_stat: Database["public"]["Enums"]["all_stats"] | null;
+          dependency_stat: Database["public"]["Enums"]["all_stats"] | null;
+          id: number;
+          is_accumulating: boolean;
+          is_permanent: boolean | null;
+          metadata: string | null;
+          pure_bonus_target: Database["public"]["Enums"]["pure_bonus_target"];
+          realm_id: number;
+          required_realm_mode: Database["public"]["Enums"]["realm_match_mode"];
+          tag_id: number;
+          trigger_condition: number | null;
+          updated_at: string | null;
+          value_scalar: number | null;
+        };
         Insert: {
-          created_at?: string | null
-          deleted_at?: string | null
-          dependency_rate?: number | null
-          dependency_rate_stat?: Database["public"]["Enums"]["all_stats"] | null
-          dependency_stat?: Database["public"]["Enums"]["all_stats"] | null
-          id?: number
-          is_accumulating?: boolean
-          is_permanent?: boolean | null
-          metadata?: string | null
-          pure_bonus_target?: Database["public"]["Enums"]["pure_bonus_target"]
-          realm_id: number
-          required_realm_mode?: Database["public"]["Enums"]["realm_match_mode"]
-          tag_id: number
-          trigger_condition?: number | null
-          updated_at?: string | null
-          value_scalar?: number | null
-        }
+          created_at?: string | null;
+          deleted_at?: string | null;
+          dependency_rate?: number | null;
+          dependency_rate_stat?:
+            | Database["public"]["Enums"]["all_stats"]
+            | null;
+          dependency_stat?: Database["public"]["Enums"]["all_stats"] | null;
+          id?: number;
+          is_accumulating?: boolean;
+          is_permanent?: boolean | null;
+          metadata?: string | null;
+          pure_bonus_target?: Database["public"]["Enums"]["pure_bonus_target"];
+          realm_id: number;
+          required_realm_mode?: Database["public"]["Enums"]["realm_match_mode"];
+          tag_id: number;
+          trigger_condition?: number | null;
+          updated_at?: string | null;
+          value_scalar?: number | null;
+        };
         Update: {
-          created_at?: string | null
-          deleted_at?: string | null
-          dependency_rate?: number | null
-          dependency_rate_stat?: Database["public"]["Enums"]["all_stats"] | null
-          dependency_stat?: Database["public"]["Enums"]["all_stats"] | null
-          id?: number
-          is_accumulating?: boolean
-          is_permanent?: boolean | null
-          metadata?: string | null
-          pure_bonus_target?: Database["public"]["Enums"]["pure_bonus_target"]
-          realm_id?: number
-          required_realm_mode?: Database["public"]["Enums"]["realm_match_mode"]
-          tag_id?: number
-          trigger_condition?: number | null
-          updated_at?: string | null
-          value_scalar?: number | null
-        }
+          created_at?: string | null;
+          deleted_at?: string | null;
+          dependency_rate?: number | null;
+          dependency_rate_stat?:
+            | Database["public"]["Enums"]["all_stats"]
+            | null;
+          dependency_stat?: Database["public"]["Enums"]["all_stats"] | null;
+          id?: number;
+          is_accumulating?: boolean;
+          is_permanent?: boolean | null;
+          metadata?: string | null;
+          pure_bonus_target?: Database["public"]["Enums"]["pure_bonus_target"];
+          realm_id?: number;
+          required_realm_mode?: Database["public"]["Enums"]["realm_match_mode"];
+          tag_id?: number;
+          trigger_condition?: number | null;
+          updated_at?: string | null;
+          value_scalar?: number | null;
+        };
         Relationships: [
           {
-            foreignKeyName: "realm_tag_manifestation_realm_id_fkey"
-            columns: ["realm_id"]
-            isOneToOne: false
-            referencedRelation: "realm"
-            referencedColumns: ["id"]
+            foreignKeyName: "realm_tag_manifestation_realm_id_fkey";
+            columns: ["realm_id"];
+            isOneToOne: false;
+            referencedRelation: "realm";
+            referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "realm_tag_manifestation_tag_id_fkey"
-            columns: ["tag_id"]
-            isOneToOne: false
-            referencedRelation: "tag"
-            referencedColumns: ["id"]
+            foreignKeyName: "realm_tag_manifestation_tag_id_fkey";
+            columns: ["tag_id"];
+            isOneToOne: false;
+            referencedRelation: "tag";
+            referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "realm_tag_manifestation_trigger_condition_fkey"
-            columns: ["trigger_condition"]
-            isOneToOne: false
-            referencedRelation: "tag"
-            referencedColumns: ["id"]
+            foreignKeyName: "realm_tag_manifestation_trigger_condition_fkey";
+            columns: ["trigger_condition"];
+            isOneToOne: false;
+            referencedRelation: "tag";
+            referencedColumns: ["id"];
           },
-        ]
-      }
+        ];
+      };
       tag: {
         Row: {
-          created_at: string | null
-          deleted_at: string | null
-          id: number
-          is_additive: boolean
-          is_percent: boolean
-          is_search_simulated: boolean
-          is_searchable: boolean
-          layer: Database["public"]["Enums"]["layer"] | null
-          tag_name: string
-          updated_at: string | null
-        }
+          created_at: string | null;
+          deleted_at: string | null;
+          id: number;
+          is_additive: boolean;
+          is_percent: boolean;
+          is_search_simulated: boolean;
+          is_searchable: boolean;
+          layer: Database["public"]["Enums"]["layer"] | null;
+          tag_name: string;
+          updated_at: string | null;
+        };
         Insert: {
-          created_at?: string | null
-          deleted_at?: string | null
-          id?: number
-          is_additive?: boolean
-          is_percent?: boolean
-          is_search_simulated?: boolean
-          is_searchable?: boolean
-          layer?: Database["public"]["Enums"]["layer"] | null
-          tag_name: string
-          updated_at?: string | null
-        }
+          created_at?: string | null;
+          deleted_at?: string | null;
+          id?: number;
+          is_additive?: boolean;
+          is_percent?: boolean;
+          is_search_simulated?: boolean;
+          is_searchable?: boolean;
+          layer?: Database["public"]["Enums"]["layer"] | null;
+          tag_name: string;
+          updated_at?: string | null;
+        };
         Update: {
-          created_at?: string | null
-          deleted_at?: string | null
-          id?: number
-          is_additive?: boolean
-          is_percent?: boolean
-          is_search_simulated?: boolean
-          is_searchable?: boolean
-          layer?: Database["public"]["Enums"]["layer"] | null
-          tag_name?: string
-          updated_at?: string | null
-        }
-        Relationships: []
-      }
+          created_at?: string | null;
+          deleted_at?: string | null;
+          id?: number;
+          is_additive?: boolean;
+          is_percent?: boolean;
+          is_search_simulated?: boolean;
+          is_searchable?: boolean;
+          layer?: Database["public"]["Enums"]["layer"] | null;
+          tag_name?: string;
+          updated_at?: string | null;
+        };
+        Relationships: [];
+      };
       tag_default_interaction: {
         Row: {
-          amplifies_subject: boolean
+          amplifies_subject: boolean;
           buff_target_type_restriction:
             | Database["public"]["Enums"]["source_type"]
-            | null
-          created_at: string | null
-          creates_base: boolean
-          default_factor: number | null
-          deleted_at: string | null
-          exclusion_suffix: number | null
-          id: number
-          math_operation: Database["public"]["Enums"]["operation_type"]
-          modifier_tag_id: number | null
-          target_tag_id: number | null
-          updated_at: string | null
-        }
+            | null;
+          created_at: string | null;
+          creates_base: boolean;
+          default_factor: number | null;
+          deleted_at: string | null;
+          exclusion_suffix: number | null;
+          id: number;
+          math_operation: Database["public"]["Enums"]["operation_type"];
+          modifier_tag_id: number | null;
+          target_tag_id: number | null;
+          updated_at: string | null;
+        };
         Insert: {
-          amplifies_subject?: boolean
+          amplifies_subject?: boolean;
           buff_target_type_restriction?:
             | Database["public"]["Enums"]["source_type"]
-            | null
-          created_at?: string | null
-          creates_base?: boolean
-          default_factor?: number | null
-          deleted_at?: string | null
-          exclusion_suffix?: number | null
-          id?: number
-          math_operation?: Database["public"]["Enums"]["operation_type"]
-          modifier_tag_id?: number | null
-          target_tag_id?: number | null
-          updated_at?: string | null
-        }
+            | null;
+          created_at?: string | null;
+          creates_base?: boolean;
+          default_factor?: number | null;
+          deleted_at?: string | null;
+          exclusion_suffix?: number | null;
+          id?: number;
+          math_operation?: Database["public"]["Enums"]["operation_type"];
+          modifier_tag_id?: number | null;
+          target_tag_id?: number | null;
+          updated_at?: string | null;
+        };
         Update: {
-          amplifies_subject?: boolean
+          amplifies_subject?: boolean;
           buff_target_type_restriction?:
             | Database["public"]["Enums"]["source_type"]
-            | null
-          created_at?: string | null
-          creates_base?: boolean
-          default_factor?: number | null
-          deleted_at?: string | null
-          exclusion_suffix?: number | null
-          id?: number
-          math_operation?: Database["public"]["Enums"]["operation_type"]
-          modifier_tag_id?: number | null
-          target_tag_id?: number | null
-          updated_at?: string | null
-        }
+            | null;
+          created_at?: string | null;
+          creates_base?: boolean;
+          default_factor?: number | null;
+          deleted_at?: string | null;
+          exclusion_suffix?: number | null;
+          id?: number;
+          math_operation?: Database["public"]["Enums"]["operation_type"];
+          modifier_tag_id?: number | null;
+          target_tag_id?: number | null;
+          updated_at?: string | null;
+        };
         Relationships: [
           {
-            foreignKeyName: "tag_default_interaction_exclusion_suffix_fkey"
-            columns: ["exclusion_suffix"]
-            isOneToOne: false
-            referencedRelation: "tag"
-            referencedColumns: ["id"]
+            foreignKeyName: "tag_default_interaction_exclusion_suffix_fkey";
+            columns: ["exclusion_suffix"];
+            isOneToOne: false;
+            referencedRelation: "tag";
+            referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "tag_default_interaction_modifier_tag_id_fkey"
-            columns: ["modifier_tag_id"]
-            isOneToOne: false
-            referencedRelation: "tag"
-            referencedColumns: ["id"]
+            foreignKeyName: "tag_default_interaction_modifier_tag_id_fkey";
+            columns: ["modifier_tag_id"];
+            isOneToOne: false;
+            referencedRelation: "tag";
+            referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "tag_default_interaction_target_tag_id_fkey"
-            columns: ["target_tag_id"]
-            isOneToOne: false
-            referencedRelation: "tag"
-            referencedColumns: ["id"]
+            foreignKeyName: "tag_default_interaction_target_tag_id_fkey";
+            columns: ["target_tag_id"];
+            isOneToOne: false;
+            referencedRelation: "tag";
+            referencedColumns: ["id"];
           },
-        ]
-      }
+        ];
+      };
       wheel: {
         Row: {
-          created_at: string | null
-          deleted_at: string | null
-          enlightenment: number | null
-          id: number
-          name: string
-          rarity: Database["public"]["Enums"]["rarity"] | null
-          stat: Database["public"]["Enums"]["all_stats"] | null
-          stat_amount: number | null
-          updated_at: string | null
-        }
+          created_at: string | null;
+          deleted_at: string | null;
+          enlightenment: number | null;
+          id: number;
+          name: string;
+          rarity: Database["public"]["Enums"]["rarity"] | null;
+          stat: Database["public"]["Enums"]["all_stats"] | null;
+          stat_amount: number | null;
+          updated_at: string | null;
+        };
         Insert: {
-          created_at?: string | null
-          deleted_at?: string | null
-          enlightenment?: number | null
-          id?: number
-          name: string
-          rarity?: Database["public"]["Enums"]["rarity"] | null
-          stat?: Database["public"]["Enums"]["all_stats"] | null
-          stat_amount?: number | null
-          updated_at?: string | null
-        }
+          created_at?: string | null;
+          deleted_at?: string | null;
+          enlightenment?: number | null;
+          id?: number;
+          name: string;
+          rarity?: Database["public"]["Enums"]["rarity"] | null;
+          stat?: Database["public"]["Enums"]["all_stats"] | null;
+          stat_amount?: number | null;
+          updated_at?: string | null;
+        };
         Update: {
-          created_at?: string | null
-          deleted_at?: string | null
-          enlightenment?: number | null
-          id?: number
-          name?: string
-          rarity?: Database["public"]["Enums"]["rarity"] | null
-          stat?: Database["public"]["Enums"]["all_stats"] | null
-          stat_amount?: number | null
-          updated_at?: string | null
-        }
-        Relationships: []
-      }
+          created_at?: string | null;
+          deleted_at?: string | null;
+          enlightenment?: number | null;
+          id?: number;
+          name?: string;
+          rarity?: Database["public"]["Enums"]["rarity"] | null;
+          stat?: Database["public"]["Enums"]["all_stats"] | null;
+          stat_amount?: number | null;
+          updated_at?: string | null;
+        };
+        Relationships: [];
+      };
       wheel_tag_manifestation: {
         Row: {
           buff_target_type_restriction:
             | Database["public"]["Enums"]["source_type"]
-            | null
-          created_at: string | null
-          deleted_at: string | null
-          dependency_stat: Database["public"]["Enums"]["all_stats"] | null
-          id: number
-          is_accumulating: boolean
-          is_permanent: boolean | null
-          metadata: string | null
-          required_realm: number | null
-          tag_id: number | null
-          target_type: Database["public"]["Enums"]["target_type"] | null
-          trigger_condition: number | null
-          updated_at: string | null
-          value_scalar: number | null
-          wheel_id: number | null
-        }
+            | null;
+          created_at: string | null;
+          deleted_at: string | null;
+          dependency_stat: Database["public"]["Enums"]["all_stats"] | null;
+          id: number;
+          is_accumulating: boolean;
+          is_permanent: boolean | null;
+          metadata: string | null;
+          required_realm: number | null;
+          tag_id: number | null;
+          target_type: Database["public"]["Enums"]["target_type"] | null;
+          trigger_condition: number | null;
+          updated_at: string | null;
+          value_scalar: number | null;
+          wheel_id: number | null;
+        };
         Insert: {
           buff_target_type_restriction?:
             | Database["public"]["Enums"]["source_type"]
-            | null
-          created_at?: string | null
-          deleted_at?: string | null
-          dependency_stat?: Database["public"]["Enums"]["all_stats"] | null
-          id?: number
-          is_accumulating?: boolean
-          is_permanent?: boolean | null
-          metadata?: string | null
-          required_realm?: number | null
-          tag_id?: number | null
-          target_type?: Database["public"]["Enums"]["target_type"] | null
-          trigger_condition?: number | null
-          updated_at?: string | null
-          value_scalar?: number | null
-          wheel_id?: number | null
-        }
+            | null;
+          created_at?: string | null;
+          deleted_at?: string | null;
+          dependency_stat?: Database["public"]["Enums"]["all_stats"] | null;
+          id?: number;
+          is_accumulating?: boolean;
+          is_permanent?: boolean | null;
+          metadata?: string | null;
+          required_realm?: number | null;
+          tag_id?: number | null;
+          target_type?: Database["public"]["Enums"]["target_type"] | null;
+          trigger_condition?: number | null;
+          updated_at?: string | null;
+          value_scalar?: number | null;
+          wheel_id?: number | null;
+        };
         Update: {
           buff_target_type_restriction?:
             | Database["public"]["Enums"]["source_type"]
-            | null
-          created_at?: string | null
-          deleted_at?: string | null
-          dependency_stat?: Database["public"]["Enums"]["all_stats"] | null
-          id?: number
-          is_accumulating?: boolean
-          is_permanent?: boolean | null
-          metadata?: string | null
-          required_realm?: number | null
-          tag_id?: number | null
-          target_type?: Database["public"]["Enums"]["target_type"] | null
-          trigger_condition?: number | null
-          updated_at?: string | null
-          value_scalar?: number | null
-          wheel_id?: number | null
-        }
+            | null;
+          created_at?: string | null;
+          deleted_at?: string | null;
+          dependency_stat?: Database["public"]["Enums"]["all_stats"] | null;
+          id?: number;
+          is_accumulating?: boolean;
+          is_permanent?: boolean | null;
+          metadata?: string | null;
+          required_realm?: number | null;
+          tag_id?: number | null;
+          target_type?: Database["public"]["Enums"]["target_type"] | null;
+          trigger_condition?: number | null;
+          updated_at?: string | null;
+          value_scalar?: number | null;
+          wheel_id?: number | null;
+        };
         Relationships: [
           {
-            foreignKeyName: "wheel_tag_manifestation_required_realm_fkey"
-            columns: ["required_realm"]
-            isOneToOne: false
-            referencedRelation: "realm"
-            referencedColumns: ["id"]
+            foreignKeyName: "wheel_tag_manifestation_required_realm_fkey";
+            columns: ["required_realm"];
+            isOneToOne: false;
+            referencedRelation: "realm";
+            referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "wheel_tag_manifestation_tag_id_fkey"
-            columns: ["tag_id"]
-            isOneToOne: false
-            referencedRelation: "tag"
-            referencedColumns: ["id"]
+            foreignKeyName: "wheel_tag_manifestation_tag_id_fkey";
+            columns: ["tag_id"];
+            isOneToOne: false;
+            referencedRelation: "tag";
+            referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "wheel_tag_manifestation_trigger_condition_fkey"
-            columns: ["trigger_condition"]
-            isOneToOne: false
-            referencedRelation: "tag"
-            referencedColumns: ["id"]
+            foreignKeyName: "wheel_tag_manifestation_trigger_condition_fkey";
+            columns: ["trigger_condition"];
+            isOneToOne: false;
+            referencedRelation: "tag";
+            referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "wheel_tag_manifestation_wheel_id_fkey"
-            columns: ["wheel_id"]
-            isOneToOne: false
-            referencedRelation: "wheel"
-            referencedColumns: ["id"]
+            foreignKeyName: "wheel_tag_manifestation_wheel_id_fkey";
+            columns: ["wheel_id"];
+            isOneToOne: false;
+            referencedRelation: "wheel";
+            referencedColumns: ["id"];
           },
-        ]
-      }
-    }
+        ];
+      };
+    };
     Views: {
-      [_ in never]: never
-    }
+      [_ in never]: never;
+    };
     Functions: {
-      [_ in never]: never
-    }
+      [_ in never]: never;
+    };
     Enums: {
       all_stats:
         | "con"
@@ -1441,21 +1445,21 @@ export type Database = {
         | "death_resist"
         | "team_max_hp"
         | "enemy_max_hp"
-        | "base_aliemus"
+        | "base_aliemus";
       awakener_local_interaction_mode:
         | "unique_scaling"
         | "aftereffect"
-        | "direct_modifier"
-      curve_type: "linear" | "exponential" | "logarithmic"
-      desire_type: "general" | "specific"
-      layer: "pre_add" | "add" | "post_add"
+        | "direct_modifier";
+      curve_type: "linear" | "exponential" | "logarithmic";
+      desire_type: "general" | "specific";
+      layer: "pre_add" | "add" | "post_add";
       operation_type:
         | "presence_multiply"
         | "add_scaled"
         | "multiply_one_plus"
-        | "multiply"
-      pure_bonus_target: "none" | "value_scalar" | "dependency_rate"
-      rarity: "SSR" | "SR" | "R" | "N"
+        | "multiply";
+      pure_bonus_target: "none" | "value_scalar" | "dependency_rate";
+      rarity: "SSR" | "SR" | "R" | "N";
       realm_enum_obsolete:
         | "chaos"
         | "caro"
@@ -1463,37 +1467,40 @@ export type Database = {
         | "aequor"
         | "divine aequor"
         | "ultra"
-        | "singularity ultra"
-      realm_match_mode: "present" | "exclusive" | "combo"
-      source_type: "command card" | "exalt" | "rouse" | "talent" | "buff"
-      target_type: "self" | "single" | "aoe"
-    }
+        | "singularity ultra";
+      realm_match_mode: "present" | "exclusive" | "combo";
+      source_type: "command card" | "exalt" | "rouse" | "talent" | "buff";
+      target_type: "self" | "single" | "aoe";
+    };
     CompositeTypes: {
-      [_ in never]: never
-    }
-  }
-}
+      [_ in never]: never;
+    };
+  };
+};
 
-type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">;
 
-type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+type DefaultSchema = DatabaseWithoutInternals[Extract<
+  keyof Database,
+  "public"
+>];
 
 export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals;
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never) = never,
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
+  schema: keyof DatabaseWithoutInternals;
 }
   ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
       DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
-      Row: infer R
+      Row: infer R;
     }
     ? R
     : never
@@ -1501,95 +1508,95 @@ export type Tables<
         DefaultSchema["Views"])
     ? (DefaultSchema["Tables"] &
         DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
-        Row: infer R
+        Row: infer R;
       }
       ? R
       : never
-    : never
+    : never;
 
 export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals;
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never) = never,
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
+  schema: keyof DatabaseWithoutInternals;
 }
   ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-      Insert: infer I
+      Insert: infer I;
     }
     ? I
     : never
   : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
     ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-        Insert: infer I
+        Insert: infer I;
       }
       ? I
       : never
-    : never
+    : never;
 
 export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals;
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never) = never,
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
+  schema: keyof DatabaseWithoutInternals;
 }
   ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-      Update: infer U
+      Update: infer U;
     }
     ? U
     : never
   : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
     ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-        Update: infer U
+        Update: infer U;
       }
       ? U
       : never
-    : never
+    : never;
 
 export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals;
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never) = never,
+    : never = never,
 > = DefaultSchemaEnumNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
+  schema: keyof DatabaseWithoutInternals;
 }
   ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
   : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
     ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
-    : never
+    : never;
 
 export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals;
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never) = never,
+    : never = never,
 > = PublicCompositeTypeNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
+  schema: keyof DatabaseWithoutInternals;
 }
   ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
   : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
     ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
-    : never
+    : never;
 
 export const Constants = {
   graphql_public: {
@@ -1643,4 +1650,4 @@ export const Constants = {
       target_type: ["self", "single", "aoe"],
     },
   },
-} as const
+} as const;

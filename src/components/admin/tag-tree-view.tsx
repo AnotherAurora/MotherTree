@@ -20,7 +20,11 @@ import {
 } from "@/lib/admin-form-warnings";
 import type { ForeignKeyOption } from "@/lib/actions/crud";
 import type { FieldConfig, TableConfig } from "@/lib/schema-config";
-import { buildTagTree, collectTreePaths, type TagTreeNode } from "@/lib/tag-tree";
+import {
+  buildTagTree,
+  collectTreePaths,
+  type TagTreeNode,
+} from "@/lib/tag-tree";
 
 export type EditingCellState = {
   recordId: number;
@@ -143,7 +147,9 @@ function TreeRow({
               : "bg-white"
         }`}
         title={
-          searchSimulatedHidden ? SEARCH_SIMULATED_NOT_SEARCHABLE_HINT : undefined
+          searchSimulatedHidden
+            ? SEARCH_SIMULATED_NOT_SEARCHABLE_HINT
+            : undefined
         }
       >
         <TreeGuides guides={guides} isLast={isLast} depth={depth} />
@@ -194,11 +200,7 @@ function TreeRow({
                   onUpdate={onInlineUpdate}
                 />
               ) : (
-                formatCellDisplayValue(
-                  field.name,
-                  record[field.name],
-                  fkLabels,
-                )
+                formatCellDisplayValue(field.name, record[field.name], fkLabels)
               )}
             </div>
           ))}

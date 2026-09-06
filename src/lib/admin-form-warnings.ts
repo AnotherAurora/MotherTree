@@ -10,9 +10,7 @@ export const CREATES_AMPLIFY_CONFLICT_HINT =
 export function hasCreatesAmplifyConflict(
   values: Record<string, unknown>,
 ): boolean {
-  return (
-    Boolean(values.creates_base) === Boolean(values.amplifies_subject)
-  );
+  return Boolean(values.creates_base) === Boolean(values.amplifies_subject);
 }
 
 export const NON_POSITIVE_INSTANCE_OR_COPIES_HINT =
