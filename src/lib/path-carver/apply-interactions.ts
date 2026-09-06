@@ -22,7 +22,10 @@ import {
   SPECIAL_TENTACLE_HIT_POISON_TAG_ID,
   TENTACLE_TDU_FAMILY_POOL_LABEL,
 } from "@/lib/path-carver/hit-tentacle-attack";
-import { applyBirthRitualSacrificeConversion } from "@/lib/path-carver/birth-ritual-sacrifice";
+import {
+  applyBirthRitualSacrificeConversion,
+  SPECIAL_BIRTH_RITUAL_TAG_ID,
+} from "@/lib/path-carver/birth-ritual-sacrifice";
 import { applyAllTentacleAttackHop } from "@/lib/path-carver/all-tentacle-attack";
 import {
   computeTentacleCritDamage,
@@ -279,6 +282,31 @@ function ownerKeyFor(m: Manifestation): OwnerKey {
   if (m.sourceKind === "realm") return REALM_OWNER;
   if (m.awakenerId != null) return `awakener:${m.awakenerId}`;
   return `orphan:${m.sourceKind}:${m.id}`;
+}
+
+/**
+ * A target_type=self Birth Ritual subject is scoped to its owning awakener.
+ * Only rows that resolve to an awakener qualify — posse / realm (awakenersId
+ * null) are always treated as team scope, even if labeled self.
+ */
+function isSelfBirthRitualSubject(m: Manifestation): boolean {
+  return (
+    m.tagId === SPECIAL_BIRTH_RITUAL_TAG_ID &&
+    m.targetType === "self" &&
+    m.awakenerId != null
+  );
+}
+
+/** Accumulate a finished self Birth Ritual amount into the owner's self bucket. */
+function recordBirthRitualSelf(
+  totals: Map<OwnerKey, number>,
+  subject: Manifestation,
+  owner: OwnerKey,
+  amount: number,
+): void {
+  if (amount === 0 || !isSelfBirthRitualSubject(subject)) return;
+  const current = totals.get(owner) ?? 0;
+  totals.set(owner, current + amount);
 }
 
 function sourceLabelFor(
@@ -2486,6 +2514,8 @@ export function applyInteractions(
   }
 
   const mergedOwnerValues: OwnerTotals = new Map();
+  /** target_type=self Birth Ritual finished amounts by owner (hop 4e input). */
+  const birthRitualSelfByOwner = new Map<OwnerKey, number>();
   const opSteps: ScalarMathStep[] = [];
   const aftereffectSteps: ScalarMathStep[] = [];
   const createdSynthetics: Manifestation[] = [];
@@ -2680,6 +2710,12 @@ export function applyInteractions(
             subject.tagId,
             scalar * hitCount,
           );
+          recordBirthRitualSelf(
+            birthRitualSelfByOwner,
+            subject,
+            owner,
+            scalar * hitCount,
+          );
           pushHitCountStep(scalar);
         }
         continue;
@@ -2745,6 +2781,12 @@ export function applyInteractions(
           owner,
           tag,
           subject.tagId,
+          finishedOnce * hitCount,
+        );
+        recordBirthRitualSelf(
+          birthRitualSelfByOwner,
+          subject,
+          owner,
           finishedOnce * hitCount,
         );
         pushHitCountStep(finishedOnce);
@@ -3438,6 +3480,7 @@ export function applyInteractions(
 
   const { steps: birthRitualSteps } = applyBirthRitualSacrificeConversion({
     ownerValues: mergedOwnerValues,
+    selfByOwner: birthRitualSelfByOwner,
     tagsById: input.tagsById,
   });
   steps.push(...birthRitualSteps);

@@ -152,7 +152,15 @@ export const PUBLIC_TABLE_COLUMNS = {
     "trigger_condition",
     "required_realm",
   ],
-  tag: ["id", "tag_name", "layer", "is_percent", "is_additive", "is_searchable"],
+  tag: [
+    "id",
+    "tag_name",
+    "layer",
+    "is_percent",
+    "is_additive",
+    "is_searchable",
+    "is_search_simulated",
+  ],
   tag_default_interaction: [
     "id",
     "modifier_tag_id",

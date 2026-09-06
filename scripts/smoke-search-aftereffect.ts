@@ -30,6 +30,7 @@ const tags = [
     is_percent: true,
     is_additive: true,
     is_searchable: true,
+    is_search_simulated: false,
   },
   {
     id: 4,
@@ -38,6 +39,7 @@ const tags = [
     is_percent: false,
     is_additive: true,
     is_searchable: true,
+    is_search_simulated: false,
   },
 ] as PublicRow<"tag">[];
 

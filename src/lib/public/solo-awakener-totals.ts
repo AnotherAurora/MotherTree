@@ -46,10 +46,6 @@ export function normalizeAwakenerSearchName(
   return (name ?? "").trim().replace(/^["']|["']$/g, "");
 }
 
-export function isAttackerOrDefenderTagName(tagName: string): boolean {
-  return tagName.startsWith("Attacker.") || tagName.startsWith("Defender.");
-}
-
 export function isMultiRealmSearchAwakener(
   awakener: Pick<PublicRow<"awakener">, "name">,
 ): boolean {
@@ -463,15 +459,19 @@ export function computeSoloAwakenerTotals(
   return result;
 }
 
-/** True when Search should run solo sims (Attacker/Defender tag filter or no tag filter). */
+/**
+ * True when Search should run solo sims: any in-scope tag (the expanded
+ * matching set, or all tags when no tag filter is set) is flagged
+ * `is_search_simulated`. Tags flagged false are served by direct
+ * per-manifestation rows instead.
+ */
 export function shouldRunSoloAwakenerTotals(
   matchingTagIds: Set<number> | null,
   tagsById: ReadonlyMap<number, PublicRow<"tag">>,
 ): boolean {
-  if (matchingTagIds == null) return true;
-  for (const id of matchingTagIds) {
-    const name = tagsById.get(id)?.tag_name;
-    if (name != null && isAttackerOrDefenderTagName(name)) return true;
+  const inScope = matchingTagIds ?? new Set(tagsById.keys());
+  for (const id of inScope) {
+    if (tagsById.get(id)?.is_search_simulated === true) return true;
   }
   return false;
 }

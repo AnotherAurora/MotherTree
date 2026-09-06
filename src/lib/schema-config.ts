@@ -165,6 +165,13 @@ export const TABLE_CONFIGS: TableConfig[] = [
         defaultValue: false,
         inlineEditable: true,
       },
+      {
+        name: "is_search_simulated",
+        label: "Simulate in Search",
+        type: "boolean",
+        defaultValue: false,
+        inlineEditable: true,
+      },
       ...timestampFields(),
     ],
   },

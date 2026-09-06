@@ -1,18 +1,19 @@
 /**
- * Birth Ritual → Sacrifice smoke (Phase 4e).
+ * Birth Ritual → Sacrifice smoke.
  * Run: npx tsx scripts/smoke-birth-ritual-sacrifice.ts
  *
- * Active Damage and converted Tentacle both enter the damage pool (no dedup).
+ * Uncapped Birth Ritual scoped by target_type:
+ * - team (aoe/single/null + posse/realm) → all-owner Active Damage + Tentacle → *team*
+ * - self → owning awakener's own Active Damage only (no Tentacle) → awakener bucket
  */
 import { applyInteractions } from "../src/lib/path-carver/apply-interactions";
 import {
-  applyBirthRitualCap,
+  applyBirthRitualSacrificeConversion,
   ATTACKER_NON_ACTIVE_DAMAGE_SACRIFICE_TAG_ID,
   computeSacrificeAmount,
-  MAX_BIRTH_RITUAL,
   SPECIAL_BIRTH_RITUAL_TAG_ID,
+  sumOwnerActiveDamagePool,
   sumSacrificeDamagePool,
-  sumTagAcrossOwners,
 } from "../src/lib/path-carver/birth-ritual-sacrifice";
 import { buildAwakenersById } from "../src/lib/path-carver/effective-value-scalar";
 import {
@@ -158,30 +159,103 @@ const tduTag = makeTag(
   { layer: "add" },
 );
 
-console.log("Unit — cap and sacrifice math");
+console.log("Unit — pools and sacrifice math");
 {
   const ownerValues = new Map<string, Map<number, number>>();
-  ownerValues.set("awakener:1", new Map([[SPECIAL_BIRTH_RITUAL_TAG_ID, 60]]));
-  ownerValues.set("awakener:2", new Map([[SPECIAL_BIRTH_RITUAL_TAG_ID, 40]]));
-  const cap = applyBirthRitualCap(ownerValues);
-  assert(cap.rawTotal === 100, `raw 100 (got ${cap.rawTotal})`);
-  assert(cap.cappedTotal === MAX_BIRTH_RITUAL, `capped 75 (got ${cap.cappedTotal})`);
-  assert(cap.capApplied, "cap applied");
-  assert(
-    sumTagAcrossOwners(ownerValues, SPECIAL_BIRTH_RITUAL_TAG_ID) === 75,
-    "owner buckets scaled to 75 total",
+  ownerValues.set(
+    "awakener:1",
+    new Map([[ATTACKER_ACTIVE_DAMAGE_TAG_ID, 500]]),
   );
-
-  ownerValues.set("awakener:1", new Map([[ATTACKER_ACTIVE_DAMAGE_TAG_ID, 500]]));
-  ownerValues.set("awakener:2", new Map([[ATTACKER_TENTACLE_TAG_ID, 300]]));
-  const pool = sumSacrificeDamagePool(ownerValues, {
+  ownerValues.set(
+    "awakener:2",
+    new Map([[ATTACKER_TENTACLE_TAG_ID, 300]]),
+  );
+  const poolTagsById = {
     [activeTag.id]: activeTag,
     [tentacleTag.id]: tentacleTag,
-  });
-  assert(pool === 800, `damage pool 800 (got ${pool})`);
+  };
+  const pool = sumSacrificeDamagePool(ownerValues, poolTagsById);
+  assert(pool === 800, `team damage pool 800 (got ${pool})`);
   assert(
     computeSacrificeAmount(10, pool) === 80,
     "10 Birth Ritual → 80 Sacrifice",
+  );
+
+  const ownerPool = sumOwnerActiveDamagePool(
+    ownerValues,
+    "awakener:1",
+    poolTagsById,
+  );
+  assert(
+    ownerPool === 500,
+    `self pool 500 excludes Tentacle (got ${ownerPool})`,
+  );
+}
+
+console.log("\nUnit — scope conversion writes to correct buckets");
+{
+  const ownerValues = new Map<string, Map<number, number>>([
+    [
+      "awakener:1",
+      new Map([
+        [SPECIAL_BIRTH_RITUAL_TAG_ID, 30],
+        [activeTag.id, 100],
+      ]),
+    ],
+    [
+      "awakener:2",
+      new Map([
+        [SPECIAL_BIRTH_RITUAL_TAG_ID, 40],
+        [activeTag.id, 50],
+      ]),
+    ],
+  ]);
+  const tagsById = {
+    [birthRitualTag.id]: birthRitualTag,
+    [activeTag.id]: activeTag,
+    [sacrificeTag.id]: sacrificeTag,
+  };
+  const { result, steps } = applyBirthRitualSacrificeConversion({
+    ownerValues,
+    selfByOwner: new Map([["awakener:1", 30]]),
+    tagsById,
+  });
+  assert(
+    result.teamBirthRitual === 40,
+    `team BR 40 (got ${result.teamBirthRitual})`,
+  );
+  assert(
+    result.teamDamagePool === 150,
+    `team pool 150 (got ${result.teamDamagePool})`,
+  );
+  assert(
+    (ownerValues
+      .get("awakener:1")
+      ?.get(ATTACKER_NON_ACTIVE_DAMAGE_SACRIFICE_TAG_ID) ?? 0) === 30,
+    "self Sacrifice 30 written to awakener:1 bucket",
+  );
+  assert(
+    (ownerValues
+      .get("*team*")
+      ?.get(ATTACKER_NON_ACTIVE_DAMAGE_SACRIFICE_TAG_ID) ?? 0) === 60,
+    "team Sacrifice 60 written to *team* bucket",
+  );
+  assert(
+    result.sacrificeAdded === 90,
+    `sacrificeAdded 90 (got ${result.sacrificeAdded})`,
+  );
+  assert(
+    result.sacrificeTotal === 90,
+    `sacrificeTotal 90 (got ${result.sacrificeTotal})`,
+  );
+  assert(
+    steps.some(
+      (s) =>
+        s.kind === "special" &&
+        s.label === "Special.Birth Ritual → Sacrifice" &&
+        s.detail.includes("scope=self owner=awakener:1"),
+    ),
+    "self scope debug step present",
   );
 }
 
@@ -278,62 +352,6 @@ console.log("\nIntegration — 50 Birth Ritual, AD 1000 + Tentacle 200");
         s.label === "Special.Birth Ritual → Sacrifice",
     ),
     "conversion debug step present",
-  );
-}
-
-console.log("\nIntegration — cap 100 → 75");
-{
-  const a1 = makeAwakener({ id: 1 });
-  const a2 = makeAwakener({ id: 2, name: "B" });
-  const tagsById: Record<number, Tag> = {
-    [birthRitualTag.id]: birthRitualTag,
-    [activeTag.id]: activeTag,
-    [sacrificeTag.id]: sacrificeTag,
-  };
-  const manifests = [
-    makeManifestation({
-      id: 1,
-      tagId: birthRitualTag.id,
-      tagName: birthRitualTag.tagName,
-      valueScalar: 60,
-      awakenerId: 1,
-    }),
-    makeManifestation({
-      id: 2,
-      tagId: birthRitualTag.id,
-      tagName: birthRitualTag.tagName,
-      valueScalar: 40,
-      awakenerId: 2,
-    }),
-    makeManifestation({
-      id: 3,
-      tagId: activeTag.id,
-      tagName: activeTag.tagName,
-      valueScalar: 1000,
-      awakenerId: 1,
-    }),
-  ];
-  const result = applyInteractions({
-    manifestations: manifests,
-    appliedManifestations: manifests,
-    defaultInteractions: [],
-    tagsById,
-    awakenersById: buildAwakenersById([a1, a2]),
-  });
-  assert(
-    (result.totalsByTagId.get(SPECIAL_BIRTH_RITUAL_TAG_ID) ?? 0) === 75,
-    `Birth Ritual capped at 75 (got ${result.totalsByTagId.get(SPECIAL_BIRTH_RITUAL_TAG_ID)})`,
-  );
-  assert(
-    (result.totalsByTagId.get(ATTACKER_NON_ACTIVE_DAMAGE_SACRIFICE_TAG_ID) ??
-      0) === 750,
-    `Sacrifice uses 75% (got ${result.totalsByTagId.get(ATTACKER_NON_ACTIVE_DAMAGE_SACRIFICE_TAG_ID)})`,
-  );
-  assert(
-    result.steps.some(
-      (s) => s.kind === "special" && s.label === "Special.Birth Ritual cap",
-    ),
-    "cap debug step present",
   );
 }
 
@@ -494,6 +512,246 @@ console.log("\nIntegration — Layer A Sacrifice base merges additively");
     (result.totalsByTagId.get(ATTACKER_NON_ACTIVE_DAMAGE_SACRIFICE_TAG_ID) ??
       0) === 550,
     `Sacrifice 50 base + 500 conversion = 550 (got ${result.totalsByTagId.get(ATTACKER_NON_ACTIVE_DAMAGE_SACRIFICE_TAG_ID)})`,
+  );
+}
+
+console.log("\nIntegration — uncapped: aoe 100 converts 100%");
+{
+  const awakener = makeAwakener({ id: 1 });
+  const tagsById: Record<number, Tag> = {
+    [birthRitualTag.id]: birthRitualTag,
+    [activeTag.id]: activeTag,
+    [sacrificeTag.id]: sacrificeTag,
+  };
+  const manifests = [
+    makeManifestation({
+      id: 1,
+      tagId: birthRitualTag.id,
+      tagName: birthRitualTag.tagName,
+      valueScalar: 60,
+      awakenerId: 1,
+    }),
+    makeManifestation({
+      id: 2,
+      tagId: birthRitualTag.id,
+      tagName: birthRitualTag.tagName,
+      valueScalar: 40,
+      awakenerId: 1,
+    }),
+    makeManifestation({
+      id: 3,
+      tagId: activeTag.id,
+      tagName: activeTag.tagName,
+      valueScalar: 1000,
+      awakenerId: 1,
+    }),
+  ];
+  const result = applyInteractions({
+    manifestations: manifests,
+    appliedManifestations: manifests,
+    defaultInteractions: [],
+    tagsById,
+    awakenersById: buildAwakenersById([awakener]),
+  });
+  assert(
+    (result.totalsByTagId.get(SPECIAL_BIRTH_RITUAL_TAG_ID) ?? 0) === 100,
+    `Birth Ritual uncapped at 100 (got ${result.totalsByTagId.get(SPECIAL_BIRTH_RITUAL_TAG_ID)})`,
+  );
+  assert(
+    (result.totalsByTagId.get(ATTACKER_NON_ACTIVE_DAMAGE_SACRIFICE_TAG_ID) ??
+      0) === 1000,
+    `Sacrifice 100% of 1000 = 1000 (got ${result.totalsByTagId.get(ATTACKER_NON_ACTIVE_DAMAGE_SACRIFICE_TAG_ID)})`,
+  );
+  assert(
+    !result.steps.some(
+      (s) => s.kind === "special" && s.label === "Special.Birth Ritual cap",
+    ),
+    "no cap debug step",
+  );
+}
+
+console.log("\nIntegration — stacking: self (awakener 1) + aoe (awakener 2)");
+{
+  const a1 = makeAwakener({ id: 1 });
+  const a2 = makeAwakener({ id: 2, name: "B" });
+  const tagsById: Record<number, Tag> = {
+    [birthRitualTag.id]: birthRitualTag,
+    [activeTag.id]: activeTag,
+    [sacrificeTag.id]: sacrificeTag,
+  };
+  const manifests = [
+    makeManifestation({
+      id: 1,
+      tagId: birthRitualTag.id,
+      tagName: birthRitualTag.tagName,
+      valueScalar: 30,
+      awakenerId: 1,
+      targetType: "self",
+    }),
+    makeManifestation({
+      id: 2,
+      tagId: activeTag.id,
+      tagName: activeTag.tagName,
+      valueScalar: 100,
+      awakenerId: 1,
+    }),
+    makeManifestation({
+      id: 3,
+      tagId: birthRitualTag.id,
+      tagName: birthRitualTag.tagName,
+      valueScalar: 40,
+      awakenerId: 2,
+    }),
+    makeManifestation({
+      id: 4,
+      tagId: activeTag.id,
+      tagName: activeTag.tagName,
+      valueScalar: 50,
+      awakenerId: 2,
+    }),
+  ];
+  const result = applyInteractions({
+    manifestations: manifests,
+    appliedManifestations: manifests,
+    defaultInteractions: [],
+    tagsById,
+    awakenersById: buildAwakenersById([a1, a2]),
+  });
+  assert(
+    (result.totalsByTagId.get(SPECIAL_BIRTH_RITUAL_TAG_ID) ?? 0) === 70,
+    `Birth Ritual total 70 (got ${result.totalsByTagId.get(SPECIAL_BIRTH_RITUAL_TAG_ID)})`,
+  );
+  assert(
+    (result.totalsByTagId.get(ATTACKER_NON_ACTIVE_DAMAGE_SACRIFICE_TAG_ID) ??
+      0) === 90,
+    `Sacrifice 60 team + 30 self = 90 (got ${result.totalsByTagId.get(ATTACKER_NON_ACTIVE_DAMAGE_SACRIFICE_TAG_ID)})`,
+  );
+}
+
+console.log("\nIntegration — self excludes Tentacle; aoe includes it");
+{
+  const a1 = makeAwakener({ id: 1 });
+  const a2 = makeAwakener({ id: 2, name: "B" });
+  const tagsById: Record<number, Tag> = {
+    [birthRitualTag.id]: birthRitualTag,
+    [activeTag.id]: activeTag,
+    [tentacleTag.id]: tentacleTag,
+    [tduTag.id]: tduTag,
+    [sacrificeTag.id]: sacrificeTag,
+  };
+  const selfManifests = [
+    makeManifestation({
+      id: 1,
+      tagId: birthRitualTag.id,
+      tagName: birthRitualTag.tagName,
+      valueScalar: 30,
+      awakenerId: 1,
+      targetType: "self",
+    }),
+    makeManifestation({
+      id: 2,
+      tagId: activeTag.id,
+      tagName: activeTag.tagName,
+      valueScalar: 100,
+      awakenerId: 1,
+    }),
+    makeManifestation({
+      id: 3,
+      tagId: tentacleTag.id,
+      tagName: tentacleTag.tagName,
+      valueScalar: 200,
+      awakenerId: 1,
+    }),
+    makeManifestation({
+      id: 4,
+      tagId: tduTag.id,
+      tagName: tduTag.tagName,
+      valueScalar: 1,
+      awakenerId: 1,
+    }),
+  ];
+  const r1 = applyInteractions({
+    manifestations: selfManifests,
+    appliedManifestations: selfManifests,
+    defaultInteractions: [],
+    tagsById,
+    awakenersById: buildAwakenersById([a1]),
+  });
+  assert(
+    (r1.totalsByTagId.get(ATTACKER_TENTACLE_TAG_ID) ?? 0) === 200,
+    "Tentacle 200 present",
+  );
+  assert(
+    (r1.totalsByTagId.get(ATTACKER_NON_ACTIVE_DAMAGE_SACRIFICE_TAG_ID) ?? 0) ===
+      30,
+    "self-only Sacrifice 30 — Tentacle not in self pool",
+  );
+
+  const stackedManifests = [
+    ...selfManifests,
+    makeManifestation({
+      id: 5,
+      tagId: birthRitualTag.id,
+      tagName: birthRitualTag.tagName,
+      valueScalar: 10,
+      awakenerId: 2,
+    }),
+  ];
+  const r2 = applyInteractions({
+    manifestations: stackedManifests,
+    appliedManifestations: stackedManifests,
+    defaultInteractions: [],
+    tagsById,
+    awakenersById: buildAwakenersById([a1, a2]),
+  });
+  assert(
+    (r2.totalsByTagId.get(ATTACKER_NON_ACTIVE_DAMAGE_SACRIFICE_TAG_ID) ?? 0) ===
+      60,
+    "Sacrifice 60 — team pool 300 (AD 100 + Tentacle 200) ×10% + self 30",
+  );
+}
+
+console.log("\nIntegration — posse self treated as team scope");
+{
+  const awakener = makeAwakener({ id: 1 });
+  const tagsById: Record<number, Tag> = {
+    [birthRitualTag.id]: birthRitualTag,
+    [activeTag.id]: activeTag,
+    [sacrificeTag.id]: sacrificeTag,
+  };
+  const manifests = [
+    makeManifestation({
+      id: 1,
+      tagId: birthRitualTag.id,
+      tagName: birthRitualTag.tagName,
+      valueScalar: 20,
+      sourceKind: "posse",
+      awakenerId: null,
+      targetType: "self",
+    }),
+    makeManifestation({
+      id: 2,
+      tagId: activeTag.id,
+      tagName: activeTag.tagName,
+      valueScalar: 100,
+      awakenerId: 1,
+    }),
+  ];
+  const result = applyInteractions({
+    manifestations: manifests,
+    appliedManifestations: manifests,
+    defaultInteractions: [],
+    tagsById,
+    awakenersById: buildAwakenersById([awakener]),
+  });
+  assert(
+    (result.totalsByTagId.get(SPECIAL_BIRTH_RITUAL_TAG_ID) ?? 0) === 20,
+    `Birth Ritual total 20 (got ${result.totalsByTagId.get(SPECIAL_BIRTH_RITUAL_TAG_ID)})`,
+  );
+  assert(
+    (result.totalsByTagId.get(ATTACKER_NON_ACTIVE_DAMAGE_SACRIFICE_TAG_ID) ??
+      0) === 20,
+    "posse self converts team-wide 20% of 100 = 20",
   );
 }
 

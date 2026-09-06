@@ -17,7 +17,6 @@ import {
 import {
   collectSoloTagDisplayFields,
   computeSoloAwakenerTotals,
-  isAttackerOrDefenderTagName,
   isMultiRealmSearchAwakener,
   normalizeAwakenerSearchName,
   realmSimsForAwakener,
@@ -358,7 +357,7 @@ export function buildSearchResults(
       copyProviderMembers: input.copyProviderMembers ?? [],
     };
 
-    // Phase 7: Attacker/Defender Values from solo-kit Review Tags totals.
+    // Phase 7: simulated-tag values from solo-kit Review Tags totals.
     if (runSolo) {
       for (const awakener of input.awakeners) {
         const realmSims = realmSimsForAwakener(
@@ -378,7 +377,7 @@ export function buildSearchResults(
             );
           for (const [tagId, total] of totalsByTagId) {
             const tag = tagsById.get(tagId);
-            if (!tag || !isAttackerOrDefenderTagName(tag.tag_name)) continue;
+            if (!tag || !tag.is_search_simulated) continue;
             if (matchingTagIds != null && !matchingTagIds.has(tagId)) continue;
             if (
               filters.requiredRealmId != null &&
@@ -432,7 +431,8 @@ export function buildSearchResults(
     }
 
     // Mirror Path Carver load/resolve: enlightenment gate, then replacements,
-    // then Search filters on survivors. Skip Attacker/Defender when solo ran.
+    // then Search filters on survivors. is_search_simulated tags are already
+    // served by the solo-sim aggregate above; never also emit direct rows.
     const enlightenmentGated = input.awakenerManifestations.filter(
       (m) =>
         (m.required_enlightenment ?? 0) <= filters.awakenerEnlightenment,
@@ -449,11 +449,10 @@ export function buildSearchResults(
 
     for (const m of resolvedAwakenerManifestations) {
       const tag = tagsById.get(m.tag_id);
-      if (
-        runSolo &&
-        tag != null &&
-        isAttackerOrDefenderTagName(tag.tag_name)
-      ) {
+      // Flagged tags are served by the solo-sim aggregate only; never emit
+      // direct per-manifestation rows for them. Unflagged tags (whether
+      // Support.* or AD-named) always fall through to direct rows.
+      if (tag != null && tag.is_search_simulated) {
         continue;
       }
       if (
@@ -535,7 +534,7 @@ export function buildSearchResults(
       });
     }
 
-    // Aftereffect rows: Support/non-AD targets only when solo covers AD.
+    // Aftereffect rows: emit direct rows unless the target tag is simulated.
     for (const local of input.awakenerLocalInteractions) {
       if (
         local.mode !== "aftereffect" ||
@@ -549,11 +548,7 @@ export function buildSearchResults(
       if (!m) continue;
 
       const targetTag = tagsById.get(local.target_tag_id);
-      if (
-        runSolo &&
-        targetTag != null &&
-        isAttackerOrDefenderTagName(targetTag.tag_name)
-      ) {
+      if (targetTag != null && targetTag.is_search_simulated) {
         continue;
       }
 

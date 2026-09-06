@@ -52,10 +52,12 @@ import {
   CREATES_AMPLIFY_CONFLICT_HINT,
   LOCAL_INTERACTION_COLUMN_MISMATCH_HINT,
   NON_POSITIVE_INSTANCE_OR_COPIES_HINT,
+  SEARCH_SIMULATED_NOT_SEARCHABLE_HINT,
   UNIQUE_SCALING_NON_SELF_TARGET_TYPE_HINT,
   hasCreatesAmplifyConflict,
   hasLocalInteractionColumnMismatch,
   hasNonPositiveInstanceOrCopies,
+  hasSearchSimulatedWithoutSearchable,
   hasUniqueScalingNonSelfTargetType,
 } from "@/lib/admin-form-warnings";
 import { cn } from "@/lib/utils";
@@ -563,6 +565,14 @@ export function TableManager({
               loaded — contact the maintainer if you need the full table.
             </div>
           ) : null}
+          {config.name === "tag" && (
+            <div className="mb-4 flex flex-wrap items-center gap-x-5 gap-y-1 text-xs text-zinc-600">
+              <span className="flex items-center gap-2">
+                <span className="inline-block h-3 w-3 rounded-sm bg-sky-100 ring-1 ring-sky-200" />
+                Simulate in Search but not Available in Search
+              </span>
+            </div>
+          )}
           {loading ? (
             <div className="flex items-center justify-center py-16 text-zinc-500">
               <Loader2 className="mr-2 h-5 w-5 animate-spin" />
@@ -665,6 +675,10 @@ export function TableManager({
                       config.name === "awakener_tag_manifestation" &&
                       !isDeleted &&
                       hasNonPositiveInstanceOrCopies(record);
+                    const searchSimulatedHidden =
+                      config.name === "tag" &&
+                      !isDeleted &&
+                      hasSearchSimulatedWithoutSearchable(record);
                     const isUnverified =
                       config.name === "awakener_tag_manifestation" &&
                       !isDeleted &&
@@ -678,9 +692,10 @@ export function TableManager({
                       <tr
                         key={String(record.id)}
                         className={cn(
-                          // Precedence (last wins via twMerge): unverified < warn < deleted
+                          // Precedence (last wins via twMerge): unverified < warn < simulated < deleted
                           isUnverified && "bg-red-100",
                           rowWarn && "bg-amber-50",
+                          searchSimulatedHidden && "bg-sky-100",
                           isDeleted && "bg-zinc-50 text-zinc-400",
                         )}
                         title={
@@ -694,7 +709,9 @@ export function TableManager({
                                   ? NON_POSITIVE_INSTANCE_OR_COPIES_HINT
                                   : isUnverified
                                     ? "Unverified (pending)"
-                                    : undefined
+                                    : searchSimulatedHidden
+                                      ? SEARCH_SIMULATED_NOT_SEARCHABLE_HINT
+                                      : undefined
                         }
                         onDoubleClick={() => {
                           if (!showDeletedOnly && !isDeleted) {

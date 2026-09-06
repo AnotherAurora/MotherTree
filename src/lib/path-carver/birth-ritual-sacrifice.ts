@@ -8,15 +8,11 @@ export const SPECIAL_BIRTH_RITUAL_TAG_ID = 54;
 /** Attacker.Non-Active Damage.Sacrifice */
 export const ATTACKER_NON_ACTIVE_DAMAGE_SACRIFICE_TAG_ID = 50;
 
-/** Team-wide Birth Ritual stack cap. */
-export const MAX_BIRTH_RITUAL = 75;
-
 /** 1 Birth Ritual point → 1% of the damage pool as Sacrifice. */
 export const SACRIFICE_RATE_PER_POINT = 0.01;
 
 const TEAM_POOL_OWNER = "*team*";
 
-const BIRTH_RITUAL_CAP_LABEL = "Special.Birth Ritual cap";
 const BIRTH_RITUAL_SACRIFICE_LABEL = "Special.Birth Ritual → Sacrifice";
 
 export type BirthRitualSacrificeStep = {
@@ -66,49 +62,10 @@ export function sumTagAcrossOwners(
   return total;
 }
 
-export type BirthRitualCapResult = {
-  rawTotal: number;
-  cappedTotal: number;
-  capApplied: boolean;
-};
-
-/**
- * Cap team-wide Birth Ritual at MAX_BIRTH_RITUAL.
- * When over cap, scale each owner's value proportionally.
- */
-export function applyBirthRitualCap(
-  ownerValues: OwnerTotals,
-): BirthRitualCapResult {
-  const parts: { owner: OwnerKey; value: number }[] = [];
-  let rawTotal = 0;
-  for (const [owner, map] of ownerValues) {
-    const value = map.get(SPECIAL_BIRTH_RITUAL_TAG_ID) ?? 0;
-    if (value === 0) continue;
-    parts.push({ owner, value });
-    rawTotal += value;
-  }
-
-  const cappedTotal = Math.min(rawTotal, MAX_BIRTH_RITUAL);
-  const capApplied = rawTotal > cappedTotal;
-
-  if (capApplied && rawTotal > 0) {
-    const scale = cappedTotal / rawTotal;
-    for (const { owner, value } of parts) {
-      setOwnerValue(
-        ownerValues,
-        owner,
-        SPECIAL_BIRTH_RITUAL_TAG_ID,
-        value * scale,
-      );
-    }
-  }
-
-  return { rawTotal, cappedTotal, capApplied };
-}
-
 /**
  * Sum finalized Active Damage family + Tentacle values across all owners.
- * Active Damage and converted Tentacle both count (no dedup).
+ * Active Damage and converted Tentacle both count (no dedup). Team-wide pool
+ * for aoe/single Birth Ritual.
  */
 export function sumSacrificeDamagePool(
   ownerValues: OwnerTotals,
@@ -131,102 +88,178 @@ export function sumSacrificeDamagePool(
   return pool;
 }
 
-/** Sacrifice added from capped Birth Ritual and the damage pool. */
+/**
+ * Sum ONE owner's finalized Active Damage family values (no Tentacle).
+ * Per-owner pool for target_type=self Birth Ritual on that awakener.
+ */
+export function sumOwnerActiveDamagePool(
+  ownerValues: OwnerTotals,
+  owner: OwnerKey,
+  tagsById: Readonly<Record<number, Tag>>,
+): number {
+  let pool = 0;
+  const map = ownerValues.get(owner);
+  if (!map) return 0;
+  for (const [tagId, value] of map) {
+    if (value === 0) continue;
+    const tag = tagsById[tagId];
+    if (!tag) continue;
+    if (isActiveDamageTagName(tag.tagName)) {
+      pool += value;
+    }
+  }
+  return pool;
+}
+
+/** Sacrifice added from Birth Ritual and the damage pool. */
 export function computeSacrificeAmount(
-  cappedBirthRitual: number,
+  birthRitual: number,
   damagePool: number,
 ): number {
-  if (cappedBirthRitual <= 0 || damagePool <= 0) return 0;
-  return Math.ceil(
-    damagePool * cappedBirthRitual * SACRIFICE_RATE_PER_POINT,
-  );
+  if (birthRitual <= 0 || damagePool <= 0) return 0;
+  return Math.ceil(damagePool * birthRitual * SACRIFICE_RATE_PER_POINT);
 }
 
 export type BirthRitualSacrificeResult = {
-  rawBirthRitual: number;
-  cappedBirthRitual: number;
-  capApplied: boolean;
-  damagePool: number;
+  /** Uncapped aoe/single/null (+ posse/realm forced team) tag-54 total. */
+  teamBirthRitual: number;
+  /** owner key → that owner's target_type=self tag-54 total. */
+  selfBirthRitualByOwner: Map<OwnerKey, number>;
+  /** Team-wide pool (all owners' Active Damage + Tentacle) used for the team scope. */
+  teamDamagePool: number;
+  /** Sacrifice added across all scopes (team + self). */
   sacrificeAdded: number;
+  /** Team tag-50 total after all scope writes. */
   sacrificeTotal: number;
 };
 
 export type ApplyBirthRitualSacrificeInput = {
   ownerValues: OwnerTotals;
+  /**
+   * target_type=self tag-54 contributions keyed by owner (awakener:N),
+   * accumulated at the Layer B subject merge. Rows not in this map
+   * (aoe / single / null / posse / realm) are treated as team scope.
+   */
+  selfByOwner: ReadonlyMap<OwnerKey, number>;
   tagsById: Readonly<Record<number, Tag>>;
 };
 
 /**
- * Phase 4e — cap Birth Ritual, convert to Sacrifice on team pool.
+ * Hop 4e — convert uncapped Birth Ritual into Sacrifice.
+ *
+ * Scope follows target_type:
+ * - team: aoe / single / null rows (and posse / realm, which have no single
+ *   owning awakener) → all owners' Active Damage + Tentacle → written to *team*.
+ * - self: each awakener's target_type=self rows → that owner's OWN Active Damage
+ *   only (no Tentacle) → written to that owner's bucket (awakener:N).
+ *
+ * Scopes are additive (stacking): an awakener carrying self Birth Ritual keeps
+ * their damage in the team pool too, so they do not miss the team-wide
+ * conversion. The damage pools are never partitioned by target_type — only the
+ * Birth Ritual totals are.
+ *
  * Mutates ownerValues in place.
  */
 export function applyBirthRitualSacrificeConversion(
   input: ApplyBirthRitualSacrificeInput,
 ): { result: BirthRitualSacrificeResult; steps: BirthRitualSacrificeStep[] } {
-  const { ownerValues, tagsById } = input;
+  const { ownerValues, selfByOwner, tagsById } = input;
   const steps: BirthRitualSacrificeStep[] = [];
 
-  const { rawTotal, cappedTotal, capApplied } =
-    applyBirthRitualCap(ownerValues);
-
-  if (capApplied) {
-    steps.push({
-      kind: "special",
-      label: BIRTH_RITUAL_CAP_LABEL,
-      detail:
-        `raw=${rawTotal} capped=${cappedTotal} scale=${cappedTotal / rawTotal}`,
-    });
-  }
-
-  const damagePool = sumSacrificeDamagePool(ownerValues, tagsById);
-  const sacrificeAdded = computeSacrificeAmount(cappedTotal, damagePool);
-
   const sacrificeTag = tagsById[ATTACKER_NON_ACTIVE_DAMAGE_SACRIFICE_TAG_ID];
-  const existingSacrifice = getOwnerValue(
-    ownerValues,
-    TEAM_POOL_OWNER,
-    ATTACKER_NON_ACTIVE_DAMAGE_SACRIFICE_TAG_ID,
-  );
-  const sacrificeTotal =
-    sacrificeAdded === 0
-      ? existingSacrifice
-      : combineSameTagScalar(
-          existingSacrifice === 0 ? undefined : existingSacrifice,
-          sacrificeAdded,
-          sacrificeTag?.isAdditive !== false,
-          sacrificeTag?.isPercent === true,
-        );
+  const additive = sacrificeTag?.isAdditive !== false;
+  const isPercent = sacrificeTag?.isPercent === true;
 
-  if (sacrificeAdded !== 0) {
+  // Reconcile team total: merged tag-54 across all owners minus recorded self
+  // rows. Anything not a recorded self row (aoe/single/null/posse/realm) lands
+  // in team scope — this also keeps the split in sync with the merged total.
+  const mergedTotal = sumTagAcrossOwners(
+    ownerValues,
+    SPECIAL_BIRTH_RITUAL_TAG_ID,
+  );
+  const selfBirthRitualByOwner = new Map<OwnerKey, number>();
+  let selfTotal = 0;
+  for (const [owner, value] of selfByOwner) {
+    if (value <= 0) continue;
+    selfBirthRitualByOwner.set(owner, value);
+    selfTotal += value;
+  }
+  const teamBirthRitual = Math.max(0, mergedTotal - selfTotal);
+
+  // Team scope — all owners' Active Damage + Tentacle → *team*.
+  const teamDamagePool = sumSacrificeDamagePool(ownerValues, tagsById);
+  const teamSacrifice = computeSacrificeAmount(teamBirthRitual, teamDamagePool);
+  if (teamSacrifice !== 0) {
+    const existing = getOwnerValue(
+      ownerValues,
+      TEAM_POOL_OWNER,
+      ATTACKER_NON_ACTIVE_DAMAGE_SACRIFICE_TAG_ID,
+    );
     setOwnerValue(
       ownerValues,
       TEAM_POOL_OWNER,
       ATTACKER_NON_ACTIVE_DAMAGE_SACRIFICE_TAG_ID,
-      sacrificeTotal,
+      combineSameTagScalar(
+        existing === 0 ? undefined : existing,
+        teamSacrifice,
+        additive,
+        isPercent,
+      ),
     );
   }
 
-  if (cappedTotal > 0 || sacrificeAdded > 0) {
+  if (teamBirthRitual > 0) {
     steps.push({
       kind: "special",
       label: BIRTH_RITUAL_SACRIFICE_LABEL,
       detail:
-        `birthRitual=${cappedTotal} damagePool=${damagePool}` +
-        ` rate=1%/pt sacrifice=${sacrificeAdded}` +
-        (existingSacrifice !== 0 && sacrificeAdded !== 0
-          ? ` total=${sacrificeTotal}`
-          : ""),
+        `scope=team birthRitual=${teamBirthRitual} damagePool=${teamDamagePool}` +
+        ` rate=1%/pt sacrifice=${teamSacrifice}`,
+    });
+  }
+
+  // Self scope — per owner, only that owner's Active Damage (no Tentacle).
+  let selfSacrificeTotal = 0;
+  for (const [owner, birthRitual] of selfBirthRitualByOwner) {
+    const pool = sumOwnerActiveDamagePool(ownerValues, owner, tagsById);
+    const sacrifice = computeSacrificeAmount(birthRitual, pool);
+    if (sacrifice === 0) continue;
+    const existing = getOwnerValue(
+      ownerValues,
+      owner,
+      ATTACKER_NON_ACTIVE_DAMAGE_SACRIFICE_TAG_ID,
+    );
+    setOwnerValue(
+      ownerValues,
+      owner,
+      ATTACKER_NON_ACTIVE_DAMAGE_SACRIFICE_TAG_ID,
+      combineSameTagScalar(
+        existing === 0 ? undefined : existing,
+        sacrifice,
+        additive,
+        isPercent,
+      ),
+    );
+    selfSacrificeTotal += sacrifice;
+    steps.push({
+      kind: "special",
+      label: BIRTH_RITUAL_SACRIFICE_LABEL,
+      detail:
+        `scope=self owner=${owner} birthRitual=${birthRitual} damagePool=${pool}` +
+        ` rate=1%/pt sacrifice=${sacrifice}`,
     });
   }
 
   return {
     result: {
-      rawBirthRitual: rawTotal,
-      cappedBirthRitual: cappedTotal,
-      capApplied,
-      damagePool,
-      sacrificeAdded,
-      sacrificeTotal,
+      teamBirthRitual,
+      selfBirthRitualByOwner,
+      teamDamagePool,
+      sacrificeAdded: teamSacrifice + selfSacrificeTotal,
+      sacrificeTotal: sumTagAcrossOwners(
+        ownerValues,
+        ATTACKER_NON_ACTIVE_DAMAGE_SACRIFICE_TAG_ID,
+      ),
     },
     steps,
   };

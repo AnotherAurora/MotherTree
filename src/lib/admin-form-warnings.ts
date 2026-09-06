@@ -35,6 +35,16 @@ export function hasNonPositiveInstanceOrCopies(
   );
 }
 
+export const SEARCH_SIMULATED_NOT_SEARCHABLE_HINT =
+  "Simulate in Search is on, but Available in Search is off: this tag produces solo-simulation rows that won't appear on the public Search page. Turn on Available in Search to surface it, or clear Simulate in Search if unintended.";
+
+/** True when a tag is marked to simulate in Search yet is not searchable. */
+export function hasSearchSimulatedWithoutSearchable(
+  values: Record<string, unknown>,
+): boolean {
+  return values.is_searchable === false && values.is_search_simulated === true;
+}
+
 export {
   LOCAL_INTERACTION_COLUMN_MISMATCH_HINT,
   UNIQUE_SCALING_NON_SELF_TARGET_TYPE_HINT,

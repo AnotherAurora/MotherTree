@@ -14,6 +14,10 @@ import {
   formatCellDisplayValue,
 } from "@/components/admin/editable-cell";
 import { Button } from "@/components/ui/button";
+import {
+  SEARCH_SIMULATED_NOT_SEARCHABLE_HINT,
+  hasSearchSimulatedWithoutSearchable,
+} from "@/lib/admin-form-warnings";
 import type { ForeignKeyOption } from "@/lib/actions/crud";
 import type { FieldConfig, TableConfig } from "@/lib/schema-config";
 import { buildTagTree, collectTreePaths, type TagTreeNode } from "@/lib/tag-tree";
@@ -122,13 +126,25 @@ function TreeRow({
   const isExpanded = expandedPaths.has(node.fullPath);
   const record = node.record;
   const isDeleted = record ? Boolean(record.deleted_at) : false;
+  const searchSimulatedHidden =
+    config.name === "tag" &&
+    !!record &&
+    !isDeleted &&
+    hasSearchSimulatedWithoutSearchable(record);
 
   return (
     <>
       <div
         className={`flex items-stretch gap-2 border-b border-border py-2.5 pl-4 pr-4 text-sm ${
-          isDeleted ? "bg-zinc-50 text-zinc-400" : "bg-white"
+          isDeleted
+            ? "bg-zinc-50 text-zinc-400"
+            : searchSimulatedHidden
+              ? "bg-sky-100"
+              : "bg-white"
         }`}
+        title={
+          searchSimulatedHidden ? SEARCH_SIMULATED_NOT_SEARCHABLE_HINT : undefined
+        }
       >
         <TreeGuides guides={guides} isLast={isLast} depth={depth} />
         <div className="flex min-w-0 flex-1 items-center gap-2">

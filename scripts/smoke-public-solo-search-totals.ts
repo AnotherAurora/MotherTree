@@ -6,9 +6,9 @@ import { buildSearchResults } from "../src/lib/public/search-results";
 import {
   REALM_GIMMICK_METADATA,
   computeSoloAwakenerTotals,
-  isAttackerOrDefenderTagName,
   isMultiRealmSearchAwakener,
   realmSimsForAwakener,
+  shouldRunSoloAwakenerTotals,
   type SoloTotalsCache,
 } from "../src/lib/public/solo-awakener-totals";
 import type { PublicRow } from "../src/lib/public-read/allowlist";
@@ -27,6 +27,7 @@ const tags = [
     is_percent: false,
     is_additive: true,
     is_searchable: true,
+    is_search_simulated: true,
   },
   {
     id: 2,
@@ -35,6 +36,7 @@ const tags = [
     is_percent: false,
     is_additive: true,
     is_searchable: true,
+    is_search_simulated: true,
   },
   {
     id: 3,
@@ -43,6 +45,7 @@ const tags = [
     is_percent: true,
     is_additive: true,
     is_searchable: true,
+    is_search_simulated: false,
   },
   {
     id: 16,
@@ -51,6 +54,7 @@ const tags = [
     is_percent: true,
     is_additive: true,
     is_searchable: true,
+    is_search_simulated: false,
   },
   {
     id: 17,
@@ -59,6 +63,7 @@ const tags = [
     is_percent: true,
     is_additive: true,
     is_searchable: true,
+    is_search_simulated: false,
   },
   {
     id: 18,
@@ -67,6 +72,7 @@ const tags = [
     is_percent: true,
     is_additive: true,
     is_searchable: true,
+    is_search_simulated: false,
   },
   {
     id: 12,
@@ -75,6 +81,7 @@ const tags = [
     is_percent: false,
     is_additive: true,
     is_searchable: true,
+    is_search_simulated: true,
   },
   {
     id: 28,
@@ -83,6 +90,7 @@ const tags = [
     is_percent: false,
     is_additive: true,
     is_searchable: true,
+    is_search_simulated: false,
   },
   {
     id: 29,
@@ -91,6 +99,7 @@ const tags = [
     is_percent: false,
     is_additive: true,
     is_searchable: true,
+    is_search_simulated: false,
   },
   {
     id: 63,
@@ -99,6 +108,7 @@ const tags = [
     is_percent: false,
     is_additive: true,
     is_searchable: true,
+    is_search_simulated: false,
   },
 ] as PublicRow<"tag">[];
 
@@ -403,10 +413,97 @@ const second = computeSoloAwakenerTotals(
 assert(first === second, "in-request cache returns same result instance");
 assert(cache.size === 1, "one cache entry for awakener+realm+enlightenment");
 
-console.log("helpers");
-assert(isAttackerOrDefenderTagName("Attacker.Poison"), "Attacker prefix");
-assert(isAttackerOrDefenderTagName("Defender.Shield"), "Defender prefix");
-assert(!isAttackerOrDefenderTagName("Support.Crit Rate"), "Support not AD");
+console.log("helpers — flag routing");
+const tagById = new Map(tags.map((t) => [t.id, t]));
+assert(
+  shouldRunSoloAwakenerTotals(new Set([1]), tagById),
+  "simulated AD tag triggers solo sim",
+);
+assert(
+  !shouldRunSoloAwakenerTotals(new Set([3]), tagById),
+  "unflagged Support tag does not trigger solo sim",
+);
+assert(
+  shouldRunSoloAwakenerTotals(null, tagById),
+  "no-tag scope triggers solo sim when any tag is simulated",
+);
+
+console.log("flag routing — unflagged AD tag behaves like Support");
+const tagsWithDirectAd = [
+  ...tags,
+  {
+    id: 5,
+    tag_name: "Attacker.Slash",
+    layer: "add",
+    is_percent: false,
+    is_additive: true,
+    is_searchable: true,
+    is_search_simulated: false,
+  },
+] as PublicRow<"tag">[];
+
+const slashAtm = {
+  ...aequorDamageAtm,
+  id: 701,
+  tag_id: 5,
+  metadata: null,
+  value_scalar: 0.5,
+  dependency_stat: "atk",
+  required_realm: null,
+  target_type: "single",
+} as PublicRow<"awakener_tag_manifestation">;
+
+const directAdTagById = new Map(tagsWithDirectAd.map((t) => [t.id, t]));
+assert(
+  !shouldRunSoloAwakenerTotals(new Set([5]), directAdTagById),
+  "unflagged AD tag does not trigger solo sim",
+);
+
+const slashSearch = buildSearchResults({
+  filters: { ...filtersBase, tagId: 5 },
+  tags: tagsWithDirectAd,
+  realms,
+  awakeners: [awakener24],
+  awakenerManifestations: [slashAtm],
+  awakenerLocalInteractions: [],
+  ...emptyGear,
+});
+assert(
+  slashSearch.rows.length === 1 &&
+    slashSearch.rows[0]!.id === "awakener:701",
+  `unflagged AD tag emits one direct per-manifestation row (got ${slashSearch.rows.length})`,
+);
+assert(
+  !slashSearch.rows.some((r) => r.id.startsWith("awakener-solo:")),
+  "unflagged AD tag never emits solo aggregate rows",
+);
+
+console.log("flag routing — mixed scope keeps direct rows for unflagged tags");
+const mixedSearch = buildSearchResults({
+  filters: { ...filtersBase },
+  tags: tagsWithDirectAd,
+  realms,
+  awakeners: [awakener24],
+  awakenerManifestations: [aequorDamageAtm, slashAtm],
+  awakenerLocalInteractions: [],
+  ...emptyGear,
+});
+assert(
+  mixedSearch.rows.some(
+    (r) => r.id === `awakener-solo:24:1:${AEQUOR_REALM_ID}`,
+  ),
+  "browse-all keeps flagged sim aggregate row",
+);
+assert(
+  mixedSearch.rows.some((r) => r.id === "awakener:701"),
+  "browse-all keeps unflagged AD tag direct row when sim runs",
+);
+assert(
+  !mixedSearch.rows.some(
+    (r) => r.id === `awakener-solo:24:5:${AEQUOR_REALM_ID}`,
+  ),
+  "unflagged AD tag has no sim aggregate row",
+);
 
 console.log("display fields — unique target type + metadata join");
 const dualAtms = [
@@ -638,6 +735,7 @@ const tagsWithHeal = [
     is_percent: false,
     is_additive: true,
     is_searchable: true,
+    is_search_simulated: true,
   },
   {
     id: 61,
@@ -646,6 +744,7 @@ const tagsWithHeal = [
     is_percent: false,
     is_additive: true,
     is_searchable: true,
+    is_search_simulated: false,
   },
 ] as PublicRow<"tag">[];
 
@@ -736,6 +835,7 @@ const tagsWithProvider = [
     is_percent: false,
     is_additive: true,
     is_searchable: true,
+    is_search_simulated: false,
   },
 ] as PublicRow<"tag">[];
 
