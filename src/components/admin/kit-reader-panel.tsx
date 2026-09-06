@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { AwakenerKitNotes } from "@/components/admin/awakener-kit-notes";
+import { KitReaderAwakenerCombobox } from "@/components/admin/kit-reader-awakener-combobox";
 import {
   EditableCell,
   formatCellDisplayValue,
@@ -62,11 +63,12 @@ import {
   type KitReaderAwakenerOption,
   type PendingAtmRow,
 } from "@/lib/actions/kit-reader";
-import { formatAwakenerEnlightenmentLabel } from "@/lib/enlightenment-options";
 import {
-  TABLE_CONFIG_MAP,
-  type FieldConfig,
-} from "@/lib/schema-config";
+  buildKitReaderReviewPrompt,
+  type ReviewPromptRowContext,
+} from "@/lib/kit-reader/cursor-prompt";
+import { formatAwakenerEnlightenmentLabel } from "@/lib/enlightenment-options";
+import { TABLE_CONFIG_MAP, type FieldConfig } from "@/lib/schema-config";
 import { cn } from "@/lib/utils";
 
 const FOCUS_REFRESH_DEBOUNCE_MS = 300;
@@ -157,22 +159,21 @@ function mergePendingFromUpdate(
   return {
     ...row,
     awakener_id:
-      updated.awakener_id == null ? row.awakener_id : Number(updated.awakener_id),
+      updated.awakener_id == null
+        ? row.awakener_id
+        : Number(updated.awakener_id),
     tag_id: updated.tag_id == null ? row.tag_id : Number(updated.tag_id),
     trigger_condition:
       updated.trigger_condition == null
         ? null
         : Number(updated.trigger_condition),
-    metadata:
-      updated.metadata == null ? null : String(updated.metadata),
+    metadata: updated.metadata == null ? null : String(updated.metadata),
     replaces_manifestation_id:
       updated.replaces_manifestation_id == null
         ? null
         : Number(updated.replaces_manifestation_id),
     dependency_stat:
-      updated.dependency_stat == null
-        ? null
-        : String(updated.dependency_stat),
+      updated.dependency_stat == null ? null : String(updated.dependency_stat),
     value_scalar:
       updated.value_scalar == null ? null : Number(updated.value_scalar),
     instance_count: Number(updated.instance_count ?? row.instance_count),
@@ -199,6 +200,30 @@ function mergePendingFromUpdate(
       updated.buff_target_type_restriction == null
         ? null
         : String(updated.buff_target_type_restriction),
+  };
+}
+
+function slugifyAwakenerName(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function pendingRowToReviewContext(row: PendingAtmRow): ReviewPromptRowContext {
+  return {
+    id: row.id,
+    tagName: row.tag_name,
+    metadata: row.metadata,
+    valueScalar: row.value_scalar,
+    dependencyStat: row.dependency_stat,
+    instanceCount: row.instance_count,
+    baseCopies: row.base_copies,
+    requiredEnlightenment: row.required_enlightenment,
+    sourceType: row.source_type,
+    targetType: row.target_type,
+    buffTargetTypeRestriction: row.buff_target_type_restriction,
+    replacesManifestationId: row.replaces_manifestation_id,
   };
 }
 
@@ -312,13 +337,18 @@ function formatStaticPendingValue(
 export function KitReaderPanel({
   initialAwakenerId,
   initialMode = "pending",
+  initialAwakeners = [],
 }: {
   initialAwakenerId: number | null;
   initialMode?: KitReaderAtmMode;
+  initialAwakeners?: KitReaderAwakenerOption[];
 }) {
   const router = useRouter();
-  const [awakeners, setAwakeners] = useState<KitReaderAwakenerOption[]>([]);
-  const [selectedId, setSelectedId] = useState<number | null>(initialAwakenerId);
+  const [awakeners, setAwakeners] =
+    useState<KitReaderAwakenerOption[]>(initialAwakeners);
+  const [selectedId, setSelectedId] = useState<number | null>(
+    initialAwakenerId,
+  );
   const [mode, setMode] = useState<KitReaderAtmMode>(initialMode);
   const [filters, setFilters] = useState<KitReaderFiltersState>(
     INITIAL_KIT_READER_FILTERS,
@@ -326,6 +356,9 @@ export function KitReaderPanel({
   const [rows, setRows] = useState<PendingAtmRow[]>([]);
   const [prompt, setPrompt] = useState("");
   const [packPath, setPackPath] = useState<string | null>(null);
+  const [slug, setSlug] = useState<string | null>(null);
+  const [reviewPrompt, setReviewPrompt] = useState("");
+  const [selectedRowIds, setSelectedRowIds] = useState<Set<number>>(new Set());
   const [loadError, setLoadError] = useState<string | null>(null);
   const [rowsLoading, startRowsLoading] = useTransition();
   const [busy, startBusy] = useTransition();
@@ -342,6 +375,7 @@ export function KitReaderPanel({
     Record<string, ForeignKeyOption[]>
   >({});
   const [fkLabels, setFkLabels] = useState<Record<string, string>>({});
+  const [mounted, setMounted] = useState(false);
   const lastRefreshAtRef = useRef(0);
 
   const selected = useMemo(
@@ -362,6 +396,11 @@ export function KitReaderPanel({
   const selectAwakener = useCallback(
     (id: number) => {
       setSelectedId(id);
+      setSlug(null);
+      setPackPath(null);
+      setPrompt("");
+      setReviewPrompt("");
+      setSelectedRowIds(new Set());
       updateUrl(id, mode);
     },
     [mode, updateUrl],
@@ -422,6 +461,10 @@ export function KitReaderPanel({
   }, [selectedId, mode, refreshRows, refreshAwakeners]);
 
   useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
     void refreshAwakeners();
   }, [refreshAwakeners]);
 
@@ -430,6 +473,7 @@ export function KitReaderPanel({
     refreshRows(selectedId, mode);
     setPrompt("");
     setPackPath(null);
+    setReviewPrompt("");
     setEditingCell(null);
   }, [selectedId, mode, refreshRows]);
 
@@ -496,8 +540,6 @@ export function KitReaderPanel({
     };
   }, []);
 
-  const hasPending = (selected?.pendingCount ?? 0) > 0;
-
   const onExport = () => {
     if (selectedId == null) return;
     startBusy(async () => {
@@ -508,8 +550,95 @@ export function KitReaderPanel({
       }
       setPrompt(result.data.prompt);
       setPackPath(result.data.relativePath);
+      setSlug(result.data.slug);
       toast.success(`Wrote ${result.data.relativePath}`);
     });
+  };
+
+  const getActiveSlug = useCallback((): string => {
+    return slug || (selected ? slugifyAwakenerName(selected.name) : "");
+  }, [selected, slug]);
+
+  const onFillReviewPrompt = () => {
+    if (selectedId == null || !selected) return;
+    const currentSlug = getActiveSlug();
+    const text = buildKitReaderReviewPrompt({
+      awakenerName: selected.name,
+      awakenerId: selectedId,
+      slug: currentSlug,
+    });
+    setReviewPrompt(text);
+    toast.success("Filled review prompt template");
+  };
+
+  const onCopyReviewPrompt = async () => {
+    if (!reviewPrompt) {
+      toast.error("Fill review prompt first");
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(reviewPrompt);
+      toast.success("Review prompt copied");
+    } catch {
+      toast.error(
+        "Clipboard failed — select the prompt text and copy manually",
+      );
+    }
+  };
+
+  const onCopyRowPrompt = (row: PendingAtmRow) => {
+    if (selectedId == null || !selected) return;
+    const currentSlug = getActiveSlug();
+    const text = buildKitReaderReviewPrompt({
+      awakenerName: selected.name,
+      awakenerId: selectedId,
+      slug: currentSlug,
+      rows: [pendingRowToReviewContext(row)],
+    });
+    try {
+      navigator.clipboard.writeText(text);
+      toast.success(`Copied review prompt for #${row.id}`);
+    } catch {
+      toast.error("Clipboard failed");
+    }
+  };
+
+  const onCopySelectedPrompt = () => {
+    if (selectedId == null || !selected || selectedRowIds.size === 0) return;
+    const currentSlug = getActiveSlug();
+    const selectedRows = rows.filter((r) => selectedRowIds.has(r.id));
+    const text = buildKitReaderReviewPrompt({
+      awakenerName: selected.name,
+      awakenerId: selectedId,
+      slug: currentSlug,
+      rows: selectedRows.map(pendingRowToReviewContext),
+    });
+    try {
+      navigator.clipboard.writeText(text);
+      toast.success(`Copied review prompt for ${selectedRows.length} rows`);
+    } catch {
+      toast.error("Clipboard failed");
+    }
+  };
+
+  const toggleRowSelect = (id: number) => {
+    setSelectedRowIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const onSelectAllVisible = () => {
+    setSelectedRowIds(new Set(filteredRows.map((r) => r.id)));
+  };
+
+  const onClearSelection = () => {
+    setSelectedRowIds(new Set());
   };
 
   const onCopyPrompt = async () => {
@@ -519,9 +648,11 @@ export function KitReaderPanel({
     }
     try {
       await navigator.clipboard.writeText(prompt);
-      toast.success("Cursor prompt copied");
+      toast.success("Agent prompt copied");
     } catch {
-      toast.error("Clipboard failed — select the prompt text and copy manually");
+      toast.error(
+        "Clipboard failed — select the prompt text and copy manually",
+      );
     }
   };
 
@@ -587,7 +718,6 @@ export function KitReaderPanel({
   const onClone = (row: PendingAtmRow) => {
     const record = pendingRowToEditRecord(row);
     delete record.id;
-    record.verified = true;
     setEditingRecord(record);
     setEditingOverrides(
       row.locals.map((local) => ({
@@ -676,10 +806,18 @@ export function KitReaderPanel({
       if (filters.searchQuery.trim() !== "") {
         const q = filters.searchQuery.trim().toLowerCase();
         const matchesTag = row.tag_name?.toLowerCase().includes(q) ?? false;
-        const matchesMetadata = row.metadata?.toLowerCase().includes(q) ?? false;
-        const matchesDependency = row.dependency_stat?.toLowerCase().includes(q) ?? false;
-        const matchesId = String(row.id).includes(q) || String(row.tag_id).includes(q);
-        if (!matchesTag && !matchesMetadata && !matchesDependency && !matchesId) {
+        const matchesMetadata =
+          row.metadata?.toLowerCase().includes(q) ?? false;
+        const matchesDependency =
+          row.dependency_stat?.toLowerCase().includes(q) ?? false;
+        const matchesId =
+          String(row.id).includes(q) || String(row.tag_id).includes(q);
+        if (
+          !matchesTag &&
+          !matchesMetadata &&
+          !matchesDependency &&
+          !matchesId
+        ) {
           return false;
         }
       }
@@ -698,9 +836,9 @@ export function KitReaderPanel({
           Kit Reader &amp; Editor
         </h1>
         <p className="max-w-2xl text-sm text-zinc-600">
-          Triage and verify proposed kit packs, or view and tune live Awakener kits
-          with inline cell editing, notes scratchpad, and local interaction overrides.
-          The{" "}
+          Triage and verify proposed kit packs, or view and tune live Awakener
+          kits with inline cell editing, notes scratchpad, and local interaction
+          overrides. The{" "}
           <Link
             href="/tables/awakener_tag_manifestation"
             className="underline underline-offset-2 hover:text-zinc-950"
@@ -719,22 +857,13 @@ export function KitReaderPanel({
 
       {/* Awakener Selection */}
       <section className="space-y-3">
-        <Label htmlFor="kit-reader-awakener">Awakener</Label>
-        <select
-          id="kit-reader-awakener"
-          className="w-full max-w-md rounded-md border border-border bg-white px-3 py-2 text-sm text-zinc-900"
-          value={selectedId ?? ""}
-          onChange={(event) => {
-            const value = Number(event.target.value);
-            if (Number.isFinite(value)) selectAwakener(value);
-          }}
-        >
-          {awakeners.map((row) => (
-            <option key={row.id} value={row.id}>
-              {row.name} ({row.pendingCount} pending / {row.verifiedCount} verified)
-            </option>
-          ))}
-        </select>
+        <Label>Awakener</Label>
+        <KitReaderAwakenerCombobox
+          value={selectedId}
+          onChange={selectAwakener}
+          awakeners={awakeners}
+          disabled={rowsLoading || busy || awakeners.length === 0}
+        />
       </section>
 
       {/* Awakener Notes Scratchpad */}
@@ -848,52 +977,99 @@ export function KitReaderPanel({
       {/* Pending Mode Ingestion Tools */}
       {mode === "pending" && (
         <div className="space-y-4">
-          {hasPending && (
-            <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-              Pending ATMs must be verified or soft-deleted before exporting a new kit pack
-              for this awakener.
-            </div>
-          )}
-
           <form
             autoComplete="off"
-            className="flex flex-wrap gap-3"
+            className="space-y-4"
             onSubmit={(event) => event.preventDefault()}
           >
-            <Button
-              type="button"
-              disabled={busy || selectedId == null || hasPending}
-              onClick={onExport}
-            >
-              {busy ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : null}
-              Export kit pack &amp; fill prompt
-            </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              disabled={busy || !prompt}
-              onClick={() => void onCopyPrompt()}
-            >
-              <Copy className="mr-2 h-4 w-4" />
-              Copy Cursor prompt
-            </Button>
-            {packPath && (
-              <p className="self-center text-xs text-zinc-500">Wrote {packPath}</p>
-            )}
+            <div className="flex flex-wrap gap-3">
+              <Button
+                type="button"
+                disabled={busy || selectedId == null}
+                onClick={onExport}
+              >
+                {busy ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : null}
+                Export kit pack &amp; fill prompt
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={!mounted || busy || !prompt}
+                onClick={() => void onCopyPrompt()}
+              >
+                <Copy className="mr-2 h-4 w-4" />
+                Copy agent prompt
+              </Button>
+              {packPath && (
+                <p className="self-center text-xs text-zinc-500">
+                  Wrote {packPath}
+                </p>
+              )}
+            </div>
+
+            <section className="space-y-2">
+              <Label htmlFor="kit-reader-prompt">Agent prompt</Label>
+              <Textarea
+                id="kit-reader-prompt"
+                readOnly
+                value={prompt}
+                placeholder="Export a kit pack to fill this prompt."
+                className="min-h-[160px] bg-zinc-50 font-mono text-sm leading-relaxed text-zinc-900"
+              />
+            </section>
           </form>
 
-          <section className="space-y-2">
-            <Label htmlFor="kit-reader-prompt">Cursor Agent prompt</Label>
+          {/* Review Prompt Section */}
+          <form
+            autoComplete="off"
+            className="space-y-3 rounded-lg border border-border bg-zinc-50/50 p-4"
+            onSubmit={(event) => event.preventDefault()}
+          >
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <Label
+                  htmlFor="kit-reader-review-prompt"
+                  className="font-medium text-zinc-950"
+                >
+                  Review edit prompt (new chat)
+                </Label>
+                <p className="text-xs text-zinc-500">
+                  Surgical review prompt pre-filled with awakener context and
+                  guardrails.
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={busy || selectedId == null}
+                  onClick={onFillReviewPrompt}
+                >
+                  Fill review prompt
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  disabled={!mounted || busy || !reviewPrompt}
+                  onClick={() => void onCopyReviewPrompt()}
+                >
+                  <Copy className="mr-1.5 h-3.5 w-3.5" />
+                  Copy review prompt
+                </Button>
+              </div>
+            </div>
             <Textarea
-              id="kit-reader-prompt"
+              id="kit-reader-review-prompt"
               readOnly
-              value={prompt}
-              placeholder="Export a kit pack to fill this prompt."
-              className="min-h-[160px] bg-zinc-50 font-mono text-sm leading-relaxed text-zinc-900"
+              value={reviewPrompt}
+              placeholder="Click 'Fill review prompt' or copy a row's review prompt below to start a focused review in a new chat."
+              className="min-h-[140px] bg-white font-mono text-sm leading-relaxed text-zinc-900"
             />
-          </section>
+          </form>
         </div>
       )}
 
@@ -934,12 +1110,50 @@ export function KitReaderPanel({
 
         {/* Filter Toolbar */}
         {rows.length > 0 && (
-          <KitReaderFilters
-            filters={filters}
-            onFilterChange={setFilters}
-            totalCount={rows.length}
-            filteredCount={filteredRows.length}
-          />
+          <div className="space-y-3">
+            <KitReaderFilters
+              filters={filters}
+              onFilterChange={setFilters}
+              totalCount={rows.length}
+              filteredCount={filteredRows.length}
+            />
+
+            {/* Selection & Multi-Row Review Toolbar */}
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-700">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="font-medium text-zinc-900">
+                  {selectedRowIds.size} of {filteredRows.length} selected
+                </span>
+                <button
+                  type="button"
+                  onClick={onSelectAllVisible}
+                  className="text-zinc-600 underline hover:text-zinc-950"
+                >
+                  Select all visible
+                </button>
+                {selectedRowIds.size > 0 && (
+                  <button
+                    type="button"
+                    onClick={onClearSelection}
+                    className="text-zinc-500 underline hover:text-zinc-800"
+                  >
+                    Clear selection
+                  </button>
+                )}
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                disabled={busy || selectedRowIds.size === 0}
+                onClick={onCopySelectedPrompt}
+                title="Copy surgical review prompt with selected rows in Context"
+              >
+                <Copy className="mr-1.5 h-3.5 w-3.5" />
+                Copy review prompt ({selectedRowIds.size} selected)
+              </Button>
+            </div>
+          </div>
         )}
 
         {rows.length === 0 ? (
@@ -976,6 +1190,13 @@ export function KitReaderPanel({
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0 flex-1 space-y-3">
                       <div className="flex flex-wrap items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={selectedRowIds.has(row.id)}
+                          onChange={() => toggleRowSelect(row.id)}
+                          aria-label={`Select row #${row.id}`}
+                          className="h-4 w-4 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-950"
+                        />
                         <p className="font-medium text-zinc-950">
                           #{row.id}{" "}
                           <span
@@ -1152,6 +1373,17 @@ export function KitReaderPanel({
                         <Copy className="mr-1 h-3.5 w-3.5" />
                         Clone
                       </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        disabled={busy}
+                        onClick={() => onCopyRowPrompt(row)}
+                        title="Copy surgical review prompt for this row"
+                      >
+                        <Copy className="mr-1 h-3.5 w-3.5" />
+                        Copy agent prompt
+                      </Button>
                       {!row.verified ? (
                         <Button
                           type="button"
@@ -1232,9 +1464,7 @@ function PendingField({
       <dt className="text-xs text-zinc-500">{label}</dt>
       <dd
         className={
-          truncate
-            ? "truncate text-sm text-zinc-900"
-            : "text-sm text-zinc-900"
+          truncate ? "truncate text-sm text-zinc-900" : "text-sm text-zinc-900"
         }
         title={title}
       >

@@ -6,9 +6,9 @@ import { buildSearchResults } from "../src/lib/public/search-results";
 import {
   REALM_GIMMICK_METADATA,
   computeSoloAwakenerTotals,
-  isAttackerOrDefenderTagName,
   isMultiRealmSearchAwakener,
   realmSimsForAwakener,
+  shouldRunSoloAwakenerTotals,
   type SoloTotalsCache,
 } from "../src/lib/public/solo-awakener-totals";
 import type { PublicRow } from "../src/lib/public-read/allowlist";
@@ -27,6 +27,7 @@ const tags = [
     is_percent: false,
     is_additive: true,
     is_searchable: true,
+    is_search_simulated: true,
   },
   {
     id: 2,
@@ -35,6 +36,7 @@ const tags = [
     is_percent: false,
     is_additive: true,
     is_searchable: true,
+    is_search_simulated: true,
   },
   {
     id: 3,
@@ -43,6 +45,7 @@ const tags = [
     is_percent: true,
     is_additive: true,
     is_searchable: true,
+    is_search_simulated: false,
   },
   {
     id: 16,
@@ -51,6 +54,7 @@ const tags = [
     is_percent: true,
     is_additive: true,
     is_searchable: true,
+    is_search_simulated: false,
   },
   {
     id: 17,
@@ -59,6 +63,7 @@ const tags = [
     is_percent: true,
     is_additive: true,
     is_searchable: true,
+    is_search_simulated: false,
   },
   {
     id: 18,
@@ -67,6 +72,7 @@ const tags = [
     is_percent: true,
     is_additive: true,
     is_searchable: true,
+    is_search_simulated: false,
   },
   {
     id: 12,
@@ -75,6 +81,7 @@ const tags = [
     is_percent: false,
     is_additive: true,
     is_searchable: true,
+    is_search_simulated: true,
   },
   {
     id: 28,
@@ -83,6 +90,7 @@ const tags = [
     is_percent: false,
     is_additive: true,
     is_searchable: true,
+    is_search_simulated: false,
   },
   {
     id: 29,
@@ -91,6 +99,7 @@ const tags = [
     is_percent: false,
     is_additive: true,
     is_searchable: true,
+    is_search_simulated: false,
   },
   {
     id: 63,
@@ -99,6 +108,7 @@ const tags = [
     is_percent: false,
     is_additive: true,
     is_searchable: true,
+    is_search_simulated: false,
   },
 ] as PublicRow<"tag">[];
 
@@ -247,7 +257,8 @@ assert(
   "24 with realm filter sims only that realm",
 );
 assert(
-  realmSimsForAwakener(otherAwakener, null).join(",") === String(AEQUOR_REALM_ID),
+  realmSimsForAwakener(otherAwakener, null).join(",") ===
+    String(AEQUOR_REALM_ID),
   "other awakener uses native realm only",
 );
 assert(
@@ -263,6 +274,7 @@ const catalog = {
   defaultInteractions: [],
   awakenerManifestations: [aequorDamageAtm],
   awakenerLocalInteractions: [poisonAftereffect],
+  copyProviderMembers: [],
 };
 const aequorTotals = computeSoloAwakenerTotals(
   awakener24,
@@ -277,12 +289,18 @@ const chaosTotals = computeSoloAwakenerTotals(
   catalog,
 );
 assert(aequorTotals.totalsByTagId.has(1), "aequor has Active Damage in totals");
-assert(aequorTotals.totalsByTagId.has(2), "aequor has Poison in totals (aftereffect)");
+assert(
+  aequorTotals.totalsByTagId.has(2),
+  "aequor has Poison in totals (aftereffect)",
+);
 assert(
   !aequorTotals.hasAppliedRealmManifestation,
   "no catalog RTM → hasAppliedRealmManifestation false",
 );
-assert(!chaosTotals.totalsByTagId.has(1), "chaos has no Active Damage (realm-gated ATM)");
+assert(
+  !chaosTotals.totalsByTagId.has(1),
+  "chaos has no Active Damage (realm-gated ATM)",
+);
 assert(!chaosTotals.totalsByTagId.has(2), "chaos has no Poison");
 
 console.log("buildSearchResults — Poison filter for 24");
@@ -309,7 +327,9 @@ assert(
   "no raw aftereffect row for Attacker.Poison",
 );
 assert(
-  !poisonSearch.rows.some((r) => r.id.startsWith("awakener:") && !r.id.includes("solo")),
+  !poisonSearch.rows.some(
+    (r) => r.id.startsWith("awakener:") && !r.id.includes("solo"),
+  ),
   "no raw ATM row for Attacker tags when solo ran",
 );
 assert(
@@ -402,10 +422,145 @@ const second = computeSoloAwakenerTotals(
 assert(first === second, "in-request cache returns same result instance");
 assert(cache.size === 1, "one cache entry for awakener+realm+enlightenment");
 
-console.log("helpers");
-assert(isAttackerOrDefenderTagName("Attacker.Poison"), "Attacker prefix");
-assert(isAttackerOrDefenderTagName("Defender.Shield"), "Defender prefix");
-assert(!isAttackerOrDefenderTagName("Support.Crit Rate"), "Support not AD");
+console.log("helpers — flag routing");
+const tagById = new Map(tags.map((t) => [t.id, t]));
+assert(
+  shouldRunSoloAwakenerTotals(new Set([1]), tagById),
+  "simulated AD tag triggers solo sim",
+);
+assert(
+  !shouldRunSoloAwakenerTotals(new Set([3]), tagById),
+  "unflagged Support tag does not trigger solo sim",
+);
+assert(
+  !shouldRunSoloAwakenerTotals(null, tagById),
+  "no-tag scope never triggers solo sim (browse-all excludes simulated rows)",
+);
+
+console.log("flag routing — unflagged AD tag behaves like Support");
+const tagsWithDirectAd = [
+  ...tags,
+  {
+    id: 5,
+    tag_name: "Attacker.Slash",
+    layer: "add",
+    is_percent: false,
+    is_additive: true,
+    is_searchable: true,
+    is_search_simulated: false,
+  },
+] as PublicRow<"tag">[];
+
+const slashAtm = {
+  ...aequorDamageAtm,
+  id: 701,
+  tag_id: 5,
+  metadata: null,
+  value_scalar: 0.5,
+  dependency_stat: "atk",
+  required_realm: null,
+  target_type: "single",
+} as PublicRow<"awakener_tag_manifestation">;
+
+const directAdTagById = new Map(tagsWithDirectAd.map((t) => [t.id, t]));
+assert(
+  !shouldRunSoloAwakenerTotals(new Set([5]), directAdTagById),
+  "unflagged AD tag does not trigger solo sim",
+);
+
+const slashSearch = buildSearchResults({
+  filters: { ...filtersBase, tagId: 5 },
+  tags: tagsWithDirectAd,
+  realms,
+  awakeners: [awakener24],
+  awakenerManifestations: [slashAtm],
+  awakenerLocalInteractions: [],
+  ...emptyGear,
+});
+assert(
+  slashSearch.rows.length === 1 && slashSearch.rows[0]!.id === "awakener:701",
+  `unflagged AD tag emits one direct per-manifestation row (got ${slashSearch.rows.length})`,
+);
+assert(
+  !slashSearch.rows.some((r) => r.id.startsWith("awakener-solo:")),
+  "unflagged AD tag never emits solo aggregate rows",
+);
+
+console.log("enemy_max_hp direct row displays as percent (not whole unit)");
+const tagsWithEnemyFixed = [
+  ...tagsWithDirectAd,
+  {
+    id: 6,
+    tag_name: "Attacker.Active Damage.Fixed Damage",
+    layer: "pre_add",
+    is_percent: false,
+    is_additive: true,
+    is_searchable: true,
+    is_search_simulated: false,
+  },
+] as PublicRow<"tag">[];
+
+const enemyFixedAtm = {
+  ...aequorDamageAtm,
+  id: 702,
+  tag_id: 6,
+  metadata: null,
+  value_scalar: 0.25,
+  dependency_stat: "enemy_max_hp",
+  required_realm: null,
+  target_type: "aoe",
+} as PublicRow<"awakener_tag_manifestation">;
+
+const enemyFixedSearch = buildSearchResults({
+  filters: { ...filtersBase, tagId: 6 },
+  tags: tagsWithEnemyFixed,
+  realms,
+  awakeners: [awakener24],
+  awakenerManifestations: [enemyFixedAtm],
+  awakenerLocalInteractions: [],
+  ...emptyGear,
+});
+assert(
+  enemyFixedSearch.rows.length === 1 &&
+    enemyFixedSearch.rows[0]!.id === "awakener:702",
+  `enemy_max_hp Fixed Damage emits one direct row (got ${enemyFixedSearch.rows.length})`,
+);
+const enemyFixedRow = enemyFixedSearch.rows[0]!;
+assert(
+  enemyFixedRow.value === 0.25,
+  `enemy_max_hp 0.25 value stays fraction, not whole unit (got ${enemyFixedRow.value})`,
+);
+assert(
+  enemyFixedRow.valueDisplay === "25%",
+  `enemy_max_hp 0.25 displays as 25% (got ${enemyFixedRow.valueDisplay})`,
+);
+
+console.log("flag routing — browse-all (no tag) excludes flagged sim rows");
+const mixedSearch = buildSearchResults({
+  filters: { ...filtersBase },
+  tags: tagsWithDirectAd,
+  realms,
+  awakeners: [awakener24],
+  awakenerManifestations: [aequorDamageAtm, slashAtm],
+  awakenerLocalInteractions: [],
+  ...emptyGear,
+});
+assert(
+  !mixedSearch.rows.some(
+    (r) => r.id === `awakener-solo:24:1:${AEQUOR_REALM_ID}`,
+  ),
+  "browse-all (no tag) excludes flagged sim aggregate row",
+);
+assert(
+  mixedSearch.rows.some((r) => r.id === "awakener:701"),
+  "browse-all keeps unflagged AD tag direct row",
+);
+assert(
+  !mixedSearch.rows.some(
+    (r) => r.id === `awakener-solo:24:5:${AEQUOR_REALM_ID}`,
+  ),
+  "unflagged AD tag has no sim aggregate row",
+);
 
 console.log("display fields — unique target type + metadata join");
 const dualAtms = [
@@ -520,6 +675,7 @@ console.log("realm gimmick — RTM applied vs not");
 const gimmickCatalog = {
   ...catalog,
   realmManifestations: [aequorRealmRtm],
+  copyProviderMembers: [],
 };
 const aequorWithRtm = computeSoloAwakenerTotals(
   awakener24,
@@ -601,8 +757,7 @@ const dualWithGimmickRow = dualWithGimmickSearch.rows.find(
 );
 assert(dualWithGimmickRow, "dual ATM Active Damage with RTM");
 assert(
-  dualWithGimmickRow.metadata ===
-    `noteA +\nnoteB +\n${REALM_GIMMICK_METADATA}`,
+  dualWithGimmickRow.metadata === `noteA +\nnoteB +\n${REALM_GIMMICK_METADATA}`,
   `notes then Realm gimmick once (got ${JSON.stringify(dualWithGimmickRow.metadata)})`,
 );
 
@@ -636,6 +791,7 @@ const tagsWithHeal = [
     is_percent: false,
     is_additive: true,
     is_searchable: true,
+    is_search_simulated: true,
   },
   {
     id: 61,
@@ -644,6 +800,7 @@ const tagsWithHeal = [
     is_percent: false,
     is_additive: true,
     is_searchable: true,
+    is_search_simulated: false,
   },
 ] as PublicRow<"tag">[];
 
@@ -721,6 +878,116 @@ assert(
   healCaroWithRtm.metadata ===
     `Caro exalt crimson furnace +\n${REALM_GIMMICK_METADATA}`,
   `ATM notes + Realm gimmick stub only (got ${JSON.stringify(healCaroWithRtm.metadata)})`,
+);
+
+console.log("copy provider — hitCount via member rows");
+const COPY_PROVIDER_GROUP_ID = 1;
+const tagsWithProvider = [
+  ...tags,
+  {
+    id: 56,
+    tag_name: "Support.Create.Command Card",
+    layer: "add",
+    is_percent: false,
+    is_additive: true,
+    is_searchable: true,
+    is_search_simulated: false,
+  },
+] as PublicRow<"tag">[];
+
+const copyProviderAwakener = {
+  ...otherAwakener,
+  id: 99,
+  name: "CopyProviderTest",
+} as PublicRow<"awakener">;
+
+const providerAtm = {
+  ...aequorDamageAtm,
+  id: 501,
+  awakener_id: 99,
+  tag_id: 56,
+  metadata: null,
+  value_scalar: 2,
+  instance_count: 1,
+  base_copies: 1,
+  required_realm: null,
+  copy_provider_group_id: null,
+  dependency_stat: null,
+} as PublicRow<"awakener_tag_manifestation">;
+
+const damageWithCopyGroupAtm = {
+  ...aequorDamageAtm,
+  id: 502,
+  awakener_id: 99,
+  tag_id: 1,
+  metadata: null,
+  value_scalar: 10,
+  instance_count: 3,
+  base_copies: 1,
+  required_realm: null,
+  dependency_stat: null,
+  copy_provider_group_id: COPY_PROVIDER_GROUP_ID,
+} as PublicRow<"awakener_tag_manifestation">;
+
+const copyProviderMember = {
+  id: 1,
+  group_id: COPY_PROVIDER_GROUP_ID,
+  tag_id: 56,
+} as PublicRow<"copy_provider_group_member">;
+
+const copyProviderCatalog = {
+  tags: tagsWithProvider,
+  realms,
+  realmManifestations: [],
+  defaultInteractions: [],
+  awakenerManifestations: [providerAtm, damageWithCopyGroupAtm],
+  awakenerLocalInteractions: [],
+  copyProviderMembers: [copyProviderMember],
+};
+
+const copyProviderTotals = computeSoloAwakenerTotals(
+  copyProviderAwakener,
+  AEQUOR_REALM_ID,
+  3,
+  copyProviderCatalog,
+);
+assert(
+  copyProviderTotals.totalsByTagId.get(1) === 90,
+  `Active Damage 10 × hitCount 9 = 90 (got ${copyProviderTotals.totalsByTagId.get(1)})`,
+);
+
+const copyProviderSearch = buildSearchResults({
+  filters: { ...filtersBase, tagId: 1, from: "awakener" },
+  tags: tagsWithProvider,
+  realms,
+  awakeners: [copyProviderAwakener],
+  awakenerManifestations: [providerAtm, damageWithCopyGroupAtm],
+  awakenerLocalInteractions: [],
+  copyProviderMembers: [copyProviderMember],
+  ...emptyGear,
+});
+const copyProviderRow = copyProviderSearch.rows.find(
+  (r) => r.id === `awakener-solo:99:1:${AEQUOR_REALM_ID}`,
+);
+assert(copyProviderRow, "copy provider solo Active Damage row");
+assert(
+  copyProviderRow.value === 90,
+  `Search solo value 90 (got ${copyProviderRow.value})`,
+);
+
+const noMembersCatalog = {
+  ...copyProviderCatalog,
+  copyProviderMembers: [],
+};
+const noMembersTotals = computeSoloAwakenerTotals(
+  copyProviderAwakener,
+  AEQUOR_REALM_ID,
+  3,
+  noMembersCatalog,
+);
+assert(
+  noMembersTotals.totalsByTagId.get(1) === 30,
+  `without members: 10 × hitCount 3 = 30 (got ${noMembersTotals.totalsByTagId.get(1)})`,
 );
 
 console.log("smoke-public-solo-search-totals: ok");

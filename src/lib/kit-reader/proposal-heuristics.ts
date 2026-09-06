@@ -125,6 +125,47 @@ export function enjoyTentacleDmgModifierTagNamesForPack(): string[] {
   return [...ENJOY_TENTACLE_DMG_MODIFIER_TAG_NAMES];
 }
 
+/**
+ * Modifier tag prefixes whose default interactions are additive (add_scaled)
+ * when attached as unique_scaling on Damage, Shield, Heal, etc.
+ */
+export const ADD_SCALED_UNIQUE_SCALING_MODIFIER_TAG_PREFIXES = [
+  "Support.STR Up",
+  "Support.Unique STR Up",
+  "Support.Strike Damage Up",
+  "Support.Tentacle Damage Up",
+  "Support.Unique Tentacle Damage Up",
+  "Defender.Alert",
+  "Defender.Unique Alert",
+  "Support.Fixed Heal Increase",
+  "Attacker.Counter",
+] as const;
+
+/**
+ * Expected math operation for unique_scaling.
+ * Known additive tag modifiers default to add_scaled, while general modifiers
+ * (Base Damage, Damage AMP, Final Damage, Crit Damage) default to multiply_one_plus.
+ */
+export function expectedMathOperationForUniqueScaling(
+  modifierTagName: string | null | undefined,
+): "add_scaled" | "multiply_one_plus" {
+  if (!modifierTagName) return "multiply_one_plus";
+  const trimmed = modifierTagName.trim();
+  const isAddScaled = ADD_SCALED_UNIQUE_SCALING_MODIFIER_TAG_PREFIXES.some(
+    (prefix) => trimmed === prefix || trimmed.startsWith(`${prefix}.`),
+  );
+  return isAddScaled ? "add_scaled" : "multiply_one_plus";
+}
+
+/**
+ * True if a modifier tag prefix is expected to use add_scaled in unique_scaling.
+ */
+export function isAddScaledUniqueScalingModifier(
+  modifierTagName: string | null | undefined,
+): boolean {
+  return expectedMathOperationForUniqueScaling(modifierTagName) === "add_scaled";
+}
+
 const STEAL_WORD = /\{Steal\}|\bSteal\b/i;
 
 /** STR reference near a Steal clause ({STR}, STR▼, …). */

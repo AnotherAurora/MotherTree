@@ -5,6 +5,7 @@ import {
   ArrowDown,
   ArrowUp,
   ArrowUpDown,
+  Copy,
   Loader2,
   Pencil,
   Plus,
@@ -31,11 +32,13 @@ import {
 } from "@/components/ui/card";
 import {
   getForeignKeyOptions,
+  listCopyProviderGroupMembers,
   listRecords,
   permanentDeleteRecord,
   resolveForeignKeyLabels,
   restoreRecord,
   softDeleteRecord,
+  type CopyProviderGroupMemberInput,
   type ForeignKeyOption,
 } from "@/lib/actions/crud";
 import type {
@@ -49,10 +52,12 @@ import {
   CREATES_AMPLIFY_CONFLICT_HINT,
   LOCAL_INTERACTION_COLUMN_MISMATCH_HINT,
   NON_POSITIVE_INSTANCE_OR_COPIES_HINT,
+  SEARCH_SIMULATED_NOT_SEARCHABLE_HINT,
   UNIQUE_SCALING_NON_SELF_TARGET_TYPE_HINT,
   hasCreatesAmplifyConflict,
   hasLocalInteractionColumnMismatch,
   hasNonPositiveInstanceOrCopies,
+  hasSearchSimulatedWithoutSearchable,
   hasUniqueScalingNonSelfTargetType,
 } from "@/lib/admin-form-warnings";
 import { cn } from "@/lib/utils";
@@ -171,9 +176,15 @@ export function TableManager({
   const [showDeletedOnly, setShowDeletedOnly] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
   const [dialogOpen, setDialogOpen] = React.useState(false);
-  const [editingRecord, setEditingRecord] = React.useState<
-    Record<string, unknown> | null
-  >(null);
+  const [editingRecord, setEditingRecord] = React.useState<Record<
+    string,
+    unknown
+  > | null>(null);
+  const [initialCloneMembers, setInitialCloneMembers] = React.useState<
+    CopyProviderGroupMemberInput[] | undefined
+  >(undefined);
+  const [cloneSourceId, setCloneSourceId] = React.useState<number | null>(null);
+  const [cloningId, setCloningId] = React.useState<number | null>(null);
   const [deletingId, setDeletingId] = React.useState<number | null>(null);
   const [restoringId, setRestoringId] = React.useState<number | null>(null);
   const [sort, setSort] = React.useState<ListSortState>(() =>
@@ -210,9 +221,7 @@ export function TableManager({
   React.useEffect(() => {
     const inlineFkFields = getListFields(config).filter(
       (field) =>
-        field.inlineEditable &&
-        field.type === "foreignKey" &&
-        field.foreignKey,
+        field.inlineEditable && field.type === "foreignKey" && field.foreignKey,
     );
 
     if (inlineFkFields.length === 0) {
@@ -231,11 +240,9 @@ export function TableManager({
       if (!cacheKeyToPromise.has(cacheKey)) {
         cacheKeyToPromise.set(
           cacheKey,
-          getForeignKeyOptions(
-            fk.table,
-            fk.displayColumn,
-            fk.labelKind,
-          ).then((result) => (result.success ? result.data : [])),
+          getForeignKeyOptions(fk.table, fk.displayColumn, fk.labelKind).then(
+            (result) => (result.success ? result.data : []),
+          ),
         );
       }
       const options = await cacheKeyToPromise.get(cacheKey)!;
@@ -282,10 +289,7 @@ export function TableManager({
       return;
     }
 
-    const labelResult = await resolveForeignKeyLabels(
-      config.name,
-      result.data,
-    );
+    const labelResult = await resolveForeignKeyLabels(config.name, result.data);
 
     setRecords(result.data);
     setTotalCount(result.totalCount);
@@ -308,7 +312,9 @@ export function TableManager({
     setDeletingId(null);
 
     if (result.success) {
-      toast.success(config.softDelete ? "Record soft-deleted" : "Record deleted");
+      toast.success(
+        config.softDelete ? "Record soft-deleted" : "Record deleted",
+      );
       await refresh();
     } else {
       toast.error(result.error);
@@ -332,9 +338,7 @@ export function TableManager({
 
   async function handlePermanentDelete(id: number) {
     if (
-      !window.confirm(
-        "Permanently delete this record? This cannot be undone.",
-      )
+      !window.confirm("Permanently delete this record? This cannot be undone.")
     ) {
       return;
     }
@@ -351,15 +355,59 @@ export function TableManager({
     }
   }
 
+  function clearCloneState() {
+    setInitialCloneMembers(undefined);
+    setCloneSourceId(null);
+  }
+
   function openCreate() {
     setEditingRecord(null);
+    clearCloneState();
     setDialogOpen(true);
   }
 
   function openEdit(record: Record<string, unknown>) {
     setEditingCell(null);
     setEditingRecord(record);
+    clearCloneState();
     setDialogOpen(true);
+  }
+
+  async function openClone(record: Record<string, unknown>) {
+    setEditingCell(null);
+    const groupId = Number(record.id);
+    setCloningId(groupId);
+
+    const result = await listCopyProviderGroupMembers(groupId);
+    setCloningId(null);
+
+    if (!result.success) {
+      toast.error(result.error);
+      return;
+    }
+
+    const cloneRecord = { ...record };
+    delete cloneRecord.id;
+    if (typeof cloneRecord.name === "string") {
+      cloneRecord.name = `${cloneRecord.name} (copy)`;
+    }
+
+    setEditingRecord(cloneRecord);
+    setInitialCloneMembers(
+      result.data.map((row) => ({
+        tag_id: row.tag_id == null ? null : Number(row.tag_id),
+      })),
+    );
+    setCloneSourceId(groupId);
+    setDialogOpen(true);
+  }
+
+  function handleCopyProviderGroupDialogOpenChange(open: boolean) {
+    setDialogOpen(open);
+    if (!open) {
+      setEditingRecord(null);
+      clearCloneState();
+    }
   }
 
   function patchFkLabelsFromRecordChange(
@@ -396,9 +444,7 @@ export function TableManager({
     }
 
     setRecords((current) =>
-      current.map((record) =>
-        record.id === updated.id ? updated : record,
-      ),
+      current.map((record) => (record.id === updated.id ? updated : record)),
     );
   }
 
@@ -406,9 +452,7 @@ export function TableManager({
     if (editingRecord) {
       patchFkLabelsFromRecordChange(editingRecord, saved);
       setRecords((current) =>
-        current.map((record) =>
-          record.id === saved.id ? saved : record,
-        ),
+        current.map((record) => (record.id === saved.id ? saved : record)),
       );
 
       const labelResult = await resolveForeignKeyLabels(config.name, [saved]);
@@ -476,10 +520,7 @@ export function TableManager({
                     const deletedOnly = event.target.checked;
                     setShowDeletedOnly(deletedOnly);
                     setLoading(true);
-                    const result = await listRecords(
-                      config.name,
-                      deletedOnly,
-                    );
+                    const result = await listRecords(config.name, deletedOnly);
                     if (result.success) {
                       const labelResult = await resolveForeignKeyLabels(
                         config.name,
@@ -511,6 +552,14 @@ export function TableManager({
               loaded — contact the maintainer if you need the full table.
             </div>
           ) : null}
+          {config.name === "tag" && (
+            <div className="mb-4 flex flex-wrap items-center gap-x-5 gap-y-1 text-xs text-zinc-600">
+              <span className="flex items-center gap-2">
+                <span className="inline-block h-3 w-3 rounded-sm bg-sky-100 ring-1 ring-sky-200" />
+                Simulate in Search but not Available in Search
+              </span>
+            </div>
+          )}
           {loading ? (
             <div className="flex items-center justify-center py-16 text-zinc-500">
               <Loader2 className="mr-2 h-5 w-5 animate-spin" />
@@ -613,6 +662,10 @@ export function TableManager({
                       config.name === "awakener_tag_manifestation" &&
                       !isDeleted &&
                       hasNonPositiveInstanceOrCopies(record);
+                    const searchSimulatedHidden =
+                      config.name === "tag" &&
+                      !isDeleted &&
+                      hasSearchSimulatedWithoutSearchable(record);
                     const isUnverified =
                       config.name === "awakener_tag_manifestation" &&
                       !isDeleted &&
@@ -626,9 +679,10 @@ export function TableManager({
                       <tr
                         key={String(record.id)}
                         className={cn(
-                          // Precedence (last wins via twMerge): unverified < warn < deleted
+                          // Precedence (last wins via twMerge): unverified < warn < simulated < deleted
                           isUnverified && "bg-red-100",
                           rowWarn && "bg-amber-50",
+                          searchSimulatedHidden && "bg-sky-100",
                           isDeleted && "bg-zinc-50 text-zinc-400",
                         )}
                         title={
@@ -642,7 +696,9 @@ export function TableManager({
                                   ? NON_POSITIVE_INSTANCE_OR_COPIES_HINT
                                   : isUnverified
                                     ? "Unverified (pending)"
-                                    : undefined
+                                    : searchSimulatedHidden
+                                      ? SEARCH_SIMULATED_NOT_SEARCHABLE_HINT
+                                      : undefined
                         }
                         onDoubleClick={() => {
                           if (!showDeletedOnly && !isDeleted) {
@@ -659,7 +715,9 @@ export function TableManager({
                                 "max-w-[10rem] overflow-hidden",
                             )}
                           >
-                            {field.inlineEditable && !showDeletedOnly && !isDeleted ? (
+                            {field.inlineEditable &&
+                            !showDeletedOnly &&
+                            !isDeleted ? (
                               <EditableCell
                                 tableName={config.name}
                                 recordId={Number(record.id)}
@@ -734,11 +792,29 @@ export function TableManager({
                                   <Pencil className="h-3.5 w-3.5" />
                                   Edit
                                 </Button>
+                                {config.name === "copy_provider_group" && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    disabled={cloningId === Number(record.id)}
+                                    onClick={() => void openClone(record)}
+                                    title="Duplicate as a new copy provider group"
+                                  >
+                                    {cloningId === Number(record.id) ? (
+                                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                    ) : (
+                                      <Copy className="h-3.5 w-3.5" />
+                                    )}
+                                    Clone
+                                  </Button>
+                                )}
                                 <Button
                                   variant="destructive"
                                   size="sm"
                                   disabled={deletingId === Number(record.id)}
-                                  onClick={() => handleDelete(Number(record.id))}
+                                  onClick={() =>
+                                    handleDelete(Number(record.id))
+                                  }
                                 >
                                   {deletingId === Number(record.id) ? (
                                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -773,8 +849,10 @@ export function TableManager({
         <CopyProviderGroupFormDialog
           config={config}
           open={dialogOpen}
-          onOpenChange={setDialogOpen}
+          onOpenChange={handleCopyProviderGroupDialogOpenChange}
           record={editingRecord}
+          initialMembers={initialCloneMembers}
+          cloneSourceId={cloneSourceId}
           onSuccess={refresh}
         />
       ) : config.name === "desire" ? (

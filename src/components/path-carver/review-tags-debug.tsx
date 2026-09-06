@@ -68,7 +68,6 @@ function formatScalarCell(
   );
   const teamMaxHp = scalarOpts.teamMaxHp;
   if (
-    m.sourceKind === "posse" ||
     (m.sourceKind !== "realm" &&
       m.dependencyStat == null &&
       effective === raw) ||
@@ -79,7 +78,6 @@ function formatScalarCell(
       m.requiredRealmMode !== "combo" &&
       effective === raw) ||
     (m.dependencyStat === "team_max_hp" && teamMaxHp == null) ||
-    m.dependencyStat === "enemy_max_hp" ||
     effective === raw
   ) {
     return String(raw);

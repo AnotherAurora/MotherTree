@@ -290,6 +290,103 @@ export function hasUniqueScalingNonSelfTargetType(
 export const UNIQUE_SCALING_NON_SELF_TARGET_TYPE_HINT =
   "unique_scaling and direct_modifier rows should use target_type self; aoe/single have no effect on local math today.";
 
+export type DefaultInteractionSummary = {
+  id: number;
+  modifier_tag_id: number;
+  target_tag_id: number | null;
+  math_operation: string;
+  exclusion_suffix: number | null;
+};
+
+/** Match target_tag exact or dotted prefix hierarchy, respecting exclusion suffix. */
+export function findMatchingDefaultInteraction(
+  defaultInteractions: readonly DefaultInteractionSummary[],
+  modifierTagId: number | null | undefined,
+  targetTagId: number | null | undefined,
+  tagNameById:
+    | Record<number, string>
+    | Map<number, string>
+    | ((id: number) => string | undefined),
+): DefaultInteractionSummary | null {
+  if (modifierTagId == null || targetTagId == null) return null;
+  const getName =
+    typeof tagNameById === "function"
+      ? tagNameById
+      : (id: number) =>
+          tagNameById instanceof Map ? tagNameById.get(id) : tagNameById[id];
+
+  const targetTagName = getName(targetTagId);
+  if (!targetTagName) return null;
+
+  for (const tdi of defaultInteractions) {
+    if (tdi.modifier_tag_id !== modifierTagId) continue;
+    if (tdi.target_tag_id == null) continue;
+    const tdiTargetName = getName(tdi.target_tag_id);
+    if (!tdiTargetName) continue;
+
+    // Exact or descendant prefix match (e.g. Attacker.Active Damage.Strike matches Attacker.Active Damage)
+    const matches =
+      targetTagName === tdiTargetName ||
+      targetTagName.startsWith(`${tdiTargetName}.`);
+    if (!matches) continue;
+
+    // Check exclusion suffix
+    if (tdi.exclusion_suffix != null) {
+      const exclusionName = getName(tdi.exclusion_suffix);
+      if (
+        exclusionName &&
+        (targetTagName === exclusionName ||
+          targetTagName.startsWith(`${exclusionName}.`))
+      ) {
+        continue;
+      }
+    }
+
+    return tdi;
+  }
+  return null;
+}
+
+/** Soft warn when unique_scaling changes math_operation away from matching default interaction. */
+export function hasUniqueScalingOpMismatch(
+  override: Record<string, unknown>,
+  targetTagId: number | null | undefined,
+  defaultInteractions: readonly DefaultInteractionSummary[],
+  tagNameById:
+    | Record<number, string>
+    | Map<number, string>
+    | ((id: number) => string | undefined),
+): boolean {
+  const mode = override.mode;
+  if (mode !== "unique_scaling") return false;
+  if (Boolean(override.is_disabled ?? override.isDisabled)) return false;
+
+  const modifierTagId = nullishTagId(
+    override.modifier_tag_id ?? override.modifierTagId,
+  );
+  if (modifierTagId == null) return false;
+
+  const currentOp = override.math_operation ?? override.mathOperation;
+  if (currentOp == null || currentOp === "") return false;
+
+  const matchingTdi = findMatchingDefaultInteraction(
+    defaultInteractions,
+    modifierTagId,
+    targetTagId,
+    tagNameById,
+  );
+  if (!matchingTdi) return false;
+
+  return currentOp !== matchingTdi.math_operation;
+}
+
+export function getUniqueScalingOpMismatchHint(
+  defaultOp: string,
+  localOp: string,
+): string {
+  return `Warning: Local unique_scaling changes math_operation from default interaction ('${defaultOp}') to '${localOp}'. In most cases this should match the default interaction.`;
+}
+
 /** Display stored fraction as percent points (0.005 → 0.5). */
 export function valueScalarToPercentDisplay(
   stored: number | null | undefined,

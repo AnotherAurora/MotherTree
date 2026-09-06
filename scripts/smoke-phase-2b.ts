@@ -182,7 +182,15 @@ console.log("Part A — dependency_stat scaling");
   );
   assert(
     scaleValueScalar(10, "atk", awakener, "posse") === 10,
-    "posse ignores dependency_stat",
+    "posse ignores non-team_max_hp dependency_stat",
+  );
+  assert(
+    scaleValueScalar(0.01, "team_max_hp", null, "posse") === 0.01,
+    "posse team_max_hp ignored without context",
+  );
+  assert(
+    scaleValueScalar(0.01, "team_max_hp", null, "posse", false, 1529) === 16,
+    "posse team_max_hp × 1529 → ceil(15.29)=16",
   );
   assert(
     scaleValueScalar(5, "atk", makeAwakener({ id: 2, atk: null }), "awakener") ===

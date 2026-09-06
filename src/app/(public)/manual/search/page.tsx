@@ -255,6 +255,11 @@ export default function ManualSearchPage() {
             </ul>
           </li>
           <li>
+            Copy-provider bonuses (extra hits from cataloged create tags) are
+            included in burst-turn Values when an ATM references a provider
+            group.
+          </li>
+          <li>
             Burst-turn Values are approximations, not exact in-game totals.
             <ul className="mt-1.5 list-disc space-y-1.5 pl-5">
               <li>

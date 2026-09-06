@@ -1,6 +1,6 @@
 ---
 name: Simulator Phased Plan
-overview: Path Carver–first roadmap. Phase 1–2c.1 + 3a + 3a.1 + 3a.2 + 3a.3 + 3b + 3b.1 + 3c + 3c.1 + 3d + 3e + 3f + 3g + 3h (direct_modifier mode) done. Next is Phase 4 (desire_demand / radar / simulator, Calculation List layer breakdown). Phase 5 smart recommend.
+overview: Path Carver–first roadmap. Phase 1–2c.1 + 3a + 3a.1 + 3a.2 + 3a.3 + 3b + 3b.1 + 3c + 3c.1 + 3d + 3e + 3f + 3g + 3h + 3i (Birth Ritual → Sacrifice) done. Next is Phase 4 (desire_demand / radar / simulator, Calculation List layer breakdown). Phase 5 smart recommend.
 todos:
   - id: seed-data
     content: Create scripts/seed-simulator-data.ts with 2-3 desires, demand rows, anchored awakeners; add npm script
@@ -80,6 +80,12 @@ todos:
   - id: phase-3g-remove-source-type-tentacle
     content: Phase 3g — Remove source_type tentacle enum via recreate-type swap; Hit/TDU/poison synthetics use sourceType null
     status: completed
+  - id: phase-3h-direct-modifier
+    content: Phase 3h — direct_modifier local interaction mode on ATM rows
+    status: completed
+  - id: phase-3i-birth-ritual-sacrifice
+    content: Phase 3i — Special.Birth Ritual cap 75 team-wide; hop 4e converts 1%/pt of finalized Active Damage family + Tentacle into Attacker.Non-Active Damage.Sacrifice
+    status: completed
   - id: layer-breakdown-ui
     content: Phase 4 — Wire Summary / Calculation List to show layer-by-layer breakdown
     status: pending
@@ -151,7 +157,7 @@ Debug merge **must equal** that tag’s Tag total. Merge sums `committedContribu
 | ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `target_type` apply rules                        | Loaded and shown in debug; **not applied** in aggregation                                                                                            |
 | Interaction application                          | `tag_default_interaction` + overrides loaded in `TeamData` but **not applied**                                                                       |
-| `dependency_stat` → `value_scalar`               | **Phase 2b done** — ATM/covenant/wheel/override scaled; posse + team/enemy max HP ignored                                                            |
+| `dependency_stat` → `value_scalar`               | **Phase 2b done** — ATM/covenant/wheel/override scaled; posse scales `team_max_hp` only; enemy max HP ignored on ATM/override |
 | `buff_target_type_restriction` leaf-gating       | **Phase 2b done** — materialize-then-amplify + `creates_base` / `amplifies_subject`; Option B subject `source_type` context                          |
 | Pass-order damage layers                         | **Phase 2c done**                                                                                                                                    |
 | Remove leftover `layer.final` enum value         | **Phase 2c.1 done**                                                                                                                                  |
@@ -415,13 +421,13 @@ Optional: show which interactions applied to which target tags (lightweight; ful
 
 When `dependency_stat` is non-null, the row’s `value_scalar` is **stat-dependent**. For realm manifestations, `dependency_stat` is the **base stat/source quantity**. When `dependency_rate` and `dependency_rate_stat` are both non-null, `dependency_rate_stat` is the stat that scales the conversion rate rather than replacing the base-stat role of `dependency_stat`.
 
-**Scope:** `dependency_rate` / `dependency_rate_stat` / `pure_bonus_target` and the rate-scaled / two-row Fiesta rules apply to **`realm_tag_manifestation` only**. Other tables use `dependency_stat` multiply only (posse ignores it).
+**Scope:** `dependency_rate` / `dependency_rate_stat` / `pure_bonus_target` and the rate-scaled / two-row Fiesta rules apply to **`realm_tag_manifestation` only**. Other tables use `dependency_stat` multiply only (posse scales `team_max_hp` only).
 
 | Table                                                                                          | Scalar column  | Notes                                                 |
 | ---------------------------------------------------------------------------------------------- | -------------- | ----------------------------------------------------- |
 | `awakener_tag_manifestation` / `covenant_tag_manifestation` / `wheel_tag_manifestation`        | `value_scalar` | scale when `dependency_stat` set                      |
 | `awakener_local_manifestation_interaction` (was `manifestation_interaction_override` until 2c) | `value_scalar` | same formula (renamed from `override_default_factor`) |
-| `posse_tag_manifestation`                                                                      | `value_scalar` | **ignore** `dependency_stat`                          |
+| `posse_tag_manifestation`                                                                      | `value_scalar` | scale when `dependency_stat=team_max_hp`; ignore other stats |
 
 ```text
 rate_mult   = 2 when pure_bonus_target = dependency_rate and team is pure, else 1
@@ -456,7 +462,9 @@ effective = ceil(raw) or ceil(raw * 100) / 100
 - Non-percent tags: ceil to a **whole number** (e.g. Enhance `15 + 0.0075 × 434 × 2 = 21.51 → 22`)
 - Percent tags: ceil to **2 decimal places**
 - Unscaled flat rows with no pure double stay raw (no ceil)
-- ATM/override: `team_max_hp` / `enemy_max_hp` still **ignore** scaling (keep raw `value_scalar`). Realm rows that use those as `dependency_stat` **do** resolve them as `base_stat`.
+- ATM/override: `team_max_hp` still **ignores** scaling when no context (keep raw `value_scalar`). Realm rows that use those as `dependency_stat` **do** resolve them as `base_stat`.
+
+**Superseded for `enemy_max_hp` on ATM/covenant/wheel/override (2026-09-06):** `dependency_stat = enemy_max_hp` rows are **not** ×stat-scaled, but their raw `value_scalar` is **percent-ceiled to 2 dp** (`ceil(value×100)/100`), mimicking `tag.is_percent = true`, because the value is a % of the enemy's max HP (e.g. Fixed Damage / Corrosion). Realm multiply-only rows with `enemy_max_hp` still return raw × scalarMult (`REALM_IGNORED_DEPENDENCY_STATS`); posse stays raw.
 
 If `dependency_stat` is null and there is no rate pair → flat branch above.
 
@@ -518,13 +526,13 @@ flowchart TD
   parent --> aid
   cov --> slot[Equipped slot awakener after Path Carver Build]
   wheel --> slot
-  posse --> skip[Ignore dependency_stat entirely]
+  posse --> skip[Scale team_max_hp only]
 ```
 
 - **ATM:** `awakener_id`
 - **Override:** parent ATM’s `awakener_id` (already loaded on `Manifestation.interactionOverrides` in [`load-team-data.ts`](src/lib/team-data/load-team-data.ts))
 - **Covenant / wheel:** slot owner after Build (manifestation already carries `awakenerId` / `slotIndex` once equipped)
-- **Posse:** ignore `dependency_stat` (always use raw `value_scalar`)
+- **Posse:** scale `team_max_hp` only (same formula as other gear); ignore other `dependency_stat`
 
 ATM and override each scale their own `value_scalar` independently.
 
@@ -1860,6 +1868,53 @@ Introduce a third local interaction mode, `direct_modifier`, on `awakener_local_
 - Engine: [`src/lib/path-carver/apply-interactions.ts`](src/lib/path-carver/apply-interactions.ts)
 - Kit Reader: [`src/lib/kit-reader/proposal-schema.ts`](src/lib/kit-reader/proposal-schema.ts), [`scripts/insert-kit-pending.ts`](scripts/insert-kit-pending.ts), [`src/lib/kit-reader/cursor-prompt.ts`](src/lib/kit-reader/cursor-prompt.ts), [`.cursor/skills/kit-reader/SKILL.md`](.cursor/skills/kit-reader/SKILL.md), [`docs/admin/kit-reader.md`](docs/admin/kit-reader.md)
 - Manual: [`docs/admin/atm-and-local-interaction-inputs.md`](docs/admin/atm-and-local-interaction-inputs.md)
+
+---
+
+## Phase 3i — Special.Birth Ritual → Sacrifice (DONE)
+
+**Depends on:** 3e (finalized Tentacle totals after hop 4d).
+
+### Goal
+
+Team-wide `Special.Birth Ritual` (tag **54**) capped at **75**, then converted at end of Layer B into `Attacker.Non-Active Damage.Sacrifice` (tag **50**): **1% of the damage pool per Birth Ritual point** (75 → 75%).
+
+### Locks
+
+- **Scope:** team-wide — pool Birth Ritual and damage across all owners; Sacrifice written to `*team*` bucket
+- **Cap:** displayed Birth Ritual total and conversion both use `min(raw, 75)`; over-cap owner buckets scaled proportionally
+- **Damage pool:** sum finalized post–hop 4d values for `Attacker.Active Damage` prefix + `Attacker.Tentacle` (both count; no dedup between Active Damage and Tentacle)
+- **Timing:** hop **4e** in [`apply-interactions.ts`](src/lib/path-carver/apply-interactions.ts) — after hop 4d, before `sumOwnerTotalsToTagMap`
+- **Sacrifice merge:** additive with any existing Layer A Sacrifice via `combineSameTagScalar`; `Math.ceil(pool × capped / 100)`
+
+### Files
+
+- [`src/lib/path-carver/birth-ritual-sacrifice.ts`](src/lib/path-carver/birth-ritual-sacrifice.ts)
+- [`src/lib/path-carver/apply-interactions.ts`](src/lib/path-carver/apply-interactions.ts) hop 4e
+- Smoke: `npx tsx scripts/smoke-birth-ritual-sacrifice.ts`
+
+---
+
+## Phase 3j — Special.All Tentacle Attack (DONE)
+
+**Depends on:** 3e (Tentacle TDU pool hop 4d consumes pre-pool tentacle units).
+
+### Goal
+
+Replace zero-base `Attacker.Tentacle` + Generate `unique_scaling` carriers with tag **`Special.All Tentacle Attack`** (tag **180**): team Generate Temporary + Permanent pool × holder multiplier → additive `Attacker.Tentacle` on holder owner; synthetic inherits ATM `target_type`.
+
+### Locks
+
+- **Pool input:** team non-self effective scalars for tags **57** + **58**
+- **Timing:** hop **4f** in [`apply-interactions.ts`](src/lib/path-carver/apply-interactions.ts) — after deferred create/amplify merges, **before** hop 4d
+- **With `value_scalar = 1`:** doubles Generate-sourced tentacle on top of Phase 1 `creates_base` (TDI 91/92)
+- **Migration:** soft-delete ATMs **567** / **1948** and locals **87, 88, 321, 322**; insert Faros/Murphy Special replacements
+
+### Files
+
+- [`src/lib/path-carver/all-tentacle-attack.ts`](src/lib/path-carver/all-tentacle-attack.ts)
+- [`supabase/migrations/20260831120000_special_all_tentacle_attack.sql`](supabase/migrations/20260831120000_special_all_tentacle_attack.sql)
+- Smoke: `npm run smoke:all-tentacle-attack`
 
 ---
 

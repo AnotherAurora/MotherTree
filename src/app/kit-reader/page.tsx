@@ -3,7 +3,10 @@ import { notFound } from "next/navigation";
 import { KitReaderPanel } from "@/components/admin/kit-reader-panel";
 import { Sidebar } from "@/components/admin/sidebar";
 import { isAdminRuntimeEnabled } from "@/lib/admin-runtime";
-import type { KitReaderAtmMode } from "@/lib/actions/kit-reader";
+import {
+  listKitReaderAwakeners,
+  type KitReaderAtmMode,
+} from "@/lib/actions/kit-reader";
 
 export const metadata: Metadata = {
   title: "Kit Reader",
@@ -41,6 +44,8 @@ export default async function KitReaderPage({ searchParams }: PageProps) {
   const params = await searchParams;
   const initialAwakenerId = parseInitialAwakenerId(params.awakener);
   const initialMode = parseInitialMode(params.mode);
+  const awakenersResult = await listKitReaderAwakeners();
+  const initialAwakeners = awakenersResult.success ? awakenersResult.data : [];
 
   return (
     <div className="flex min-h-screen">
@@ -49,6 +54,7 @@ export default async function KitReaderPage({ searchParams }: PageProps) {
         <KitReaderPanel
           initialAwakenerId={initialAwakenerId}
           initialMode={initialMode}
+          initialAwakeners={initialAwakeners}
         />
       </main>
     </div>

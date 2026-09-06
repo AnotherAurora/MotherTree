@@ -7,6 +7,7 @@ import {
 } from "@/lib/admin-runtime";
 import {
   buildKitPackForAwakener,
+  resolveAwakenerKitSlug,
   writeKitPackToSampleData,
 } from "@/lib/kit-reader/build-kit-pack";
 import { buildKitReaderCursorPrompt } from "@/lib/kit-reader/cursor-prompt";
@@ -43,22 +44,36 @@ export async function listKitReaderAwakeners(): Promise<
 
     if (error) return { success: false, error: error.message };
 
-    const { data: atmRows, error: atmError } = await supabase
-      .from("awakener_tag_manifestation")
-      .select("awakener_id, verified")
-      .is("deleted_at", null);
-
-    if (atmError) return { success: false, error: atmError.message };
-
     const pendingByAwakener = new Map<number, number>();
     const verifiedByAwakener = new Map<number, number>();
 
-    for (const row of atmRows ?? []) {
-      const id = Number(row.awakener_id);
-      if (row.verified) {
-        verifiedByAwakener.set(id, (verifiedByAwakener.get(id) ?? 0) + 1);
+    const pageSize = 1000;
+    let from = 0;
+    let hasMore = true;
+
+    while (hasMore) {
+      const { data: batch, error: atmError } = await supabase
+        .from("awakener_tag_manifestation")
+        .select("awakener_id, verified")
+        .is("deleted_at", null)
+        .order("id")
+        .range(from, from + pageSize - 1);
+
+      if (atmError) return { success: false, error: atmError.message };
+
+      for (const row of batch ?? []) {
+        const id = Number(row.awakener_id);
+        if (row.verified) {
+          verifiedByAwakener.set(id, (verifiedByAwakener.get(id) ?? 0) + 1);
+        } else {
+          pendingByAwakener.set(id, (pendingByAwakener.get(id) ?? 0) + 1);
+        }
+      }
+
+      if (!batch || batch.length < pageSize) {
+        hasMore = false;
       } else {
-        pendingByAwakener.set(id, (pendingByAwakener.get(id) ?? 0) + 1);
+        from += pageSize;
       }
     }
 
@@ -244,6 +259,34 @@ export async function listPendingAtmsForAwakener(
   return listAtmsForAwakener(awakenerId, "pending");
 }
 
+export async function resolveKitReaderSlug(
+  awakenerId: number,
+): Promise<
+  ActionResult<{
+    awakenerName: string;
+    slug: string;
+    proposalPath: string;
+    packPath: string;
+  }>
+> {
+  if (!isAdminRuntimeEnabled()) return adminUnavailableResult();
+
+  try {
+    const supabase = createAdminClient();
+    const result = await resolveAwakenerKitSlug(supabase, awakenerId);
+    return {
+      success: true,
+      data: result,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : "Failed to resolve awakener slug",
+    };
+  }
+}
+
 export async function exportKitPackAndPrompt(
   awakenerId: number,
 ): Promise<
@@ -269,12 +312,6 @@ export async function exportKitPackAndPrompt(
 
     if (pendingError) return { success: false, error: pendingError.message };
     const pendingCount = count ?? 0;
-    if (pendingCount > 0) {
-      return {
-        success: false,
-        error: `This awakener has ${pendingCount} pending ATM(s). Verify or soft-delete them before exporting a new kit pack.`,
-      };
-    }
 
     const { pack, slug, relativePath } = await buildKitPackForAwakener(
       supabase,
@@ -295,7 +332,7 @@ export async function exportKitPackAndPrompt(
         slug,
         awakenerName: pack.awakener.name,
         prompt,
-        pendingCount: 0,
+        pendingCount,
       },
     };
   } catch (error) {

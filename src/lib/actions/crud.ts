@@ -31,6 +31,14 @@ export type ForeignKeyOption = {
   shortLabel?: string;
 };
 
+export type DefaultInteractionSummary = {
+  id: number;
+  modifier_tag_id: number;
+  target_tag_id: number | null;
+  math_operation: string;
+  exclusion_suffix: number | null;
+};
+
 export type AwakenerLocalManifestationInteractionInput = {
   id?: number;
   mode: string;
@@ -516,6 +524,43 @@ export async function listAwakenerLocalManifestationInteractions(
         error instanceof Error
           ? error.message
           : "Failed to load local manifestation interactions",
+    };
+  }
+}
+
+export async function listDefaultInteractionsSummary(): Promise<
+  ActionResult<DefaultInteractionSummary[]>
+> {
+  if (!isAdminRuntimeEnabled()) return adminUnavailableResult();
+  try {
+    const supabase = createAdminClient();
+    const { data, error } = await supabase
+      .from("tag_default_interaction")
+      .select("id, modifier_tag_id, target_tag_id, math_operation, exclusion_suffix")
+      .is("deleted_at", null)
+      .order("id");
+
+    if (error) return { success: false, error: error.message };
+
+    return {
+      success: true,
+      data: (data ?? []).map((row) => ({
+        id: Number(row.id),
+        modifier_tag_id: Number(row.modifier_tag_id),
+        target_tag_id:
+          row.target_tag_id == null ? null : Number(row.target_tag_id),
+        math_operation: String(row.math_operation),
+        exclusion_suffix:
+          row.exclusion_suffix == null ? null : Number(row.exclusion_suffix),
+      })),
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to load default interactions summary",
     };
   }
 }

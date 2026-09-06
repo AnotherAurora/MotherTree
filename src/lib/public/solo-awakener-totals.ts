@@ -3,6 +3,7 @@
  * Builds a one-slot TeamData from allowlisted public rows and runs Path Carver math.
  */
 import { computeReviewTagTotals } from "@/lib/path-carver/aggregate-tag-scalars";
+import { indexCopyProviderMembersByGroupId } from "@/lib/path-carver/copy-instances";
 import { REQUIRED_BASE_STAT_TAG_IDS } from "@/lib/path-carver/awakener-base-stats";
 import {
   createManifestationApplyContext,
@@ -45,10 +46,6 @@ export function normalizeAwakenerSearchName(
   return (name ?? "").trim().replace(/^["']|["']$/g, "");
 }
 
-export function isAttackerOrDefenderTagName(tagName: string): boolean {
-  return tagName.startsWith("Attacker.") || tagName.startsWith("Defender.");
-}
-
 export function isMultiRealmSearchAwakener(
   awakener: Pick<PublicRow<"awakener">, "name">,
 ): boolean {
@@ -84,6 +81,7 @@ export type SoloAwakenerCatalog = {
   defaultInteractions: readonly PublicRow<"tag_default_interaction">[];
   awakenerManifestations: readonly PublicRow<"awakener_tag_manifestation">[];
   awakenerLocalInteractions: readonly PublicRow<"awakener_local_manifestation_interaction">[];
+  copyProviderMembers: readonly PublicRow<"copy_provider_group_member">[];
 };
 
 export type SoloAwakenerTotalsResult = {
@@ -152,7 +150,8 @@ function mapLocalInteraction(
   row: PublicRow<"awakener_local_manifestation_interaction">,
   tagsById: Readonly<Record<number, Tag>>,
 ): AwakenerLocalManifestationInteraction {
-  const modifier = row.modifier_tag_id != null ? tagsById[row.modifier_tag_id] : null;
+  const modifier =
+    row.modifier_tag_id != null ? tagsById[row.modifier_tag_id] : null;
   const target = row.target_tag_id != null ? tagsById[row.target_tag_id] : null;
   return {
     id: row.id,
@@ -201,9 +200,11 @@ function mapAtm(
   tagsById: Readonly<Record<number, Tag>>,
   locals: AwakenerLocalManifestationInteraction[],
   realmsById: ReadonlyMap<number, PublicRow<"realm">>,
+  membersByGroupId: ReadonlyMap<number, number[]>,
 ): Manifestation {
   const tag = tagsById[row.tag_id];
   const requiredRealmId = row.required_realm ?? null;
+  const copyProviderGroupId = row.copy_provider_group_id ?? null;
   return {
     id: row.id,
     sourceKind: "awakener",
@@ -216,10 +217,13 @@ function mapAtm(
     valueScalar: row.value_scalar,
     instanceCount: row.instance_count ?? 1,
     baseCopies: row.base_copies ?? 1,
-    // Public allowlist has copy_provider_group_id but not member tables.
-    copyProviderGroupId: row.copy_provider_group_id ?? null,
-    copyProviderGroupName: null,
-    copyProviderTagIds: [],
+    copyProviderGroupId,
+    copyProviderGroupName:
+      copyProviderGroupId != null ? `#${copyProviderGroupId}` : null,
+    copyProviderTagIds:
+      copyProviderGroupId != null
+        ? (membersByGroupId.get(copyProviderGroupId) ?? [])
+        : [],
     dependencyStat: row.dependency_stat,
     sourceType: row.source_type,
     targetType: row.target_type,
@@ -323,8 +327,14 @@ function buildSoloTeamData(
   const realms = realmLookupRows(catalog.realms);
   const realmsById = new Map(catalog.realms.map((r) => [r.id, r]));
   const awakener = toSoloAwakener(awakenerRow, simulatedRealmId, realmsById);
+  const membersByGroupId = indexCopyProviderMembersByGroupId(
+    catalog.copyProviderMembers,
+  );
 
-  const localsByAtmId = new Map<number, AwakenerLocalManifestationInteraction[]>();
+  const localsByAtmId = new Map<
+    number,
+    AwakenerLocalManifestationInteraction[]
+  >();
   for (const local of catalog.awakenerLocalInteractions) {
     if (local.manifestation_id == null) continue;
     const mapped = mapLocalInteraction(local, tagsById);
@@ -354,6 +364,7 @@ function buildSoloTeamData(
         tagsById,
         localsByAtmId.get(atm.id) ?? [],
         realmsById,
+        membersByGroupId,
       ),
     );
   }
@@ -452,15 +463,20 @@ export function computeSoloAwakenerTotals(
   return result;
 }
 
-/** True when Search should run solo sims (Attacker/Defender tag filter or no tag filter). */
+/**
+ * True when Search should run solo sims. Only runs when a specific tag
+ * filter is active and the expanded matching set contains at least one tag
+ * flagged `is_search_simulated`. With no tag filter set (browse-all), solo
+ * sims never run, so flagged tags' aggregate rows are excluded from results;
+ * unflagged tags are served by direct per-manifestation rows instead.
+ */
 export function shouldRunSoloAwakenerTotals(
   matchingTagIds: Set<number> | null,
   tagsById: ReadonlyMap<number, PublicRow<"tag">>,
 ): boolean {
-  if (matchingTagIds == null) return true;
+  if (matchingTagIds == null) return false;
   for (const id of matchingTagIds) {
-    const name = tagsById.get(id)?.tag_name;
-    if (name != null && isAttackerOrDefenderTagName(name)) return true;
+    if (tagsById.get(id)?.is_search_simulated === true) return true;
   }
   return false;
 }
@@ -475,7 +491,10 @@ function atmAppliesInRealmSim(
   return true;
 }
 
-function joinUnique(values: Iterable<string>, separator: string): string | null {
+function joinUnique(
+  values: Iterable<string>,
+  separator: string,
+): string | null {
   const seen = new Set<string>();
   const parts: string[] = [];
   for (const raw of values) {
@@ -505,8 +524,12 @@ function joinUniqueTargetTypes(
   }
   if (unique.length === 0) return null;
   unique.sort((a, b) => {
-    const ai = TARGET_TYPE_ORDER.get(a as (typeof ENUM_VALUES.target_type)[number]);
-    const bi = TARGET_TYPE_ORDER.get(b as (typeof ENUM_VALUES.target_type)[number]);
+    const ai = TARGET_TYPE_ORDER.get(
+      a as (typeof ENUM_VALUES.target_type)[number],
+    );
+    const bi = TARGET_TYPE_ORDER.get(
+      b as (typeof ENUM_VALUES.target_type)[number],
+    );
     if (ai == null && bi == null) return a.localeCompare(b);
     if (ai == null) return 1;
     if (bi == null) return -1;

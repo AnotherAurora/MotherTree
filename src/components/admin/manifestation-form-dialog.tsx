@@ -24,8 +24,10 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   getForeignKeyOptions,
   listAwakenerLocalManifestationInteractions,
+  listDefaultInteractionsSummary,
   saveManifestationWithOverrides,
   type AwakenerLocalManifestationInteractionInput,
+  type DefaultInteractionSummary,
   type ForeignKeyOption,
 } from "@/lib/actions/crud";
 import {
@@ -36,9 +38,12 @@ import {
   applyLocalInteractionModeSwitch,
   createEmptyLocalInteractionValues,
   defaultTargetTypeForLocalMode,
+  findMatchingDefaultInteraction,
   getActiveTagId,
+  getUniqueScalingOpMismatchHint,
   hasLocalInteractionColumnMismatch,
   hasUniqueScalingNonSelfTargetType,
+  hasUniqueScalingOpMismatch,
   hasUniqueScalingTagAndDepHint,
   isBaseStatUniqueScaling,
   isLocalInteractionMode,
@@ -134,6 +139,9 @@ export function ManifestationFormDialog({
 
   const [values, setValues] = React.useState<Record<string, unknown>>({});
   const [overrides, setOverrides] = React.useState<OverrideDraft[]>([]);
+  const [defaultInteractions, setDefaultInteractions] = React.useState<
+    DefaultInteractionSummary[]
+  >([]);
   const [fkOptions, setFkOptions] = React.useState<
     Record<string, ForeignKeyOption[]>
   >({});
@@ -208,6 +216,14 @@ export function ManifestationFormDialog({
         })
       : Promise.resolve();
 
+    const loadDefaultInteractions = listDefaultInteractionsSummary().then(
+      (result) => {
+        if (result.success) {
+          setDefaultInteractions(result.data);
+        }
+      },
+    );
+
     const loadFkOptions = Promise.all(
       fkFields.map(async (field) => {
         const fk = field.foreignKey!;
@@ -230,9 +246,11 @@ export function ManifestationFormDialog({
       setFkOptions(next);
     });
 
-    Promise.all([loadOverrides, loadFkOptions]).finally(() => {
-      setLoadingOptions(false);
-    });
+    Promise.all([loadOverrides, loadDefaultInteractions, loadFkOptions]).finally(
+      () => {
+        setLoadingOptions(false);
+      },
+    );
     // formSessionKey captures open/create-vs-edit transitions; config/record are read at that point only.
     // eslint-disable-next-line react-hooks/exhaustive-deps -- avoid reset on parent re-render after create
   }, [formSessionKey]);
@@ -267,6 +285,19 @@ export function ManifestationFormDialog({
     loadingOptions,
   ]);
 
+  const tagNameById = React.useMemo(() => {
+    const map = new Map<number, string>();
+    const allTagOptions = [
+      ...(fkOptions.tag_id ?? []),
+      ...(fkOptions.modifier_tag_id ?? []),
+      ...(fkOptions.target_tag_id ?? []),
+    ];
+    for (const option of allTagOptions) {
+      map.set(option.value, option.label);
+    }
+    return map;
+  }, [fkOptions]);
+
   function getFilteredFkOptions(field: FieldConfig): ForeignKeyOption[] {
     const allOptions = fkOptions[field.name] ?? [];
     const filterBy = field.foreignKey?.filterBy;
@@ -299,6 +330,21 @@ export function ManifestationFormDialog({
         if (field === "mode" && isLocalInteractionMode(value)) {
           const { clientKey: _ck, id, ...rest } = override;
           const next = applyLocalInteractionModeSwitch(rest, value);
+          if (
+            value === "unique_scaling" &&
+            next.modifier_tag_id != null &&
+            values.tag_id != null
+          ) {
+            const matchingTdi = findMatchingDefaultInteraction(
+              defaultInteractions,
+              Number(next.modifier_tag_id),
+              Number(values.tag_id),
+              tagNameById,
+            );
+            if (matchingTdi?.math_operation) {
+              next.math_operation = matchingTdi.math_operation;
+            }
+          }
           return { ...override, ...next };
         }
 
@@ -306,7 +352,24 @@ export function ManifestationFormDialog({
           const tagId =
             value == null || value === "" ? null : Number(value);
           const { clientKey: _ck, id, ...rest } = override;
-          return { ...override, ...setActiveTagId(rest, tagId) };
+          const withTag = setActiveTagId(rest, tagId);
+          const currentMode = normalizeLocalInteractionMode(withTag.mode);
+          if (
+            currentMode === "unique_scaling" &&
+            tagId != null &&
+            values.tag_id != null
+          ) {
+            const matchingTdi = findMatchingDefaultInteraction(
+              defaultInteractions,
+              tagId,
+              Number(values.tag_id),
+              tagNameById,
+            );
+            if (matchingTdi?.math_operation) {
+              withTag.math_operation = matchingTdi.math_operation;
+            }
+          }
+          return { ...override, ...withTag };
         }
 
         return { ...override, [field]: value };
@@ -750,6 +813,32 @@ export function ManifestationFormDialog({
                           {LOCAL_INTERACTION_COLUMN_MISMATCH_HINT}
                         </p>
                       )}
+                      {!hasLocalInteractionColumnMismatch(override) &&
+                        hasUniqueScalingOpMismatch(
+                          override,
+                          values.tag_id == null ? null : Number(values.tag_id),
+                          defaultInteractions,
+                          tagNameById,
+                        ) && (
+                          <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                            {(() => {
+                              const matchingTdi = findMatchingDefaultInteraction(
+                                defaultInteractions,
+                                override.modifier_tag_id == null
+                                  ? null
+                                  : Number(override.modifier_tag_id),
+                                values.tag_id == null
+                                  ? null
+                                  : Number(values.tag_id),
+                                tagNameById,
+                              );
+                              return getUniqueScalingOpMismatchHint(
+                                matchingTdi?.math_operation ?? "default",
+                                String(override.math_operation ?? ""),
+                              );
+                            })()}
+                          </p>
+                        )}
                       {!hasLocalInteractionColumnMismatch(override) &&
                         hasUniqueScalingTagAndDepHint(override) && (
                           <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">

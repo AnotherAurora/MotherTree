@@ -6,14 +6,14 @@ Quick lookup: how fields on **`awakener_tag_manifestation`** (ATM) and **`awaken
 
 **Engine status (as of Phase 3c):**
 
-| Feature | Status |
-| --- | --- |
-| ATM base scalar + apply gates | Live |
-| ATM **`hitCount`** (`instance_count` × effective copies); Layer B on single-hit then × hitCount | Live (**3a.3**) |
-| Local row as **patch** of a matching `tag_default_interaction` | Live (`unique_scaling`) |
-| Local **`unique_scaling` invent** (tag-mod or base-stat null-mod) | Live (**3b**); invent Modifier Tag is **prefix** (**3b.1**) |
-| Local **`aftereffect`** emit / merge (× `hitCount` = instances × effective copies) | Live (**3c**) |
-| Local **`direct_modifier`** self-contained card buff | Live (**3h**) |
+| Feature                                                                                         | Status                                                      |
+| ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| ATM base scalar + apply gates                                                                   | Live                                                        |
+| ATM **`hitCount`** (`instance_count` × effective copies); Layer B on single-hit then × hitCount | Live (**3a.3**)                                             |
+| Local row as **patch** of a matching `tag_default_interaction`                                  | Live (`unique_scaling`)                                     |
+| Local **`unique_scaling` invent** (tag-mod or base-stat null-mod)                               | Live (**3b**); invent Modifier Tag is **prefix** (**3b.1**) |
+| Local **`aftereffect`** emit / merge (× `hitCount` = instances × effective copies)              | Live (**3c**)                                               |
+| Local **`direct_modifier`** self-contained card buff                                            | Live (**3h**)                                               |
 
 Formulas below for aftereffect are **live in Review Tags** (Phase 3c). Invent/patch/`unique_scaling` layer rules are live.
 
@@ -29,13 +29,13 @@ One row = this awakener contributes (or tries to contribute) one **tag** with a 
 
 These set the row’s **effective base** before interactions.
 
-| `dependency_stat` | Effective base (ATM) |
-| --- | --- |
-| **null** | `value_scalar` as entered (no ceil) |
-| awakener stat (e.g. `atk`, `hp`) | `ceil(value_scalar × awakener.<stat>)` (or 2-dp ceil if the **tag** is percent) |
-| percent-like dep (`damage_amp`, `crit_rate`, `crit_dmg`, `sigil_yield`, `death_resist`) | `ceil((value_scalar×100) × (stat×100))` with tag percent ceil rules |
-| `team_max_hp` | if team Max HP is known: `ceil(value_scalar × teamMaxHp)`; else raw `value_scalar` |
-| `enemy_max_hp` | always raw `value_scalar` (ignored for scaling on ATM) |
+| `dependency_stat`                                                                       | Effective base (ATM)                                                                                      |
+| --------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| **null**                                                                                | `value_scalar` as entered (no ceil)                                                                       |
+| awakener stat (e.g. `atk`, `hp`)                                                        | `ceil(value_scalar × awakener.<stat>)` (or 2-dp ceil if the **tag** is percent)                           |
+| percent-like dep (`damage_amp`, `crit_rate`, `crit_dmg`, `sigil_yield`, `death_resist`) | `ceil((value_scalar×100) × (stat×100))` with tag percent ceil rules                                       |
+| `team_max_hp`                                                                           | if team Max HP is known: `ceil(value_scalar × teamMaxHp)`; else raw `value_scalar`                        |
+| `enemy_max_hp`                                                                          | raw `value_scalar`, **percent-ceiled to 2 dp** (no ×stat scaling); the value is a % of the enemy's max HP |
 
 Owner for scaling = this ATM’s **awakener**.
 
@@ -54,11 +54,11 @@ providerTagIds  = members of copy_provider_group_id  (empty if FK null)
 
 Provider pool uses **effectiveScalar × instance_count** only (no copy multiply) so bonuses do not recurse. Layer B runs on the **single-hit** base so ops like `add_scaled` apply per hit (`N·(base+k)`), not once on a pre-scaled base (`N·base+k`). **Do not** invent N synthetic `(created base)` rows for copies — one ATM row stays one debug row.
 
-| Field | Default | Role |
-| --- | --- | --- |
-| `instance_count` | **NOT NULL DEFAULT 1** | How many times **one copy** of this effect fires. |
-| `base_copies` | **NOT NULL DEFAULT 1** | Starting copies before provider bonuses. |
-| `copy_provider_group_id` | **NULL** | FK → `copy_provider_group`. Null = no provider bonus (effective copies = `base_copies`). |
+| Field                    | Default                | Role                                                                                     |
+| ------------------------ | ---------------------- | ---------------------------------------------------------------------------------------- |
+| `instance_count`         | **NOT NULL DEFAULT 1** | How many times **one copy** of this effect fires.                                        |
+| `base_copies`            | **NOT NULL DEFAULT 1** | Starting copies before provider bonuses.                                                 |
+| `copy_provider_group_id` | **NULL**               | FK → `copy_provider_group`. Null = no provider bonus (effective copies = `base_copies`). |
 
 Admin soft-warns (amber) when `instance_count ≤ 0` or `base_copies ≤ 0`; save still allowed.
 
@@ -76,15 +76,15 @@ Which tag this base belongs to. Same-tag rows later combine with **`tag.is_addit
 
 If a gate fails, the row is **not applied** (Review Tags shows Applied = no). It never enters Layer A/B math.
 
-| Field | Effect |
-| --- | --- |
-| `required_realm` | Team must satisfy that realm (Chaos = exclusive chaos-lineage). |
-| `required_enlightenment` | Admin enters **E0 / E1 / E2 / E3 / OE / AA** (stored as `0 / 1 / 2 / 3 / 7 / 15`, same breakpoints as Search Awakener Enlightenment). Path Carver load/resolve and Search gate with `required_enlightenment <=` assumed enlightenment; Review Tags apply path does not currently gate on it the same way as realm. |
-| `trigger_condition` | FK to a **When.\*** tag. Null = always eligible on the null-trigger pass. Set = applied only after Cause→When counts, scaled ×N times. |
-| `target_type` | **`self`:** this Support/Defender-style contribution is scoped to the owner (and Attacker.\* still needs damage-dealer). Used for interaction self-scoping when this row is a **modifier**. |
-| `source_type` | Leaf type (`command card` / `exalt` / `rouse` / `talent`). Used as **subject context** when this ATM is the interaction subject so `buff_target_type_restriction` (on TDI or modifier manifestations) can match. |
-| `buff_target_type_restriction` | Gates modifier presence during interaction resolution against the subject's `source_type` (`leafContext`). When set (e.g. `exalt`), this buff modifier only applies to subjects with matching `source_type`. |
-| Tag name `Attacker.*` | Applied only if this awakener is marked **damage dealer** on the desire build (any `target_type`). |
+| Field                          | Effect                                                                                                                                                                                                                                                                                                             |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `required_realm`               | Team must satisfy that realm (Chaos = exclusive chaos-lineage).                                                                                                                                                                                                                                                    |
+| `required_enlightenment`       | Admin enters **E0 / E1 / E2 / E3 / OE / AA** (stored as `0 / 1 / 2 / 3 / 7 / 15`, same breakpoints as Search Awakener Enlightenment). Path Carver load/resolve and Search gate with `required_enlightenment <=` assumed enlightenment; Review Tags apply path does not currently gate on it the same way as realm. |
+| `trigger_condition`            | FK to a **When.\*** tag. Null = always eligible on the null-trigger pass. Set = applied only after Cause→When counts, scaled ×N times.                                                                                                                                                                             |
+| `target_type`                  | **`self`:** this Support/Defender-style contribution is scoped to the owner (and Attacker.\* still needs damage-dealer). Used for interaction self-scoping when this row is a **modifier**.                                                                                                                        |
+| `source_type`                  | Leaf type (`command card` / `exalt` / `rouse` / `talent` / `buff`). Used as **subject context** when this ATM is the interaction subject so `buff_target_type_restriction` (on TDI or modifier manifestations) can match. `buff` is admin-assigned only (not Kit Reader auto-mapped).                              |
+| `buff_target_type_restriction` | Gates modifier presence during interaction resolution against the subject's `source_type` (`leafContext`). When set (e.g. `exalt`), this buff modifier only applies to subjects with matching `source_type`.                                                                                                       |
+| Tag name `Attacker.*`          | Applied only if this awakener is marked **damage dealer** on the desire build (any `target_type`).                                                                                                                                                                                                                 |
 
 Posse rows skip some of these gates; **ATM does not**.
 
@@ -92,24 +92,24 @@ Posse rows skip some of these gates; **ATM does not**.
 
 ### 1.3 Identity / structure (little or no scalar formula)
 
-| Field | Role |
-| --- | --- |
-| `awakener_id` | Owner. |
-| `metadata` | Display / notes. Kit Reader naming: see [`docs/admin/kit-reader.md`](kit-reader.md) (`{sourceLabel} {effectLabel}[ E#]`). |
-| `replaces_manifestation_id` | This row replaces another ATM on the same awakener when resolving the loadout. |
-| `is_accumulating` | Loaded / debug; not a scalar multiplier in the interaction engine. Kit Reader sets this for every-turn kit text (“at turn start” / “at turn end”). |
-| `is_permanent` | Data flag; not a Path Carver scalar formula input. |
+| Field                       | Role                                                                                                                                               |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `awakener_id`               | Owner.                                                                                                                                             |
+| `metadata`                  | Display / notes. Kit Reader naming: see [`docs/admin/kit-reader.md`](kit-reader.md) (`{sourceLabel} {effectLabel}[ E#]`).                          |
+| `replaces_manifestation_id` | This row replaces another ATM on the same awakener when resolving the loadout.                                                                     |
+| `is_accumulating`           | Loaded / debug; not a scalar multiplier in the interaction engine. Kit Reader sets this for every-turn kit text (“at turn start” / “at turn end”). |
+| `is_permanent`              | Data flag; not a Path Carver scalar formula input.                                                                                                 |
 
 ---
 
 ### 1.4 ATM quick examples
 
-| Intent | Typical inputs |
-| --- | --- |
-| Flat +20% STR Up | `tag` = Support.STR Up, `value_scalar` = 0.2, `dependency_stat` = null (if tag is percent) |
-| ATK × 1.5 as damage base | `value_scalar` = 1.5, `dependency_stat` = `atk` |
-| Only when Death Resist When fires | set `trigger_condition` to that When tag |
-| Self-only Shield | `tag` = Defender.Shield…, `target_type` = `self` |
+| Intent                            | Typical inputs                                                                             |
+| --------------------------------- | ------------------------------------------------------------------------------------------ |
+| Flat +20% STR Up                  | `tag` = Support.STR Up, `value_scalar` = 0.2, `dependency_stat` = null (if tag is percent) |
+| ATK × 1.5 as damage base          | `value_scalar` = 1.5, `dependency_stat` = `atk`                                            |
+| Only when Death Resist When fires | set `trigger_condition` to that When tag                                                   |
+| Self-only Shield                  | `tag` = Defender.Shield…, `target_type` = `self`                                           |
 
 ---
 
@@ -117,17 +117,17 @@ Posse rows skip some of these gates; **ATM does not**.
 
 Some awakeners (e.g. Faros) grant tiered **`Support.Damage AMP`** from **other** Lemurians on the team. Path Carver uses a **Cause marker + three mutually exclusive When gates** — not one flat row, not linear `trigger × N`.
 
-| Team Lemurians | Others (count − 1) | Active When | AMP per Lemurian |
-| --- | --- | --- | --- |
-| 1 alone | 0 | none | 0 |
-| 2 | 1 | `Special.When.Lemurian Synergy 1` | +20% (`0.2`) |
-| 3 | 2 | `Special.When.Lemurian Synergy 2` | +50% (`0.5`) |
-| 4+ | 3+ | `Special.When.Lemurian Synergy 3` | +100% (`1.0`) |
+| Team Lemurians | Others (count − 1) | Active When                       | AMP per Lemurian |
+| -------------- | ------------------ | --------------------------------- | ---------------- |
+| 1 alone        | 0                  | none                              | 0                |
+| 2              | 1                  | `Special.When.Lemurian Synergy 1` | +20% (`0.2`)     |
+| 3              | 2                  | `Special.When.Lemurian Synergy 2` | +50% (`0.5`)     |
+| 4+             | 3+                 | `Special.When.Lemurian Synergy 3` | +100% (`1.0`)    |
 
 **Data (four ATM rows per Lemurian awakener):**
 
 1. `Special.Cause.Lemurian` — `value_scalar = 1`, `trigger_condition` null, `is_permanent = true` (membership marker).
-2–4. `Support.Damage AMP` — `target_type = aoe`, each with a different `trigger_condition` (`Synergy 1` / `2` / `3`) and tier scalar (`0.2` / `0.5` / `1.0`).
+   2–4. `Support.Damage AMP` — `target_type = aoe`, each with a different `trigger_condition` (`Synergy 1` / `2` / `3`) and tier scalar (`0.2` / `0.5` / `1.0`).
 
 Engine: [`lemurian-synergy.ts`](../../src/lib/path-carver/lemurian-synergy.ts) sets **exactly one** tier When count to `1` before Pass 2 (gate only — tier value is in `value_scalar`). These When tags are **not** in the linear `CAUSE_TO_WHEN` map.
 
@@ -141,11 +141,11 @@ Child of an ATM (or standalone admin table). **Parent ATM** = attachment point.
 
 Three **modes** (no separate “override” mode):
 
-| Mode | Attachment meaning | Tag columns |
-| --- | --- | --- |
-| **`unique_scaling`** | Row on the **target** ATM (e.g. Active Damage / Shield). Scales **that** manifestation from a team pool or base stat. | `modifier_tag_id` = tag modifier **or null** (null ⇒ `dependency_stat` required — base-stat); `target_tag_id` **null** |
-| **`aftereffect`** | Row on the **source** ATM (e.g. Active Damage). After that subject finishes, emit into another tag. | `target_tag_id` required; `modifier_tag_id` **null** |
-| **`direct_modifier`** | Row on the **target** ATM (e.g. Active Damage). Self-contained local buff (e.g. Enhance, Crit DMG) that applies only to this manifestation. | `modifier_tag_id` optional (semantic tag for layer/label); `target_tag_id` **null** |
+| Mode                  | Attachment meaning                                                                                                                          | Tag columns                                                                                                            |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| **`unique_scaling`**  | Row on the **target** ATM (e.g. Active Damage / Shield). Scales **that** manifestation from a team pool or base stat.                       | `modifier_tag_id` = tag modifier **or null** (null ⇒ `dependency_stat` required — base-stat); `target_tag_id` **null** |
+| **`aftereffect`**     | Row on the **source** ATM (e.g. Active Damage). After that subject finishes, emit into another tag.                                         | `target_tag_id` required; `modifier_tag_id` **null**                                                                   |
+| **`direct_modifier`** | Row on the **target** ATM (e.g. Active Damage). Self-contained local buff (e.g. Enhance, Crit DMG) that applies only to this manifestation. | `modifier_tag_id` optional (semantic tag for layer/label); `target_tag_id` **null**                                    |
 
 Admin shows **one** tag dropdown; label swaps (“Modifier Tag” vs “Target Tag”). Mode switch moves the selected id into the active column and nulls the other. For unique_scaling you may clear Modifier Tag and set **Dependency Stat** instead (base-stat invent).
 
@@ -159,25 +159,25 @@ Admin shows **one** tag dropdown; label swaps (“Modifier Tag” vs “Target T
 
 Always becomes a **factor** (not the finished subject value).
 
-| Path | How factor is built |
-| --- | --- |
-| Tag-mod unique_scaling / aftereffect | Scaled by local `dependency_stat` against the **parent ATM’s awakener** when set (`effectiveOverrideFactor` / same family as ATM) |
+| Path                                                  | How factor is built                                                                                                                         |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| Tag-mod unique_scaling / aftereffect                  | Scaled by local `dependency_stat` against the **parent ATM’s awakener** when set (`effectiveOverrideFactor` / same family as ATM)           |
 | **Base-stat unique_scaling** (null `modifier_tag_id`) | **Raw** `value_scalar` — do **not** dep-scale the factor again. Admin shows **Value Scalar (%)** (e.g. enter `0.5` for 0.5%; store `0.005`) |
 
-| Mode | Default `value_scalar` |
-| --- | --- |
-| `unique_scaling` | **1** |
-| `aftereffect` | **1** |
+| Mode             | Default `value_scalar` |
+| ---------------- | ---------------------- |
+| `unique_scaling` | **1**                  |
+| `aftereffect`    | **1**                  |
 
 #### `dependency_stat`
 
 Dual meaning for unique_scaling:
 
-| Case | Role of `dependency_stat` |
-| --- | --- |
-| Tag modifier (`modifier_tag_id` set) | Optional — scales **`value_scalar` → factor** only |
-| Base-stat (`modifier_tag_id` null) | **Required** — **is** the modifier (awakener stat → `modifierValue`). Percent-like deps (`damage_amp`, `crit_rate`, `crit_dmg`, `sigil_yield`, `death_resist`) use **percentage points** (`stat × 100`) |
-| Aftereffect | Optional — scales factor only. Does **not** multiply finished(S) again |
+| Case                                 | Role of `dependency_stat`                                                                                                                                                                               |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Tag modifier (`modifier_tag_id` set) | Optional — scales **`value_scalar` → factor** only                                                                                                                                                      |
+| Base-stat (`modifier_tag_id` null)   | **Required** — **is** the modifier (awakener stat → `modifierValue`). Percent-like deps (`damage_amp`, `crit_rate`, `crit_dmg`, `sigil_yield`, `death_resist`) use **percentage points** (`stat × 100`) |
+| Aftereffect                          | Optional — scales factor only. Does **not** multiply finished(S) again                                                                                                                                  |
 
 Do not leave unique_scaling with both Modifier Tag and Dependency Stat empty.
 
@@ -185,10 +185,10 @@ Do not leave unique_scaling with both Modifier Tag and Dependency Stat empty.
 
 Required (not null). Meaning depends on mode:
 
-| Mode | Default | Values |
-| --- | --- | --- |
+| Mode             | Default    | Values                                                                                                                                    |
+| ---------------- | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
 | `unique_scaling` | **`self`** | Use **`self` only**. Path Carver scopes the op to the attached ATM (owner + tag); `aoe` / `single` on the local row have no effect today. |
-| `aftereffect` | **`aoe`** | `aoe` / `single` / `self` — stamps the synthetic’s `targetType` for later reads; write owner stays the source ATM’s owner. |
+| `aftereffect`    | **`aoe`**  | `aoe` / `single` / `self` — stamps the synthetic’s `targetType` for later reads; write owner stays the source ATM’s owner.                |
 
 Admin shows a soft warning when `unique_scaling` has `target_type` other than `self`.
 
@@ -196,17 +196,17 @@ Admin shows a soft warning when `unique_scaling` has `target_type` other than `s
 
 `pre_add` | `add` | `post_add`.
 
-| Mode | Meaning |
-| --- | --- |
+| Mode             | Meaning                                                                                                                                                                                                                                                                |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `unique_scaling` | **When** on the **target** subject path this link fires. **Local wins** over the modifier tag’s `tag.layer`. Null + tag mod → modifier tag layer; null + base-stat → **`add`**. Does **not** grow the modifier; it only reads Mod’s current total when that band runs. |
-| `aftereffect` | Order among **this subject’s** aftereffect siblings after source `post_add` (`pre_add` → `add` → `post_add`). |
+| `aftereffect`    | Order among **this subject’s** aftereffect siblings after source `post_add` (`pre_add` → `add` → `post_add`).                                                                                                                                                          |
 
 #### `is_disabled`
 
-| Situation | Effect |
-| --- | --- |
+| Situation                                            | Effect                                        |
+| ---------------------------------------------------- | --------------------------------------------- |
 | Matching `tag_default_interaction` exists + disabled | Cut that link for **this** manifestation only |
-| No matching default + disabled | No-op |
+| No matching default + disabled                       | No-op                                         |
 
 Admin (ATM nested + standalone Local Interactions): while Disabled is checked, **Layer**, **Math Operation**, **Value Scalar**, and **Target Type** are hidden. Stored values are left alone and ignored by the engine; they reappear unchanged when Disabled is unchecked.
 
@@ -233,16 +233,18 @@ See per-mode sections. Defaults differ by mode.
 
 Let:
 
-- `before` = this ATM tag’s current value in the pass band  
-- `modifierValue` = combined modifier tag total **or** awakener dep (base-stat)  
+- `before` = this ATM tag’s current value in the pass band
+- `modifierValue` = combined modifier tag total **or** awakener dep (base-stat)
 - `factor` = effective local `value_scalar` (tag-mod may dep-scale; base-stat raw)
 
-| `math_operation` | Result on target |
-| --- | --- |
-| `multiply_one_plus` (**default**) | Non-%: `before × (1 + modifierValue × factor)` · %-tag: `(1+before)×(1+modifierValue×factor)−1` |
-| `add_scaled` | `before + modifierValue × factor` |
-| `multiply` | Non-%: `before × (modifierValue × factor)` · %-tag: `(1+before)×(modifierValue×factor)−1` |
-| `presence_multiply` | If modifier present: `before × factor` (once per modifier/target) |
+| `math_operation`                                  | Result on target                                                                                |
+| ------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `multiply_one_plus` (**default for general mod**) | Non-%: `before × (1 + modifierValue × factor)` · %-tag: `(1+before)×(1+modifierValue×factor)−1` |
+| `add_scaled` (**default for additive mod**)       | `before + modifierValue × factor`                                                               |
+| `multiply`                                        | Non-%: `before × (modifierValue × factor)` · %-tag: `(1+before)×(modifierValue×factor)−1`       |
+| `presence_multiply`                               | If modifier present: `before × factor` (once per modifier/target)                               |
+
+**`math_operation` matching & soft warning:** When overriding a `tag_default_interaction` (e.g. `Support.STR Up` or `Support.Strike Damage Up`), `math_operation` should generally match the default interaction's operation (`add_scaled`). The Admin form automatically pre-fills matching operations from `tag_default_interaction` and displays a soft warning if a `unique_scaling` local changes `math_operation` away from the matching default interaction.
 
 Kit Reader: kit text with **enjoy / enjoys / enjoying** usually means `unique_scaling` on the subject ATM (modifier tag root, not `.Fixed`). Enjoy followed by **Tentacle DMG** attaches **two** `add_scaled` locals (`Support.Tentacle Damage Up` and `Support.Unique Tentacle Damage Up`). See [`docs/admin/kit-reader.md`](kit-reader.md).
 
@@ -268,12 +270,12 @@ Disabled aftereffect rows are skipped (and do not enter the look-ahead closure).
 
 **Ops (finishedOnce ↔ factor only):**
 
-| `math_operation` | `contribution` | In aftereffect dropdown? |
-| --- | --- | --- |
-| `multiply` (**default**) | `finishedOnce × factor` | yes |
-| `add_scaled` | `finishedOnce + factor` | yes |
-| `multiply_one_plus` | — | **no** |
-| `presence_multiply` | — | **no** |
+| `math_operation`         | `contribution`          | In aftereffect dropdown? |
+| ------------------------ | ----------------------- | ------------------------ |
+| `multiply` (**default**) | `finishedOnce × factor` | yes                      |
+| `add_scaled`             | `finishedOnce + factor` | yes                      |
+| `multiply_one_plus`      | —                       | **no**                   |
+| `presence_multiply`      | —                       | **no**                   |
 
 Then:
 
@@ -318,14 +320,14 @@ if op == "multiply_one_plus":
 
 ## 3. Side-by-side cheat sheet
 
-| | ATM | Local `unique_scaling` | Local `aftereffect` | Local `direct_modifier` |
-| --- | --- | --- | --- | --- |
-| Main number | Base for this tag | **Factor** on Mod→this ATM | **Factor** with finished(S) | **Direct bonus** on this ATM |
-| Other operand | awakener stat (if dep set) | Modifier tag total **or** awakener dep (null mod) | Finished source value | Fixed `1` (or awakener dep if set) |
-| Op uses target `before`? | n/a (is the base) | **Yes** | **No** (merge via `is_additive`) | **Yes** |
-| Default op | n/a | `multiply_one_plus` | `multiply` | `multiply_one_plus` |
-| `layer` | n/a (tag has its own) | When on **target** path | Order among aftereffects | When on **target** path |
-| Typical kits | Damage / Shield ATM bases | Shield→Damage invent/patch; sigil→Shield base-stat | Damage→**Bleed** emit | Card-specific Enhance / Crit DMG (e.g. Helot AA) |
+|                          | ATM                        | Local `unique_scaling`                             | Local `aftereffect`              | Local `direct_modifier`                          |
+| ------------------------ | -------------------------- | -------------------------------------------------- | -------------------------------- | ------------------------------------------------ |
+| Main number              | Base for this tag          | **Factor** on Mod→this ATM                         | **Factor** with finished(S)      | **Direct bonus** on this ATM                     |
+| Other operand            | awakener stat (if dep set) | Modifier tag total **or** awakener dep (null mod)  | Finished source value            | Fixed `1` (or awakener dep if set)               |
+| Op uses target `before`? | n/a (is the base)          | **Yes**                                            | **No** (merge via `is_additive`) | **Yes**                                          |
+| Default op               | n/a                        | `multiply_one_plus`                                | `multiply`                       | `multiply_one_plus`                              |
+| `layer`                  | n/a (tag has its own)      | When on **target** path                            | Order among aftereffects         | When on **target** path                          |
+| Typical kits             | Damage / Shield ATM bases  | Shield→Damage invent/patch; sigil→Shield base-stat | Damage→**Bleed** emit            | Card-specific Enhance / Crit DMG (e.g. Helot AA) |
 
 ---
 

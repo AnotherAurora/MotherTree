@@ -30,6 +30,7 @@ const tags = [
     is_percent: true,
     is_additive: true,
     is_searchable: true,
+    is_search_simulated: false,
   },
   {
     id: 4,
@@ -38,6 +39,7 @@ const tags = [
     is_percent: false,
     is_additive: true,
     is_searchable: true,
+    is_search_simulated: false,
   },
 ] as PublicRow<"tag">[];
 
@@ -98,9 +100,7 @@ const local = {
 } as PublicRow<"awakener_local_manifestation_interaction">;
 
 const empty = {
-  realms: [
-    { id: 1, name: "chaos", replace: null },
-  ] as PublicRow<"realm">[],
+  realms: [{ id: 1, name: "chaos", replace: null }] as PublicRow<"realm">[],
   wheels: [] as PublicRow<"wheel">[],
   posses: [] as PublicRow<"posse">[],
   covenants: [] as PublicRow<"covenant">[],
@@ -127,8 +127,14 @@ assert(atmRow, "ATM row missing");
 assert(aeRow, "aftereffect row missing");
 assert(atmRow.value === 3, `ATM value expected 3 got ${atmRow.value}`);
 // contrib = 1.5 * 0.5 = 0.75; × 2 = 1.5 → ceil to 2dp = 1.5 (percent Crit Rate)
-assert(aeRow.value === 1.5, `aftereffect value expected 1.5 got ${aeRow.value}`);
-assert(aeRow.tag.includes("Crit Rate"), `aftereffect tag expected Crit Rate got ${aeRow.tag}`);
+assert(
+  aeRow.value === 1.5,
+  `aftereffect value expected 1.5 got ${aeRow.value}`,
+);
+assert(
+  aeRow.tag.includes("Crit Rate"),
+  `aftereffect tag expected Crit Rate got ${aeRow.tag}`,
+);
 assert(
   aeRow.metadata === "Draw notes",
   `aftereffect metadata expected trimmed ATM notes got ${JSON.stringify(aeRow.metadata)}`,
@@ -167,7 +173,12 @@ const uniqueScalingIgnored = buildSearchResults({
   awakeners,
   awakenerManifestations: [atm],
   awakenerLocalInteractions: [
-    { ...local, mode: "unique_scaling", target_tag_id: null, modifier_tag_id: 3 },
+    {
+      ...local,
+      mode: "unique_scaling",
+      target_tag_id: null,
+      modifier_tag_id: 3,
+    },
   ],
   ...empty,
 });

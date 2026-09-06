@@ -45,3 +45,7 @@ next-env.d.ts
 # Kit Reader working files (export + Agent proposals)
 /sample-data/kit-reader/*
 !/sample-data/kit-reader/README.md
+
+# Gear Audit working files (SKeyDB slices + Agent findings)
+/sample-data/gear-audit/*
+!/sample-data/gear-audit/README.md

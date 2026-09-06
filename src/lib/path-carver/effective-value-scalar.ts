@@ -19,8 +19,12 @@ const PERCENT_DEPENDENCY_STATS = new Set<AllStats>([
   "death_resist",
 ]);
 
-/** Keep raw value_scalar; do not scale (even when teamMaxHp context exists). */
-const ALWAYS_IGNORED_DEPENDENCY_STATS = new Set<AllStats>(["enemy_max_hp"]);
+/**
+ * Realm multiply-only rows with these dependency_stat values stay raw × scalarMult
+ * (enemy max HP is not a resolvable realm base). Not used on the ATM/covenant/
+ * wheel/override path — see scaleValueScalar's enemy_max_hp branch.
+ */
+const REALM_IGNORED_DEPENDENCY_STATS = new Set<AllStats>(["enemy_max_hp"]);
 
 /**
  * Options for effective scalar resolution.
@@ -111,9 +115,7 @@ export function ceilRealmMastery(realmMastery: number): number {
   return Math.ceil(realmMastery);
 }
 
-export function sumTeamRealmMastery(
-  awakeners: Iterable<Awakener>,
-): number {
+export function sumTeamRealmMastery(awakeners: Iterable<Awakener>): number {
   let sum = 0;
   for (const a of awakeners) {
     sum += ceilRealmMastery(a.realmMastery ?? 0);
@@ -121,10 +123,7 @@ export function sumTeamRealmMastery(
   return sum;
 }
 
-function teamStatTotal(
-  awakeners: Iterable<Awakener>,
-  stat: AllStats,
-): number {
+function teamStatTotal(awakeners: Iterable<Awakener>, stat: AllStats): number {
   if (stat === "team_max_hp" || stat === "enemy_max_hp") return 0;
   let sum = 0;
   for (const a of awakeners) {
@@ -161,8 +160,7 @@ export function scaleRealmValueScalar(
   const scalarMult = pureMult(m.pureBonusTarget, "value_scalar", isPure);
   const rateMult = pureMult(m.pureBonusTarget, "dependency_rate", isPure);
 
-  const hasRatePair =
-    m.dependencyRate != null && m.dependencyRateStat != null;
+  const hasRatePair = m.dependencyRate != null && m.dependencyRateStat != null;
 
   let effective: number;
 
@@ -191,7 +189,7 @@ export function scaleRealmValueScalar(
     effective = ceilAfterDependencyScale(rawProduct, tagIsPercent);
   } else if (m.dependencyStat != null) {
     // Multiply-only
-    if (ALWAYS_IGNORED_DEPENDENCY_STATS.has(m.dependencyStat)) {
+    if (REALM_IGNORED_DEPENDENCY_STATS.has(m.dependencyStat)) {
       effective = raw * scalarMult;
     } else {
       const baseStat = resolveRealmBaseStat(
@@ -231,7 +229,10 @@ function resolveRealmBaseStat(
   if (stat === "enemy_max_hp") return 0;
   if (stat === "team_max_hp") return options.teamMaxHp ?? 0;
   if (stat === "realm_mastery") {
-    return options.realmMasteryTotal ?? teamStatTotal(awakenersById.values(), "realm_mastery");
+    return (
+      options.realmMasteryTotal ??
+      teamStatTotal(awakenersById.values(), "realm_mastery")
+    );
   }
   return teamStatTotal(awakenersById.values(), stat);
 }
@@ -247,9 +248,9 @@ function resolveRealmRateStat(
 /**
  * Phase 2b Part A — resolve effective value_scalar via dependency_stat.
  *
- * - posse: always raw (ignore dependency_stat)
+ * - posse: raw unless dependency_stat=team_max_hp (same team_max_hp branch as other gear)
  * - realm: flat / multiply / rate-scaled + pure + combo (see scaleRealmValueScalar)
- * - enemy_max_hp: raw
+ * - enemy_max_hp: raw value percent-ceiled to 2 dp (no ×stat scaling; % of enemy max HP)
  * - team_max_hp: raw when teamMaxHp context missing; else raw × teamMaxHp
  * - null dependency_stat: raw
  * - null awakener stat: treat as 0
@@ -267,9 +268,15 @@ export function scaleValueScalar(
   teamMaxHp?: number | null,
 ): number {
   if (raw == null) return 0;
-  if (sourceKind === "posse") return raw;
   if (dependencyStat == null) return raw;
-  if (ALWAYS_IGNORED_DEPENDENCY_STATS.has(dependencyStat)) return raw;
+  if (sourceKind === "posse" && dependencyStat !== "team_max_hp") return raw;
+  if (dependencyStat === "enemy_max_hp") {
+    // No enemy context to scale against, but value_scalar is a %-of-enemy-max-HP
+    // fraction (Fixed Damage / Corrosion = "% of enemy's max HP"). Always ceil at
+    // percent precision (2 dp) — mimics tag.is_percent=true even when is_percent
+    // is false on the tag.
+    return ceilAfterDependencyScale(raw, true);
+  }
 
   if (dependencyStat === "team_max_hp") {
     if (teamMaxHp == null) return raw;

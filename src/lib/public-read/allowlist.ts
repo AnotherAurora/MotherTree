@@ -15,6 +15,7 @@ export const PUBLIC_READ_TABLES = [
   "wheel_tag_manifestation",
   "tag",
   "tag_default_interaction",
+  "copy_provider_group_member",
 ] as const;
 
 export type PublicReadTable = (typeof PUBLIC_READ_TABLES)[number];
@@ -151,7 +152,15 @@ export const PUBLIC_TABLE_COLUMNS = {
     "trigger_condition",
     "required_realm",
   ],
-  tag: ["id", "tag_name", "layer", "is_percent", "is_additive", "is_searchable"],
+  tag: [
+    "id",
+    "tag_name",
+    "layer",
+    "is_percent",
+    "is_additive",
+    "is_searchable",
+    "is_search_simulated",
+  ],
   tag_default_interaction: [
     "id",
     "modifier_tag_id",
@@ -163,6 +172,7 @@ export const PUBLIC_TABLE_COLUMNS = {
     "creates_base",
     "amplifies_subject",
   ],
+  copy_provider_group_member: ["id", "group_id", "tag_id"],
 } as const satisfies {
   [K in PublicReadTable]: readonly (keyof PublicRow<K> & string)[];
 };

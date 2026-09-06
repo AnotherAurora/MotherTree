@@ -23,6 +23,11 @@ import {
   TENTACLE_TDU_FAMILY_POOL_LABEL,
 } from "@/lib/path-carver/hit-tentacle-attack";
 import {
+  applyBirthRitualSacrificeConversion,
+  SPECIAL_BIRTH_RITUAL_TAG_ID,
+} from "@/lib/path-carver/birth-ritual-sacrifice";
+import { applyAllTentacleAttackHop } from "@/lib/path-carver/all-tentacle-attack";
+import {
   computeTentacleCritDamage,
   computeTentacleCritRate,
   formatTentacleCritDetail,
@@ -277,6 +282,31 @@ function ownerKeyFor(m: Manifestation): OwnerKey {
   if (m.sourceKind === "realm") return REALM_OWNER;
   if (m.awakenerId != null) return `awakener:${m.awakenerId}`;
   return `orphan:${m.sourceKind}:${m.id}`;
+}
+
+/**
+ * A target_type=self Birth Ritual subject is scoped to its owning awakener.
+ * Only rows that resolve to an awakener qualify — posse / realm (awakenersId
+ * null) are always treated as team scope, even if labeled self.
+ */
+function isSelfBirthRitualSubject(m: Manifestation): boolean {
+  return (
+    m.tagId === SPECIAL_BIRTH_RITUAL_TAG_ID &&
+    m.targetType === "self" &&
+    m.awakenerId != null
+  );
+}
+
+/** Accumulate a finished self Birth Ritual amount into the owner's self bucket. */
+function recordBirthRitualSelf(
+  totals: Map<OwnerKey, number>,
+  subject: Manifestation,
+  owner: OwnerKey,
+  amount: number,
+): void {
+  if (amount === 0 || !isSelfBirthRitualSubject(subject)) return;
+  const current = totals.get(owner) ?? 0;
+  totals.set(owner, current + amount);
 }
 
 function sourceLabelFor(
@@ -1118,7 +1148,11 @@ function hasMatchingDefaultForUniqueScaling(
 function baseStatUniqueScalingModifierValue(
   awakener: Awakener | null,
   dependencyStat: NonNullable<AwakenerLocalManifestationInteraction["dependencyStat"]>,
+  teamMaxHp?: number | null,
 ): number {
+  if (dependencyStat === "team_max_hp") {
+    return teamMaxHp ?? 0;
+  }
   const raw =
     awakener != null
       ? (awakenerStatForDependency(awakener, dependencyStat) ?? 0)
@@ -1937,6 +1971,7 @@ function applyUniqueScalingInvents(
           modValue = baseStatUniqueScalingModifierValue(
             ownerAwakener,
             local.dependencyStat,
+            teamMaxHp,
           );
         }
 
@@ -1976,6 +2011,7 @@ function applyUniqueScalingInvents(
         const modValue = baseStatUniqueScalingModifierValue(
           ownerAwakener,
           local.dependencyStat,
+          teamMaxHp,
         );
         const factor = local.valueScalar ?? 1;
         const op = local.mathOperation ?? "multiply_one_plus";
@@ -2358,6 +2394,9 @@ function collectAmplifyTargetIds(
  * 4b. Deferred thin create (combined stack, *team* OK).
  * 4c. Deferred thin amplify on created synthetics (Trigger → Damage;
  *    leafContext = synthetic sourceType null). Not a subject loop.
+ * 4f. Special.All Tentacle Attack: team Generate Temporary + Permanent pool
+ *    × holder multiplier → Attacker.Tentacle on holder owner (target_type
+ *    inherited from Special ATM). Runs after deferred hops, before 4d.
  * 4d. Tentacle TDU pool: default Attacker.Tentacle (RTM, Generate) ×
  *    (Unique TDU + TDU + TDU.Fixed) from finalized owner totals; Hit channels
  *    ceil(hits×factor×pool) separately (realm Hit summed; each non-realm Hit
@@ -2475,6 +2514,8 @@ export function applyInteractions(
   }
 
   const mergedOwnerValues: OwnerTotals = new Map();
+  /** target_type=self Birth Ritual finished amounts by owner (hop 4e input). */
+  const birthRitualSelfByOwner = new Map<OwnerKey, number>();
   const opSteps: ScalarMathStep[] = [];
   const aftereffectSteps: ScalarMathStep[] = [];
   const createdSynthetics: Manifestation[] = [];
@@ -2669,6 +2710,12 @@ export function applyInteractions(
             subject.tagId,
             scalar * hitCount,
           );
+          recordBirthRitualSelf(
+            birthRitualSelfByOwner,
+            subject,
+            owner,
+            scalar * hitCount,
+          );
           pushHitCountStep(scalar);
         }
         continue;
@@ -2734,6 +2781,12 @@ export function applyInteractions(
           owner,
           tag,
           subject.tagId,
+          finishedOnce * hitCount,
+        );
+        recordBirthRitualSelf(
+          birthRitualSelfByOwner,
+          subject,
+          owner,
           finishedOnce * hitCount,
         );
         pushHitCountStep(finishedOnce);
@@ -2937,6 +2990,18 @@ export function applyInteractions(
     }
   }
 
+  const { steps: allTentacleAttackSteps, synthetics: allTentacleAttackSynthetics } =
+    applyAllTentacleAttackHop({
+      ownerValues: mergedOwnerValues,
+      appliedManifestations: applied,
+      tagsById: input.tagsById,
+      awakenersById,
+      awakenerNamesById: input.awakenerNamesById,
+      teamMaxHp: input.teamMaxHp,
+      realmMasteryTotal: input.realmMasteryTotal,
+      teamRealms: input.teamRealms,
+    });
+
   const hitTentacleSteps: ScalarMathStep[] = [];
   const hitSynthetics = buildHitTentacleSynthetics(
     applied,
@@ -2977,6 +3042,7 @@ export function applyInteractions(
       ...applied,
       ...createdSynthetics,
       ...deferredSynthetics,
+      ...allTentacleAttackSynthetics,
     ];
     const tentacleCritInput = {
       awakeners: [...awakenersById.values()],
@@ -3408,8 +3474,16 @@ export function applyInteractions(
     ...opSteps,
     ...aftereffectSteps,
     ...hitCountSteps,
+    ...allTentacleAttackSteps,
     ...hitTentacleSteps,
   );
+
+  const { steps: birthRitualSteps } = applyBirthRitualSacrificeConversion({
+    ownerValues: mergedOwnerValues,
+    selfByOwner: birthRitualSelfByOwner,
+    tagsById: input.tagsById,
+  });
+  steps.push(...birthRitualSteps);
 
   const totalsByTagId = sumOwnerTotalsToTagMap(
     mergedOwnerValues,

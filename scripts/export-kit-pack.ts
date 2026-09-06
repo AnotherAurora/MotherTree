@@ -5,7 +5,7 @@
  *   npx tsx --env-file=.env.local scripts/export-kit-pack.ts --id 5
  *   npx tsx --env-file=.env.local scripts/export-kit-pack.ts --name Aurita
  *
- * Prefer the admin Kit Reader UI for export + Cursor prompt. This CLI is optional.
+ * Prefer the admin Kit Reader UI for export + agent prompt. This CLI is optional.
  */
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { resolve } from "node:path";
@@ -93,7 +93,7 @@ async function main() {
   });
 
   console.log(`Wrote ${relativePath}`);
-  console.log("--- Cursor prompt ---");
+  console.log("--- Agent prompt ---");
   console.log(prompt);
 }
 
