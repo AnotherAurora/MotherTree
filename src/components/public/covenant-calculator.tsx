@@ -86,7 +86,11 @@ function readStored(): PieceState[] | null {
       const item = parsed[slotIndex];
       if (typeof item !== "object" || item === null) return null;
       const record = item as Record<string, unknown>;
-      if (!("mainStat" in record) || !("bonded" in record) || !("subs" in record)) {
+      if (
+        !("mainStat" in record) ||
+        !("bonded" in record) ||
+        !("subs" in record)
+      ) {
         return null;
       }
       if (typeof record.bonded !== "boolean") return null;
@@ -95,10 +99,7 @@ function readStored(): PieceState[] | null {
       }
 
       let mainStat = parseStat(record.mainStat);
-      if (
-        mainStat != null &&
-        !isMainStatAllowedForSlot(slotIndex, mainStat)
-      ) {
+      if (mainStat != null && !isMainStatAllowedForSlot(slotIndex, mainStat)) {
         mainStat = null;
       }
 
@@ -138,10 +139,7 @@ const fieldLabelClassName = "shrink-0 text-sm text-[var(--mt-ink-muted)]";
 
 const headingClass =
   "font-[family-name:var(--font-mother-display)] text-4xl font-semibold tracking-tight text-[var(--mt-ink)]";
-function formatRowValue(
-  stat: CovenantStatId | null,
-  value: number,
-): string {
+function formatRowValue(stat: CovenantStatId | null, value: number): string {
   if (stat == null) return "—";
   return formatCovenantStatValue(stat, value);
 }
