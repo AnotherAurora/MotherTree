@@ -92,7 +92,8 @@ export function buildKitReaderReviewPrompt(input: ReviewPromptInput): string {
   return `${input.awakenerName} — Kit Reader review edit (surgical).
 
 Use the MotherTree Kit Reader Review skill. If the skill is not auto-loaded, read .github/skills/kit-reader-review/SKILL.md and follow it.
-Do NOT read ${packPath} or other awakener kit/proposal files.
+Kit pack (read only if you need source text/values to resolve the requested edits): ${packPath}
+Do NOT read other awakener kit/proposal files in sample-data/kit-reader/.
 Do NOT regenerate or re-insert all pending rows.
 Do NOT touch any records except those explicitly specified below.
 

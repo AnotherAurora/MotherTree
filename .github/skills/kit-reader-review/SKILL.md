@@ -12,7 +12,7 @@ Use this skill for **surgical adjustments** to existing pending ATMs after the i
 
 ## Locked rules
 
-- **Do NOT read the full kit pack** (`{slug}.kit.json`) or other proposal files. Work strictly from the user's prompt, targeted database rows, and the specified `{slug}.proposal.json`.
+- **Read only the target awakener's kit pack** (`{slug}.kit.json`) **when the requested edit needs source text or values** to resolve fields (e.g. a new row's `valueScalar` / `dependencyStat`). Do **not** read other awakener `.kit.json` / `.proposal.json` files in `sample-data/kit-reader/` as reference examples. Work from the user's prompt, the target kit pack (as needed), targeted database rows, and the specified `{slug}.proposal.json`.
 - **Do NOT run full `insert-kit-pending.ts`** unless the user explicitly requests a full re-insert.
 - **Touch ONLY the records specified** in the prompt or review instructions. Never modify, wipe, or regenerate unmentioned records.
 - Preserve all existing fields on touched records unless explicitly asked to change them.
@@ -31,8 +31,9 @@ Use this skill for **surgical adjustments** to existing pending ATMs after the i
 
 All paths below are repo-root-relative — read each from the workspace root.
 
-1. `src/lib/kit-reader/proposal-schema.ts` — proposal types and schema definitions
-2. `docs/admin/kit-reader.md` — operator review workflow
+1. The target awakener's kit pack path from the prompt (usually `sample-data/kit-reader/{slug}.kit.json`) — consult only when the requested edit needs source text/values
+2. `src/lib/kit-reader/proposal-schema.ts` — proposal types and schema definitions
+3. `docs/admin/kit-reader.md` — operator review workflow
 
 ## Typical workflow
 

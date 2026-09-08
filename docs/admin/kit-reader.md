@@ -28,7 +28,7 @@ UI: `/kit-reader` (sidebar Tools). Export writes the repo file `sample-data/kit-
 4. Agent proposes + runs insert CLI (`verified=false` only) and reports only inserted counts, `needs_review` items, and ignored items (omits tables of inserted rows to save tokens). Never write ad-hoc patch scripts (`scripts/apply-*.ts`); use `insert-kit-pending.ts --patch`/`--append` or the UI.
 5. Back in Kit Reader:
    - **Simple tweaks:** use the inline editable cells or **Edit** dialog directly in `/kit-reader`.
-   - **Surgical edits / row copy:** click **Copy agent prompt** on a row, or select multiple rows and click **Copy review prompt (N selected)**, or use **Fill review prompt** for a blank template. Paste this into a **NEW Agent chat** (using the `kit-reader-review` skill) to keep context small and token-efficient.
+   - **Surgical edits / row copy:** click **Copy agent prompt** on a row, or select multiple rows and click **Copy review prompt (N selected)**, or use **Fill review prompt** for a blank template. Paste this into a **NEW Agent chat** (using the `kit-reader-review` skill) to keep context small and token-efficient. Review agents may read the **target awakener's** kit pack to resolve source text/values for the requested edits; other awakeners' kit/proposal files remain off-limits.
    - **Verify:** click **Verify** on individual rows or **Verify all** once verified.
 
 ```text

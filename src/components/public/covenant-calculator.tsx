@@ -52,6 +52,16 @@ function emptyPieces(): PieceState[] {
   return Array.from({ length: SLOT_COUNT }, emptyPiece);
 }
 
+function isPieceEmpty(piece: PieceState): boolean {
+  return (
+    piece.mainStat == null &&
+    !piece.bonded &&
+    piece.subs.every(
+      (sub) => sub.subStat == null && sub.level === SUB_STAT_LEVEL_MIN,
+    )
+  );
+}
+
 function parseLevel(value: unknown): number | null {
   if (typeof value !== "number" || !Number.isInteger(value)) return null;
   if (value < SUB_STAT_LEVEL_MIN || value > SUB_STAT_LEVEL_MAX) return null;
@@ -162,7 +172,18 @@ export function CovenantCalculator() {
     );
   }
 
+  function clearPiece(slotIndex: number) {
+    setPieces((prev) =>
+      prev.map((piece, i) => (i === slotIndex ? emptyPiece() : piece)),
+    );
+  }
+
+  function clearAll() {
+    setPieces(emptyPieces());
+  }
+
   const totals = sumContributions(pieces as CovenantPieceInput[]);
+  const allEmpty = pieces.every(isPieceEmpty);
 
   if (!hydrated) {
     return <CalculatorPendingHydration />;
@@ -170,17 +191,34 @@ export function CovenantCalculator() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-8 px-4 py-8 sm:px-6 sm:py-10">
-      <div>
-        <Link
-          href="/calculators"
-          className="inline-block text-sm font-medium text-[var(--mt-ember)] underline underline-offset-4 hover:text-[var(--mt-ember-deep)]"
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div className="min-w-0 flex-1">
+          <Link
+            href="/calculators"
+            className="inline-block text-sm font-medium text-[var(--mt-ember)] underline underline-offset-4 hover:text-[var(--mt-ember-deep)]"
+          >
+            ← Calculators
+          </Link>
+          <h1 className={cn(headingClass, "mt-4")}>Covenant</h1>
+          <p className="mt-3 max-w-2xl text-[var(--mt-ink-muted)]">
+            Main Stat and Sub Stat totals across six Covenant slots.
+          </p>
+        </div>
+        <button
+          type="button"
+          aria-disabled={allEmpty}
+          onClick={() => {
+            if (!allEmpty) clearAll();
+          }}
+          className={cn(
+            "shrink-0 self-start text-sm font-medium underline underline-offset-4",
+            allEmpty
+              ? "cursor-not-allowed text-[var(--mt-ink-muted)] no-underline opacity-50"
+              : "text-[var(--mt-ember)] hover:text-[var(--mt-ember-deep)]",
+          )}
         >
-          ← Calculators
-        </Link>
-        <h1 className={cn(headingClass, "mt-4")}>Covenant</h1>
-        <p className="mt-3 max-w-2xl text-[var(--mt-ink-muted)]">
-          Main Stat and Sub Stat totals across six Covenant slots.
-        </p>
+          Clear All
+        </button>
       </div>
 
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_16rem] lg:items-start">
@@ -191,6 +229,7 @@ export function CovenantCalculator() {
             const mainId = `${baseId}-slot${slotIndex}-main`;
             const bondId = `${baseId}-slot${slotIndex}-bond`;
             const mainValue = mainContribution(piece.mainStat, piece.bonded);
+            const pieceEmpty = isPieceEmpty(piece);
 
             return (
               <section
@@ -198,12 +237,30 @@ export function CovenantCalculator() {
                 className="space-y-3 border-b border-[var(--mt-border)] pb-6 last:border-b-0 last:pb-0"
                 aria-labelledby={`${baseId}-slot${slotIndex}-title`}
               >
-                <h2
-                  id={`${baseId}-slot${slotIndex}-title`}
-                  className="font-[family-name:var(--font-mother-display)] text-2xl font-semibold text-[var(--mt-ink)]"
-                >
-                  {roman}
-                </h2>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <h2
+                    id={`${baseId}-slot${slotIndex}-title`}
+                    className="font-[family-name:var(--font-mother-display)] text-2xl font-semibold text-[var(--mt-ink)]"
+                  >
+                    {roman}
+                  </h2>
+                  <button
+                    type="button"
+                    aria-label={`Clear section ${roman}`}
+                    aria-disabled={pieceEmpty}
+                    onClick={() => {
+                      if (!pieceEmpty) clearPiece(slotIndex);
+                    }}
+                    className={cn(
+                      "shrink-0 text-sm font-medium underline underline-offset-4",
+                      pieceEmpty
+                        ? "cursor-not-allowed text-[var(--mt-ink-muted)] no-underline opacity-50"
+                        : "text-[var(--mt-ember)] hover:text-[var(--mt-ember-deep)]",
+                    )}
+                  >
+                    Clear
+                  </button>
+                </div>
 
                 <div className="flex flex-wrap items-center gap-3">
                   <div className="flex items-center gap-2">
