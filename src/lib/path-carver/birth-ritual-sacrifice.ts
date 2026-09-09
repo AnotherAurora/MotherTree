@@ -11,6 +11,12 @@ export const ATTACKER_NON_ACTIVE_DAMAGE_SACRIFICE_TAG_ID = 50;
 /** 1 Birth Ritual point → 1% of the damage pool as Sacrifice. */
 export const SACRIFICE_RATE_PER_POINT = 0.01;
 
+/** Tag ids that must be present in TeamData.tagsById for Birth Ritual → Sacrifice math. */
+export const REQUIRED_BIRTH_RITUAL_TAG_IDS: readonly number[] = [
+  SPECIAL_BIRTH_RITUAL_TAG_ID,
+  ATTACKER_NON_ACTIVE_DAMAGE_SACRIFICE_TAG_ID,
+];
+
 const TEAM_POOL_OWNER = "*team*";
 
 const BIRTH_RITUAL_SACRIFICE_LABEL = "Special.Birth Ritual → Sacrifice";

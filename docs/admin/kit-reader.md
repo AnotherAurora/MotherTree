@@ -4,7 +4,7 @@ Propose-then-verify pipeline: export one awakener’s SKeyDB kit → paste an ag
 
 ## Agent skills
 
-The AI agent skills for this workflow live in `.github/skills/` (read by VS Code Copilot Agent, Claude Code, and Cursor):
+The AI agent skills for this workflow live in `.github/skills/`:
 
 - Propose + insert pending rows: `.github/skills/kit-reader/SKILL.md`
 - Surgical review edits: `.github/skills/kit-reader-review/SKILL.md`

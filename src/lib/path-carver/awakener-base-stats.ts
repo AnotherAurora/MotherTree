@@ -4,6 +4,7 @@ import {
   ceilRealmMastery,
 } from "@/lib/path-carver/effective-value-scalar";
 import { REQUIRED_BASE_TENTACLE_TAG_IDS } from "@/lib/path-carver/base-tentacle-damage";
+import { REQUIRED_BIRTH_RITUAL_TAG_IDS } from "@/lib/path-carver/birth-ritual-sacrifice";
 import {
   DEFENDER_MAX_HP_UP_TAG_ID,
   IN_MISSION_DEATH_RESIST_TAG_ID,
@@ -84,6 +85,7 @@ export const REQUIRED_BASE_STAT_TAG_IDS: readonly number[] = [
   DEFENDER_MAX_HP_UP_TAG_ID,
   ...REQUIRED_KEYFLARE_TO_POSSE_TAG_IDS,
   ...REQUIRED_BASE_TENTACLE_TAG_IDS,
+  ...REQUIRED_BIRTH_RITUAL_TAG_IDS,
 ];
 
 /**
