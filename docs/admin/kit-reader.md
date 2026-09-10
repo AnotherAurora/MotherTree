@@ -25,7 +25,7 @@ UI: `/kit-reader` (sidebar Tools). Export writes the repo file `sample-data/kit-
 1. Open **Kit Reader**, pick **one** awakener.
 2. **Export kit pack & fill prompt** → writes `sample-data/kit-reader/{slug}.kit.json`.
 3. **Copy agent prompt** → paste into an Agent chat (Copilot Agent mode, Cursor, or Claude). The generated prompt instructs the agent to read only that awakener's pack and avoid reading other proposal files to conserve token context.
-4. Agent proposes + runs insert CLI (`verified=false` only) and reports only inserted counts, `needs_review` items, and ignored items (omits tables of inserted rows to save tokens). Never write ad-hoc patch scripts (`scripts/apply-*.ts`); use `insert-kit-pending.ts --patch`/`--append` or the UI.
+4. Agent proposes + runs insert CLI (`verified=false` only) and reports only inserted counts, `needs_review` items (inserted as pending), and ignored items (omits tables of inserted rows to save tokens). Never write ad-hoc patch scripts (`scripts/apply-*.ts`); use `insert-kit-pending.ts --patch`/`--append` or the UI.
 5. Back in Kit Reader:
    - **Simple tweaks:** use the inline editable cells or **Edit** dialog directly in `/kit-reader`.
    - **Surgical edits / row copy:** click **Copy agent prompt** on a row, or select multiple rows and click **Copy review prompt (N selected)**, or use **Fill review prompt** for a blank template. Paste this into a **NEW Agent chat** (using the `kit-reader-review` skill) to keep context small and token-efficient. Review agents may read the **target awakener's** kit pack to resolve source text/values for the requested edits; other awakeners' kit/proposal files remain off-limits.
@@ -44,7 +44,7 @@ npx tsx --env-file=.env.local scripts/insert-kit-pending.ts sample-data/kit-read
 
 - Requires `ADMIN_ENABLED=true` (local).
 - Appends to pending records by default. Pass `--patch` to replace existing pending ATMs.
-- Inserts only `status: "ok"` rows (default if omitted); always `verified = false`.
+- Inserts `status: "ok"` and `status: "needs_review"` rows; skips `status: "unsupported"`. Always `verified = false`.
 - Supports sparse proposals: default fields (`instanceCount: 1`, `baseCopies: 1`, `locals: []`, `status: "ok"`, `dependencyStat: null`, etc.) and `sourceQuote` can be omitted to minimize token overhead.
 - Two-pass for `replacesClientKey` → `replaces_manifestation_id`, then nested locals.
 - **Metadata is computed at insert** from the kit pack (`sourceKitId` → `sourceLabel`) + `tagName` via `buildAtmMetadata` (trailing `.Fixed` stripped from effect label). Proposal `metadata` is ignored. Use proposal `metadataSuffix` (e.g. `+ SF` on **Talent** rows only) or `metadataOverride` (e.g. `OE Heal *3`) for custom labels. When `sourceLabel` is already `SF`, `metadataSuffix: "+ SF"` is ignored (no `SF … + SF`). CLI output includes `metadataResolved` per row.

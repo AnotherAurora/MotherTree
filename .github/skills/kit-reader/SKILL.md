@@ -46,7 +46,7 @@ All paths below are repo-root-relative — read each from the workspace root.
 npx tsx --env-file=.env.local scripts/insert-kit-pending.ts sample-data/kit-reader/{slug}.proposal.json
 ```
 
-Appends by default; pass `--patch` to replace existing pending ATMs. 5. **Compact report only:** Report ONLY (a) total count of inserted rows & locals, (b) any `needs_review` items with rationale, and (c) ignored items. Do **not** print tables, breakdown lists, or summaries of successfully inserted rows (the operator reviews rows directly in the Kit Reader UI at `/kit-reader`). Do **not** hand the user JSON to paste into admin. For minor row adjustments, guide the user to `/kit-reader`. For surgical pending edits after insert, use the **MotherTree Kit Reader Review** skill in a new chat.
+Appends by default; pass `--patch` to replace existing pending ATMs. `status: "needs_review"` rows are inserted as pending too (only `unsupported` is skipped); flag them with rationale so the operator reviews them. 5. **Compact report only:** Report ONLY (a) total count of inserted rows & locals, (b) any `needs_review` items with rationale (already inserted as pending), and (c) ignored items. Do **not** print tables, breakdown lists, or summaries of successfully inserted rows (the operator reviews rows directly in the Kit Reader UI at `/kit-reader`). Do **not** hand the user JSON to paste into admin. For minor row adjustments, guide the user to `/kit-reader`. For surgical pending edits after insert, use the **MotherTree Kit Reader Review** skill in a new chat.
 
 ## Metadata (mandatory)
 
@@ -210,7 +210,7 @@ Use pack `sourceTypeHint`: Strike/Defense/Skill1/Skill2/derived → `command car
 | Status         | Insert?       |
 | -------------- | ------------- |
 | `ok`           | Yes (pending) |
-| `needs_review` | No            |
+| `needs_review` | Yes (pending) |
 | `unsupported`  | No            |
 
 ## Locals
