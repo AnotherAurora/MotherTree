@@ -8,12 +8,14 @@ import { ReviewTagsBaseStatsDebug } from "@/components/path-carver/review-tags-b
 import { ReviewTagsDebug } from "@/components/path-carver/review-tags-debug";
 import { ReviewTagsMathDebug } from "@/components/path-carver/review-tags-math-debug";
 import { ReviewTagsTeamMaxHpDebug } from "@/components/path-carver/review-tags-team-max-hp-debug";
+import { ReviewTagsTotalDamage } from "@/components/path-carver/review-tags-total-damage";
 import { loadTeamData } from "@/lib/actions/team-data";
 import type { TeamData } from "@/lib/team-data/types";
 import {
   computeReviewTagTotals,
   getScalarForTag,
 } from "@/lib/path-carver/aggregate-tag-scalars";
+import { computeTotalDamage } from "@/lib/path-carver/total-damage";
 import type { ScalarMathStep } from "@/lib/path-carver/apply-interactions";
 import type { TeamMaxHpResult } from "@/lib/path-carver/team-max-hp";
 import { createManifestationApplyContext } from "@/lib/path-carver/manifestation-apply";
@@ -168,6 +170,12 @@ export function ReviewTagsStep({
     );
   }, [teamData, damageDealerAwakenerIds, triggerCounts]);
 
+  const totalDamage = useMemo(
+    () =>
+      teamData ? computeTotalDamage(scalarTotals, teamData.tagsById) : null,
+    [teamData, scalarTotals],
+  );
+
   function toggleTag(tag: ManifestedTagRow) {
     if (selectedIds.has(tag.tagId)) {
       onSelectionsChange(selections.filter((s) => s.tagId !== tag.tagId));
@@ -277,6 +285,8 @@ export function ReviewTagsStep({
           </div>
         )}
       </div>
+
+      {totalDamage && <ReviewTagsTotalDamage totalDamage={totalDamage} />}
 
       {!loading && teamData && applyContext && (
         <>
