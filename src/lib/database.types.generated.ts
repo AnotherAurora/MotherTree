@@ -1187,7 +1187,9 @@ export type Database = {
           created_at: string | null
           deleted_at: string | null
           id: number
+          is_damage: boolean
           name: string
+          required_realm: number | null
           tier: string
           updated_at: string | null
         }
@@ -1195,7 +1197,9 @@ export type Database = {
           created_at?: string | null
           deleted_at?: string | null
           id?: number
+          is_damage?: boolean
           name: string
+          required_realm?: number | null
           tier: string
           updated_at?: string | null
         }
@@ -1203,52 +1207,75 @@ export type Database = {
           created_at?: string | null
           deleted_at?: string | null
           id?: number
+          is_damage?: boolean
           name?: string
+          required_realm?: number | null
           tier?: string
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "relic_required_realm_fkey"
+            columns: ["required_realm"]
+            isOneToOne: false
+            referencedRelation: "realm"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       relic_tag_manifestation: {
         Row: {
+          base_formula: Database["public"]["Enums"]["relic_base_formula"] | null
           created_at: string | null
           deleted_at: string | null
+          dependency_stat: Database["public"]["Enums"]["all_stats"] | null
           id: number
           is_accumulating: boolean
           is_permanent: boolean | null
+          kind: Database["public"]["Enums"]["relic_arg_kind"]
           metadata: string | null
           relic_id: number
-          required_realm: number | null
           tag_id: number
           target_type: Database["public"]["Enums"]["target_type"] | null
+          trigger_condition: number | null
           updated_at: string | null
           value_scalar: number | null
         }
         Insert: {
+          base_formula?:
+            | Database["public"]["Enums"]["relic_base_formula"]
+            | null
           created_at?: string | null
           deleted_at?: string | null
+          dependency_stat?: Database["public"]["Enums"]["all_stats"] | null
           id?: number
           is_accumulating?: boolean
           is_permanent?: boolean | null
+          kind?: Database["public"]["Enums"]["relic_arg_kind"]
           metadata?: string | null
           relic_id: number
-          required_realm?: number | null
           tag_id: number
           target_type?: Database["public"]["Enums"]["target_type"] | null
+          trigger_condition?: number | null
           updated_at?: string | null
           value_scalar?: number | null
         }
         Update: {
+          base_formula?:
+            | Database["public"]["Enums"]["relic_base_formula"]
+            | null
           created_at?: string | null
           deleted_at?: string | null
+          dependency_stat?: Database["public"]["Enums"]["all_stats"] | null
           id?: number
           is_accumulating?: boolean
           is_permanent?: boolean | null
+          kind?: Database["public"]["Enums"]["relic_arg_kind"]
           metadata?: string | null
           relic_id?: number
-          required_realm?: number | null
           tag_id?: number
           target_type?: Database["public"]["Enums"]["target_type"] | null
+          trigger_condition?: number | null
           updated_at?: string | null
           value_scalar?: number | null
         }
@@ -1261,15 +1288,15 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "relic_tag_manifestation_required_realm_fkey"
-            columns: ["required_realm"]
+            foreignKeyName: "relic_tag_manifestation_tag_id_fkey"
+            columns: ["tag_id"]
             isOneToOne: false
-            referencedRelation: "realm"
+            referencedRelation: "tag"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "relic_tag_manifestation_tag_id_fkey"
-            columns: ["tag_id"]
+            foreignKeyName: "relic_tag_manifestation_trigger_condition_fkey"
+            columns: ["trigger_condition"]
             isOneToOne: false
             referencedRelation: "tag"
             referencedColumns: ["id"]
@@ -1559,6 +1586,11 @@ export type Database = {
         | "ultra"
         | "singularity ultra"
       realm_match_mode: "present" | "exclusive" | "combo"
+      relic_arg_kind: "fixed" | "computed"
+      relic_base_formula:
+        | "esotericResearchDepth"
+        | "occultResearchDepth"
+        | "accountStageGrowth"
       source_type: "command card" | "exalt" | "rouse" | "talent" | "buff"
       target_type: "self" | "single" | "aoe"
     }
@@ -1733,6 +1765,12 @@ export const Constants = {
         "singularity ultra",
       ],
       realm_match_mode: ["present", "exclusive", "combo"],
+      relic_arg_kind: ["fixed", "computed"],
+      relic_base_formula: [
+        "esotericResearchDepth",
+        "occultResearchDepth",
+        "accountStageGrowth",
+      ],
       source_type: ["command card", "exalt", "rouse", "talent", "buff"],
       target_type: ["self", "single", "aoe"],
     },
