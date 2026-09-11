@@ -3,6 +3,7 @@ import {
   effectiveManifestationScalar,
   ceilRealmMastery,
 } from "@/lib/path-carver/effective-value-scalar";
+import { REQUIRED_ACTIVE_DAMAGE_TO_BLEED_TAG_IDS } from "@/lib/path-carver/active-damage-to-bleed";
 import { REQUIRED_BASE_TENTACLE_TAG_IDS } from "@/lib/path-carver/base-tentacle-damage";
 import { REQUIRED_BIRTH_RITUAL_TAG_IDS } from "@/lib/path-carver/birth-ritual-sacrifice";
 import {
@@ -86,6 +87,7 @@ export const REQUIRED_BASE_STAT_TAG_IDS: readonly number[] = [
   ...REQUIRED_KEYFLARE_TO_POSSE_TAG_IDS,
   ...REQUIRED_BASE_TENTACLE_TAG_IDS,
   ...REQUIRED_BIRTH_RITUAL_TAG_IDS,
+  ...REQUIRED_ACTIVE_DAMAGE_TO_BLEED_TAG_IDS,
 ];
 
 /**

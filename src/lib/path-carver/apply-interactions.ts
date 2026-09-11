@@ -26,6 +26,11 @@ import {
   applyBirthRitualSacrificeConversion,
   SPECIAL_BIRTH_RITUAL_TAG_ID,
 } from "@/lib/path-carver/birth-ritual-sacrifice";
+import {
+  applyActiveDamageToBleedConversion,
+  ATTACKER_NON_ACTIVE_DAMAGE_BLEED_DAMAGE_TAG_ID,
+  SPECIAL_ACTIVE_DAMAGE_TO_BLEED_TAG_ID,
+} from "@/lib/path-carver/active-damage-to-bleed";
 import { applyAllTentacleAttackHop } from "@/lib/path-carver/all-tentacle-attack";
 import {
   computeTentacleCritDamage,
@@ -90,6 +95,8 @@ const DEFERRED_STACK_AMPLIFY_SUBJECT_LABEL =
   "Deferred stack amplify (closure0)";
 const DEFERRED_AMPLIFY_SUBJECT_KEY = "deferred-amplify";
 const DEFERRED_AMPLIFY_SUBJECT_LABEL = "Deferred amplify (closure)";
+const AD_TO_BLEED_AMPLIFY_SUBJECT_KEY = "active-damage-to-bleed-amplify";
+const AD_TO_BLEED_AMPLIFY_SUBJECT_LABEL = "Active Damage to Bleed amplify";
 const HIT_TENTACLE_SUBJECT_LABEL = "Hit = Tentacle Attack";
 const TENTACLE_HIT_POISON_SUBJECT_LABEL = "Tentacle Hit = Poison";
 const TENTACLE_TDU_POOL_SUBJECT_LABEL = "Tentacle TDU pool";
@@ -305,6 +312,31 @@ function recordBirthRitualSelf(
   amount: number,
 ): void {
   if (amount === 0 || !isSelfBirthRitualSubject(subject)) return;
+  const current = totals.get(owner) ?? 0;
+  totals.set(owner, current + amount);
+}
+
+/**
+ * A target_type=self tag-181 subject is scoped to its owning awakener.
+ * Only rows that resolve to an awakener qualify — posse / realm (awakenerId
+ * null) are always treated as team scope, even if labeled self.
+ */
+function isSelfActiveDamageToBleedSubject(m: Manifestation): boolean {
+  return (
+    m.tagId === SPECIAL_ACTIVE_DAMAGE_TO_BLEED_TAG_ID &&
+    m.targetType === "self" &&
+    m.awakenerId != null
+  );
+}
+
+/** Accumulate a finished self tag-181 amount into the owner's self bucket. */
+function recordActiveDamageToBleedSelf(
+  totals: Map<OwnerKey, number>,
+  subject: Manifestation,
+  owner: OwnerKey,
+  amount: number,
+): void {
+  if (amount === 0 || !isSelfActiveDamageToBleedSubject(subject)) return;
   const current = totals.get(owner) ?? 0;
   totals.set(owner, current + amount);
 }
@@ -1966,7 +1998,7 @@ function applyUniqueScalingInvents(
           modifierTag?.tagName ?? local.modifierTagName ?? "direct_modifier";
 
         let modValue = 1;
-        let factor = local.valueScalar ?? 0;
+        const factor = local.valueScalar ?? 0;
         if (local.dependencyStat != null) {
           modValue = baseStatUniqueScalingModifierValue(
             ownerAwakener,
@@ -2336,6 +2368,43 @@ function buildCreatedBaseManifestation(
   };
 }
 
+/** Distinct id band so tag-181 synthetics never collide with created-base ids. */
+const AD_TO_BLEED_SYNTHETIC_ID_OFFSET = 6_900_000;
+
+function activeDamageToBleedSyntheticId(
+  tagId: number,
+  owner: OwnerKey,
+): number {
+  const awakenerId = awakenerIdFromOwnerKey(owner);
+  if (awakenerId != null) {
+    return -(AD_TO_BLEED_SYNTHETIC_ID_OFFSET + awakenerId * 1000 + tagId);
+  }
+  return -(AD_TO_BLEED_SYNTHETIC_ID_OFFSET + 900_000 + tagId);
+}
+
+/**
+ * Synthetic Bleed Damage base written by Special.Active Damage to Bleed.
+ * Preserves the conversion scope owner (awakener:N vs team/posse) so the thin
+ * trigger amplify reads it at the correct owner key.
+ */
+function buildActiveDamageToBleedSynthetic(
+  tag: Tag,
+  owner: OwnerKey,
+  value: number,
+  targetType: TargetType,
+): Manifestation {
+  const base = buildCreatedBaseManifestation(tag, value);
+  const awakenerId = awakenerIdFromOwnerKey(owner);
+  return {
+    ...base,
+    id: activeDamageToBleedSyntheticId(tag.id, owner),
+    sourceKind: awakenerId != null ? "awakener" : "posse",
+    awakenerId,
+    sourceName: "(Active Damage to Bleed)",
+    targetType,
+  };
+}
+
 /** Exact target_tag_id set for creates_base materialization (no prefix). */
 function collectExactCreateTargetIds(
   interactions: DefaultInteraction[],
@@ -2516,6 +2585,8 @@ export function applyInteractions(
   const mergedOwnerValues: OwnerTotals = new Map();
   /** target_type=self Birth Ritual finished amounts by owner (hop 4e input). */
   const birthRitualSelfByOwner = new Map<OwnerKey, number>();
+  /** target_type=self tag-181 finished amounts by owner (Active Damage → Bleed). */
+  const adToBleedSelfByOwner = new Map<OwnerKey, number>();
   const opSteps: ScalarMathStep[] = [];
   const aftereffectSteps: ScalarMathStep[] = [];
   const createdSynthetics: Manifestation[] = [];
@@ -2716,6 +2787,12 @@ export function applyInteractions(
             owner,
             scalar * hitCount,
           );
+          recordActiveDamageToBleedSelf(
+            adToBleedSelfByOwner,
+            subject,
+            owner,
+            scalar * hitCount,
+          );
           pushHitCountStep(scalar);
         }
         continue;
@@ -2785,6 +2862,12 @@ export function applyInteractions(
         );
         recordBirthRitualSelf(
           birthRitualSelfByOwner,
+          subject,
+          owner,
+          finishedOnce * hitCount,
+        );
+        recordActiveDamageToBleedSelf(
+          adToBleedSelfByOwner,
           subject,
           owner,
           finishedOnce * hitCount,
@@ -3477,6 +3560,105 @@ export function applyInteractions(
     ...allTentacleAttackSteps,
     ...hitTentacleSteps,
   );
+
+  // Hop — Special.Active Damage to Bleed (tag 181): convert a fraction of the
+  // finalized Active Damage family (no Tentacle) into Bleed Damage, then apply
+  // the thin Bleed Trigger amplify once to the converted amount. Runs before
+  // Birth Ritual (4e) because both consume the finalized Active Damage totals.
+  const adToBleed = applyActiveDamageToBleedConversion({
+    ownerValues: mergedOwnerValues,
+    selfByOwner: adToBleedSelfByOwner,
+    tagsById: input.tagsById,
+  });
+  steps.push(...adToBleed.steps);
+
+  const bleedDamageTag =
+    input.tagsById[ATTACKER_NON_ACTIVE_DAMAGE_BLEED_DAMAGE_TAG_ID];
+  if (bleedDamageTag != null) {
+    const convertedSynthetics: Manifestation[] = [];
+    if (adToBleed.result.team.conversion !== 0) {
+      convertedSynthetics.push(
+        buildActiveDamageToBleedSynthetic(
+          bleedDamageTag,
+          "posse",
+          adToBleed.result.team.conversion,
+          "aoe",
+        ),
+      );
+    }
+    for (const [owner, scope] of adToBleed.result.selfByOwner) {
+      if (scope.conversion === 0) continue;
+      convertedSynthetics.push(
+        buildActiveDamageToBleedSynthetic(
+          bleedDamageTag,
+          owner,
+          scope.conversion,
+          "self",
+        ),
+      );
+    }
+
+    if (convertedSynthetics.length > 0) {
+      const adToBleedAmplifies = amplifyRows.filter((i) =>
+        interactionTargetsTagName(i, bleedDamageTag.tagName),
+      );
+
+      if (adToBleedAmplifies.length > 0) {
+        const thinApplied = [
+          ...applied.filter((m) => m.tagId !== bleedDamageTag.id),
+          ...convertedSynthetics,
+        ];
+        const amplifyResult = runInteractionsForLeafContext({
+          appliedManifestations: thinApplied,
+          defaultInteractions: adToBleedAmplifies,
+          tagsById: input.tagsById,
+          awakenersById,
+          leafContext: null,
+          awakenerNamesById: input.awakenerNamesById,
+          recordBaseSteps: false,
+          applyUniqueScalingInvents: false,
+          teamMaxHp: input.teamMaxHp,
+          realmMasteryTotal: input.realmMasteryTotal,
+          teamRealms: input.teamRealms,
+        });
+
+        for (const synthetic of convertedSynthetics) {
+          const owner = ownerKeyFor(synthetic);
+          mergeOwnerValue(
+            mergedOwnerValues,
+            owner,
+            bleedDamageTag,
+            synthetic.tagId,
+            getOwnerValue(amplifyResult.ownerValues, owner, synthetic.tagId),
+          );
+        }
+
+        const amplifyTargetIds = collectAmplifyTargetIds(
+          adToBleedAmplifies,
+          input.tagsById,
+        );
+        for (const step of amplifyResult.steps) {
+          if (step.kind !== "op") continue;
+          if (!amplifyTargetIds.has(step.tagId)) continue;
+          steps.push({
+            ...step,
+            subjectKey: AD_TO_BLEED_AMPLIFY_SUBJECT_KEY,
+            subjectLabel: AD_TO_BLEED_AMPLIFY_SUBJECT_LABEL,
+          });
+        }
+      } else {
+        for (const synthetic of convertedSynthetics) {
+          mergeOwnerValue(
+            mergedOwnerValues,
+            ownerKeyFor(synthetic),
+            bleedDamageTag,
+            synthetic.tagId,
+            synthetic.valueScalar ?? 0,
+          );
+        }
+      }
+    }
+  }
 
   const { steps: birthRitualSteps } = applyBirthRitualSacrificeConversion({
     ownerValues: mergedOwnerValues,

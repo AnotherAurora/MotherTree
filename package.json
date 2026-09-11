@@ -21,6 +21,7 @@
     "smoke:kit-reader-steal": "tsx scripts/smoke-kit-reader-steal.ts",
     "smoke:ingame-team-import": "tsx scripts/smoke-ingame-team-import.ts",
     "smoke:all-tentacle-attack": "tsx scripts/smoke-all-tentacle-attack.ts",
+    "smoke:active-damage-to-bleed": "tsx scripts/smoke-active-damage-to-bleed.ts",
     "db:dump-skeydb-assets": "tsx --env-file=.env.local scripts/export-skeydb-asset-names.ts",
     "db:seed-simulator": "tsx --env-file=.env.local scripts/seed-simulator-data.ts",
     "db:unseed-simulator": "tsx --env-file=.env.local scripts/unseed-simulator-data.ts",
