@@ -29,6 +29,10 @@ type BuildStepProps = {
   gearOptions: SimulatorGearOptions;
   onSlotsChange: (slots: SlotState[]) => void;
   onAnchoredChange: (anchors: AnchoredAwakenerState[]) => void;
+  /** When true, present a Damage Dealer checkbox instead of the cycling toggle. */
+  damageDealerOnly?: boolean;
+  /** When false, hide the Covenant Stat Set combobox. */
+  showCovenantStatSet?: boolean;
 };
 
 function getAnchorMode(
@@ -48,6 +52,8 @@ export function BuildStep({
   gearOptions,
   onSlotsChange,
   onAnchoredChange,
+  damageDealerOnly = false,
+  showCovenantStatSet = true,
 }: BuildStepProps) {
   const tagCacheRef = useRef(new Map<number, AwakenerRelatedTags>());
   const optionMap = useMemo(
@@ -197,6 +203,8 @@ export function BuildStep({
             onChange={(updated) => updateSlot(index, updated)}
             showRelatedTags={false}
             showAnchorToggle
+            damageDealerOnly={damageDealerOnly}
+            showCovenantStatSet={showCovenantStatSet}
             anchorMode={getAnchorMode(slot.awakenerId, anchoredAwakeners)}
             onAnchorModeChange={(mode) => setAnchorMode(index, mode)}
           />

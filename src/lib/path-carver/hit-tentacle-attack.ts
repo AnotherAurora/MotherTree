@@ -157,6 +157,7 @@ export function isSpecialTentacleHitPoisonTagName(tagName: string): boolean {
 /** Matches apply-interactions ownerKeyFor for awakener / realm / posse. */
 export function hitConversionOwnerKey(m: Manifestation): string {
   if (m.sourceKind === "posse") return "posse";
+  if (m.sourceKind === "relic") return "relic";
   if (m.sourceKind === "realm") return "realm";
   if (m.awakenerId != null) return `awakener:${m.awakenerId}`;
   return `orphan:${m.sourceKind}:${m.id}`;

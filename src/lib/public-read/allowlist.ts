@@ -6,6 +6,7 @@ export const PUBLIC_READ_TABLES = [
   "realm_tag_manifestation",
   "covenant",
   "covenant_tag_manifestation",
+  "covenant_stat_set",
   "awakener",
   "awakener_tag_manifestation",
   "awakener_local_manifestation_interaction",
@@ -56,6 +57,7 @@ export const PUBLIC_TABLE_COLUMNS = {
     "dependency_rate_stat",
   ],
   covenant: ["id", "name", "stat", "stat_amount", "team_unique"],
+  covenant_stat_set: ["id", "stat", "stat_amount"],
   covenant_tag_manifestation: [
     "id",
     "covenant_id",

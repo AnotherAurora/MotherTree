@@ -2,9 +2,9 @@ import {
   getRealmFamilyIdsFromSlots,
 } from "@/components/simulator/awakener-selection";
 import { mutexViolationMessages } from "@/lib/simulator/awakener-mutex";
-import {
-  isSsrWithoutEnlightenment15,
-} from "@/lib/simulator/gear-selection";
+// TEMPORARILY DISABLED: import {
+// TEMPORARILY DISABLED:   isSsrWithoutEnlightenment15,
+// TEMPORARILY DISABLED: } from "@/lib/simulator/gear-selection";
 import type { SimulatorAwakenerOption } from "@/lib/actions/simulator";
 import type {
   DraftDemandSelection,
@@ -70,16 +70,17 @@ export function validateGearConstraints(
     const wheel1 = wheelMap.get(slot.wheel1Id);
     const wheel2 = wheelMap.get(slot.wheel2Id);
     if (!wheel1 || !wheel2) return;
-    if (
-      wheel1.rarity === "SSR" &&
-      wheel2.rarity === "SSR" &&
-      isSsrWithoutEnlightenment15(wheel1) &&
-      isSsrWithoutEnlightenment15(wheel2)
-    ) {
-      errors.push(
-        `Awakener ${index + 1}: cannot equip two SSR wheels unless one has enlightenment 15`,
-      );
-    }
+    // TEMPORARILY DISABLED: cannot equip two SSR wheels unless one has enlightenment 15
+    // if (
+    //   wheel1.rarity === "SSR" &&
+    //   wheel2.rarity === "SSR" &&
+    //   isSsrWithoutEnlightenment15(wheel1) &&
+    //   isSsrWithoutEnlightenment15(wheel2)
+    // ) {
+    //   errors.push(
+    //     `Awakener ${index + 1}: cannot equip two SSR wheels unless one has enlightenment 15`,
+    //   );
+    // }
   });
 
   return result(errors.length === 0, errors);

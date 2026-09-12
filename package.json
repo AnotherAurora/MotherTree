@@ -22,6 +22,10 @@
     "smoke:ingame-team-import": "tsx scripts/smoke-ingame-team-import.ts",
     "smoke:all-tentacle-attack": "tsx scripts/smoke-all-tentacle-attack.ts",
     "smoke:active-damage-to-bleed": "tsx scripts/smoke-active-damage-to-bleed.ts",
+    "smoke:relic-formula": "tsx scripts/smoke-relic-formula.ts",
+    "smoke:damage-relevance": "tsx scripts/smoke-damage-relevance.ts",
+    "smoke:damage-relevance-real": "tsx --env-file=.env.local scripts/smoke-damage-relevance-real.ts",
+    "sync:damage-relevance": "tsx --env-file=.env.local scripts/sync-tag-damage-relevance.ts",
     "db:dump-skeydb-assets": "tsx --env-file=.env.local scripts/export-skeydb-asset-names.ts",
     "db:seed-simulator": "tsx --env-file=.env.local scripts/seed-simulator-data.ts",
     "db:unseed-simulator": "tsx --env-file=.env.local scripts/unseed-simulator-data.ts",
@@ -57,6 +61,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "^16.3.0",
+    "playwright": "^1.63.0",
     "tailwindcss": "^4",
     "tsx": "^4.20.3",
     "typescript": "^5"

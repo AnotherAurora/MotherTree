@@ -146,6 +146,7 @@ export function resolveDecodedTeamToMotherTree(
         warnings,
       ),
       covenantStatSetId: null,
+      awakenerEnlightenment: empty.awakenerEnlightenment,
     };
   });
 

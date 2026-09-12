@@ -11,6 +11,7 @@ const NAV_ITEMS = [
   { href: "/", label: "Home" },
   { href: "/search", label: "Search" },
   { href: "/calculators", label: "Calculators" },
+  { href: "/relic-picker", label: "Relic Picker" },
   { href: "/manual", label: "Manual" },
   { href: "/about", label: "About Me" },
 ] as const;

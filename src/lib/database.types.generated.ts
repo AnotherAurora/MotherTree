@@ -1306,9 +1306,11 @@ export type Database = {
       tag: {
         Row: {
           created_at: string | null
+          damage_relevance_reason: string | null
           deleted_at: string | null
           id: number
           is_additive: boolean
+          is_damage_relevant: boolean
           is_percent: boolean
           is_search_simulated: boolean
           is_searchable: boolean
@@ -1318,9 +1320,11 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
+          damage_relevance_reason?: string | null
           deleted_at?: string | null
           id?: number
           is_additive?: boolean
+          is_damage_relevant?: boolean
           is_percent?: boolean
           is_search_simulated?: boolean
           is_searchable?: boolean
@@ -1330,9 +1334,11 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
+          damage_relevance_reason?: string | null
           deleted_at?: string | null
           id?: number
           is_additive?: boolean
+          is_damage_relevant?: boolean
           is_percent?: boolean
           is_search_simulated?: boolean
           is_searchable?: boolean

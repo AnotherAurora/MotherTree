@@ -2,6 +2,7 @@ import { toAwakenerAssetSlug } from "@/lib/assets/awakener-slug";
 import { assetUrl } from "@/lib/assets/skeydb-base";
 import covenantByName from "@/lib/assets/maps/covenant-by-name.json";
 import posseByName from "@/lib/assets/maps/posse-by-name.json";
+import relicByName from "@/lib/assets/maps/relic-by-name.json";
 import wheelByName from "@/lib/assets/maps/wheel-by-name.json";
 
 export type AssetKind =
@@ -10,6 +11,7 @@ export type AssetKind =
   | "wheel"
   | "covenant"
   | "posse"
+  | "relic"
   | "stat";
 export type AssetVariant = "portrait" | "card" | "icon" | "mini";
 
@@ -33,6 +35,7 @@ const STAT_ICON_ID_BY_KEY: Record<string, string> = {
 const wheelMap = wheelByName as Record<string, string>;
 const covenantMap = covenantByName as Record<string, string>;
 const posseMap = posseByName as Record<string, string>;
+const relicMap = relicByName as Record<string, string>;
 
 function normalizeNameKey(name: string): string {
   return name.trim().toLowerCase();
@@ -65,6 +68,7 @@ function defaultVariant(kind: AssetKind): AssetVariant {
     case "realm":
     case "covenant":
     case "posse":
+    case "relic":
     case "stat":
       return "icon";
   }
@@ -113,6 +117,11 @@ export function resolveSkeydbAssetUrl(
       const assetId = posseMap[normalizeNameKey(name)];
       if (!assetId) return undefined;
       return assetUrl(`posse/Icon/${assetId}.webp`);
+    }
+    case "relic": {
+      const assetId = relicMap[normalizeNameKey(name)];
+      if (!assetId) return undefined;
+      return assetUrl(`relics/${assetId}.webp`);
     }
     case "stat": {
       const iconId = STAT_ICON_ID_BY_KEY[normalizeNameKey(name)];

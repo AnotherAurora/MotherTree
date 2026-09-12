@@ -286,6 +286,7 @@ function formatHitCountDetail(m: Manifestation, hitCount: number): string {
 
 function ownerKeyFor(m: Manifestation): OwnerKey {
   if (m.sourceKind === "posse") return "posse";
+  if (m.sourceKind === "relic") return "relic";
   if (m.sourceKind === "realm") return REALM_OWNER;
   if (m.awakenerId != null) return `awakener:${m.awakenerId}`;
   return `orphan:${m.sourceKind}:${m.id}`;
@@ -347,6 +348,9 @@ function sourceLabelFor(
 ): string {
   if (m.sourceKind === "posse") {
     return m.sourceName ?? "posse";
+  }
+  if (m.sourceKind === "relic") {
+    return m.sourceName != null ? `relic:${m.sourceName}` : "relic";
   }
   if (m.sourceKind === "realm") {
     return m.sourceName != null ? `realm:${m.sourceName}` : "realm";
@@ -646,6 +650,9 @@ function buildOwnerStackSnapshot(
   if (owner === "posse") {
     return { ...base, sourceKind: "posse", sourceName: "(aftereffect stack)" };
   }
+  if (owner === "relic") {
+    return { ...base, sourceKind: "relic", sourceName: "(aftereffect stack)" };
+  }
   if (owner === REALM_OWNER) {
     return { ...base, sourceKind: "realm", sourceName: "(aftereffect stack)" };
   }
@@ -664,6 +671,9 @@ function hop4dFinalizedSnapshotId(owner: OwnerKey, tagId: number): number {
   }
   if (owner === "posse") {
     return -(HOP_4D_FINALIZED_SNAPSHOT_ID_OFFSET + 2_000_000 + tagId);
+  }
+  if (owner === "relic") {
+    return -(HOP_4D_FINALIZED_SNAPSHOT_ID_OFFSET + 5_000_000 + tagId);
   }
   if (owner === TEAM_POOL_OWNER) {
     return -(HOP_4D_FINALIZED_SNAPSHOT_ID_OFFSET + 3_000_000 + tagId);
@@ -707,6 +717,7 @@ function tentacleTduPoolManifestationId(owner: OwnerKey): number {
   if (awakenerId != null) return -(TENTACLE_TDU_POOL_ID_OFFSET + 100 + awakenerId);
   if (owner === REALM_OWNER) return -(TENTACLE_TDU_POOL_ID_OFFSET + 1);
   if (owner === "posse") return -(TENTACLE_TDU_POOL_ID_OFFSET + 2);
+  if (owner === "relic") return -(TENTACLE_TDU_POOL_ID_OFFSET + 4);
   return -(TENTACLE_TDU_POOL_ID_OFFSET + 3);
 }
 
@@ -717,6 +728,7 @@ function tentaclePoisonFixedManifestationId(owner: OwnerKey): number {
   }
   if (owner === REALM_OWNER) return -(TENTACLE_POISON_FIXED_ID_OFFSET + 1);
   if (owner === "posse") return -(TENTACLE_POISON_FIXED_ID_OFFSET + 2);
+  if (owner === "relic") return -(TENTACLE_POISON_FIXED_ID_OFFSET + 4);
   return -(TENTACLE_POISON_FIXED_ID_OFFSET + 3);
 }
 
@@ -747,6 +759,15 @@ function buildTentaclePoolSynthetic(
       ...base,
       id: tentacleTduPoolManifestationId(owner),
       sourceKind: "posse",
+      sourceName: TENTACLE_TDU_POOL_SUBJECT_LABEL,
+      sourceType: null,
+    };
+  }
+  if (owner === "relic") {
+    return {
+      ...base,
+      id: tentacleTduPoolManifestationId(owner),
+      sourceKind: "relic",
       sourceName: TENTACLE_TDU_POOL_SUBJECT_LABEL,
       sourceType: null,
     };
@@ -791,6 +812,16 @@ function buildTentaclePoisonFixedSynthetic(
       ...base,
       id: tentaclePoisonFixedManifestationId(owner),
       sourceKind: "posse",
+      sourceName: TENTACLE_HIT_POISON_SUBJECT_LABEL,
+      sourceType: null,
+      metadata: "Special.Tentacle Hit = Poison",
+    };
+  }
+  if (owner === "relic") {
+    return {
+      ...base,
+      id: tentaclePoisonFixedManifestationId(owner),
+      sourceKind: "relic",
       sourceName: TENTACLE_HIT_POISON_SUBJECT_LABEL,
       sourceType: null,
       metadata: "Special.Tentacle Hit = Poison",
@@ -2398,7 +2429,12 @@ function buildActiveDamageToBleedSynthetic(
   return {
     ...base,
     id: activeDamageToBleedSyntheticId(tag.id, owner),
-    sourceKind: awakenerId != null ? "awakener" : "posse",
+    sourceKind:
+      awakenerId != null
+        ? "awakener"
+        : owner === "relic"
+          ? "relic"
+          : "posse",
     awakenerId,
     sourceName: "(Active Damage to Bleed)",
     targetType,

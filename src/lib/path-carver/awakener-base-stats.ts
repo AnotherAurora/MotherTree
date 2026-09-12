@@ -199,13 +199,15 @@ function applyDiminishingReturns(byId: Map<number, Awakener>): void {
 
 /**
  * Recipients for a Special.Increase Base * row.
- * Realm (team-once) → every team awakener; owned non-realm → owner only.
+ * Realm / relic (team-once) → every team awakener; owned non-realm → owner only.
  */
 function specialIncreaseRecipients(
   m: Manifestation,
   byId: Map<number, Awakener>,
 ): number[] {
-  if (m.sourceKind === "realm") return [...byId.keys()];
+  if (m.sourceKind === "realm" || m.sourceKind === "relic") {
+    return [...byId.keys()];
+  }
   if (m.awakenerId != null) return [m.awakenerId];
   return [];
 }

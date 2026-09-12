@@ -10,6 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import type { ActionResult } from "@/lib/actions/crud";
 import { importIngameTeamCode, type ImportTeamResult } from "@/lib/actions/path-carver";
 import { MAX_WRAPPED_INGAME_CODE_LENGTH } from "@/lib/team-import/extract-ingame-code";
 
@@ -19,6 +20,8 @@ type ImportTeamModalProps = {
   onImport: (result: ImportTeamResult) => void;
   importing: boolean;
   onImportingChange: (importing: boolean) => void;
+  /** Defaults to the admin import action; override for public pages. */
+  importCode?: (code: string) => Promise<ActionResult<ImportTeamResult>>;
 };
 
 export function ImportTeamModal({
@@ -27,6 +30,7 @@ export function ImportTeamModal({
   onImport,
   importing,
   onImportingChange,
+  importCode = importIngameTeamCode,
 }: ImportTeamModalProps) {
   const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -53,7 +57,7 @@ export function ImportTeamModal({
     onImportingChange(true);
     setError(null);
 
-    const result = await importIngameTeamCode(trimmed);
+    const result = await importCode(trimmed);
     onImportingChange(false);
 
     if (!result.success) {

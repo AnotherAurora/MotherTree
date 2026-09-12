@@ -364,7 +364,15 @@ export function buildAwakenersById(
 export function isInteractionImmuneSubject(m: Manifestation): boolean {
   // Base Tentacle synthetic is realm-sourced but receives inbound amplify (TDI 90 / 8).
   if (isBaseTentacleDamageManifestation(m)) return false;
-  if (m.isBaseStatTransfer || m.sourceKind === "realm") return true;
+  // Realm and relic rows are absolute: they affect other tags as providers but
+  // are never the subject of an inbound tag_default_interaction.
+  if (
+    m.isBaseStatTransfer ||
+    m.sourceKind === "realm" ||
+    m.sourceKind === "relic"
+  ) {
+    return true;
+  }
   // Support created bases: absolute merge only; Attacker/Defender created bases are subjects.
   if (
     m.isCreatedBase &&

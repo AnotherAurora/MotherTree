@@ -138,17 +138,24 @@ async function main() {
   console.log(`Using MotherTree asset names: ${ASSET_NAMES_DIR}`);
   console.log(`SKeyDB commit: ${SKEYDB_COMMIT}`);
 
-  const [wheelsCatalog, covenantsCatalog, possesCatalog, assetsIndex] =
-    await Promise.all([
-      fetchJson<CatalogFile>("src/data/public-v3/catalogs/wheels.json"),
-      fetchJson<CatalogFile>("src/data/public-v3/catalogs/covenants.json"),
-      fetchJson<CatalogFile>("src/data/public-v3/catalogs/posses.json"),
-      fetchJson<AssetsIndex>("src/data/public-v3/indexes/assets.json"),
-    ]);
+  const [
+    wheelsCatalog,
+    covenantsCatalog,
+    possesCatalog,
+    relicsCatalog,
+    assetsIndex,
+  ] = await Promise.all([
+    fetchJson<CatalogFile>("src/data/public-v3/catalogs/wheels.json"),
+    fetchJson<CatalogFile>("src/data/public-v3/catalogs/covenants.json"),
+    fetchJson<CatalogFile>("src/data/public-v3/catalogs/posses.json"),
+    fetchJson<CatalogFile>("src/data/public-v3/catalogs/relics.json"),
+    fetchJson<AssetsIndex>("src/data/public-v3/indexes/assets.json"),
+  ]);
 
   const wheelSkey = buildNameToAssetMap(wheelsCatalog, assetsIndex);
   const covenantSkey = buildNameToAssetMap(covenantsCatalog, assetsIndex);
   const posseSkey = buildNameToAssetMap(possesCatalog, assetsIndex);
+  const relicSkey = buildNameToAssetMap(relicsCatalog, assetsIndex);
 
   const wheelMap = joinMaps(readMotherTreeNames("wheel"), wheelSkey, "wheel");
   const covenantMap = joinMaps(
@@ -157,10 +164,12 @@ async function main() {
     "covenant",
   );
   const posseMap = joinMaps(readMotherTreeNames("posse"), posseSkey, "posse");
+  const relicMap = joinMaps(readMotherTreeNames("relic"), relicSkey, "relic");
 
   writeMap("wheel-by-name.json", wheelMap);
   writeMap("covenant-by-name.json", covenantMap);
   writeMap("posse-by-name.json", posseMap);
+  writeMap("relic-by-name.json", relicMap);
 }
 
 main().catch((error) => {

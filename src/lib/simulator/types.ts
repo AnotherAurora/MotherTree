@@ -1,3 +1,5 @@
+import { DEFAULT_AWAKENER_ENLIGHTENMENT } from "@/lib/enlightenment-options";
+
 export type BanEntityType = "awakener" | "posse" | "covenant" | "wheel";
 
 export type BanEntry = {
@@ -12,6 +14,8 @@ export type SlotState = {
   covenantStatSetId: number | null;
   wheel1Id: number | null;
   wheel2Id: number | null;
+  /** Selected awakener enlightenment (groundwork; not yet used in calculations). */
+  awakenerEnlightenment?: number;
 };
 
 export function createEmptySlots(count = 4): SlotState[] {
@@ -21,6 +25,7 @@ export function createEmptySlots(count = 4): SlotState[] {
     covenantStatSetId: null,
     wheel1Id: null,
     wheel2Id: null,
+    awakenerEnlightenment: DEFAULT_AWAKENER_ENLIGHTENMENT,
   }));
 }
 

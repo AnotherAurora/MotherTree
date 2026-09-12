@@ -40,6 +40,7 @@ export type AllTentacleAttackStep = {
 
 function ownerKeyFor(m: Manifestation): OwnerKey {
   if (m.sourceKind === "posse") return "posse";
+  if (m.sourceKind === "relic") return "relic";
   if (m.sourceKind === "realm") return "realm";
   if (m.awakenerId != null) return `awakener:${m.awakenerId}`;
   return `orphan:${m.sourceKind}:${m.id}`;
@@ -95,6 +96,9 @@ function sourceLabelFor(
 ): string {
   if (m.sourceKind === "posse") {
     return m.sourceName ?? "posse";
+  }
+  if (m.sourceKind === "relic") {
+    return m.sourceName != null ? `relic:${m.sourceName}` : "relic";
   }
   if (m.sourceKind === "realm") {
     return m.sourceName != null ? `realm:${m.sourceName}` : "realm";

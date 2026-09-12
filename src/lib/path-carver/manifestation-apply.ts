@@ -244,8 +244,12 @@ export function evaluateManifestationApply(
   const base = realmAndRequiredAwakenerPass(m, ctx);
   if (!base.applied) return base;
 
-  // Posse: skip target_type and damage-dealer gates.
-  if (m.sourceKind !== "posse" && isAttackerTag(m.tagName)) {
+  // Posse and relic: skip target_type and damage-dealer gates.
+  if (
+    m.sourceKind !== "posse" &&
+    m.sourceKind !== "relic" &&
+    isAttackerTag(m.tagName)
+  ) {
     const ownerId = m.awakenerId;
     if (
       ownerId == null ||

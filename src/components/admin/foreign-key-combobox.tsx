@@ -23,6 +23,8 @@ type ForeignKeyComboboxProps = {
   placeholder?: string;
   disabled?: boolean;
   assetKind?: AssetKind;
+  /** Custom trigger element; when provided, replaces the default button. */
+  trigger?: React.ReactElement;
 };
 
 function optionDisplayText(option: ForeignKeyOption): string {
@@ -52,6 +54,7 @@ export function ForeignKeyCombobox({
   placeholder = "Select...",
   disabled = false,
   assetKind,
+  trigger,
 }: ForeignKeyComboboxProps) {
   const [open, setOpen] = React.useState(false);
   const [search, setSearch] = React.useState("");
@@ -66,31 +69,35 @@ export function ForeignKeyCombobox({
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          type="button"
-          variant="outline"
-          role="combobox"
-          aria-expanded={open}
-          disabled={disabled}
-          title={selected?.label}
-          className="w-full justify-between font-normal"
-        >
-          <span className="flex min-w-0 items-center gap-2 truncate">
-            {assetKind ? (
-              <AssetIcon
-                src={selectedSrc}
-                size={assetIconSize(assetKind)}
-                darkChip={assetUsesDarkChip(assetKind)}
-              />
-            ) : null}
-            <span className="min-w-0 truncate">
-              {selected ? optionDisplayText(selected) : placeholder}
+      {trigger ? (
+        <PopoverTrigger asChild>{trigger}</PopoverTrigger>
+      ) : (
+        <PopoverTrigger asChild>
+          <Button
+            type="button"
+            variant="outline"
+            role="combobox"
+            aria-expanded={open}
+            disabled={disabled}
+            title={selected?.label}
+            className="w-full justify-between font-normal"
+          >
+            <span className="flex min-w-0 items-center gap-2 truncate">
+              {assetKind ? (
+                <AssetIcon
+                  src={selectedSrc}
+                  size={assetIconSize(assetKind)}
+                  darkChip={assetUsesDarkChip(assetKind)}
+                />
+              ) : null}
+              <span className="min-w-0 truncate">
+                {selected ? optionDisplayText(selected) : placeholder}
+              </span>
             </span>
-          </span>
-          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-        </Button>
-      </PopoverTrigger>
+            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+          </Button>
+        </PopoverTrigger>
+      )}
       <PopoverContent className="p-0" align="start">
         <div className="border-b border-border p-2">
           <input

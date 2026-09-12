@@ -185,9 +185,19 @@ export function aggregateTagScalarsById(
  * Cause→When counts → Layer A triggered (×N) → team Max HP →
  * Base Tentacle Damage (aequor/benthos) → Layer B.
  */
+export type ReviewTagTotalsOptions = {
+  /**
+   * Skip the returned `steps` array. The engine still computes every total; this
+   * only avoids materializing the debug/display step list for callers (e.g. the
+   * Relic Picker ranking sweep) that never read it.
+   */
+  totalsOnly?: boolean;
+};
+
 export function computeReviewTagTotals(
   teamData: TeamData,
   applyContext: ManifestationApplyContext,
+  options: ReviewTagTotalsOptions = {},
 ): ReviewTagTotals {
   // Pass 1: null-trigger only (ignore trigger gate — column is null).
   const appliedNullTrigger = teamData.manifestations.filter(
@@ -472,13 +482,15 @@ export function computeReviewTagTotals(
   );
   return {
     totalsByTagId: result.totalsByTagId,
-    steps: [
-      ...harmonySteps,
-      ...keyflareSteps,
-      ...lemurianSteps,
-      ...tentacleSteps,
-      ...result.steps,
-    ],
+    steps: options.totalsOnly
+      ? []
+      : [
+          ...harmonySteps,
+          ...keyflareSteps,
+          ...lemurianSteps,
+          ...tentacleSteps,
+          ...result.steps,
+        ],
     reviewTeamData,
     triggerCounts,
     teamMaxHp,
