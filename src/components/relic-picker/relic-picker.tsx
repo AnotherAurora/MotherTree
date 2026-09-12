@@ -95,8 +95,11 @@ function formatPercent(value: number | null): string {
 }
 
 function formatTotal(value: number): string {
-  if (Number.isInteger(value)) return String(value);
-  return value.toFixed(2);
+  if (Number.isInteger(value)) return value.toLocaleString("en-US");
+  return value.toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 }
 
 export function RelicPicker({
@@ -302,7 +305,7 @@ export function RelicPicker({
     <div className="space-y-6">
       <div className="rounded-xl border border-[var(--mt-border)] bg-[var(--mt-surface)] p-4 text-center">
         <p className="text-xs font-medium uppercase tracking-wide text-[var(--mt-ink-muted)]">
-          Total Damage
+Total Burst Damage Approximation
         </p>
         <p className="mt-1 text-3xl font-semibold tabular-nums text-[var(--mt-ink)]">
           {baselineTotal == null ? "—" : formatTotal(baselineTotal)}
@@ -342,7 +345,7 @@ export function RelicPicker({
                 role="switch"
                 checked={autoUpdate}
                 onChange={(event) => setAutoUpdate(event.target.checked)}
-                className="h-4 w-4 rounded border-zinc-300 accent-[var(--mt-ember)]"
+                className="h-4 w-4 rounded border-[var(--mt-border)] accent-[var(--mt-ember)]"
               />
               Auto-update
             </label>
@@ -354,6 +357,7 @@ export function RelicPicker({
                 onClick={recalculate}
                 disabled={calculateDisabled}
                 title="Calculate relic impact for the current team"
+                className="border-[var(--mt-border)] bg-[rgb(255_245_235_/_0.55)] text-[var(--mt-ink)] hover:bg-[rgb(255_245_235_/_0.9)] focus-visible:ring-[var(--mt-ember)]"
               >
                 Calculate
               </Button>
@@ -396,12 +400,14 @@ export function RelicPicker({
                   <span className="text-xs font-medium tabular-nums text-[var(--mt-ember-deep)]">
                     {formatPercent(row.percentIncrease)}
                   </span>
-                  <AssetIcon
-                    src={resolveSkeydbAssetUrl("relic", row.entry.name)}
-                    alt={row.entry.name}
-                    size={40}
-                    darkChip
-                  />
+                  <span className="flex size-14 items-center justify-center overflow-hidden rounded-md">
+                    <AssetIcon
+                      src={resolveSkeydbAssetUrl("relic", row.entry.name)}
+                      alt={row.entry.name}
+                      size={54}
+                      className="scale-[1.15] rounded-none object-cover"
+                    />
+                  </span>
                 </button>
               </li>
             ))}
@@ -452,12 +458,14 @@ export function RelicPicker({
                   aria-label={`Remove ${relic.name}`}
                   className="flex cursor-pointer items-center justify-center rounded-md border border-transparent p-1 hover:border-[var(--mt-border)] hover:bg-[rgb(255_245_235_/_0.4)] focus-visible:border-[var(--mt-border)] focus-visible:outline-none"
                 >
-                  <AssetIcon
-                    src={resolveSkeydbAssetUrl("relic", relic.name)}
-                    alt={relic.name}
-                    size={40}
-                    darkChip
-                  />
+                  <span className="flex size-14 items-center justify-center overflow-hidden rounded-md">
+                    <AssetIcon
+                      src={resolveSkeydbAssetUrl("relic", relic.name)}
+                      alt={relic.name}
+                      size={54}
+                      className="scale-[1.15] rounded-none object-cover"
+                    />
+                  </span>
                 </button>
               </li>
             ))}

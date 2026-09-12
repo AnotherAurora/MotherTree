@@ -25,6 +25,8 @@ type ForeignKeyComboboxProps = {
   assetKind?: AssetKind;
   /** Custom trigger element; when provided, replaces the default button. */
   trigger?: React.ReactElement;
+  /** `public` applies the warm desert-dusk palette to the dropdown panel. */
+  appearance?: "default" | "public";
 };
 
 function optionDisplayText(option: ForeignKeyOption): string {
@@ -55,7 +57,9 @@ export function ForeignKeyCombobox({
   disabled = false,
   assetKind,
   trigger,
+  appearance = "default",
 }: ForeignKeyComboboxProps) {
+  const isPublic = appearance === "public";
   const [open, setOpen] = React.useState(false);
   const [search, setSearch] = React.useState("");
 
@@ -98,10 +102,24 @@ export function ForeignKeyCombobox({
           </Button>
         </PopoverTrigger>
       )}
-      <PopoverContent className="p-0" align="start">
-        <div className="border-b border-border p-2">
+      <PopoverContent
+        align="start"
+        className={cn(
+          "p-0",
+          isPublic &&
+            "border-[var(--mt-border)] bg-[rgb(255_250_245)] text-[var(--mt-ink)]",
+        )}
+      >
+        <div
+          className={cn("border-b p-2", isPublic ? "border-[var(--mt-border)]" : "border-border")}
+        >
           <input
-            className="flex h-8 w-full rounded-md bg-transparent px-2 text-sm outline-none placeholder:text-zinc-400"
+            className={cn(
+              "flex h-8 w-full rounded-md px-2 text-sm outline-none",
+              isPublic
+                ? "border border-[var(--mt-border)] bg-[rgb(255_245_235_/_0.55)] text-[var(--mt-ink)] placeholder:text-[var(--mt-ink-muted)] focus-visible:ring-2 focus-visible:ring-[var(--mt-ember)]"
+                : "bg-transparent placeholder:text-zinc-400",
+            )}
             placeholder="Search..."
             value={search}
             onChange={(event) => setSearch(event.target.value)}
@@ -110,7 +128,12 @@ export function ForeignKeyCombobox({
         <div className="max-h-64 overflow-y-auto p-1">
           <button
             type="button"
-            className="flex w-full rounded-sm px-2 py-1.5 text-left text-sm hover:bg-zinc-100"
+            className={cn(
+              "flex w-full rounded-sm px-2 py-1.5 text-left text-sm",
+              isPublic
+                ? "hover:bg-[rgb(255_245_235_/_0.9)]"
+                : "hover:bg-zinc-100",
+            )}
             onClick={() => {
               onChange(null);
               setOpen(false);
@@ -120,7 +143,12 @@ export function ForeignKeyCombobox({
             Clear selection
           </button>
           {filtered.length === 0 ? (
-            <p className="px-2 py-6 text-center text-sm text-zinc-500">
+            <p
+              className={cn(
+                "px-2 py-6 text-center text-sm",
+                isPublic ? "text-[var(--mt-ink-muted)]" : "text-zinc-500",
+              )}
+            >
               No results found.
             </p>
           ) : (
@@ -131,8 +159,14 @@ export function ForeignKeyCombobox({
                   key={option.value}
                   type="button"
                   className={cn(
-                    "flex w-full items-center rounded-sm px-2 py-1.5 text-left text-sm hover:bg-zinc-100",
-                    value === option.value && "bg-zinc-100",
+                    "flex w-full items-center rounded-sm px-2 py-1.5 text-left text-sm",
+                    isPublic
+                      ? "hover:bg-[rgb(255_245_235_/_0.9)]"
+                      : "hover:bg-zinc-100",
+                    value === option.value &&
+                      (isPublic
+                        ? "bg-[rgb(255_245_235_/_0.9)]"
+                        : "bg-zinc-100"),
                   )}
                   onClick={() => {
                     onChange(option.value);

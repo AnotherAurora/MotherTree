@@ -14,7 +14,7 @@ export type SlotState = {
   covenantStatSetId: number | null;
   wheel1Id: number | null;
   wheel2Id: number | null;
-  /** Selected awakener enlightenment (groundwork; not yet used in calculations). */
+  /** Selected awakener enlightenment; gates this slot's ATMs in the Relic Picker. */
   awakenerEnlightenment?: number;
 };
 

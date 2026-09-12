@@ -127,6 +127,7 @@ function WheelTile({
       options={options}
       placeholder="Wheel"
       assetKind="wheel"
+      appearance="public"
       trigger={
         <button
           type="button"
@@ -171,6 +172,7 @@ function CovenantPicker({
       options={options}
       placeholder="Covenant"
       assetKind="covenant"
+      appearance="public"
       trigger={
         <button
           type="button"
@@ -232,6 +234,7 @@ function RelicAwakenerCard({
         options={awakenerOptions}
         placeholder="Select awakener..."
         assetKind="awakener"
+        appearance="public"
         trigger={
           <button
             type="button"
@@ -504,7 +507,7 @@ export function RelicTeamBuilder({
               onKeyDown={(event) => {
                 if (event.key === "Enter") event.currentTarget.blur();
               }}
-              className="w-32"
+              className="w-32 border-[var(--mt-border)] bg-[rgb(255_245_235_/_0.55)] text-[var(--mt-ink)] focus-visible:ring-[var(--mt-ember)]"
             />
           </div>
 
@@ -527,7 +530,7 @@ export function RelicTeamBuilder({
               onKeyDown={(event) => {
                 if (event.key === "Enter") event.currentTarget.blur();
               }}
-              className="w-32"
+              className="w-32 border-[var(--mt-border)] bg-[rgb(255_245_235_/_0.55)] text-[var(--mt-ink)] focus-visible:ring-[var(--mt-ember)]"
             />
           </div>
 
@@ -537,7 +540,7 @@ export function RelicTeamBuilder({
                 type="checkbox"
                 checked={hsr}
                 onChange={(event) => onHsrChange(event.target.checked)}
-                className="h-4 w-4 rounded border-zinc-300"
+                className="h-4 w-4 rounded border-[var(--mt-border)] accent-[var(--mt-ember)]"
               />
               HSR (double relic values)
             </label>
@@ -546,6 +549,7 @@ export function RelicTeamBuilder({
               variant="outline"
               onClick={onImportOpen}
               disabled={importing}
+              className="border-[var(--mt-border)] bg-[rgb(255_245_235_/_0.55)] text-[var(--mt-ink)] hover:bg-[rgb(255_245_235_/_0.9)] focus-visible:ring-[var(--mt-ember)]"
             >
               Import
             </Button>
@@ -562,6 +566,7 @@ export function RelicTeamBuilder({
             options={gearOptions.posse}
             placeholder="Select posse..."
             assetKind="posse"
+            appearance="public"
             trigger={
               <button
                 type="button"
@@ -571,7 +576,7 @@ export function RelicTeamBuilder({
                     ? `Change posse ${selectedPosse.label}`
                     : "Select posse"
                 }
-                className="flex min-w-[12rem] cursor-pointer items-center gap-2 rounded-md border border-[var(--mt-border)] bg-white/90 px-2 py-1.5 text-left transition-colors hover:border-[var(--mt-ember)]/50"
+                className="flex min-w-[12rem] cursor-pointer items-center gap-2 rounded-md border border-[var(--mt-border)] bg-[rgb(255_245_235_/_0.55)] px-2 py-1.5 text-left transition-colors hover:border-[var(--mt-ember)]/50"
               >
                 {posseSrc ? (
                   <AssetIcon

@@ -348,8 +348,14 @@ export function buildPublicTeamData(
   );
 
   const selectedAwakenerIds = new Set<number>();
+  const enlightenmentByAwakenerId = new Map<number, number>();
   for (const slot of selection.slots) {
-    if (slot.awakenerId != null) selectedAwakenerIds.add(slot.awakenerId);
+    if (slot.awakenerId == null) continue;
+    selectedAwakenerIds.add(slot.awakenerId);
+    enlightenmentByAwakenerId.set(
+      slot.awakenerId,
+      effectiveEnlightenment(slot.awakenerEnlightenment),
+    );
   }
 
   const awakeners: Awakener[] = [...selectedAwakenerIds]
@@ -372,7 +378,7 @@ export function buildPublicTeamData(
       aliemusRegen: row.aliemus_regen,
       sigilYield: row.sigil_yield,
       deathResist: row.death_resist,
-      enlightenment: row.enlightenment,
+      enlightenment: enlightenmentByAwakenerId.get(row.id) ?? 0,
     }));
 
   const localsByAtmId = new Map<
