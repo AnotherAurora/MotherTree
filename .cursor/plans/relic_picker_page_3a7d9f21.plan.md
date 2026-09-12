@@ -49,7 +49,7 @@ unlimited and non-repeating.
 | Ranking Web Worker + client hook | `src/components/relic-picker/relic-ranking.worker.ts`, `src/components/relic-picker/use-relic-ranking.ts` |
 | Damage-relevance closure (gated) | `src/lib/path-carver/damage-relevance.ts` |
 | `tag.is_damage_relevant` generator | `scripts/sync-tag-damage-relevance.ts` (`npm run sync:damage-relevance`) |
-| Smoke checks | `scripts/smoke-relic-formula.ts`, `scripts/smoke-damage-relevance.ts`, `scripts/smoke-damage-relevance-real.ts` |
+| Smoke checks | `scripts/smoke-relic-formula.ts`, `scripts/smoke-damage-relevance.ts`, `scripts/smoke-damage-relevance-real.ts`, `scripts/smoke-relic-ranking-shards.ts` |
 
 ## Public data path (anon, no admin runtime)
 
@@ -146,29 +146,53 @@ table in the smoke script together.
 
 The engine is **not** cheap per relic: `computeReviewTagTotals` walks the full
 interaction fixpoint, and the sweep re-runs it for the baseline plus every
-candidate — roughly `Σk ≈ 780` full engine runs for a 39-relic catalog, once per
-add/remove. Running that synchronously on the main thread inside `setTimeout(0)`
-(the old behavior) froze the page.
+candidate. The catalog now holds ~91 damage relics, so a single pick is ~1
+baseline + tens of candidate engine runs (measured ~0.4-1.0 s each: ~23 s for a
+32-candidate 4-awakener team, ~36 s for a fully geared team). Picking relics one
+by one is roughly `Σk` runs across the session. Running that synchronously on the
+main thread (the old behavior) froze the page.
 
 ### Performance strategy (current)
 
 - Page ships only option lists; team `TeamData` is one cached anon action call
   per team/posse change, debounced 400 ms.
-- **Web Worker**: `computeRelicRanking` runs in `relic-ranking.worker.ts` via
-  `useRelicRanking`. The worker owns the `RelicTotalCache` and receives `init`
-  (team) then `rank` (selection/inputs) messages; only the newest `requestId` is
-  applied. `next.config.ts` adds `worker-src 'self' blob:` to the CSP.
-- **Overlay**: while a ranking is in flight the Relic Impact panel is covered by
-  a spinner and its add buttons are `disabled`, so a stale ranking cannot be
-  picked.
-- `totalsOnly` (`computeReviewTagTotals` option) skips building the debug
-  `steps` array for the ranking path.
-- The per-team `ManifestationApplyContext` (team realms, suppressed combo ids)
-  is built once per `computeRelicRanking` call instead of per candidate.
-- `totalCache` is keyed by `inputs|selectedIds`; the just-picked relic becomes
-  the next baseline for free.
+- **Worker pool**: `useRelicRanking` creates a persistent pool of
+  `min(hardwareConcurrency - 1, 8)` module workers. `relic-ranking.worker.ts`
+  receives `init` (team, once per team) then `rankChunk` messages and evaluates
+  only its assigned candidate ids. `applyInteractionsForTeamData` runs with
+  `collectSteps: false` from the ranking path.
+- **Shard/fragment math**: `relic-candidates.ts` exposes the sweep as pure
+  helpers — `createRelicRankingContext`, `computeEligibleRelicEntries`,
+  `computeRelicCandidateTotals`, `compareRelicRankingRows`. `computeRelicRanking`
+  is the sequential composition (fallback + Node smokes). Candidates are balanced
+  across workers by manifestation count (longest-processing-time first); the
+  baseline rides on the least-loaded chunk.
+- **Main-thread mirror cache**: the hook keeps `inputs|selection → total` for
+  every returned baseline/candidate, so a just-picked relic becomes the next
+  baseline (and remove/re-add) for free without posting a job.
+- **Progressive results**: rows stream into the panel as chunks land
+  (`progress {done,total}`); the blocking overlay only covers the panel until the
+  first results appear. Add buttons stay disabled until the sweep settles.
+- **Manual mode**: the hook tracks `inFlight` explicitly instead of inferring
+  "computing" from a context mismatch; a running sweep queues only the latest
+  pending request (queue-collapse). Only the newest sweep generation is applied.
+- `totalsOnly` now threads `collectSteps: false` into the engine, which skips all
+  debug `steps` object construction (values unchanged). Default remains `true`
+  for Review Tags.
 - Fallback: if the browser lacks `Worker` (or construction throws), the hook runs
-  the same function on the main thread so behavior is unchanged.
+  the sequential `computeRelicRanking` on the main thread so behavior is
+  unchanged.
+
+
+### Manual "Calculate" mode
+
+The Relic Impact panel header has an **Auto-update** toggle (default on, persisted
+in `mt.relic-picker.inputs`). With it off, `useRelicRanking` ignores context
+changes and only sweeps when `recalculate()` is called; the component shows a
+**Calculate** button (only in manual mode) and keeps the last Total Damage /
+Relic Impact visible with a stale note until pressed. The hook tracks `inFlight`
+explicitly (instead of inferring "computing" from a context mismatch) so manual
+idle does not spin forever, and exposes `stale` so the UI can mark old results.
 
 ### Damage-relevance prefilter (gated OFF)
 
@@ -217,4 +241,5 @@ equal an unfiltered engine run.
   `npm run sync:damage-relevance` after editing `tag_default_interaction`.
 - `typecheck` is only run on explicit request (see `AGENTS.md`); verify with
   `npm run smoke:relic-formula`, `npm run smoke:damage-relevance`,
-  `npm run smoke:damage-relevance-real`, and `npm run lint`.
+  `npm run smoke:damage-relevance-real`, `npm run smoke:relic-ranking-shards`,
+  and `npm run lint`.

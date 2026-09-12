@@ -33,6 +33,12 @@ export type RelicRankingResult = {
 /** Cache of finalized Total Damage by selection key. */
 export type RelicTotalCache = Map<string, number>;
 
+/** Candidate totals for a shard of the sweep (worker-friendly, plain data). */
+export type RelicCandidateTotalRow = {
+  relicId: number;
+  total: number;
+};
+
 /**
  * Damage-relevance prefilter.
  *
@@ -57,6 +63,59 @@ export function relicValueInputsKey(inputs: RelicValueInputs): string {
 
 export function relicSelectionKey(selectedRelicIds: readonly number[]): string {
   return [...selectedRelicIds].sort((a, b) => a - b).join(",");
+}
+
+/** Sort ranked rows: percent desc, then name. Shared by worker + main thread. */
+export function compareRelicRankingRows(
+  a: RelicRankingRow,
+  b: RelicRankingRow,
+): number {
+  const av = a.percentIncrease ?? -Infinity;
+  const bv = b.percentIncrease ?? -Infinity;
+  if (bv !== av) return bv - av;
+  return a.entry.name.localeCompare(b.entry.name);
+}
+
+export type RelicRankingContext = {
+  teamData: TeamData;
+  applyContext: ManifestationApplyContext;
+};
+
+/**
+ * Per-team setup independent of the candidate under test. Safe to build once
+ * per team and reuse across every sweep (the engine never mutates it).
+ */
+export function createRelicRankingContext(
+  teamData: TeamData,
+  damageDealerAwakenerIds: readonly number[],
+): RelicRankingContext {
+  return {
+    teamData,
+    applyContext: createManifestationApplyContext(
+      teamData.awakeners,
+      damageDealerAwakenerIds,
+      new Map(),
+      teamData.realms,
+      teamData.manifestations,
+    ),
+  };
+}
+
+/** Damage relics whose realm requirement is met and which are not selected. */
+export function computeEligibleRelicEntries(
+  applyContext: ManifestationApplyContext,
+  relicCatalog: readonly RelicCatalogEntry[],
+  selectedRelicIds: readonly number[],
+): RelicCatalogEntry[] {
+  const selectedSet = new Set(selectedRelicIds);
+  const teamRealms = applyContext.teamRealms;
+  return relicCatalog.filter(
+    (entry) =>
+      entry.isDamage &&
+      !selectedSet.has(entry.relicId) &&
+      (entry.requiredRealmId == null ||
+        teamRealms.satisfiesRequiredRealm(entry.requiredRealmId, "present")),
+  );
 }
 
 function computeTotalForSelection(
@@ -88,6 +147,187 @@ function getCachedTotal(
   return value;
 }
 
+type RelicManifestationResolver = {
+  manifestationsOf: (relicId: number) => Manifestation[];
+  manifestationsFor: (relicIds: readonly number[]) => Manifestation[];
+};
+
+function createRelicManifestationResolver(
+  byRelicId: ReadonlyMap<number, RelicCatalogEntry>,
+  inputs: RelicValueInputs,
+): RelicManifestationResolver {
+  const cache = new Map<number, Manifestation[]>();
+  const manifestationsOf = (relicId: number): Manifestation[] => {
+    let rows = cache.get(relicId);
+    if (rows == null) {
+      const entry = byRelicId.get(relicId);
+      rows = entry ? buildRelicManifestations(entry, inputs) : [];
+      cache.set(relicId, rows);
+    }
+    return rows;
+  };
+  const manifestationsFor = (relicIds: readonly number[]): Manifestation[] => {
+    const rows: Manifestation[] = [];
+    for (const relicId of relicIds) rows.push(...manifestationsOf(relicId));
+    return rows;
+  };
+  return { manifestationsOf, manifestationsFor };
+}
+
+type PreparedRelicSweep = {
+  eligible: RelicCatalogEntry[];
+  filteredTeamData: TeamData;
+  relevantManifestationsFor: (relicIds: readonly number[]) => Manifestation[];
+  outputsKey: string;
+};
+
+/**
+ * Shared per-sweep setup: relevance closure over team + selection + all eligible
+ * relics, so the filtered tag/interaction set is stable for the whole sweep.
+ * Disabled by default (see DAMAGE_RELEVANCE_FILTER_ENABLED).
+ */
+function prepareRelicSweep(args: {
+  teamData: TeamData;
+  relicCatalog: readonly RelicCatalogEntry[];
+  eligibleAll: readonly RelicCatalogEntry[];
+  selectedRelicIds: readonly number[];
+  inputs: RelicValueInputs;
+}): PreparedRelicSweep {
+  const { teamData, relicCatalog, eligibleAll, selectedRelicIds, inputs } = args;
+  const byRelicId = new Map(relicCatalog.map((entry) => [entry.relicId, entry]));
+  const resolver = createRelicManifestationResolver(byRelicId, inputs);
+
+  const relevance = DAMAGE_RELEVANCE_FILTER_ENABLED
+    ? computeDamageRelevance({
+        tagsById: teamData.tagsById,
+        defaultInteractions: teamData.defaultInteractions,
+        manifestations: [
+          ...teamData.manifestations,
+          ...resolver.manifestationsFor(selectedRelicIds),
+          ...eligibleAll.flatMap((entry) =>
+            resolver.manifestationsOf(entry.relicId),
+          ),
+        ],
+      })
+    : null;
+
+  const filteredTeamData = relevance
+    ? filterTeamDataToRelevance(teamData, relevance)
+    : teamData;
+
+  // A relic whose rows are all outside the closure can only contribute 0.
+  const eligible =
+    relevance == null
+      ? [...eligibleAll]
+      : eligibleAll.filter((entry) =>
+          resolver
+            .manifestationsOf(entry.relicId)
+            .some((m) => relevance.tagIds.has(m.tagId)),
+        );
+
+  const relevantManifestationsFor = (
+    relicIds: readonly number[],
+  ): Manifestation[] => {
+    const rows = resolver.manifestationsFor(relicIds);
+    return relevance ? filterManifestationsToRelevance(rows, relevance) : rows;
+  };
+
+  return {
+    eligible,
+    filteredTeamData,
+    relevantManifestationsFor,
+    outputsKey: relicValueInputsKey(inputs),
+  };
+}
+
+export type RelicCandidateTotalsArgs = {
+  teamData: TeamData;
+  applyContext: ManifestationApplyContext;
+  relicCatalog: readonly RelicCatalogEntry[];
+  /** Precomputed eligible ids for this selection (drives the relevance closure). */
+  eligibleRelicIds: readonly number[];
+  selectedRelicIds: readonly number[];
+  candidateRelicIds: readonly number[];
+  inputs: RelicValueInputs;
+  totalCache?: RelicTotalCache;
+  includeBaseline: boolean;
+};
+
+export type RelicCandidateTotalsResult = {
+  baselineTotal: number | null;
+  eligible: RelicCatalogEntry[];
+  rows: RelicCandidateTotalRow[];
+};
+
+/**
+ * Compute Total Damage for a subset of eligible candidate relics (plus the
+ * baseline when requested). Pure: identical inputs produce identical results, so
+ * shards can run in parallel workers and be merged on the main thread.
+ */
+export function computeRelicCandidateTotals(
+  args: RelicCandidateTotalsArgs,
+): RelicCandidateTotalsResult {
+  const {
+    teamData,
+    applyContext,
+    relicCatalog,
+    eligibleRelicIds,
+    selectedRelicIds,
+    candidateRelicIds,
+    inputs,
+    totalCache,
+    includeBaseline,
+  } = args;
+
+  const eligibleSet = new Set(eligibleRelicIds);
+  const eligibleAll = relicCatalog.filter((entry) =>
+    eligibleSet.has(entry.relicId),
+  );
+  const sweep = prepareRelicSweep({
+    teamData,
+    relicCatalog,
+    eligibleAll,
+    selectedRelicIds,
+    inputs,
+  });
+
+  let baselineTotal: number | null = null;
+  if (includeBaseline) {
+    const key = `${sweep.outputsKey}|${relicSelectionKey(selectedRelicIds)}`;
+    baselineTotal = getCachedTotal(totalCache, key, () =>
+      computeTotalForSelection(
+        sweep.filteredTeamData,
+        applyContext,
+        sweep.relevantManifestationsFor(selectedRelicIds),
+      ),
+    );
+  }
+
+  // Only evaluate candidates that survived the relevance filter; a filtered-out
+  // relict contributes nothing, matching the unfiltered sweep's eligible set.
+  const relevantEligibleSet = new Set(
+    sweep.eligible.map((entry) => entry.relicId),
+  );
+  const ids = candidateRelicIds.filter(
+    (relicId) =>
+      eligibleSet.has(relicId) && relevantEligibleSet.has(relicId),
+  );
+  const rows: RelicCandidateTotalRow[] = ids.map((relicId) => {
+    const withCandidate = [...selectedRelicIds, relicId];
+    const key = `${sweep.outputsKey}|${relicSelectionKey(withCandidate)}`;
+    const total = getCachedTotal(totalCache, key, () =>
+      computeTotalForSelection(
+        sweep.filteredTeamData,
+        applyContext,
+        sweep.relevantManifestationsFor(withCandidate),
+      ),
+    );
+    return { relicId, total };
+  });
+
+  return { baselineTotal, eligible: sweep.eligible, rows };
+}
+
 /**
  * Baseline total (with selected relics applied) plus each remaining eligible
  * relic's standalone total. Sorting/percent formatting is left to the caller.
@@ -113,26 +353,14 @@ export function computeRelicRanking(args: {
     totalCache,
   } = args;
 
-  const selectedSet = new Set(selectedRelicIds);
-  const byRelicId = new Map(relicCatalog.map((entry) => [entry.relicId, entry]));
-  const outputsKey = relicValueInputsKey(inputs);
-
-  // Per-team setup is independent of the candidate under test, so build it once.
-  const applyContext = createManifestationApplyContext(
-    teamData.awakeners,
+  const { applyContext } = createRelicRankingContext(
+    teamData,
     damageDealerAwakenerIds,
-    new Map(),
-    teamData.realms,
-    teamData.manifestations,
   );
-  const teamRealms = applyContext.teamRealms;
-
-  const eligibleAll = relicCatalog.filter(
-    (entry) =>
-      entry.isDamage &&
-      !selectedSet.has(entry.relicId) &&
-      (entry.requiredRealmId == null ||
-        teamRealms.satisfiesRequiredRealm(entry.requiredRealmId, "present")),
+  const eligibleAll = computeEligibleRelicEntries(
+    applyContext,
+    relicCatalog,
+    selectedRelicIds,
   );
 
   // No damage dealer ⇒ nothing to calculate. Report a zero baseline and a list
@@ -149,88 +377,35 @@ export function computeRelicRanking(args: {
     };
   }
 
-  // Build every candidate's rows once; reuse across the sweep and the closure.
-  const manifestationsByRelicId = new Map<number, Manifestation[]>();
-  const manifestationsOf = (relicId: number): Manifestation[] => {
-    let rows = manifestationsByRelicId.get(relicId);
-    if (rows == null) {
-      const entry = byRelicId.get(relicId);
-      rows = entry ? buildRelicManifestations(entry, inputs) : [];
-      manifestationsByRelicId.set(relicId, rows);
-    }
-    return rows;
-  };
-  const manifestationsFor = (relicIds: readonly number[]): Manifestation[] => {
-    const rows: Manifestation[] = [];
-    for (const relicId of relicIds) rows.push(...manifestationsOf(relicId));
-    return rows;
-  };
+  const eligibleRelicIds = eligibleAll.map((entry) => entry.relicId);
+  const { baselineTotal, eligible, rows } = computeRelicCandidateTotals({
+    teamData,
+    applyContext,
+    relicCatalog,
+    eligibleRelicIds,
+    selectedRelicIds,
+    candidateRelicIds: eligibleRelicIds,
+    inputs,
+    totalCache,
+    includeBaseline: true,
+  });
 
-  // Damage-relevance closure over the team plus every selectable relic so the
-  // filtered tag/interaction set stays stable for the whole sweep. Disabled by
-  // default (see DAMAGE_RELEVANCE_FILTER_ENABLED).
-  const relevance = DAMAGE_RELEVANCE_FILTER_ENABLED
-    ? computeDamageRelevance({
-        tagsById: teamData.tagsById,
-        defaultInteractions: teamData.defaultInteractions,
-        manifestations: [
-          ...teamData.manifestations,
-          ...manifestationsFor(selectedRelicIds),
-          ...eligibleAll.flatMap((entry) => manifestationsOf(entry.relicId)),
-        ],
-      })
-    : null;
-  const filteredTeamData = relevance
-    ? filterTeamDataToRelevance(teamData, relevance)
-    : teamData;
-
-  // A relic whose rows are all outside the closure can only contribute 0.
-  const eligible =
-    relevance == null
-      ? eligibleAll
-      : eligibleAll.filter((entry) =>
-          manifestationsOf(entry.relicId).some((m) =>
-            relevance.tagIds.has(m.tagId),
-          ),
-        );
-
-  const relevantManifestationsFor = (
-    relicIds: readonly number[],
-  ): Manifestation[] => {
-    const rows = manifestationsFor(relicIds);
-    return relevance ? filterManifestationsToRelevance(rows, relevance) : rows;
-  };
-
-  const selectedKey = `${outputsKey}|${relicSelectionKey(selectedRelicIds)}`;
-  const baselineTotal = getCachedTotal(totalCache, selectedKey, () =>
-    computeTotalForSelection(
-      filteredTeamData,
-      applyContext,
-      relevantManifestationsFor(selectedRelicIds),
-    ),
+  const baseline = baselineTotal ?? 0;
+  const byRelicId = new Map(
+    eligibleAll.map((entry) => [entry.relicId, entry]),
   );
+  const ranked: RelicRankingRow[] = [];
+  for (const { relicId, total } of rows) {
+    const entry = byRelicId.get(relicId);
+    if (!entry) continue;
+    ranked.push({
+      entry,
+      total,
+      percentIncrease:
+        baseline > 0 ? ((total - baseline) / baseline) * 100 : null,
+    });
+  }
+  ranked.sort(compareRelicRankingRows);
 
-  const ranked: RelicRankingRow[] = eligible.map((entry) => {
-    const withCandidate = [...selectedRelicIds, entry.relicId];
-    const key = `${outputsKey}|${relicSelectionKey(withCandidate)}`;
-    const total = getCachedTotal(totalCache, key, () =>
-      computeTotalForSelection(
-        filteredTeamData,
-        applyContext,
-        relevantManifestationsFor(withCandidate),
-      ),
-    );
-    const percentIncrease =
-      baselineTotal > 0 ? ((total - baselineTotal) / baselineTotal) * 100 : null;
-    return { entry, total, percentIncrease };
-  });
-
-  ranked.sort((a, b) => {
-    const av = a.percentIncrease ?? -Infinity;
-    const bv = b.percentIncrease ?? -Infinity;
-    if (bv !== av) return bv - av;
-    return a.entry.name.localeCompare(b.entry.name);
-  });
-
-  return { eligible, baselineTotal, ranked };
+  return { eligible, baselineTotal: baseline, ranked };
 }

@@ -11,6 +11,7 @@ import { RelicTeamBuilder } from "@/components/relic-picker/relic-team-builder";
 import { useRelicRanking } from "@/components/relic-picker/use-relic-ranking";
 import { ImportTeamModal } from "@/components/path-carver/import-team-modal";
 import { CalculatorPendingHydration } from "@/components/public/calculator-pending-hydration";
+import { Button } from "@/components/ui/button";
 import { AssetIcon } from "@/lib/assets/asset-icon";
 import { resolveSkeydbAssetUrl } from "@/lib/assets/resolve-asset-url";
 import {
@@ -60,6 +61,7 @@ const RESEARCH_INPUTS_STORAGE_KEY = "mt.relic-picker.inputs";
 type StoredResearchInputs = {
   accountLevel: number;
   ownedPosseCount: number;
+  autoUpdate: boolean;
 };
 
 function readStoredResearchInputs(): StoredResearchInputs | null {
@@ -78,7 +80,8 @@ function readStoredResearchInputs(): StoredResearchInputs | null {
       Number.isFinite(o.ownedPosseCount)
         ? clampOwnedPosseCount(o.ownedPosseCount)
         : DEFAULT_OWNED_POSSE_COUNT;
-    return { accountLevel, ownedPosseCount };
+    const autoUpdate = typeof o.autoUpdate === "boolean" ? o.autoUpdate : true;
+    return { accountLevel, ownedPosseCount, autoUpdate };
   } catch {
     return null;
   }
@@ -122,6 +125,9 @@ export function RelicPicker({
     initialResearchInputs?.ownedPosseCount ?? DEFAULT_OWNED_POSSE_COUNT,
   );
   const [hsr, setHsr] = useState(false);
+  const [autoUpdate, setAutoUpdate] = useState(
+    initialResearchInputs?.autoUpdate ?? true,
+  );
   // False during SSR and the hydration render, then true on the client so the
   // restored localStorage values only mount after hydration.
   const hydrated = useSyncExternalStore(
@@ -148,12 +154,12 @@ export function RelicPicker({
     try {
       window.localStorage.setItem(
         RESEARCH_INPUTS_STORAGE_KEY,
-        JSON.stringify({ accountLevel, ownedPosseCount }),
+        JSON.stringify({ accountLevel, ownedPosseCount, autoUpdate }),
       );
     } catch {
       // Ignore quota / private-mode failures.
     }
-  }, [accountLevel, ownedPosseCount, hydrated]);
+  }, [accountLevel, ownedPosseCount, autoUpdate, hydrated]);
 
   const commitAccountLevel = useCallback(() => {
     const parsed = Number.parseInt(accountLevelText, 10);
@@ -234,6 +240,9 @@ export function RelicPicker({
   const {
     ranking,
     computing,
+    stale,
+    recalculate,
+    progress,
     error: rankingError,
   } = useRelicRanking({
     teamData: activeTeamData,
@@ -243,6 +252,7 @@ export function RelicPicker({
     accountLevel,
     ownedPosseCount,
     hsr,
+    autoUpdate,
   });
 
   const handleImport = useCallback((result: ImportTeamResult) => {
@@ -272,13 +282,17 @@ export function RelicPicker({
 
   const visibleRanking = activeTeamData && relicCatalog ? ranking : null;
   const baselineTotal = visibleRanking?.baselineTotal ?? null;
+  const rankedRows = visibleRanking?.ranked ?? [];
   const showLoading = hasAwakener && teamLoading;
-  // Busy while team data loads or a ranking sweep is in flight. The overlay
-  // blocks add clicks so a stale ranking can't be selected mid-recompute.
-  const rankingBusy =
-    activeTeamData != null &&
-    relicCatalog != null &&
-    (ranking == null || computing);
+  // Busy while a ranking sweep is in flight. Add buttons stay disabled, but the
+  // partial ranking is shown as chunks land; the blocking overlay only covers
+  // the panel until the first results appear. In manual mode idle, no sweep is
+  // running, so the last results stay interactive.
+  const rankingBusy = computing;
+  const showRankingOverlay = rankingBusy && rankedRows.length === 0;
+  const canCalculate = activeTeamData != null && relicCatalog != null;
+  const calculateDisabled =
+    computing || !canCalculate || (!stale && ranking != null);
 
   if (!hydrated) {
     return <CalculatorPendingHydration />;
@@ -300,7 +314,8 @@ export function RelicPicker({
         )}
         {rankingBusy && (
           <p className="mt-1 text-xs text-[var(--mt-ink-muted)]">
-            Calculating relic impact...
+            Calculating relic impact
+            {progress ? ` (${progress.done}/${progress.total})` : "..."}
           </p>
         )}
         {teamError && <p className="mt-2 text-xs text-red-600">{teamError}</p>}
@@ -313,9 +328,50 @@ export function RelicPicker({
       </div>
 
       <div className="relative rounded-xl border border-[var(--mt-border)] bg-[var(--mt-surface)] p-4">
-        <p className="text-xs font-medium uppercase tracking-wide text-[var(--mt-ink-muted)]">
-          Relic Impact (by Total Damage %)
-        </p>
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+          <p className="text-xs font-medium uppercase tracking-wide text-[var(--mt-ink-muted)]">
+            Relic Impact (by Total Damage %)
+          </p>
+          <div className="flex items-center gap-3">
+            <label
+              className="flex cursor-pointer items-center gap-2 text-xs font-medium text-[var(--mt-ink)]"
+              title="Automatically recalculate relic impact on every change"
+            >
+              <input
+                type="checkbox"
+                role="switch"
+                checked={autoUpdate}
+                onChange={(event) => setAutoUpdate(event.target.checked)}
+                className="h-4 w-4 rounded border-zinc-300 accent-[var(--mt-ember)]"
+              />
+              Auto-update
+            </label>
+            {!autoUpdate && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={recalculate}
+                disabled={calculateDisabled}
+                title="Calculate relic impact for the current team"
+              >
+                Calculate
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {stale && !rankingBusy && (
+          <p className="mt-2 text-xs text-amber-700">
+            Results may be out of date — press Calculate to update.
+          </p>
+        )}
+
+        {rankingBusy && rankedRows.length > 0 && progress && (
+          <p className="mt-2 text-xs text-[var(--mt-ink-muted)]">
+            Computing relic impact… {progress.done}/{progress.total} evaluated
+          </p>
+        )}
 
         {!hasAwakener ? (
           <p className="mt-3 text-sm text-[var(--mt-ink-muted)]">
@@ -325,13 +381,9 @@ export function RelicPicker({
           <p className="mt-3 text-sm text-[var(--mt-ink-muted)]">
             Loading relic catalog...
           </p>
-        ) : visibleRanking && visibleRanking.ranked.length === 0 ? (
-          <p className="mt-3 text-sm text-[var(--mt-ink-muted)]">
-            No eligible damage relics for this team.
-          </p>
-        ) : (
+        ) : rankedRows.length > 0 ? (
           <ul className="mt-3 flex flex-wrap gap-3">
-            {(visibleRanking?.ranked ?? []).map((row) => (
+            {rankedRows.map((row) => (
               <li key={row.entry.relicId} className="w-16">
                 <button
                   type="button"
@@ -354,9 +406,17 @@ export function RelicPicker({
               </li>
             ))}
           </ul>
-        )}
+        ) : visibleRanking && !rankingBusy ? (
+          <p className="mt-3 text-sm text-[var(--mt-ink-muted)]">
+            No eligible damage relics for this team.
+          </p>
+        ) : !visibleRanking && !rankingBusy ? (
+          <p className="mt-3 text-sm text-[var(--mt-ink-muted)]">
+            Press Calculate to see relic impact.
+          </p>
+        ) : null}
 
-        {rankingBusy && (
+        {showRankingOverlay && (
           <div
             role="status"
             aria-live="polite"
@@ -366,7 +426,9 @@ export function RelicPicker({
               aria-hidden="true"
               className="h-6 w-6 animate-spin rounded-full border-2 border-current border-t-transparent"
             />
-            <span className="text-xs font-medium">Computing relic impact...</span>
+            <span className="text-xs font-medium">
+              Computing relic impact...
+            </span>
           </div>
         )}
       </div>

@@ -479,6 +479,7 @@ export function computeReviewTagTotals(
     teamMaxHp.finalMaxHp,
     applyContext.teamRealms,
     hitCountByManifestationKey,
+    options.totalsOnly !== true,
   );
   return {
     totalsByTagId: result.totalsByTagId,
