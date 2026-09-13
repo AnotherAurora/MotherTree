@@ -37,6 +37,8 @@ Eligibility: `relic.is_damage = true` AND (`relic.required_realm` is null OR the
 | Relic `Manifestation` injector | `src/lib/path-carver/relic-manifestations.ts` |
 | Baseline + per-relic ranking (+ cache) | `src/lib/path-carver/relic-candidates.ts` |
 | Ranking Web Worker + client hook | `src/components/relic-picker/relic-ranking.worker.ts`, `src/components/relic-picker/use-relic-ranking.ts` |
+| Relic tooltip rows (resolved value + tag name) | `src/lib/path-carver/relic-tooltip.ts` |
+| Relic → SKeyDB deep link | `src/lib/assets/skeydb-relic-link.ts` + generated `src/lib/assets/maps/relic-skeydb-links.json` (by `scripts/generate-skeydb-asset-maps.ts`) |
 | Damage-relevance closure (gated) | `src/lib/path-carver/damage-relevance.ts` |
 | `tag.is_damage_relevant` generator | `scripts/sync-tag-damage-relevance.ts` (`npm run sync:damage-relevance`) |
 | Smoke checks | `scripts/smoke-relic-formula.ts`, `scripts/smoke-damage-relevance.ts`, `scripts/smoke-damage-relevance-real.ts`, `scripts/smoke-relic-ranking-shards.ts` |
@@ -107,7 +109,7 @@ If you change the formula, update `relic-research-curve.ts` and the expected tab
 
 ### 6.1 Why the sweep is expensive
 
-The engine is **not** cheap per relic: `computeReviewTagTotals` walks the full interaction fixpoint (see `simulator_calculation_pipeline_reference.md` §1 / §3.4 / §6), and the sweep re-runs it for the baseline plus every candidate. The catalog holds ~91 damage relics, so a single pick is ~1 baseline + tens of candidate engine runs (measured ~0.4–1.0 s each: ~23 s for a 32-candidate 4-awakener team, ~36 s for a fully geared team). Picking relics one by one is roughly `Σk` runs across the session. Running that synchronously on the main thread froze the page.
+The engine is **not** cheap per relic: `computeReviewTagTotals` walks the full interaction fixpoint (see `simulator_calculation_pipeline_reference.md` §1 / §3.4 / §6), and the sweep re-runs it for the baseline plus every candidate. The catalog now holds ~91 damage relics, so a single pick is ~1 baseline + tens of candidate engine runs (measured ~0.4–1.0 s each: ~23 s for a 32-candidate 4-awakener team, ~36 s for a fully geared team). Picking relics one by one is roughly `Σk` runs across the session. Running that synchronously on the main thread froze the page.
 
 ### 6.2 Performance strategy (current)
 
@@ -139,6 +141,7 @@ The Relic Impact panel header has an **Auto-update** toggle (default on, persist
 - Add a relic: no code change needed; `is_damage` + `required_realm` drive eligibility. Ensure its `relic_tag_manifestation` rows resolve via the formula.
 - New `base_formula`: extend `RelicBaseFormula` and `resolveRelicValueScalar`, then add a smoke case.
 - Show a per-channel breakdown: `computeTotalDamage` already returns `byChannel`; the page currently shows only the total.
+- Relic card tooltip + SKeyDB link: `relicCardMeta` in `relic-picker.tsx` precomputes each card's multi-line `<resolved value> <formatSearchTagLabel(tag_name)>` text and a right-click deep link (`resolveSkeydbRelicUrl`). Percent rows (`tag.is_percent` or `dependency_stat = enemy_max_hp`) render `value×100%` via `formatTooltipValue`, mirroring `formatValueDisplay` on the Search page. It uses the engine's own `resolveRelicValueScalar` and is display-only — it never touches `computeReviewTagTotals` or the worker sweep. Regenerate `relic-skeydb-links.json` with `npm run generate:skeydb-assets` (also run by `npm run sync:skeydb-assets`) after bumping the SKeyDB pin or relic names.
 - Persisting selections / sharing: keep it client-side unless a plan is amended.
 
 ---

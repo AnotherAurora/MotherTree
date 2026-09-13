@@ -14,6 +14,7 @@ import { CalculatorPendingHydration } from "@/components/public/calculator-pendi
 import { Button } from "@/components/ui/button";
 import { AssetIcon } from "@/lib/assets/asset-icon";
 import { resolveSkeydbAssetUrl } from "@/lib/assets/resolve-asset-url";
+import { resolveSkeydbRelicUrl } from "@/lib/assets/skeydb-relic-link";
 import {
   importTeamCodePublic,
   loadPublicRelicPickerTeamData,
@@ -24,7 +25,9 @@ import {
   DEFAULT_OWNED_POSSE_COUNT,
 } from "@/lib/path-carver/relic-research-curve";
 import type { RelicCatalogEntry } from "@/lib/path-carver/relic-manifestations";
+import { resolveRelicTooltipRows } from "@/lib/path-carver/relic-tooltip";
 import type { AnchoredAwakenerState } from "@/lib/path-carver/types";
+import { formatSearchTagLabel } from "@/lib/public/search-filter-options";
 import type { PublicAwakenerOption } from "@/lib/public/relic-picker-data";
 import { createEmptySlots } from "@/lib/simulator/types";
 import type { SimulatorGearOptions, SlotState } from "@/lib/simulator/types";
@@ -41,6 +44,12 @@ type SelectedRelic = {
   relicId: number;
   name: string;
   tier: string;
+};
+
+type RelicCardMeta = {
+  /** Multi-line `value tag` text for the native tooltip. */
+  tooltip: string;
+  skeydbUrl?: string;
 };
 
 const MIN_OWNED_POSSE_COUNT = 1;
@@ -100,6 +109,17 @@ function formatTotal(value: number): string {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
+}
+
+/**
+ * Mirrors the Search page formatter (`formatValueDisplay` in
+ * `src/lib/public/search-results.ts`): percent rows store a fraction, so scale
+ * to percent points and trim float noise.
+ */
+function formatTooltipValue(value: number, isPercent: boolean): string {
+  if (!isPercent) return String(value);
+  const pct = Math.round(value * 100 * 1e10) / 1e10;
+  return `${pct}%`;
 }
 
 export function RelicPicker({
@@ -240,6 +260,27 @@ export function RelicPicker({
     [visibleSelectedRelics],
   );
 
+  // Display-only tooltip + SKeyDB deep link per relic. Depends solely on the
+  // catalog and research inputs; never feeds the ranking sweep.
+  const relicCardMeta = useMemo(() => {
+    const map = new Map<number, RelicCardMeta>();
+    if (!relicCatalog) return map;
+    const inputs = { accountLevel, ownedPosseCount, hsr };
+    for (const entry of relicCatalog) {
+      const tooltip = resolveRelicTooltipRows(entry, inputs)
+        .map(
+          (row) =>
+            `${formatTooltipValue(row.value, row.isPercent)} ${formatSearchTagLabel(row.tagName)}`,
+        )
+        .join("\n");
+      map.set(entry.relicId, {
+        tooltip,
+        skeydbUrl: resolveSkeydbRelicUrl(entry.name, entry.tier),
+      });
+    }
+    return map;
+  }, [relicCatalog, accountLevel, ownedPosseCount, hsr]);
+
   const {
     ranking,
     computing,
@@ -365,6 +406,13 @@ Total Burst Damage Approximation
           </div>
         </div>
 
+        {rankedRows.length > 0 && (
+          <p className="mt-1 text-xs text-[var(--mt-ink-muted)]">
+            Hover a relic for its resolved effects · Right-click to open it on
+            SKeyDB.
+          </p>
+        )}
+
         {stale && !rankingBusy && (
           <p className="mt-2 text-xs text-amber-700">
             Results may be out of date — press Calculate to update.
@@ -387,30 +435,42 @@ Total Burst Damage Approximation
           </p>
         ) : rankedRows.length > 0 ? (
           <ul className="mt-3 flex flex-wrap gap-3">
-            {rankedRows.map((row) => (
-              <li key={row.entry.relicId} className="w-16">
-                <button
-                  type="button"
-                  onClick={() => handleAddRelic(row.entry)}
-                  disabled={rankingBusy}
-                  title={`Add ${row.entry.name}`}
-                  aria-label={`Add ${row.entry.name}`}
-                  className="flex w-full cursor-pointer flex-col items-center gap-1 rounded-md border border-transparent p-1 hover:border-[var(--mt-border)] hover:bg-[rgb(255_245_235_/_0.4)] focus-visible:border-[var(--mt-border)] focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <span className="text-xs font-medium tabular-nums text-[var(--mt-ember-deep)]">
-                    {formatPercent(row.percentIncrease)}
-                  </span>
-                  <span className="flex size-14 items-center justify-center overflow-hidden rounded-md">
-                    <AssetIcon
-                      src={resolveSkeydbAssetUrl("relic", row.entry.name)}
-                      alt={row.entry.name}
-                      size={54}
-                      className="scale-[1.15] rounded-none object-cover"
-                    />
-                  </span>
-                </button>
-              </li>
-            ))}
+            {rankedRows.map((row) => {
+              const meta = relicCardMeta.get(row.entry.relicId);
+              return (
+                <li key={row.entry.relicId} className="w-16">
+                  <button
+                    type="button"
+                    onClick={() => handleAddRelic(row.entry)}
+                    disabled={rankingBusy}
+                    title={meta?.tooltip ?? `Add ${row.entry.name}`}
+                    aria-label={`Add ${row.entry.name}`}
+                    onContextMenu={(event) => {
+                      if (!meta?.skeydbUrl) return;
+                      event.preventDefault();
+                      window.open(
+                        meta.skeydbUrl,
+                        "_blank",
+                        "noopener,noreferrer",
+                      );
+                    }}
+                    className="flex w-full cursor-pointer flex-col items-center gap-1 rounded-md border border-transparent p-1 hover:border-[var(--mt-border)] hover:bg-[rgb(255_245_235_/_0.4)] focus-visible:border-[var(--mt-border)] focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <span className="text-xs font-medium tabular-nums text-[var(--mt-ember-deep)]">
+                      {formatPercent(row.percentIncrease)}
+                    </span>
+                    <span className="flex size-14 items-center justify-center overflow-hidden rounded-md">
+                      <AssetIcon
+                        src={resolveSkeydbAssetUrl("relic", row.entry.name)}
+                        alt={row.entry.name}
+                        size={54}
+                        className="scale-[1.15] rounded-none object-cover"
+                      />
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
           </ul>
         ) : visibleRanking && !rankingBusy ? (
           <p className="mt-3 text-sm text-[var(--mt-ink-muted)]">
@@ -449,26 +509,38 @@ Total Burst Damage Approximation
           </p>
         ) : (
           <ul className="mt-3 flex flex-wrap gap-3">
-            {visibleSelectedRelics.map((relic) => (
-              <li key={relic.relicId}>
-                <button
-                  type="button"
-                  onClick={() => handleRemoveRelic(relic.relicId)}
-                  title={`Remove ${relic.name}`}
-                  aria-label={`Remove ${relic.name}`}
-                  className="flex cursor-pointer items-center justify-center rounded-md border border-transparent p-1 hover:border-[var(--mt-border)] hover:bg-[rgb(255_245_235_/_0.4)] focus-visible:border-[var(--mt-border)] focus-visible:outline-none"
-                >
-                  <span className="flex size-14 items-center justify-center overflow-hidden rounded-md">
-                    <AssetIcon
-                      src={resolveSkeydbAssetUrl("relic", relic.name)}
-                      alt={relic.name}
-                      size={54}
-                      className="scale-[1.15] rounded-none object-cover"
-                    />
-                  </span>
-                </button>
-              </li>
-            ))}
+            {visibleSelectedRelics.map((relic) => {
+              const meta = relicCardMeta.get(relic.relicId);
+              return (
+                <li key={relic.relicId}>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveRelic(relic.relicId)}
+                    title={meta?.tooltip ?? `Remove ${relic.name}`}
+                    aria-label={`Remove ${relic.name}`}
+                    onContextMenu={(event) => {
+                      if (!meta?.skeydbUrl) return;
+                      event.preventDefault();
+                      window.open(
+                        meta.skeydbUrl,
+                        "_blank",
+                        "noopener,noreferrer",
+                      );
+                    }}
+                    className="flex cursor-pointer items-center justify-center rounded-md border border-transparent p-1 hover:border-[var(--mt-border)] hover:bg-[rgb(255_245_235_/_0.4)] focus-visible:border-[var(--mt-border)] focus-visible:outline-none"
+                  >
+                    <span className="flex size-14 items-center justify-center overflow-hidden rounded-md">
+                      <AssetIcon
+                        src={resolveSkeydbAssetUrl("relic", relic.name)}
+                        alt={relic.name}
+                        size={54}
+                        className="scale-[1.15] rounded-none object-cover"
+                      />
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>

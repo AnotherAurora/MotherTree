@@ -25,6 +25,11 @@ export type RelicRtmRow = {
   targetType: TargetType | null;
   dependencyStat: AllStats | null;
   isAccumulating: boolean;
+  /**
+   * Row value is a percent (tag `is_percent`, or a `enemy_max_hp` dependency).
+   * Display-only: the engine consumes the raw scalar unchanged.
+   */
+  isPercent: boolean;
 };
 
 /** One relic family with its damage rows, resolved from the public catalog. */

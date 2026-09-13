@@ -258,6 +258,7 @@ console.log("\nIntegration — relic amplifies an awakener damage tag (affects o
         targetType: "aoe",
         dependencyStat: null,
         isAccumulating: false,
+        isPercent: true,
       },
     ],
   };
@@ -279,6 +280,7 @@ console.log("\nIntegration — relic amplifies an awakener damage tag (affects o
         targetType: "aoe",
         dependencyStat: null,
         isAccumulating: false,
+        isPercent: false,
       },
     ],
   };
@@ -365,6 +367,7 @@ console.log(
         targetType: "aoe",
         dependencyStat: null,
         isAccumulating: false,
+        isPercent: true,
       },
     ],
   };

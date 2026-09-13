@@ -654,21 +654,26 @@ export function buildPublicRelicCatalog(
     isDamage: row.is_damage === true,
   }));
 
-  const tagNamesById = new Map(catalog.tags.map((t) => [t.id, t.tag_name]));
+  const tagRowsById = new Map(catalog.tags.map((t) => [t.id, t]));
   const rows: (RelicRtmRow & { relicId: number })[] =
-    catalog.relicManifestations.map((row) => ({
-      relicId: row.relic_id,
-      id: row.id,
-      tagId: row.tag_id,
-      tagName: tagNamesById.get(row.tag_id) ?? "Unknown",
-      triggerCondition: row.trigger_condition,
-      valueScalar: row.value_scalar,
-      kind: row.kind as RelicArgKind,
-      baseFormula: row.base_formula as RelicBaseFormula | null,
-      targetType: row.target_type,
-      dependencyStat: row.dependency_stat,
-      isAccumulating: row.is_accumulating,
-    }));
+    catalog.relicManifestations.map((row) => {
+      const tag = tagRowsById.get(row.tag_id);
+      return {
+        relicId: row.relic_id,
+        id: row.id,
+        tagId: row.tag_id,
+        tagName: tag?.tag_name ?? "Unknown",
+        triggerCondition: row.trigger_condition,
+        valueScalar: row.value_scalar,
+        kind: row.kind as RelicArgKind,
+        baseFormula: row.base_formula as RelicBaseFormula | null,
+        targetType: row.target_type,
+        dependencyStat: row.dependency_stat,
+        isAccumulating: row.is_accumulating,
+        isPercent:
+          tag?.is_percent === true || row.dependency_stat === "enemy_max_hp",
+      };
+    });
 
   return groupRelicManifestations(entries, rows);
 }

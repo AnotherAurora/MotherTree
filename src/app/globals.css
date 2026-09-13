@@ -26,8 +26,11 @@ body {
   box-sizing: border-box;
 }
 
-/* Public desert dusk theme — scoped; admin stays untouched */
-.public-theme {
+/* Public desert dusk theme — scoped; admin stays untouched.
+   Tokens also land on the root element so portaled popovers/dialogs
+   (rendered under <body>) inherit the public palette. */
+.public-theme,
+html:has(.public-theme) {
   --mt-sand: #e4c9a8;
   --mt-sand-deep: #c49a7a;
   --mt-dusk: #f0c4a0;
@@ -41,7 +44,9 @@ body {
   --mt-surface-strong: rgb(42 28 22 / 0.14);
   --mt-border: rgb(42 28 22 / 0.18);
   --mt-halo: rgb(255 186 120 / 0.55);
+}
 
+.public-theme {
   position: relative;
   isolation: isolate;
   color: var(--mt-ink);
