@@ -33,6 +33,13 @@ const HUB_ITEMS: readonly HubItem[] = [
     ],
   },
   {
+    href: "/relic-picker",
+    title: "Relic Picker",
+    bullets: [
+      "Import your team and see which damage relic raises Total Burst Damage the most.",
+    ],
+  },
+  {
     href: "/manual",
     title: "Manual",
     bullets: [

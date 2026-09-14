@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Upload } from "lucide-react";
 import { ForeignKeyCombobox } from "@/components/admin/foreign-key-combobox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,6 +47,8 @@ type RelicTeamBuilderProps = {
   hsr: boolean;
   onHsrChange: (value: boolean) => void;
   importing: boolean;
+  /** Pulse the DD checkbox to prompt for a damage dealer when none is set. */
+  highlightDamageDealer: boolean;
   onImportOpen: () => void;
 };
 
@@ -206,6 +208,7 @@ function RelicAwakenerCard({
   wheel2Options,
   awakenerLabel,
   isDamageDealer,
+  highlightDamageDealer,
   onChange,
   onDamageDealerChange,
 }: {
@@ -216,6 +219,7 @@ function RelicAwakenerCard({
   wheel2Options: ForeignKeyOption[];
   awakenerLabel: string | null;
   isDamageDealer: boolean;
+  highlightDamageDealer: boolean;
   onChange: (slot: SlotState) => void;
   onDamageDealerChange: (value: boolean) => void;
 }) {
@@ -264,7 +268,11 @@ function RelicAwakenerCard({
                 {awakenerLabel}
               </p>
               <label
-                className="pointer-events-auto flex shrink-0 cursor-pointer items-center gap-1 rounded-md bg-black/55 px-1.5 py-1 text-[0.65rem] font-bold uppercase tracking-wide text-white/90 backdrop-blur-sm"
+                className={`pointer-events-auto flex shrink-0 cursor-pointer items-center gap-1 rounded-md bg-black/55 px-1.5 py-1 text-[0.65rem] font-bold uppercase tracking-wide text-white/90 backdrop-blur-sm ${
+                  highlightDamageDealer
+                    ? "ring-2 ring-amber-400 ring-offset-1 ring-offset-black/30 motion-safe:animate-pulse"
+                    : ""
+                }`}
                 title="Damage Dealer"
               >
                 <input
@@ -363,6 +371,7 @@ export function RelicTeamBuilder({
   hsr,
   onHsrChange,
   importing,
+  highlightDamageDealer,
   onImportOpen,
 }: RelicTeamBuilderProps) {
   const optionMap = useMemo(
@@ -546,12 +555,12 @@ export function RelicTeamBuilder({
             </label>
             <Button
               type="button"
-              variant="outline"
               onClick={onImportOpen}
               disabled={importing}
-              className="border-[var(--mt-border)] bg-[rgb(255_245_235_/_0.55)] text-[var(--mt-ink)] hover:bg-[rgb(255_245_235_/_0.9)] focus-visible:ring-[var(--mt-ember)]"
+              className="bg-[var(--mt-ember)] text-[rgb(255_248_240)] hover:bg-[var(--mt-ember-deep)] focus-visible:ring-[var(--mt-ember)]"
             >
-              Import
+              <Upload aria-hidden="true" className="h-4 w-4" />
+              {importing ? "Importing…" : "Import team"}
             </Button>
           </div>
         </div>
@@ -627,6 +636,7 @@ export function RelicTeamBuilder({
             isDamageDealer={anchoredAwakeners.some(
               (a) => a.awakenerId === slot.awakenerId && a.isDamageDealer,
             )}
+            highlightDamageDealer={highlightDamageDealer}
             onChange={(updated) => updateSlot(index, updated)}
             onDamageDealerChange={(value) => setDamageDealer(index, value)}
           />

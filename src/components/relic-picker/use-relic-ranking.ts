@@ -217,9 +217,11 @@ function buildRanking(plan: SweepPlan): RelicRankingResult {
  * own total cache, and the main thread mirrors returned totals (`selectionKey →
  * total`) so the just-picked relic becomes the next baseline for free.
  *
- * Results stream in as chunks land (progressive). Falls back to a synchronous
- * main-thread run when Web Workers are unavailable. Honors manual mode: with
- * `autoUpdate` off, only `recalculate()` starts a sweep.
+ * Results are published atomically when the whole sweep settles: partial chunk
+ * results are never rendered, so the loading overlay stays up for the entire
+ * run. Falls back to a synchronous main-thread run when Web Workers are
+ * unavailable. Honors manual mode: with `autoUpdate` off, only
+ * `recalculate()` starts a sweep.
  */
 export function useRelicRanking({
   teamData,
@@ -234,10 +236,6 @@ export function useRelicRanking({
   teamCompositionKey,
 }: UseRelicRankingArgs): RelicRankingState {
   const [outcome, setOutcome] = useState<RankingOutcome | null>(null);
-  const [live, setLive] = useState<{
-    context: RequestContext;
-    result: RelicRankingResult;
-  } | null>(null);
   const [progress, setProgress] = useState<RelicRankingProgress | null>(null);
   const [inFlight, setInFlight] = useState(false);
   const [manualToken, setManualToken] = useState(0);
@@ -293,21 +291,10 @@ export function useRelicRanking({
     negligiblePercent,
   ]);
 
-  const publishLive = useCallback((plan: SweepPlan) => {
+  // Partial chunk results are intentionally not published; only the progress
+  // counter updates mid-sweep. The full result is published in `finishSweep`.
+  const reportProgress = useCallback((plan: SweepPlan) => {
     setProgress({ done: plan.rows.size, total: plan.progressTotal });
-    if (plan.rows.size === 0 && plan.baselineTotal == null) return;
-    const result = buildRanking(plan);
-    if (plan.teamCompositionKey === teamCompositionKeyRef.current) {
-      recordKnownPercents(knownPercentRef.current, result.ranked);
-      setNegligible(
-        deriveNegligibleRows(
-          plan.eligible,
-          knownPercentRef.current,
-          plan.context.negligiblePercent,
-        ),
-      );
-    }
-    setLive({ context: plan.context, result });
   }, []);
 
   const finishSweep = useCallback(
@@ -331,7 +318,6 @@ export function useRelicRanking({
         }
         setOutcome({ context: plan.context, result });
       }
-      setLive(null);
       setProgress(null);
       const pending = pendingRef.current;
       pendingRef.current = null;
@@ -400,10 +386,10 @@ export function useRelicRanking({
       if (plan.outstanding <= 0) {
         finishSweep(plan);
       } else {
-        publishLive(plan);
+        reportProgress(plan);
       }
     },
-    [finishSweep, publishLive],
+    [finishSweep, reportProgress],
   );
 
   const startSweep = useCallback(
@@ -449,7 +435,6 @@ export function useRelicRanking({
             })),
           },
         });
-        setLive(null);
         setProgress(null);
         setInFlight(false);
         return;
@@ -559,7 +544,6 @@ export function useRelicRanking({
             error: cause instanceof Error ? cause.message : String(cause),
           });
         } finally {
-          setLive(null);
           setProgress(null);
           setInFlight(false);
         }
@@ -606,7 +590,7 @@ export function useRelicRanking({
       });
 
       plan.outstanding = jobs.length;
-      publishLive(plan);
+      reportProgress(plan);
       for (const job of jobs) {
         const requestId = ++requestIdRef.current;
         const message: RelicRankingWorkerRequest = {
@@ -621,7 +605,7 @@ export function useRelicRanking({
         job.worker.postMessage(message);
       }
     },
-    [finishSweep, publishLive],
+    [finishSweep, reportProgress],
   );
 
   const requestSweep = useCallback(
@@ -689,7 +673,7 @@ export function useRelicRanking({
     runningRef.current = false;
     pendingRef.current = null;
     // The abandoned sweep never settles, so clear the busy flag explicitly;
-    // stale live/progress snapshots stop matching the new context on their own.
+    // stale progress snapshots stop matching the new context on their own.
     // eslint-disable-next-line react-hooks/set-state-in-effect -- required on team change
     setInFlight(false);
     const message: RelicRankingWorkerRequest = {
@@ -753,16 +737,12 @@ export function useRelicRanking({
     inFlight || (autoUpdate && currentContext != null && !isCurrent);
   const stale =
     !autoUpdate && currentContext != null && outcome != null && !isCurrent;
-  const liveForCurrent =
-    live != null &&
-    currentContext != null &&
-    contextMatches(live.context, currentContext);
+  // Results are only ever an outcome (a fully settled sweep); partial chunk
+  // snapshots are never surfaced.
   const ranking =
     outcome?.result != null && (isCurrent || !autoUpdate)
       ? outcome.result
-      : live != null && liveForCurrent
-        ? live.result
-        : null;
+      : null;
   const error =
     outcome?.error != null && (isCurrent || !autoUpdate) ? outcome.error : null;
 

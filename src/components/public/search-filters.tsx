@@ -5,6 +5,7 @@ import type { Enums } from "@/lib/database.types";
 import { CalculatorPendingHydration } from "@/components/public/calculator-pending-hydration";
 import { SearchTagCombobox } from "@/components/public/search-tag-combobox";
 import { SearchResultsTable } from "@/components/public/search-results-table";
+import { ScammingLoader } from "@/components/public/scamming-loader";
 import { runPublicSearch } from "@/lib/actions/public-search";
 import type {
   AttackerLayerBucket,
@@ -880,9 +881,7 @@ export function SearchFilters({ options }: SearchFiltersProps) {
           </p>
         ) : null}
 
-        {loading ? (
-          <p className="text-sm text-[var(--mt-ink-muted)]">Loading results…</p>
-        ) : null}
+        {loading ? <ScammingLoader className="py-1" /> : null}
 
         {!loading && results.status === "error" ? (
           <p

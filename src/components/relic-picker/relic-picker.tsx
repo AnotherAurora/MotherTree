@@ -7,11 +7,12 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { AlertTriangle, ChevronDown, ChevronRight, Upload } from "lucide-react";
 import { RelicTeamBuilder } from "@/components/relic-picker/relic-team-builder";
 import { useRelicRanking } from "@/components/relic-picker/use-relic-ranking";
 import { ImportTeamModal } from "@/components/path-carver/import-team-modal";
 import { CalculatorPendingHydration } from "@/components/public/calculator-pending-hydration";
+import { ScammingLoader } from "@/components/public/scamming-loader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AssetIcon } from "@/lib/assets/asset-icon";
@@ -37,6 +38,7 @@ import type { SimulatorGearOptions, SlotState } from "@/lib/simulator/types";
 import type { TeamData } from "@/lib/team-data/types";
 import type { ImportTeamResult } from "@/lib/team-import";
 import { formatIngameImportWarningMessage } from "@/lib/team-import";
+import { cn } from "@/lib/utils";
 
 type RelicPickerProps = {
   awakenerOptions: PublicAwakenerOption[];
@@ -332,6 +334,13 @@ export function RelicPicker({
     [slots],
   );
 
+  const hasFourAwakeners = useMemo(
+    () => slots.filter((slot) => slot.awakenerId != null).length >= 4,
+    [slots],
+  );
+
+  const hasDamageDealer = damageDealerAwakenerIds.length > 0;
+
   // Only expose team data while the team has at least one awakener.
   const activeTeamData = hasAwakener ? teamData : null;
 
@@ -465,13 +474,12 @@ export function RelicPicker({
     }
     return groups;
   }, [rankedRows]);
-  const showLoading = hasAwakener && teamLoading;
-  // Busy while a ranking sweep is in flight. Add buttons stay disabled, but the
-  // partial ranking is shown as chunks land; the blocking overlay only covers
-  // the panel until the first results appear. In manual mode idle, no sweep is
-  // running, so the last results stay interactive.
+  // Busy while team data loads or a ranking sweep is in flight. Add buttons stay
+  // disabled, results are withheld until the sweep fully settles, and the panel
+  // stays expanded so the loader reads as inside the section. In manual mode
+  // idle, no sweep is running, so the last results stay interactive.
   const rankingBusy = computing;
-  const showRankingOverlay = rankingBusy && rankedRows.length === 0;
+  const impactLoading = hasAwakener && (teamLoading || computing);
   const canCalculate = activeTeamData != null && relicCatalog != null;
   const calculateDisabled =
     computing || !canCalculate || (!stale && ranking != null);
@@ -482,24 +490,64 @@ export function RelicPicker({
 
   return (
     <div className="space-y-6">
+      {!hasFourAwakeners && (
+        <div className="flex flex-col gap-4 rounded-xl border border-[rgb(185_28_28_/_0.35)] bg-[var(--mt-surface-strong)] p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+          <div className="space-y-1">
+            <p className="text-xs font-medium uppercase tracking-wide text-[var(--mt-ink-muted)]">
+              Step 1
+            </p>
+            <p className="font-[family-name:var(--font-mother-display)] text-xl font-semibold text-[var(--mt-ink)]">
+              Import your team
+            </p>
+            <p className="max-w-xl text-sm text-[var(--mt-ink-muted)]">
+              Paste your in-game{" "}
+              <code className="rounded bg-[rgb(42_28_22_/_0.08)] px-1 text-xs">
+                @@…@@
+              </code>{" "}
+              code to load awakeners, wheels, covenants, and posse.
+            </p>
+          </div>
+          <Button
+            type="button"
+            size="lg"
+            onClick={() => setImportOpen(true)}
+            disabled={importing}
+            className="shrink-0 bg-[var(--mt-ember)] text-[rgb(255_248_240)] hover:bg-[var(--mt-ember-deep)] focus-visible:ring-[var(--mt-ember)]"
+          >
+            <Upload aria-hidden="true" className="h-4 w-4" />
+            {importing ? "Importing…" : "Import team"}
+          </Button>
+        </div>
+      )}
+
+      {hasAwakener && !hasDamageDealer && (
+        <div
+          role="alert"
+          className="flex items-start gap-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900"
+        >
+          <AlertTriangle
+            aria-hidden="true"
+            className="mt-0.5 h-4 w-4 shrink-0"
+          />
+          <div>
+            <p className="font-medium">Select a Damage Dealer</p>
+            <p className="mt-0.5 text-amber-800">
+              Tick the <span className="font-semibold">DD</span> box on one of
+              your awakeners below to calculate relic impact.
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="rounded-xl border border-[var(--mt-border)] bg-[var(--mt-surface)] p-4 text-center">
         <p className="text-xs font-medium uppercase tracking-wide text-[var(--mt-ink-muted)]">
 Total Burst Damage Approximation
         </p>
         <p className="mt-1 text-3xl font-semibold tabular-nums text-[var(--mt-ink)]">
-          {baselineTotal == null ? "—" : formatTotal(baselineTotal)}
+          {baselineTotal == null || !hasDamageDealer
+            ? "—"
+            : formatTotal(baselineTotal)}
         </p>
-        {showLoading && (
-          <p className="mt-1 text-xs text-[var(--mt-ink-muted)]">
-            Loading team data...
-          </p>
-        )}
-        {rankingBusy && (
-          <p className="mt-1 text-xs text-[var(--mt-ink-muted)]">
-            Calculating relic impact
-            {progress ? ` (${progress.done}/${progress.total})` : "..."}
-          </p>
-        )}
         {teamError && <p className="mt-2 text-xs text-red-600">{teamError}</p>}
         {rankingError && (
           <p className="mt-2 text-xs text-red-600">{rankingError}</p>
@@ -509,7 +557,12 @@ Total Burst Damage Approximation
         )}
       </div>
 
-      <div className="relative rounded-xl border border-[var(--mt-border)] bg-[var(--mt-surface)] p-4">
+      <div
+        className={cn(
+          "relative rounded-xl border border-[var(--mt-border)] bg-[var(--mt-surface)] p-4",
+          impactLoading && "min-h-[13rem]",
+        )}
+      >
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
           <p className="text-xs font-medium uppercase tracking-wide text-[var(--mt-ink-muted)]">
             Relic Impact (by Total Damage %)
@@ -557,12 +610,6 @@ Total Burst Damage Approximation
           </p>
         )}
 
-        {rankingBusy && rankedRows.length > 0 && progress && (
-          <p className="mt-2 text-xs text-[var(--mt-ink-muted)]">
-            Computing relic impact… {progress.done}/{progress.total} evaluated
-          </p>
-        )}
-
         {!hasAwakener ? (
           <p className="mt-3 text-sm text-[var(--mt-ink-muted)]">
             Select at least one Awakener to compare relics.
@@ -570,6 +617,10 @@ Total Burst Damage Approximation
         ) : !relicCatalog ? (
           <p className="mt-3 text-sm text-[var(--mt-ink-muted)]">
             Loading relic catalog...
+          </p>
+        ) : !hasDamageDealer ? (
+          <p className="mt-3 text-sm text-[var(--mt-ink-muted)]">
+            Select a Damage Dealer to compare relic impact.
           </p>
         ) : rankedRows.length > 0 ? (
           <ul className="mt-3 flex flex-wrap gap-3">
@@ -631,19 +682,14 @@ Total Burst Damage Approximation
           </p>
         ) : null}
 
-        {showRankingOverlay && (
-          <div
-            role="status"
-            aria-live="polite"
-            className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 rounded-xl bg-[var(--mt-surface)]/80 text-[var(--mt-ink-muted)]"
-          >
-            <span
-              aria-hidden="true"
-              className="h-6 w-6 animate-spin rounded-full border-2 border-current border-t-transparent"
-            />
-            <span className="text-xs font-medium">
-              Computing relic impact...
-            </span>
+        {impactLoading && (
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 rounded-xl bg-[var(--mt-surface)]">
+            <ScammingLoader size="lg" />
+            {computing && progress && (
+              <p className="text-xs text-[var(--mt-ink-muted)]">
+                {progress.done}/{progress.total} evaluated
+              </p>
+            )}
           </div>
         )}
       </div>
@@ -780,6 +826,7 @@ Total Burst Damage Approximation
         hsr={hsr}
         onHsrChange={setHsr}
         importing={importing}
+        highlightDamageDealer={hasAwakener && !hasDamageDealer}
         onImportOpen={() => setImportOpen(true)}
       />
 

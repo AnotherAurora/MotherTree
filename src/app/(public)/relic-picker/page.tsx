@@ -60,8 +60,8 @@ export default async function RelicPickerPage() {
           Relic Picker
         </h1>
         <p className="mt-2 max-w-2xl text-sm text-[var(--mt-ink-muted)]">
-          Build a team, then compare every damage relic by how much it raises
-          the team&apos;s Total Damage.
+          Import your team, flag a Damage Dealer, then compare every damage
+          relic by how much it raises the team&apos;s Total Damage.
         </p>
       </div>
 
