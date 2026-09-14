@@ -36,6 +36,16 @@ type UseRelicRankingArgs = {
    * selection, and input changes do not trigger a recompute.
    */
   autoUpdate: boolean;
+  /**
+   * Relics whose known Total Damage % is at or below this value are moved to
+   * the Negligible section and skipped in later sweeps. `0`–`100`.
+   */
+  negligiblePercent: number;
+  /**
+   * Identity of the awakener lineup. When it changes, known relic percentages
+   * and the Negligible set are cleared so the sweep is recalculated in full.
+   */
+  teamCompositionKey: string;
 };
 
 /** Identity of the team + selection + inputs a ranking was computed for. */
@@ -45,6 +55,7 @@ type RequestContext = {
   damageDealerAwakenerIds: readonly number[];
   selectedKey: string;
   inputsKey: string;
+  negligiblePercent: number;
 };
 
 type RankingOutcome = {
@@ -69,6 +80,10 @@ type SweepPlan = {
   rows: Map<number, number>;
   baselineTotal: number | null;
   outstanding: number;
+  /** Candidate count shown in progress (excludes skipped negligible relics). */
+  progressTotal: number;
+  /** Awakener lineup this sweep was started for; guards late stale results. */
+  teamCompositionKey: string;
 };
 
 type SweepRequest = {
@@ -82,6 +97,12 @@ export type RelicRankingProgress = {
   total: number;
 };
 
+/** A relic moved to the Negligible section (percent captured when classified). */
+export type RelicNegligibleRow = {
+  entry: RelicCatalogEntry;
+  percentIncrease: number;
+};
+
 export type RelicRankingState = {
   ranking: RelicRankingResult | null;
   /** True while a ranking for the current team/selection is in flight. */
@@ -93,6 +114,8 @@ export type RelicRankingState = {
   /** Eligible relics evaluated so far in the in-flight sweep. */
   progress: RelicRankingProgress | null;
   error: string | null;
+  /** Relics skipped because their known impact is at or below the threshold. */
+  negligible: RelicNegligibleRow[];
 };
 
 const MAX_WORKERS = 8;
@@ -125,8 +148,47 @@ function contextMatches(
     context.relicCatalog === current.relicCatalog &&
     context.damageDealerAwakenerIds === current.damageDealerAwakenerIds &&
     context.selectedKey === current.selectedKey &&
-    context.inputsKey === current.inputsKey
+    context.inputsKey === current.inputsKey &&
+    context.negligiblePercent === current.negligiblePercent
   );
+}
+
+/** A relic is negligible when its known percent is at or below the threshold. */
+function isNegligibleRelic(
+  relicId: number,
+  knownPercents: ReadonlyMap<number, number>,
+  threshold: number,
+): boolean {
+  const percent = knownPercents.get(relicId);
+  return percent != null && percent <= threshold;
+}
+
+/** Record the latest percent for every evaluated relic. */
+function recordKnownPercents(
+  knownPercents: Map<number, number>,
+  ranked: readonly RelicRankingRow[],
+): void {
+  for (const row of ranked) {
+    if (row.percentIncrease != null) {
+      knownPercents.set(row.entry.relicId, row.percentIncrease);
+    }
+  }
+}
+
+/** Eligible relics whose known percent puts them at or below the threshold. */
+function deriveNegligibleRows(
+  eligible: readonly RelicCatalogEntry[],
+  knownPercents: ReadonlyMap<number, number>,
+  threshold: number,
+): RelicNegligibleRow[] {
+  const rows: RelicNegligibleRow[] = [];
+  for (const entry of eligible) {
+    const percent = knownPercents.get(entry.relicId);
+    if (percent != null && percent <= threshold) {
+      rows.push({ entry, percentIncrease: percent });
+    }
+  }
+  return rows;
 }
 
 function buildRanking(plan: SweepPlan): RelicRankingResult {
@@ -168,6 +230,8 @@ export function useRelicRanking({
   ownedPosseCount,
   hsr,
   autoUpdate,
+  negligiblePercent,
+  teamCompositionKey,
 }: UseRelicRankingArgs): RelicRankingState {
   const [outcome, setOutcome] = useState<RankingOutcome | null>(null);
   const [live, setLive] = useState<{
@@ -177,6 +241,7 @@ export function useRelicRanking({
   const [progress, setProgress] = useState<RelicRankingProgress | null>(null);
   const [inFlight, setInFlight] = useState(false);
   const [manualToken, setManualToken] = useState(0);
+  const [negligible, setNegligible] = useState<RelicNegligibleRow[]>([]);
 
   const workersRef = useRef<Worker[]>([]);
   const messageHandlerRef = useRef<(message: RelicRankingWorkerResponse) => void>(
@@ -186,6 +251,11 @@ export function useRelicRanking({
   const requestIdRef = useRef(0);
   const mirrorRef = useRef<RelicTotalCache>(new Map());
   const fallbackCacheRef = useRef<RelicTotalCache>(new Map());
+  // Latest Total Damage % per relic across sweeps. Retained across gear/posse
+  // changes but cleared when the awakener lineup changes (see
+  // `teamCompositionKey`). Drives which relics are skipped as negligible.
+  const knownPercentRef = useRef<Map<number, number>>(new Map());
+  const teamCompositionKeyRef = useRef(teamCompositionKey);
   const planRef = useRef<SweepPlan | null>(null);
   const runningRef = useRef(false);
   const pendingRef = useRef<SweepRequest | null>(null);
@@ -212,6 +282,7 @@ export function useRelicRanking({
       damageDealerAwakenerIds,
       selectedKey,
       inputsKey,
+      negligiblePercent,
     };
   }, [
     teamData,
@@ -219,12 +290,24 @@ export function useRelicRanking({
     damageDealerAwakenerIds,
     selectedKey,
     inputsKey,
+    negligiblePercent,
   ]);
 
   const publishLive = useCallback((plan: SweepPlan) => {
-    setProgress({ done: plan.rows.size, total: plan.eligible.length });
+    setProgress({ done: plan.rows.size, total: plan.progressTotal });
     if (plan.rows.size === 0 && plan.baselineTotal == null) return;
-    setLive({ context: plan.context, result: buildRanking(plan) });
+    const result = buildRanking(plan);
+    if (plan.teamCompositionKey === teamCompositionKeyRef.current) {
+      recordKnownPercents(knownPercentRef.current, result.ranked);
+      setNegligible(
+        deriveNegligibleRows(
+          plan.eligible,
+          knownPercentRef.current,
+          plan.context.negligiblePercent,
+        ),
+      );
+    }
+    setLive({ context: plan.context, result });
   }, []);
 
   const finishSweep = useCallback(
@@ -232,11 +315,22 @@ export function useRelicRanking({
       if (planRef.current !== plan) return;
       planRef.current = null;
       runningRef.current = false;
-      setOutcome(
-        error != null
-          ? { context: plan.context, error }
-          : { context: plan.context, result: buildRanking(plan) },
-      );
+      if (error != null) {
+        setOutcome({ context: plan.context, error });
+      } else {
+        const result = buildRanking(plan);
+        if (plan.teamCompositionKey === teamCompositionKeyRef.current) {
+          recordKnownPercents(knownPercentRef.current, result.ranked);
+          setNegligible(
+            deriveNegligibleRows(
+              plan.eligible,
+              knownPercentRef.current,
+              plan.context.negligiblePercent,
+            ),
+          );
+        }
+        setOutcome({ context: plan.context, result });
+      }
       setLive(null);
       setProgress(null);
       const pending = pendingRef.current;
@@ -362,12 +456,27 @@ export function useRelicRanking({
       }
 
       const groups = groupRelicsByEffect(eligible, inputs);
+      // Relics whose known impact is at/below the threshold are skipped: they
+      // are neither seeded from cache nor sent to the workers.
+      const skippedIds = new Set<number>();
+      for (const entry of eligible) {
+        if (
+          isNegligibleRelic(
+            entry.relicId,
+            knownPercentRef.current,
+            context.negligiblePercent,
+          )
+        ) {
+          skippedIds.add(entry.relicId);
+        }
+      }
       const rows = new Map<number, number>();
       const missingByRepresentative = new Map<number, RelicCatalogEntry>();
       const byRelicId = new Map(
         relicCatalog.map((entry) => [entry.relicId, entry]),
       );
       for (const entry of eligible) {
+        if (skippedIds.has(entry.relicId)) continue;
         const key = `${outputsKey}|${relicSelectionKey([
           ...selectedRelicIds,
           entry.relicId,
@@ -404,6 +513,8 @@ export function useRelicRanking({
         rows,
         baselineTotal: baselineCached ?? null,
         outstanding: 0,
+        progressTotal: eligible.length - skippedIds.size,
+        teamCompositionKey: teamCompositionKeyRef.current,
       };
       planRef.current = plan;
       runningRef.current = true;
@@ -429,6 +540,16 @@ export function useRelicRanking({
           });
           planRef.current = null;
           runningRef.current = false;
+          if (plan.teamCompositionKey === teamCompositionKeyRef.current) {
+            recordKnownPercents(knownPercentRef.current, result.ranked);
+            setNegligible(
+              deriveNegligibleRows(
+                result.eligible,
+                knownPercentRef.current,
+                context.negligiblePercent,
+              ),
+            );
+          }
           setOutcome({ context, result });
         } catch (cause) {
           planRef.current = null;
@@ -580,6 +701,17 @@ export function useRelicRanking({
     for (const worker of workersRef.current) worker.postMessage(message);
   }, [teamData, relicCatalog, damageDealerAwakenerIds]);
 
+  // Awakener lineup changed ⇒ known percentages / the Negligible set are stale.
+  // Gear, posse, enlightenment, and DD changes intentionally keep them. Results
+  // from a sweep that started under a previous lineup are ignored for
+  // classification (see the `teamCompositionKey` guard on the plan).
+  useEffect(() => {
+    teamCompositionKeyRef.current = teamCompositionKey;
+    knownPercentRef.current = new Map();
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- required on lineup change
+    setNegligible([]);
+  }, [teamCompositionKey]);
+
   // Issue a sweep whenever the team/selection/inputs change (auto mode), or on
   // demand when `recalculate` is called (manual mode).
   useEffect(() => {
@@ -634,12 +766,24 @@ export function useRelicRanking({
   const error =
     outcome?.error != null && (isCurrent || !autoUpdate) ? outcome.error : null;
 
+  const negligibleIds = new Set(negligible.map((row) => row.entry.relicId));
+  const rankingWithoutNegligible =
+    ranking != null && negligibleIds.size > 0
+      ? {
+          ...ranking,
+          ranked: ranking.ranked.filter(
+            (row) => !negligibleIds.has(row.entry.relicId),
+          ),
+        }
+      : ranking;
+
   return {
-    ranking,
+    ranking: rankingWithoutNegligible,
     computing,
     stale,
     recalculate,
     progress: computing ? progress : null,
     error,
+    negligible,
   };
 }

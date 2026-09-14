@@ -138,6 +138,16 @@ The Relic Impact panel header has an **Auto-update** toggle (default on, persist
 
 `smoke:damage-relevance-real` guards the enabled ranking path: it loads a real team and asserts `computeRelicRanking` baseline and every eligible relic total equal an unfiltered engine run.
 
+### 6.5 Negligible relics (threshold)
+
+The Relic Impact panel is paired with a **Negligible** panel holding a `Ignore ≤ N%` number input (0–100, default 1, persisted as `negligiblePercent` in `mt.relic-picker.inputs`). It is a session-only sweep filter, not a catalog property (contrast `relic_tag_manifestation.is_ignored`, §4/§7).
+
+- After each finished sweep the hook records every evaluated relic's Total Damage % (`knownPercentRef`). Any eligible relic whose known percent is `<= negligiblePercent` is moved to the Negligible panel, rendered icon-only (still clickable to add, still right-click SKeyDB), and excluded from subsequent sweeps: `startSweep` neither seeds them from the mirror cache nor sends them to the workers, and `progress.total` excludes them.
+- `null` percents (no damage dealer / zero baseline) are never classified.
+- The set is **part of the sweep** but not part of `relicValueInputsKey`/`outputsKey` or the worker `inputs`: it lives in `RequestContext.negligiblePercent` for `contextMatches`/`stale` and in the sweep-trigger deps (so changing the input re-sweeps; lowering it returns relics to the main list, seeded from the mirror cache when still present). It is applied before sharding, so the worker protocol and `smoke:relic-ranking-shards` parity are unchanged.
+- `useRelicRanking` clears `knownPercentRef` + `negligible` only when `teamCompositionKey` (the awakener lineup, `slots.map(s => s.awakenerId)`) changes. Wheel/covenant/posse/enlightenment/DD/account-level/HSR changes keep the set — gear changes therefore still skip previously-negligible relics.
+- First sweep after a lineup change (or Import) is full. Manual mode applies threshold changes on the next Calculate (they mark results stale via `RequestContext`).
+
 ---
 
 ## 7. Extending

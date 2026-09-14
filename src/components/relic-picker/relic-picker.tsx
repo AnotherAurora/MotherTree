@@ -12,6 +12,7 @@ import { useRelicRanking } from "@/components/relic-picker/use-relic-ranking";
 import { ImportTeamModal } from "@/components/path-carver/import-team-modal";
 import { CalculatorPendingHydration } from "@/components/public/calculator-pending-hydration";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { AssetIcon } from "@/lib/assets/asset-icon";
 import { resolveSkeydbAssetUrl } from "@/lib/assets/resolve-asset-url";
 import { resolveSkeydbRelicUrl } from "@/lib/assets/skeydb-relic-link";
@@ -56,6 +57,10 @@ type RelicCardMeta = {
 const MIN_OWNED_POSSE_COUNT = 1;
 const MAX_OWNED_POSSE_COUNT = 50;
 
+const MIN_NEGLIGIBLE_PERCENT = 0;
+const MAX_NEGLIGIBLE_PERCENT = 100;
+const DEFAULT_NEGLIGIBLE_PERCENT = 1;
+
 const subscribeNoop = () => () => {};
 
 function clampOwnedPosseCount(value: number): number {
@@ -66,12 +71,21 @@ function clampOwnedPosseCount(value: number): number {
   );
 }
 
+function clampNegligiblePercent(value: number): number {
+  if (!Number.isFinite(value)) return DEFAULT_NEGLIGIBLE_PERCENT;
+  return Math.max(
+    MIN_NEGLIGIBLE_PERCENT,
+    Math.min(MAX_NEGLIGIBLE_PERCENT, value),
+  );
+}
+
 const RESEARCH_INPUTS_STORAGE_KEY = "mt.relic-picker.inputs";
 
 type StoredResearchInputs = {
   accountLevel: number;
   ownedPosseCount: number;
   autoUpdate: boolean;
+  negligiblePercent: number;
 };
 
 function readStoredResearchInputs(): StoredResearchInputs | null {
@@ -91,7 +105,12 @@ function readStoredResearchInputs(): StoredResearchInputs | null {
         ? clampOwnedPosseCount(o.ownedPosseCount)
         : DEFAULT_OWNED_POSSE_COUNT;
     const autoUpdate = typeof o.autoUpdate === "boolean" ? o.autoUpdate : true;
-    return { accountLevel, ownedPosseCount, autoUpdate };
+    const negligiblePercent =
+      typeof o.negligiblePercent === "number" &&
+      Number.isFinite(o.negligiblePercent)
+        ? clampNegligiblePercent(o.negligiblePercent)
+        : DEFAULT_NEGLIGIBLE_PERCENT;
+    return { accountLevel, ownedPosseCount, autoUpdate, negligiblePercent };
   } catch {
     return null;
   }
@@ -208,6 +227,14 @@ export function RelicPicker({
   const [autoUpdate, setAutoUpdate] = useState(
     initialResearchInputs?.autoUpdate ?? true,
   );
+  const [negligiblePercentText, setNegligiblePercentText] = useState(
+    String(
+      initialResearchInputs?.negligiblePercent ?? DEFAULT_NEGLIGIBLE_PERCENT,
+    ),
+  );
+  const [negligiblePercent, setNegligiblePercent] = useState(
+    initialResearchInputs?.negligiblePercent ?? DEFAULT_NEGLIGIBLE_PERCENT,
+  );
   // False during SSR and the hydration render, then true on the client so the
   // restored localStorage values only mount after hydration.
   const hydrated = useSyncExternalStore(
@@ -234,12 +261,23 @@ export function RelicPicker({
     try {
       window.localStorage.setItem(
         RESEARCH_INPUTS_STORAGE_KEY,
-        JSON.stringify({ accountLevel, ownedPosseCount, autoUpdate }),
+        JSON.stringify({
+          accountLevel,
+          ownedPosseCount,
+          autoUpdate,
+          negligiblePercent,
+        }),
       );
     } catch {
       // Ignore quota / private-mode failures.
     }
-  }, [accountLevel, ownedPosseCount, autoUpdate, hydrated]);
+  }, [
+    accountLevel,
+    ownedPosseCount,
+    autoUpdate,
+    negligiblePercent,
+    hydrated,
+  ]);
 
   const commitAccountLevel = useCallback(() => {
     const parsed = Number.parseInt(accountLevelText, 10);
@@ -262,6 +300,22 @@ export function RelicPicker({
     setOwnedPosseCount(next);
     setOwnedPosseText(String(next));
   }, [ownedPosseText, ownedPosseCount]);
+
+  const commitNegligiblePercent = useCallback(() => {
+    const parsed = Number.parseFloat(negligiblePercentText);
+    if (Number.isNaN(parsed)) {
+      setNegligiblePercentText(String(negligiblePercent));
+      return;
+    }
+    const next = clampNegligiblePercent(parsed);
+    setNegligiblePercent(next);
+    setNegligiblePercentText(String(next));
+  }, [negligiblePercentText, negligiblePercent]);
+
+  const teamCompositionKey = useMemo(
+    () => slots.map((slot) => slot.awakenerId ?? 0).join(","),
+    [slots],
+  );
 
   const damageDealerAwakenerIds = useMemo(() => {
     const ids: number[] = [];
@@ -345,6 +399,7 @@ export function RelicPicker({
     recalculate,
     progress,
     error: rankingError,
+    negligible,
   } = useRelicRanking({
     teamData: activeTeamData,
     relicCatalog,
@@ -354,6 +409,8 @@ export function RelicPicker({
     ownedPosseCount,
     hsr,
     autoUpdate,
+    negligiblePercent,
+    teamCompositionKey,
   });
 
   const handleImport = useCallback((result: ImportTeamResult) => {
@@ -562,7 +619,9 @@ Total Burst Damage Approximation
           </ul>
         ) : visibleRanking && !rankingBusy ? (
           <p className="mt-3 text-sm text-[var(--mt-ink-muted)]">
-            No eligible damage relics for this team.
+            {negligible.length > 0
+              ? "All remaining damage relics are negligible."
+              : "No eligible damage relics for this team."}
           </p>
         ) : !visibleRanking && !rankingBusy ? (
           <p className="mt-3 text-sm text-[var(--mt-ink-muted)]">
@@ -584,6 +643,59 @@ Total Burst Damage Approximation
               Computing relic impact...
             </span>
           </div>
+        )}
+      </div>
+
+      <div className="rounded-xl border border-[var(--mt-border)] bg-[var(--mt-surface)] p-4">
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+          <p className="text-xs font-medium uppercase tracking-wide text-[var(--mt-ink-muted)]">
+            Negligible ({negligible.length})
+          </p>
+          <label
+            className="flex items-center gap-2 text-xs font-medium text-[var(--mt-ink)]"
+            title="Relics at or below this Total Damage % move here and are skipped in later calculations"
+          >
+            Ignore ≤
+            <Input
+              type="number"
+              min={MIN_NEGLIGIBLE_PERCENT}
+              max={MAX_NEGLIGIBLE_PERCENT}
+              step={0.1}
+              autoComplete="off"
+              aria-label="Negligible relic threshold percent"
+              value={negligiblePercentText}
+              onChange={(event) =>
+                setNegligiblePercentText(event.target.value)
+              }
+              onBlur={commitNegligiblePercent}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") event.currentTarget.blur();
+              }}
+              className="w-20 border-[var(--mt-border)] bg-[rgb(255_245_235_/_0.55)] text-[var(--mt-ink)] focus-visible:ring-[var(--mt-ember)]"
+            />
+            %
+          </label>
+        </div>
+        {negligible.length === 0 ? (
+          <p className="mt-3 text-sm text-[var(--mt-ink-muted)]">
+            No negligible relics.
+          </p>
+        ) : (
+          <ul className="mt-3 flex flex-wrap gap-3">
+            {negligible.map((row) => (
+              <li key={row.entry.relicId} className="w-16">
+                <RankedRelicButton
+                  entry={row.entry}
+                  meta={relicCardMeta.get(row.entry.relicId)}
+                  disabled={rankingBusy}
+                  showPercent={false}
+                  percentIncrease={row.percentIncrease}
+                  widthClass="w-full"
+                  onAdd={handleAddRelic}
+                />
+              </li>
+            ))}
+          </ul>
         )}
       </div>
 
