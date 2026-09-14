@@ -7,6 +7,7 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import { RelicTeamBuilder } from "@/components/relic-picker/relic-team-builder";
 import { useRelicRanking } from "@/components/relic-picker/use-relic-ranking";
 import { ImportTeamModal } from "@/components/path-carver/import-team-modal";
@@ -235,6 +236,7 @@ export function RelicPicker({
   const [negligiblePercent, setNegligiblePercent] = useState(
     initialResearchInputs?.negligiblePercent ?? DEFAULT_NEGLIGIBLE_PERCENT,
   );
+  const [negligibleOpen, setNegligibleOpen] = useState(false);
   // False during SSR and the hydration render, then true on the client so the
   // restored localStorage values only mount after hydration.
   const hydrated = useSyncExternalStore(
@@ -648,9 +650,20 @@ Total Burst Damage Approximation
 
       <div className="rounded-xl border border-[var(--mt-border)] bg-[var(--mt-surface)] p-4">
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-          <p className="text-xs font-medium uppercase tracking-wide text-[var(--mt-ink-muted)]">
-            Negligible ({negligible.length})
-          </p>
+          <button
+            type="button"
+            aria-expanded={negligibleOpen}
+            aria-controls="negligible-relics-content"
+            onClick={() => setNegligibleOpen((open) => !open)}
+            className="flex items-center gap-1 text-xs font-medium uppercase tracking-wide text-[var(--mt-ink-muted)] hover:text-[var(--mt-ink)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mt-ember)]"
+          >
+            {negligibleOpen ? (
+              <ChevronDown aria-hidden="true" className="h-4 w-4" />
+            ) : (
+              <ChevronRight aria-hidden="true" className="h-4 w-4" />
+            )}
+            Negligible Relics ({negligible.length})
+          </button>
           <label
             className="flex items-center gap-2 text-xs font-medium text-[var(--mt-ink)]"
             title="Relics at or below this Total Damage % move here and are skipped in later calculations"
@@ -676,26 +689,30 @@ Total Burst Damage Approximation
             %
           </label>
         </div>
-        {negligible.length === 0 ? (
-          <p className="mt-3 text-sm text-[var(--mt-ink-muted)]">
-            No negligible relics.
-          </p>
-        ) : (
-          <ul className="mt-3 flex flex-wrap gap-3">
-            {negligible.map((row) => (
-              <li key={row.entry.relicId} className="w-16">
-                <RankedRelicButton
-                  entry={row.entry}
-                  meta={relicCardMeta.get(row.entry.relicId)}
-                  disabled={rankingBusy}
-                  showPercent={false}
-                  percentIncrease={row.percentIncrease}
-                  widthClass="w-full"
-                  onAdd={handleAddRelic}
-                />
-              </li>
-            ))}
-          </ul>
+        {negligibleOpen && (
+          <div id="negligible-relics-content">
+            {negligible.length === 0 ? (
+              <p className="mt-3 text-sm text-[var(--mt-ink-muted)]">
+                No negligible relics.
+              </p>
+            ) : (
+              <ul className="mt-3 flex flex-wrap gap-3">
+                {negligible.map((row) => (
+                  <li key={row.entry.relicId} className="w-16">
+                    <RankedRelicButton
+                      entry={row.entry}
+                      meta={relicCardMeta.get(row.entry.relicId)}
+                      disabled={rankingBusy}
+                      showPercent={false}
+                      percentIncrease={row.percentIncrease}
+                      widthClass="w-full"
+                      onAdd={handleAddRelic}
+                    />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         )}
       </div>
 
