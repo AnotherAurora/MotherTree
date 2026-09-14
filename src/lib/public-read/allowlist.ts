@@ -155,6 +155,7 @@ export const PUBLIC_TABLE_COLUMNS = {
     "is_accumulating",
     "is_permanent",
     "dependency_stat",
+    "is_ignored",
   ],
   wheel: ["id", "name", "stat", "stat_amount", "rarity", "enlightenment"],
   wheel_tag_manifestation: [

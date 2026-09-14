@@ -10,6 +10,7 @@ import {
 } from "@/lib/path-carver/manifestation-apply";
 import {
   buildRelicManifestations,
+  groupRelicsByEffect,
   type RelicCatalogEntry,
   type RelicValueInputs,
 } from "@/lib/path-carver/relic-manifestations";
@@ -21,6 +22,18 @@ export type RelicRankingRow = {
   total: number;
   /** Percent change vs the current baseline total. `null` when baseline is 0. */
   percentIncrease: number | null;
+  /**
+   * Number of eligible relics sharing this relic's resolved effect (including
+   * itself). `> 1` means the impact was computed once and shared. Undefined
+   * treated as 1.
+   */
+  groupSize?: number;
+  /**
+   * `relicId` of the group representative whose total this row shares. Equals
+   * the row's own `relicId` for ungrouped relics. Used to keep grouped relics
+   * adjacent in the result list / UI.
+   */
+  representativeId?: number;
 };
 
 export type RelicRankingResult = {
@@ -363,6 +376,10 @@ export function computeRelicRanking(args: {
     selectedRelicIds,
   );
 
+  // Relics with identical resolved effects share one engine run; the first
+  // catalog entry of each group is evaluated and its total copied to members.
+  const groups = groupRelicsByEffect(eligibleAll, inputs);
+
   // No damage dealer ⇒ nothing to calculate. Report a zero baseline and a list
   // of eligible relics with blank impact rather than sweeping the engine.
   if (damageDealerAwakenerIds.length === 0) {
@@ -373,6 +390,9 @@ export function computeRelicRanking(args: {
         entry,
         total: 0,
         percentIncrease: null,
+        groupSize: groups.sizeOf.get(entry.relicId),
+        representativeId:
+          groups.representativeOf.get(entry.relicId) ?? entry.relicId,
       })),
     };
   }
@@ -384,25 +404,27 @@ export function computeRelicRanking(args: {
     relicCatalog,
     eligibleRelicIds,
     selectedRelicIds,
-    candidateRelicIds: eligibleRelicIds,
+    candidateRelicIds: [...groups.membersByRepresentative.keys()],
     inputs,
     totalCache,
     includeBaseline: true,
   });
 
   const baseline = baselineTotal ?? 0;
-  const byRelicId = new Map(
-    eligibleAll.map((entry) => [entry.relicId, entry]),
-  );
+  const totalByRelicId = new Map(rows.map((row) => [row.relicId, row.total]));
   const ranked: RelicRankingRow[] = [];
-  for (const { relicId, total } of rows) {
-    const entry = byRelicId.get(relicId);
-    if (!entry) continue;
+  for (const entry of eligibleAll) {
+    const representativeId =
+      groups.representativeOf.get(entry.relicId) ?? entry.relicId;
+    const total = totalByRelicId.get(representativeId);
+    if (total == null) continue;
     ranked.push({
       entry,
       total,
       percentIncrease:
         baseline > 0 ? ((total - baseline) / baseline) * 100 : null,
+      groupSize: groups.sizeOf.get(entry.relicId),
+      representativeId,
     });
   }
   ranked.sort(compareRelicRankingRows);

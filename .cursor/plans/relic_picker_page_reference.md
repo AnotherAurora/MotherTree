@@ -34,8 +34,8 @@ Eligibility: `relic.is_damage = true` AND (`relic.required_realm` is null OR the
 | Public server actions | `src/lib/actions/public-relic-picker.ts` |
 | Allowlisted → `TeamData` builder + option builders + relic catalog | `src/lib/public/relic-picker-data.ts` |
 | Relic computed-arg formula + account curve | `src/lib/path-carver/relic-research-curve.ts` |
-| Relic `Manifestation` injector | `src/lib/path-carver/relic-manifestations.ts` |
-| Baseline + per-relic ranking (+ cache) | `src/lib/path-carver/relic-candidates.ts` |
+| Relic `Manifestation` injector + effect signature/grouping | `src/lib/path-carver/relic-manifestations.ts` |
+| Baseline + per-relic ranking (+ cache + effect-group dedupe) | `src/lib/path-carver/relic-candidates.ts` |
 | Ranking Web Worker + client hook | `src/components/relic-picker/relic-ranking.worker.ts`, `src/components/relic-picker/use-relic-ranking.ts` |
 | Relic tooltip rows (resolved value + tag name) | `src/lib/path-carver/relic-tooltip.ts` |
 | Relic → SKeyDB deep link | `src/lib/assets/skeydb-relic-link.ts` + generated `src/lib/assets/maps/relic-skeydb-links.json` (by `scripts/generate-skeydb-asset-maps.ts`) |
@@ -76,6 +76,8 @@ Where this is wired:
 
 Relic rows are injected by `buildRelicManifestations`, which sets `requiredRealmId` from `relic.required_realm` so the whole relic gates as a unit. `dependency_stat` is passed through: `team_max_hp` scales off team Max HP; other stats would scale off an owner awakener (none for relics). No current relic rows use a non-`team_max_hp` dependency (the only one, Rusty Lancet, is soft-deleted). Dependency-scaling precision is in `simulator_calculation_pipeline_reference.md` §3.1.
 
+`relic_tag_manifestation.is_ignored` marks a negligible row. It is filtered in `buildPublicRelicCatalog` (allowlisted column), so ignored rows reach neither the engine nor the tooltip. A relic whose rows are **all** ignored stays eligible and ranks at `+0.00%`.
+
 `npm run smoke:relic-formula` asserts both "affects others" and "not affected" with a posse control.
 
 ---
@@ -105,6 +107,7 @@ If you change the formula, update `relic-research-curve.ts` and the expected tab
 - Baseline = engine total for `teamData` + currently selected relics.
 - Each remaining eligible relic is evaluated as `baseline + that relic`.
 - `percentIncrease = (withRelic - baseline) / baseline * 100` (`null` when baseline is 0).
+- Relics with identical **resolved** effects are grouped (`relicEffectSignature` / `groupRelicsByEffect` in `relic-manifestations.ts`): only the first catalog member (the representative) is evaluated and its total is shared with every member. Each ranked row carries `groupSize` and `representativeId`. The panel groups by `representativeId`: multi-member groups render as one bordered container with a single shared `%` header above a wrapping row of icon-only buttons (no per-relic value, no count badge); single relics keep their own card.
 - Sorted by percent desc.
 
 ### 6.1 Why the sweep is expensive
@@ -116,6 +119,7 @@ The engine is **not** cheap per relic: `computeReviewTagTotals` walks the full i
 - Page ships only option lists; team `TeamData` is one cached anon action call per team/posse change, debounced 400 ms.
 - **Worker pool**: `useRelicRanking` creates a persistent pool of `min(hardwareConcurrency - 1, 8)` module workers. `relic-ranking.worker.ts` receives `init` (team, once per team) then `rankChunk` messages and evaluates only its assigned candidate ids. `applyInteractionsForTeamData` runs with `collectSteps: false` from the ranking path.
 - **Shard/fragment math**: `relic-candidates.ts` exposes the sweep as pure helpers — `createRelicRankingContext`, `computeEligibleRelicEntries`, `computeRelicCandidateTotals`, `compareRelicRankingRows`. `computeRelicRanking` is the sequential composition (fallback + Node smokes). Candidates are balanced across workers by manifestation count (longest-processing-time first); the baseline rides on the least-loaded chunk.
+- **Effect grouping**: before sharding, eligible relics are grouped by resolved effect signature (`groupRelicsByEffect`); only one representative per group is sent to the workers and the returned total is expanded to every member (all member keys go into the mirror cache). This skips redundant engine runs for relics that resolve to the same effect set — including many that become identical once negligible `is_ignored` rows are dropped.
 - **Main-thread mirror cache**: the hook keeps `inputs|selection → total` for every returned baseline/candidate, so a just-picked relic becomes the next baseline (and remove/re-add) for free without posting a job.
 - **Progressive results**: rows stream into the panel as chunks land (`progress {done,total}`); the blocking overlay only covers the panel until the first results appear. Add buttons stay disabled until the sweep settles.
 - **Manual mode**: the hook tracks `inFlight` explicitly instead of inferring "computing" from a context mismatch; a running sweep queues only the latest pending request (queue-collapse). Only the newest sweep generation is applied.
@@ -140,6 +144,7 @@ The Relic Impact panel header has an **Auto-update** toggle (default on, persist
 
 - Add a relic: no code change needed; `is_damage` + `required_realm` drive eligibility. Ensure its `relic_tag_manifestation` rows resolve via the formula.
 - New `base_formula`: extend `RelicBaseFormula` and `resolveRelicValueScalar`, then add a smoke case.
+- Ignore a negligible row: set `relic_tag_manifestation.is_ignored = true` (admin inline edit). It is dropped in `buildPublicRelicCatalog` (engine + tooltip). Relics made fully ignored stay listed at `+0.00%` and group with any other zero-effect relic.
 - Show a per-channel breakdown: `computeTotalDamage` already returns `byChannel`; the page currently shows only the total.
 - Relic card tooltip + SKeyDB link: `relicCardMeta` in `relic-picker.tsx` precomputes each card's multi-line `<resolved value> <formatSearchTagLabel(tag_name)>` text and a right-click deep link (`resolveSkeydbRelicUrl`). Percent rows (`tag.is_percent` or `dependency_stat = enemy_max_hp`) render `value×100%` via `formatTooltipValue`, mirroring `formatValueDisplay` on the Search page. It uses the engine's own `resolveRelicValueScalar` and is display-only — it never touches `computeReviewTagTotals` or the worker sweep. Regenerate `relic-skeydb-links.json` with `npm run generate:skeydb-assets` (also run by `npm run sync:skeydb-assets`) after bumping the SKeyDB pin or relic names.
 - Persisting selections / sharing: keep it client-side unless a plan is amended.
@@ -151,6 +156,7 @@ The Relic Impact panel header has an **Auto-update** toggle (default on, persist
 - Do not reuse `loadTeamData` (admin) for this public page.
 - Do not use `sourceKind: "posse"` for relics — posse is not interaction-immune and the value would be amplified.
 - `teamData.tagsById` is shared; `ensureRelicTags` only fills missing stubs.
+- `is_ignored` is enforced only in `buildPublicRelicCatalog`; the engine itself does not skip ignored rows. Any new relic consumer must filter/group the same way.
 - Do not enable `DAMAGE_RELEVANCE_FILTER_ENABLED` while `npm run smoke:damage-relevance-real` fails with it on — see §6.4.
 - Keep `tag.is_damage_relevant` in sync with the interaction graph by re-running `npm run sync:damage-relevance` after editing `tag_default_interaction`.
 - `typecheck` is only run on explicit request (see `AGENTS.md`); verify with `npm run smoke:relic-formula`, `npm run smoke:damage-relevance`, `npm run smoke:damage-relevance-real`, `npm run smoke:relic-ranking-shards`, and `npm run lint`.

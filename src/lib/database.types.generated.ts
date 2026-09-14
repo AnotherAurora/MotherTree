@@ -1231,6 +1231,7 @@ export type Database = {
           dependency_stat: Database["public"]["Enums"]["all_stats"] | null
           id: number
           is_accumulating: boolean
+          is_ignored: boolean
           is_permanent: boolean | null
           kind: Database["public"]["Enums"]["relic_arg_kind"]
           metadata: string | null
@@ -1250,6 +1251,7 @@ export type Database = {
           dependency_stat?: Database["public"]["Enums"]["all_stats"] | null
           id?: number
           is_accumulating?: boolean
+          is_ignored?: boolean
           is_permanent?: boolean | null
           kind?: Database["public"]["Enums"]["relic_arg_kind"]
           metadata?: string | null
@@ -1269,6 +1271,7 @@ export type Database = {
           dependency_stat?: Database["public"]["Enums"]["all_stats"] | null
           id?: number
           is_accumulating?: boolean
+          is_ignored?: boolean
           is_permanent?: boolean | null
           kind?: Database["public"]["Enums"]["relic_arg_kind"]
           metadata?: string | null

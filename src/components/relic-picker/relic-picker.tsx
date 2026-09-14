@@ -24,6 +24,7 @@ import {
   DEFAULT_ACCOUNT_LEVEL,
   DEFAULT_OWNED_POSSE_COUNT,
 } from "@/lib/path-carver/relic-research-curve";
+import type { RelicRankingRow } from "@/lib/path-carver/relic-candidates";
 import type { RelicCatalogEntry } from "@/lib/path-carver/relic-manifestations";
 import { resolveRelicTooltipRows } from "@/lib/path-carver/relic-tooltip";
 import type { AnchoredAwakenerState } from "@/lib/path-carver/types";
@@ -121,6 +122,62 @@ function formatTooltipValue(value: number, isPercent: boolean): string {
   const pct = Math.round(value * 100 * 1e10) / 1e10;
   return `${pct}%`;
 }
+
+/** A ranked relic card: optional percent label above a clickable icon. */
+function RankedRelicButton({
+  entry,
+  meta,
+  disabled,
+  showPercent,
+  percentIncrease,
+  widthClass,
+  onAdd,
+}: {
+  entry: RelicCatalogEntry;
+  meta: RelicCardMeta | undefined;
+  disabled: boolean;
+  showPercent: boolean;
+  percentIncrease: number | null;
+  widthClass: string;
+  onAdd: (entry: RelicCatalogEntry) => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onAdd(entry)}
+      disabled={disabled}
+      title={meta?.tooltip ?? `Add ${entry.name}`}
+      aria-label={`Add ${entry.name}`}
+      onContextMenu={(event) => {
+        if (!meta?.skeydbUrl) return;
+        event.preventDefault();
+        window.open(meta.skeydbUrl, "_blank", "noopener,noreferrer");
+      }}
+      className={`flex ${widthClass} cursor-pointer flex-col items-center gap-1 rounded-md border border-transparent p-1 hover:border-[var(--mt-border)] hover:bg-[rgb(255_245_235_/_0.4)] focus-visible:border-[var(--mt-border)] focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50`}
+    >
+      {showPercent && (
+        <span className="text-xs font-medium tabular-nums text-[var(--mt-ember-deep)]">
+          {formatPercent(percentIncrease)}
+        </span>
+      )}
+      <span className="flex size-14 items-center justify-center overflow-hidden rounded-md">
+        <AssetIcon
+          src={resolveSkeydbAssetUrl("relic", entry.name)}
+          alt={entry.name}
+          size={54}
+          className="scale-[1.15] rounded-none object-cover"
+        />
+      </span>
+    </button>
+  );
+}
+
+/** Ranked cards sharing one resolved effect, flattened into a display group. */
+type DisplayRelicGroup = {
+  representativeId: number;
+  percentIncrease: number | null;
+  members: RelicRankingRow[];
+};
 
 export function RelicPicker({
   awakenerOptions,
@@ -327,6 +384,28 @@ export function RelicPicker({
   const visibleRanking = activeTeamData && relicCatalog ? ranking : null;
   const baselineTotal = visibleRanking?.baselineTotal ?? null;
   const rankedRows = visibleRanking?.ranked ?? [];
+  // Keep relics that share an effect adjacent. Sorted by percent then name, so
+  // group members may be interleaved with other same-percent relics; collecting
+  // by representative and emitting first-seen order pulls each group together.
+  const displayGroups = useMemo<DisplayRelicGroup[]>(() => {
+    const byRepresentative = new Map<number, DisplayRelicGroup>();
+    const groups: DisplayRelicGroup[] = [];
+    for (const row of rankedRows) {
+      const representativeId = row.representativeId ?? row.entry.relicId;
+      let group = byRepresentative.get(representativeId);
+      if (group == null) {
+        group = {
+          representativeId,
+          percentIncrease: row.percentIncrease,
+          members: [],
+        };
+        byRepresentative.set(representativeId, group);
+        groups.push(group);
+      }
+      group.members.push(row);
+    }
+    return groups;
+  }, [rankedRows]);
   const showLoading = hasAwakener && teamLoading;
   // Busy while a ranking sweep is in flight. Add buttons stay disabled, but the
   // partial ranking is shown as chunks land; the blocking overlay only covers
@@ -435,39 +514,48 @@ Total Burst Damage Approximation
           </p>
         ) : rankedRows.length > 0 ? (
           <ul className="mt-3 flex flex-wrap gap-3">
-            {rankedRows.map((row) => {
-              const meta = relicCardMeta.get(row.entry.relicId);
+            {displayGroups.map((group) => {
+              const first = group.members[0];
+              if (first == null) return null;
+              if (group.members.length === 1) {
+                return (
+                  <li key={first.entry.relicId} className="w-16">
+                    <RankedRelicButton
+                      entry={first.entry}
+                      meta={relicCardMeta.get(first.entry.relicId)}
+                      disabled={rankingBusy}
+                      showPercent
+                      percentIncrease={first.percentIncrease}
+                      widthClass="w-full"
+                      onAdd={handleAddRelic}
+                    />
+                  </li>
+                );
+              }
               return (
-                <li key={row.entry.relicId} className="w-16">
-                  <button
-                    type="button"
-                    onClick={() => handleAddRelic(row.entry)}
-                    disabled={rankingBusy}
-                    title={meta?.tooltip ?? `Add ${row.entry.name}`}
-                    aria-label={`Add ${row.entry.name}`}
-                    onContextMenu={(event) => {
-                      if (!meta?.skeydbUrl) return;
-                      event.preventDefault();
-                      window.open(
-                        meta.skeydbUrl,
-                        "_blank",
-                        "noopener,noreferrer",
-                      );
-                    }}
-                    className="flex w-full cursor-pointer flex-col items-center gap-1 rounded-md border border-transparent p-1 hover:border-[var(--mt-border)] hover:bg-[rgb(255_245_235_/_0.4)] focus-visible:border-[var(--mt-border)] focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    <span className="text-xs font-medium tabular-nums text-[var(--mt-ember-deep)]">
-                      {formatPercent(row.percentIncrease)}
-                    </span>
-                    <span className="flex size-14 items-center justify-center overflow-hidden rounded-md">
-                      <AssetIcon
-                        src={resolveSkeydbAssetUrl("relic", row.entry.name)}
-                        alt={row.entry.name}
-                        size={54}
-                        className="scale-[1.15] rounded-none object-cover"
+                <li
+                  key={`group-${group.representativeId}`}
+                  role="group"
+                  aria-label={`${group.members.length} relics with the same effect`}
+                  className="flex w-fit flex-col items-center gap-1 rounded-md border border-[var(--mt-border)] bg-[rgb(255_245_235_/_0.4)] p-1"
+                >
+                  <span className="text-xs font-medium tabular-nums text-[var(--mt-ember-deep)]">
+                    {formatPercent(group.percentIncrease)}
+                  </span>
+                  <div className="flex flex-wrap gap-1">
+                    {group.members.map((row) => (
+                      <RankedRelicButton
+                        key={row.entry.relicId}
+                        entry={row.entry}
+                        meta={relicCardMeta.get(row.entry.relicId)}
+                        disabled={rankingBusy}
+                        showPercent={false}
+                        percentIncrease={row.percentIncrease}
+                        widthClass="w-16"
+                        onAdd={handleAddRelic}
                       />
-                    </span>
-                  </button>
+                    ))}
+                  </div>
                 </li>
               );
             })}

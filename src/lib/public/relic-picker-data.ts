@@ -655,8 +655,9 @@ export function buildPublicRelicCatalog(
   }));
 
   const tagRowsById = new Map(catalog.tags.map((t) => [t.id, t]));
-  const rows: (RelicRtmRow & { relicId: number })[] =
-    catalog.relicManifestations.map((row) => {
+  const rows: (RelicRtmRow & { relicId: number })[] = catalog.relicManifestations
+    .filter((row) => !row.is_ignored)
+    .map((row) => {
       const tag = tagRowsById.get(row.tag_id);
       return {
         relicId: row.relic_id,

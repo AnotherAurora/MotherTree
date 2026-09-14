@@ -437,6 +437,13 @@ export const TABLE_CONFIGS: TableConfig[] = [
         defaultValue: false,
         inlineEditable: true,
       },
+      {
+        name: "is_ignored",
+        label: "Is Ignored",
+        type: "boolean",
+        defaultValue: false,
+        inlineEditable: true,
+      },
       { name: "metadata", label: "Metadata", type: "textarea" },
       ...timestampFields(),
     ],

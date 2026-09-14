@@ -12,7 +12,10 @@ import {
   type RelicRankingRow,
   type RelicTotalCache,
 } from "@/lib/path-carver/relic-candidates";
-import type { RelicCatalogEntry } from "@/lib/path-carver/relic-manifestations";
+import {
+  groupRelicsByEffect,
+  type RelicCatalogEntry,
+} from "@/lib/path-carver/relic-manifestations";
 import type { TeamData } from "@/lib/team-data/types";
 import type {
   RelicRankingInputs,
@@ -57,6 +60,12 @@ type SweepPlan = {
   inputs: RelicRankingInputs;
   outputsKey: string;
   eligible: RelicCatalogEntry[];
+  /** member relicId → group size (relics sharing its effect). */
+  groupSizeById: Map<number, number>;
+  /** member relicId → representative relicId. */
+  representativeOf: Map<number, number>;
+  /** representative relicId → member relicIds. */
+  membersByRepresentative: Map<number, number[]>;
   rows: Map<number, number>;
   baselineTotal: number | null;
   outstanding: number;
@@ -131,6 +140,9 @@ function buildRanking(plan: SweepPlan): RelicRankingResult {
       total,
       percentIncrease:
         baseline > 0 ? ((total - baseline) / baseline) * 100 : null,
+      groupSize: plan.groupSizeById.get(entry.relicId),
+      representativeId:
+        plan.representativeOf.get(entry.relicId) ?? entry.relicId,
     });
   }
   ranked.sort(compareRelicRankingRows);
@@ -263,6 +275,10 @@ export function useRelicRanking({
         plan.eligible = message.eligibleIds
           .map((relicId) => byRelicId.get(relicId))
           .filter((entry): entry is RelicCatalogEntry => entry != null);
+        const groups = groupRelicsByEffect(plan.eligible, plan.inputs);
+        plan.groupSizeById = groups.sizeOf;
+        plan.representativeOf = groups.representativeOf;
+        plan.membersByRepresentative = groups.membersByRepresentative;
       }
 
       if (message.baselineTotal != null && plan.baselineTotal == null) {
@@ -273,14 +289,18 @@ export function useRelicRanking({
         );
       }
       for (const row of message.rows) {
-        plan.rows.set(row.relicId, row.total);
-        mirrorRef.current.set(
-          `${plan.outputsKey}|${relicSelectionKey([
-            ...plan.selectedRelicIds,
-            row.relicId,
-          ])}`,
-          row.total,
-        );
+        const memberIds =
+          plan.membersByRepresentative.get(row.relicId) ?? [row.relicId];
+        for (const memberId of memberIds) {
+          plan.rows.set(memberId, row.total);
+          mirrorRef.current.set(
+            `${plan.outputsKey}|${relicSelectionKey([
+              ...plan.selectedRelicIds,
+              memberId,
+            ])}`,
+            row.total,
+          );
+        }
       }
       plan.outstanding -= 1;
       if (plan.outstanding <= 0) {
@@ -319,6 +339,7 @@ export function useRelicRanking({
 
       // No damage dealer ⇒ nothing to calculate; zero baseline, blank impact.
       if (damageDealerAwakenerIds.length === 0) {
+        const groups = groupRelicsByEffect(eligible, inputs);
         setOutcome({
           context,
           result: {
@@ -328,6 +349,9 @@ export function useRelicRanking({
               entry,
               total: 0,
               percentIncrease: null,
+              groupSize: groups.sizeOf.get(entry.relicId),
+              representativeId:
+                groups.representativeOf.get(entry.relicId) ?? entry.relicId,
             })),
           },
         });
@@ -337,17 +361,32 @@ export function useRelicRanking({
         return;
       }
 
+      const groups = groupRelicsByEffect(eligible, inputs);
       const rows = new Map<number, number>();
-      const missing: RelicCatalogEntry[] = [];
+      const missingByRepresentative = new Map<number, RelicCatalogEntry>();
+      const byRelicId = new Map(
+        relicCatalog.map((entry) => [entry.relicId, entry]),
+      );
       for (const entry of eligible) {
         const key = `${outputsKey}|${relicSelectionKey([
           ...selectedRelicIds,
           entry.relicId,
         ])}`;
         const cached = mirrorRef.current.get(key);
-        if (cached != null) rows.set(entry.relicId, cached);
-        else missing.push(entry);
+        if (cached != null) {
+          rows.set(entry.relicId, cached);
+          continue;
+        }
+        const representativeId =
+          groups.representativeOf.get(entry.relicId) ?? entry.relicId;
+        if (!missingByRepresentative.has(representativeId)) {
+          const representative = byRelicId.get(representativeId);
+          if (representative != null) {
+            missingByRepresentative.set(representativeId, representative);
+          }
+        }
       }
+      const missing = [...missingByRepresentative.values()];
       const baselineCached = mirrorRef.current.get(
         `${outputsKey}|${relicSelectionKey(selectedRelicIds)}`,
       );
@@ -359,6 +398,9 @@ export function useRelicRanking({
         inputs,
         outputsKey,
         eligible,
+        groupSizeById: groups.sizeOf,
+        representativeOf: groups.representativeOf,
+        membersByRepresentative: groups.membersByRepresentative,
         rows,
         baselineTotal: baselineCached ?? null,
         outstanding: 0,

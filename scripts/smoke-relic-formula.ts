@@ -8,9 +8,15 @@
  */
 import { computeReviewTagTotals } from "../src/lib/path-carver/aggregate-tag-scalars";
 import { createManifestationApplyContext } from "../src/lib/path-carver/manifestation-apply";
-import { computeRelicRanking } from "../src/lib/path-carver/relic-candidates";
+import {
+  computeRelicRanking,
+  createRelicRankingContext,
+} from "../src/lib/path-carver/relic-candidates";
+import { computeTotalDamage } from "../src/lib/path-carver/total-damage";
 import {
   buildRelicManifestations,
+  groupRelicsByEffect,
+  relicEffectSignature,
   type RelicCatalogEntry,
 } from "../src/lib/path-carver/relic-manifestations";
 import {
@@ -418,6 +424,172 @@ console.log(
   assert(
     posseScalar > 0.5,
     `posse control Support.Damage AMP is amplified > 0.5 (got ${posseScalar})`,
+  );
+}
+
+console.log("\nIntegration — identical-effect relics group and share one total");
+{
+  const activeTag = makeTag(1, "Attacker.Active Damage", { layer: "pre_add" });
+  const ampTag = makeTag(2, "Support.Damage AMP", { isPercent: true });
+  const strTag = makeTag(3, "Support.STR Up");
+  const tagsById: Record<number, Tag> = {
+    [activeTag.id]: activeTag,
+    [ampTag.id]: ampTag,
+    [strTag.id]: strTag,
+  };
+
+  const awakeners = [makeAwakener(1)];
+  const teamData: TeamData = {
+    ...createEmptyTeamData(),
+    awakeners,
+    tagsById,
+    manifestations: [makeActiveDamageManifestation(activeTag, 1000)],
+    defaultInteractions: [ampInteraction(1, ampTag, activeTag)],
+  };
+  const inputs = { accountLevel: 50, ownedPosseCount: 50, hsr: false };
+
+  const makeAmpRelic = (
+    relicId: number,
+    name: string,
+    rowId: number,
+  ): RelicCatalogEntry => ({
+    relicId,
+    name,
+    tier: "Gold",
+    requiredRealmId: null,
+    isDamage: true,
+    manifestations: [
+      {
+        id: rowId,
+        tagId: ampTag.id,
+        tagName: ampTag.tagName,
+        triggerCondition: null,
+        valueScalar: 0.5,
+        kind: "fixed",
+        baseFormula: null,
+        targetType: "aoe",
+        dependencyStat: null,
+        isAccumulating: false,
+        isPercent: true,
+      },
+    ],
+  });
+  const ampRelic = makeAmpRelic(1, "Weeping Pipe", 9001);
+  const ampClone = makeAmpRelic(2, "Weeping Pipe (copy)", 9002);
+  const strRelic: RelicCatalogEntry = {
+    relicId: 3,
+    name: "No-Interaction Relic",
+    tier: "Gold",
+    requiredRealmId: null,
+    isDamage: true,
+    manifestations: [
+      {
+        id: 9003,
+        tagId: strTag.id,
+        tagName: strTag.tagName,
+        triggerCondition: null,
+        valueScalar: 100,
+        kind: "fixed",
+        baseFormula: null,
+        targetType: "aoe",
+        dependencyStat: null,
+        isAccumulating: false,
+        isPercent: false,
+      },
+    ],
+  };
+
+  const groups = groupRelicsByEffect([ampRelic, ampClone, strRelic], inputs);
+  assert(
+    groups.representativeOf.get(ampClone.relicId) === ampRelic.relicId,
+    "clone maps to the first catalog representative",
+  );
+  assert(
+    groups.sizeOf.get(ampRelic.relicId) === 2,
+    `amp group size 2 (got ${groups.sizeOf.get(ampRelic.relicId)})`,
+  );
+  assert(
+    groups.sizeOf.get(strRelic.relicId) === 1,
+    "distinct effect has its own group",
+  );
+  assert(
+    relicEffectSignature(ampRelic, inputs) ===
+      relicEffectSignature(ampClone, inputs),
+    "identical effects share a signature",
+  );
+  assert(
+    relicEffectSignature(ampRelic, inputs) !==
+      relicEffectSignature(strRelic, inputs),
+    "different effects have different signatures",
+  );
+
+  const result = computeRelicRanking({
+    teamData,
+    damageDealerAwakenerIds: [1],
+    relicCatalog: [ampRelic, ampClone, strRelic],
+    selectedRelicIds: [],
+    inputs,
+  });
+  const rowA = result.ranked.find((r) => r.entry.relicId === ampRelic.relicId);
+  const rowB = result.ranked.find((r) => r.entry.relicId === ampClone.relicId);
+  assert(rowA != null && rowB != null, "both grouped relics are ranked");
+  assert(
+    rowA?.total === 1500 && rowB?.total === 1500,
+    `grouped relics share total 1500 (got ${rowA?.total}, ${rowB?.total})`,
+  );
+  assert(
+    rowA?.groupSize === 2 && rowB?.groupSize === 2,
+    `grouped relics report groupSize 2 (got ${rowA?.groupSize}, ${rowB?.groupSize})`,
+  );
+  assert(
+    rowA?.representativeId === ampRelic.relicId &&
+      rowB?.representativeId === ampRelic.relicId,
+    `grouped relics share representative ${ampRelic.relicId} (got ${rowA?.representativeId}, ${rowB?.representativeId})`,
+  );
+  const strRow = result.ranked.find((r) => r.entry.relicId === strRelic.relicId);
+  assert(
+    strRow?.total === 1000 && strRow?.groupSize === 1,
+    `distinct relic unaffected by grouping (got ${strRow?.total}, size ${strRow?.groupSize})`,
+  );
+  assert(
+    strRow?.representativeId === strRelic.relicId,
+    `distinct relic is its own representative (got ${strRow?.representativeId})`,
+  );
+
+  // Selecting one member must not disturb the other member's ranking.
+  const afterPick = computeRelicRanking({
+    teamData,
+    damageDealerAwakenerIds: [1],
+    relicCatalog: [ampRelic, ampClone, strRelic],
+    selectedRelicIds: [ampRelic.relicId],
+    inputs,
+  });
+  const cloneAfter = afterPick.ranked.find(
+    (r) => r.entry.relicId === ampClone.relicId,
+  );
+  // Ground truth: engine total for the selected relic + this member, unfiltered.
+  const { applyContext } = createRelicRankingContext(teamData, [1]);
+  const expectedCloneTotal = (() => {
+    const merged: TeamData = {
+      ...teamData,
+      manifestations: [
+        ...teamData.manifestations,
+        ...buildRelicManifestations(ampRelic, inputs),
+        ...buildRelicManifestations(ampClone, inputs),
+      ],
+    };
+    const { totalsByTagId } = computeReviewTagTotals(merged, applyContext, {
+      totalsOnly: true,
+    });
+    return computeTotalDamage(totalsByTagId, merged.tagsById).total;
+  })();
+  assert(
+    cloneAfter != null && cloneAfter.total === expectedCloneTotal,
+    `remaining group member matches unfiltered total (got ${cloneAfter?.total}, expected ${expectedCloneTotal})`,
+  );
+  assert(
+    cloneAfter?.groupSize === 1,
+    `selected member leaves the unselected clone with its own group (got ${cloneAfter?.groupSize})`,
   );
 }
 

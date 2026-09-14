@@ -103,6 +103,74 @@ export function buildRelicManifestations(
 }
 
 /**
+ * Opaque key for the effect a relic applies for a given input set. Two relics
+ * with the same signature resolve to identical engine manifestations, so their
+ * standalone impact is identical and only one of them needs to be evaluated.
+ *
+ * Derived from the *resolved* manifestations to stay in lockstep with the
+ * engine; display/identity fields (`id`, names) and the already-satisfied
+ * `requiredRealmId` gate are intentionally excluded.
+ */
+export function relicEffectSignature(
+  entry: RelicCatalogEntry,
+  inputs: RelicValueInputs,
+): string {
+  const parts = buildRelicManifestations(entry, inputs).map((m) =>
+    [
+      m.tagId,
+      m.triggerCondition ?? "",
+      m.valueScalar ?? "",
+      m.dependencyStat ?? "",
+      m.targetType ?? "",
+      m.isAccumulating ? 1 : 0,
+    ].join("\u0001"),
+  );
+  parts.sort();
+  return parts.join("\u0002");
+}
+
+export type RelicEffectGroups = {
+  /** member relicId → representative relicId (first in catalog order). */
+  representativeOf: Map<number, number>;
+  /** representative relicId → member relicIds (catalog order). */
+  membersByRepresentative: Map<number, number[]>;
+  /** member relicId → number of relics sharing its effect. */
+  sizeOf: Map<number, number>;
+};
+
+/**
+ * Group relics whose resolved effects are identical. The first entry in catalog
+ * order becomes the representative; the engine is only run for representatives
+ * and the resulting total is shared with every member.
+ */
+export function groupRelicsByEffect(
+  entries: readonly RelicCatalogEntry[],
+  inputs: RelicValueInputs,
+): RelicEffectGroups {
+  const representativeOf = new Map<number, number>();
+  const membersByRepresentative = new Map<number, number[]>();
+  const sizeOf = new Map<number, number>();
+  const representativeBySignature = new Map<string, number>();
+
+  for (const entry of entries) {
+    const signature = relicEffectSignature(entry, inputs);
+    let representativeId = representativeBySignature.get(signature);
+    if (representativeId == null) {
+      representativeId = entry.relicId;
+      representativeBySignature.set(signature, representativeId);
+      membersByRepresentative.set(representativeId, []);
+    }
+    membersByRepresentative.get(representativeId)!.push(entry.relicId);
+    representativeOf.set(entry.relicId, representativeId);
+  }
+  for (const members of membersByRepresentative.values()) {
+    for (const memberId of members) sizeOf.set(memberId, members.length);
+  }
+
+  return { representativeOf, membersByRepresentative, sizeOf };
+}
+
+/**
  * Ensure every tag referenced by the relic catalog exists in `tagsById`.
  * Public `tag` reads normally cover these; stubs guard against a missing row.
  */
