@@ -223,9 +223,10 @@ Decides which manifestations enter team totals and which become interaction subj
 
 ## 5. Pre–Layer B pipeline — `computeReviewTagTotals` order
 
-Exact sequence (aggregate-tag-scalars.ts:197-499):
+Exact sequence (aggregate-tag-scalars.ts:202-533):
 
-1. **Null-trigger Layer A set** — `teamData.manifestations` filtered to `!isBaseStatTransfer && triggerCondition == null && applied` (`appliedNullTrigger`).
+0. **Support.Double Posse** (tag 53) — `isDoublePosseActive` (`double-posse.ts`) checks the team for an applied tag-53 row; when present, a working `manifestations` copy scales every `sourceKind === "posse"` row's `value_scalar` by `POSSE_EFFECT_MULTIPLIER` (2). Presence-only (multiple sources still ×2). This copy replaces `teamData.manifestations` for the rest of the pipeline, so provider pools, Cause→When, hitCount, Layer B, and `reviewTeamData` all see the doubled posse. The Keyflare→Create.Posse synthetic (tag 52) is `sourceKind: "awakener"` and is never scaled by this pre-pass. A `special` debug step `Support.Double Posse` is emitted when at least one posse row was scaled.
+1. **Null-trigger Layer A set** — working `manifestations` filtered to `!isBaseStatTransfer && triggerCondition == null && applied` (`appliedNullTrigger`).
 2. **Total base stats** — `computeAwakenerTotalBaseStats(teamData, appliedNullTrigger)` (awakener-base-stats.ts:261): clone table stats → sum gear `stat`/`stat_amount` → DR (`keyflare` `ceil(15 + 144*(x-15)/(x+129))`; `aliemus` `ceil(x*(1 - (x/0.2)/(x/0.2+360)))`; `realmMastery` ceil) → apply `Special.Increase Base Keyflare/ATK/DEF` (tags 131/153/154) against a **frozen pre-boost snapshot** (additive scalars, `ceil(pre * (1+Σ) - 1e-10)`). Realm/relic increase rows hit every awakener; non-realm hit only the owner.
 3. **Base-stat transfers** — `buildBaseStatTransferManifestations` (tags 16 amp/aoe, 18 crit rate/self, 17 crit dmg/self, 63 realm mastery/aoe, 28 aliemus/self, 12 death resist/aoe), absolute scalars, `isBaseStatTransfer: true`.
 4. **Keyflare Harmony** — `computeKeyflareHarmonyScalar`: `perNonExalted = ceil(avg(keyflareRegen) * 2)`, `valueScalar = perNonExalted * 4`; synthetic `Support.Keyflare` (tag 37), always on.
@@ -408,6 +409,7 @@ Self-contained per-ATM bonus on the attached ATM's single-hit base. `modifierTag
 | `Attacker.Non-Active Damage.Sacrifice` | 50 | birth-ritual-sacrifice.ts |
 | `Support.Keyflare` | 37 | keyflare-to-posse.ts |
 | `Support.Create.Posse` | 52 | keyflare-to-posse.ts |
+| `Support.Double Posse` | 53 | double-posse.ts |
 | `Special.When.Posse` | 129 | trigger-condition.ts |
 | `Special.Increase Posse Keyflare Cost` | 155 | keyflare-to-posse.ts |
 | `Special.Increase Base Keyflare` | 131 | awakener-base-stats.ts |
@@ -469,6 +471,7 @@ These are places where `simulator_phased_plan_7b0fcf95.plan.md` no longer matche
 | Orchestration / order | `aggregate-tag-scalars.ts` (`computeReviewTagTotals`) |
 | Layer A gate | `manifestation-apply.ts` |
 | Effective scalar + `dependency_stat` | `effective-value-scalar.ts` |
+| Double posse (tag 53) | `double-posse.ts` |
 | Same-tag combine | `combine-same-tag-scalar.ts` |
 | Copies / hitCount | `copy-instances.ts` |
 | Total base stats / transfers | `awakener-base-stats.ts` |

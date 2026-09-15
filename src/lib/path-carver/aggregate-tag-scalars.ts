@@ -19,6 +19,11 @@ import {
   type EffectiveScalarOptions,
 } from "@/lib/path-carver/effective-value-scalar";
 import {
+  POSSE_EFFECT_MULTIPLIER,
+  isDoublePosseActive,
+  scalePosseManifestations,
+} from "@/lib/path-carver/double-posse";
+import {
   SPECIAL_INCREASE_POSSE_KEYFLARE_COST_TAG_ID,
   SUPPORT_KEYFLARE_TAG_ID,
   buildKeyflareToPosseManifestation,
@@ -199,8 +204,24 @@ export function computeReviewTagTotals(
   applyContext: ManifestationApplyContext,
   options: ReviewTagTotalsOptions = {},
 ): ReviewTagTotals {
+  // Support.Double Posse (tag 53): double the equipped posse's rows up front so
+  // the multiplier flows through provider pools, Cause→When counts, and Layer B.
+  const doublePosseActive = isDoublePosseActive(
+    teamData.manifestations,
+    applyContext,
+  );
+  const manifestations = scalePosseManifestations(
+    teamData.manifestations,
+    doublePosseActive ? POSSE_EFFECT_MULTIPLIER : 1,
+  );
+  const scaledPosseRowCount = doublePosseActive
+    ? manifestations.filter(
+        (m, i) => m.valueScalar !== teamData.manifestations[i]?.valueScalar,
+      ).length
+    : 0;
+
   // Pass 1: null-trigger only (ignore trigger gate — column is null).
-  const appliedNullTrigger = teamData.manifestations.filter(
+  const appliedNullTrigger = manifestations.filter(
     (m) =>
       !m.isBaseStatTransfer &&
       m.triggerCondition == null &&
@@ -318,6 +339,19 @@ export function computeReviewTagTotals(
         ]
       : [];
 
+  const doublePosseSteps: ScalarMathStep[] =
+    scaledPosseRowCount > 0
+      ? [
+          {
+            kind: "special",
+            label: "Support.Double Posse",
+            detail:
+              `posseMultiplier=${POSSE_EFFECT_MULTIPLIER}` +
+              ` posseRows=${scaledPosseRowCount}`,
+          },
+        ]
+      : [];
+
   const causeTotals = sumCauseTotals(
     [...appliedNullTrigger, ...allTransfers],
     awakenersById,
@@ -352,7 +386,7 @@ export function computeReviewTagTotals(
 
   // Pass 2: triggered rows — same Layer A gates + count > 0, scaled ×N.
   const appliedTriggered: Manifestation[] = [];
-  for (const m of teamData.manifestations) {
+  for (const m of manifestations) {
     if (m.isBaseStatTransfer) continue;
     if (m.triggerCondition == null) continue;
     if (!isManifestationApplied(m, applyWithTriggers)) continue;
@@ -459,7 +493,7 @@ export function computeReviewTagTotals(
     ...teamData,
     awakeners: totalAwakeners,
     manifestations: [
-      ...teamData.manifestations.filter(
+      ...manifestations.filter(
         (m) =>
           !m.isBaseStatTransfer &&
           !(tentacleSynth != null && isSupersededBaseTentacleRtm(m)),
@@ -488,6 +522,7 @@ export function computeReviewTagTotals(
       : [
           ...harmonySteps,
           ...keyflareSteps,
+          ...doublePosseSteps,
           ...lemurianSteps,
           ...tentacleSteps,
           ...result.steps,
