@@ -341,6 +341,22 @@ export function RelicPicker({
 
   const hasDamageDealer = damageDealerAwakenerIds.length > 0;
 
+  // Awakeners on the team that have no verified ATM rows yet (still usable, but
+  // their relic results may be incomplete).
+  const unsupportedSelectedNames = useMemo(() => {
+    const byId = new Map(awakenerOptions.map((option) => [option.value, option]));
+    const seen = new Set<number>();
+    const names: string[] = [];
+    for (const slot of slots) {
+      const id = slot.awakenerId;
+      if (id == null || seen.has(id)) continue;
+      seen.add(id);
+      const option = byId.get(id);
+      if (option?.muted) names.push(option.label);
+    }
+    return names;
+  }, [awakenerOptions, slots]);
+
   // Only expose team data while the team has at least one awakener.
   const activeTeamData = hasAwakener ? teamData : null;
 
@@ -534,6 +550,27 @@ export function RelicPicker({
             <p className="mt-0.5 text-amber-800">
               Tick the <span className="font-semibold">DD</span> box on one of
               your awakeners below to calculate relic impact.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {unsupportedSelectedNames.length > 0 && (
+        <div
+          role="status"
+          className="flex items-start gap-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900"
+        >
+          <AlertTriangle
+            aria-hidden="true"
+            className="mt-0.5 h-4 w-4 shrink-0"
+          />
+          <div>
+            <p className="font-medium">Unsupported awakeners on this team</p>
+            <p className="mt-0.5 text-amber-800">
+              {unsupportedSelectedNames.join(", ")}{" "}
+              {unsupportedSelectedNames.length === 1 ? "has" : "have"} no
+              verified manifestation data yet, so relic results may be
+              incomplete.
             </p>
           </div>
         </div>

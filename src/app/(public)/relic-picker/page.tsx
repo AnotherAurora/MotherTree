@@ -4,6 +4,7 @@ import { fetchAllPublicTable } from "@/lib/public-read/fetch";
 import {
   buildPublicAwakenerOptions,
   buildPublicGearOptions,
+  buildSupportedAwakenerIds,
 } from "@/lib/public/relic-picker-data";
 
 export const metadata: Metadata = {
@@ -13,15 +14,23 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 async function loadRelicPickerOptions() {
-  const [awakeners, realms, wheels, covenants, covenantStatSets, posses] =
-    await Promise.all([
-      fetchAllPublicTable("awakener"),
-      fetchAllPublicTable("realm"),
-      fetchAllPublicTable("wheel"),
-      fetchAllPublicTable("covenant"),
-      fetchAllPublicTable("covenant_stat_set"),
-      fetchAllPublicTable("posse"),
-    ]);
+  const [
+    awakeners,
+    realms,
+    wheels,
+    covenants,
+    covenantStatSets,
+    posses,
+    awakenerManifestations,
+  ] = await Promise.all([
+    fetchAllPublicTable("awakener"),
+    fetchAllPublicTable("realm"),
+    fetchAllPublicTable("wheel"),
+    fetchAllPublicTable("covenant"),
+    fetchAllPublicTable("covenant_stat_set"),
+    fetchAllPublicTable("posse"),
+    fetchAllPublicTable("awakener_tag_manifestation"),
+  ]);
 
   const failure = [
     awakeners,
@@ -35,11 +44,19 @@ async function loadRelicPickerOptions() {
     return { success: false as const, error: failure.error };
   }
 
+  // Supported-awakener flags are informational: if the read fails or is
+  // truncated, pass null so nothing is greyed out.
+  const supportedAwakenerIds =
+    awakenerManifestations.success && !awakenerManifestations.truncated
+      ? buildSupportedAwakenerIds(awakenerManifestations.data)
+      : null;
+
   return {
     success: true as const,
     awakenerOptions: buildPublicAwakenerOptions({
       awakeners: awakeners.success ? awakeners.data : [],
       realms: realms.success ? realms.data : [],
+      supportedAwakenerIds,
     }),
     gearOptions: buildPublicGearOptions({
       posses: posses.success ? posses.data : [],

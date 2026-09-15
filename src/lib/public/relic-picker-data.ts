@@ -51,6 +51,10 @@ export type PublicAwakenerOption = {
   realm: Realm | null;
   realmId: number | null;
   realmFamilyId: number | null;
+  /** True when the awakener has no verified ATM rows. Still selectable. */
+  muted: boolean;
+  /** Status pill text shown for muted options. */
+  badge?: string;
 };
 
 export type PublicTeamCatalog = {
@@ -492,8 +496,9 @@ export function buildPublicTeamData(
   for (const awakener of awakeners) {
     const gated = (atmsByAwakenerId.get(awakener.id) ?? []).filter(
       (row) =>
+        row.verified === true &&
         (row.required_enlightenment ?? 0) <=
-        effectiveEnlightenment(awakener.enlightenment),
+          effectiveEnlightenment(awakener.enlightenment),
     );
     const resolved = applyManifestationReplacements(
       gated.map((row) => ({
@@ -594,21 +599,45 @@ function groupBy<T, K>(
   return map;
 }
 
-/** Awakener options for `BuildStep` / `AwakenerSlotRow`. */
+/**
+ * Awakener options for `BuildStep` / `AwakenerSlotRow`.
+ *
+ * `supportedAwakenerIds` is the set of awakeners with at least one verified
+ * ATM row. `null` means the data is unavailable (fetch failed/truncated), in
+ * which case no awakener is flagged so the page degrades gracefully.
+ */
 export function buildPublicAwakenerOptions(input: {
   awakeners: readonly PublicRow<"awakener">[];
   realms: readonly PublicRow<"realm">[];
+  supportedAwakenerIds?: ReadonlySet<number> | null;
 }): PublicAwakenerOption[] {
   const replaceOf = new Map(input.realms.map((r) => [r.id, r.replace]));
   const realmsById = new Map(input.realms.map((r) => [r.id, r]));
-  return input.awakeners.map((row) => ({
-    value: row.id,
-    label: row.name ?? `#${row.id}`,
-    realm: realmDisplayName(realmsById, row.realm),
-    realmId: row.realm,
-    realmFamilyId:
-      row.realm == null ? null : (replaceOf.get(row.realm) ?? row.realm),
-  }));
+  const supported = input.supportedAwakenerIds;
+  return input.awakeners.map((row) => {
+    const unsupported = supported != null && !supported.has(row.id);
+    return {
+      value: row.id,
+      label: row.name ?? `#${row.id}`,
+      realm: realmDisplayName(realmsById, row.realm),
+      realmId: row.realm,
+      realmFamilyId:
+        row.realm == null ? null : (replaceOf.get(row.realm) ?? row.realm),
+      muted: unsupported,
+      badge: unsupported ? "Not supported" : undefined,
+    };
+  });
+}
+
+/** Awakener ids with at least one verified ATM row (via anon read). */
+export function buildSupportedAwakenerIds(
+  manifestations: readonly PublicRow<"awakener_tag_manifestation">[],
+): Set<number> {
+  const ids = new Set<number>();
+  for (const row of manifestations) {
+    if (row.verified === true) ids.add(row.awakener_id);
+  }
+  return ids;
 }
 
 /** Gear options for `BuildStep` / `AwakenerSlotRow`. */

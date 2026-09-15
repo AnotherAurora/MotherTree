@@ -64,9 +64,12 @@ export function ForeignKeyCombobox({
   const [search, setSearch] = React.useState("");
 
   const selected = options.find((option) => option.value === value);
-  const filtered = options.filter((option) =>
-    option.label.toLowerCase().includes(search.toLowerCase()),
-  );
+  const filtered = options
+    .filter((option) =>
+      option.label.toLowerCase().includes(search.toLowerCase()),
+    )
+    // Stable-sort muted (unsupported) options to the bottom.
+    .sort((a, b) => Number(Boolean(a.muted)) - Number(Boolean(b.muted)));
   const selectedSrc = selected
     ? optionAssetSrc(assetKind, selected)
     : undefined;
@@ -167,6 +170,7 @@ export function ForeignKeyCombobox({
                       (isPublic
                         ? "bg-[rgb(255_245_235_/_0.9)]"
                         : "bg-zinc-100"),
+                    option.muted && "opacity-60",
                   )}
                   onClick={() => {
                     onChange(option.value);
@@ -188,9 +192,30 @@ export function ForeignKeyCombobox({
                       darkChip={assetUsesDarkChip(assetKind)}
                     />
                   ) : null}
-                  <span className="min-w-0 flex-1 truncate" title={option.label}>
+                  <span
+                    className={cn(
+                      "min-w-0 flex-1 truncate",
+                      option.muted &&
+                        (isPublic
+                          ? "text-[var(--mt-ink-muted)]"
+                          : "text-zinc-500"),
+                    )}
+                    title={option.label}
+                  >
                     {optionDisplayText(option)}
                   </span>
+                  {option.muted && option.badge ? (
+                    <span
+                      className={cn(
+                        "ml-2 shrink-0 rounded-full border px-1.5 py-0.5 text-[0.6rem] font-medium uppercase tracking-wide",
+                        isPublic
+                          ? "border-[var(--mt-border)] bg-[rgb(255_245_235_/_0.7)] text-[var(--mt-ink-muted)]"
+                          : "border-zinc-200 bg-zinc-50 text-zinc-500",
+                      )}
+                    >
+                      {option.badge}
+                    </span>
+                  ) : null}
                 </button>
               );
             })

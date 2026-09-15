@@ -29,6 +29,10 @@ export type ForeignKeyOption = {
   assetName?: string;
   /** When set, shown next to the icon instead of label (label still used for search). */
   shortLabel?: string;
+  /** Render dimmed (still selectable). Used to flag unsupported options. */
+  muted?: boolean;
+  /** Small status pill shown on the right of a muted option. */
+  badge?: string;
 };
 
 export type DefaultInteractionSummary = {

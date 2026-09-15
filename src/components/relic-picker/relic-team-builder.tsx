@@ -209,6 +209,7 @@ function RelicAwakenerCard({
   awakenerLabel,
   isDamageDealer,
   highlightDamageDealer,
+  isUnsupported,
   onChange,
   onDamageDealerChange,
 }: {
@@ -220,6 +221,7 @@ function RelicAwakenerCard({
   awakenerLabel: string | null;
   isDamageDealer: boolean;
   highlightDamageDealer: boolean;
+  isUnsupported: boolean;
   onChange: (slot: SlotState) => void;
   onDamageDealerChange: (value: boolean) => void;
 }) {
@@ -286,6 +288,14 @@ function RelicAwakenerCard({
                 DD
               </label>
             </div>
+            {isUnsupported && (
+              <span
+                className="mt-1 inline-flex items-center rounded-full border border-amber-300/60 bg-black/55 px-1.5 py-0.5 text-[0.6rem] font-semibold uppercase tracking-wide text-amber-200 backdrop-blur-sm"
+                title="No verified manifestation data yet — results may be incomplete"
+              >
+                Not supported
+              </span>
+            )}
           </div>
 
           {/* Card meta + wheels, ported from SKeyDB `.builder-card-wheel-zone`. */}
@@ -637,6 +647,10 @@ export function RelicTeamBuilder({
               (a) => a.awakenerId === slot.awakenerId && a.isDamageDealer,
             )}
             highlightDamageDealer={highlightDamageDealer}
+            isUnsupported={
+              slot.awakenerId != null &&
+              optionMap.get(slot.awakenerId)?.muted === true
+            }
             onChange={(updated) => updateSlot(index, updated)}
             onDamageDealerChange={(value) => setDamageDealer(index, value)}
           />

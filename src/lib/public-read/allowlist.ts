@@ -111,6 +111,7 @@ export const PUBLIC_TABLE_COLUMNS = {
     "required_realm",
     "base_copies",
     "copy_provider_group_id",
+    "verified",
   ],
   awakener_local_manifestation_interaction: [
     "id",

@@ -23,6 +23,8 @@ Inputs:
 
 Eligibility: `relic.is_damage = true` AND (`relic.required_realm` is null OR the realm is present in the team's resolved realms after replacement). Selecting is unlimited and non-repeating.
 
+Unsupported awakeners: an awakener with no `awakener_tag_manifestation` rows where `verified = true`. The page fetches the ATM table (anon; `verified` is in the public allowlist) and flags those awakeners as `muted` + a **Not supported** pill in the slot dropdown (still selectable), shows a **Not supported** badge on their card, and renders an amber warning banner when the team contains one. Detection is informational only: `buildSupportedAwakenerIds` feeds `buildPublicAwakenerOptions`; a failed/truncated ATM read passes `null` (nothing greyed); and `buildPublicTeamData` also filters ATMs to `verified = true` for parity with the admin loader.
+
 ---
 
 ## 2. File responsibility map
