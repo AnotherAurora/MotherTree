@@ -14,6 +14,7 @@ import {
 import { DAMAGE_CHANNEL_TAGS } from "@/lib/path-carver/total-damage";
 import {
   CAUSE_TO_WHEN,
+  PRESENCE_TRIGGER_TAG_IDS,
   SPECIAL_CAUSE_DEVOUR_TAG_ID,
   SPECIAL_CAUSE_RESONANCE_TAG_ID,
   SPECIAL_WHEN_DEATH_RESIST_TRIGGER_TAG_ID,
@@ -61,6 +62,7 @@ export const DAMAGE_SEED_TAG_IDS: readonly number[] = Array.from(
     SPECIAL_WHEN_LEMURIAN_SYNERGY_3_TAG_ID,
     ...[...CAUSE_TO_WHEN.keys()],
     ...[...CAUSE_TO_WHEN.values()],
+    ...PRESENCE_TRIGGER_TAG_IDS,
   ]),
 );
 

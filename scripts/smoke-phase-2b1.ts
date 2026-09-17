@@ -1028,4 +1028,38 @@ console.log("\nTrigger condition gating");
   }
 }
 
+console.log("\nenemy_max_hp rows never applied (Search-page-only reference)");
+{
+  const fixedTag = makeTag(46, "Attacker.Active Damage.Fixed Damage");
+  const awakener = makeAwakener({ id: 1 });
+  const enemyHpRow = makeManifestation({
+    id: 40,
+    tagId: fixedTag.id,
+    tagName: fixedTag.tagName,
+    valueScalar: 0.25,
+    dependencyStat: "enemy_max_hp",
+    sourceKind: "wheel",
+  });
+  const tagsById: Record<number, Tag> = { [fixedTag.id]: fixedTag };
+  const ctx = createManifestationApplyContext([awakener], []);
+  const evalResult = evaluateManifestationApply(enemyHpRow, ctx);
+  assert(evalResult.applied === false, "enemy_max_hp row not applied");
+  assert(
+    evalResult.reason === "enemy_max_hp",
+    "reason is enemy_max_hp",
+  );
+
+  const teamData: TeamData = {
+    ...createEmptyTeamData(),
+    awakeners: [awakener],
+    manifestations: [enemyHpRow],
+    tagsById,
+  };
+  const { totalsByTagId } = computeReviewTagTotals(teamData, ctx);
+  assert(
+    (totalsByTagId.get(fixedTag.id) ?? 0) === 0,
+    "enemy_max_hp tag excluded from team totals",
+  );
+}
+
 console.log("\nAll Phase 2b.1 smoke checks passed.");

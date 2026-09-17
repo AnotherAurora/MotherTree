@@ -123,7 +123,7 @@ Entry per manifestation. `tagIsPercent = tagsById[tagId].isPercent === true`.
 | `raw == null` | `0` |
 | `dependencyStat == null` | raw (no ceil) |
 | `sourceKind === "posse"` and stat ≠ `team_max_hp` | raw |
-| `dependencyStat === "enemy_max_hp"` | `ceil(raw * 100) / 100` (2 dp; no stat scaling) |
+| `dependencyStat === "enemy_max_hp"` | `ceil(raw * 100) / 100` (2 dp; no stat scaling). Display-only: Layer A rejects these rows (see §4), so this branch survives only for Search-page value display. |
 | `dependencyStat === "team_max_hp"` | no context → raw; else `ceilAfterDependencyScale(raw * teamMaxHp, tagIsPercent)` |
 | percent dep stat | `ceilAfterDependencyScale(raw * 100 * (stat * 100), tagIsPercent)` |
 | else | `ceilAfterDependencyScale(raw * stat, tagIsPercent)` |
@@ -204,6 +204,7 @@ Layer A–only   = poolContrib * effectiveCopies                 // layerAContri
 
 Decides which manifestations enter team totals and which become interaction subjects.
 
+0. `dependencyStat === "enemy_max_hp"` → never applied (`enemy_max_hp`). These rows exist only as Search-page references (% of enemy max HP); they contribute nothing to totals, provider pools, Cause→When counts, or Layer B. The rule outranks `isBaseStatTransfer` / realm / gate checks.
 1. `isBaseStatTransfer` → always applied.
 2. `sourceKind === "realm"` → `realmTagManifestationPass` then trigger gate.
    - `realmId == null` → fail (`realm`).
@@ -237,7 +238,7 @@ Exact sequence (aggregate-tag-scalars.ts:202-533):
    - `cause = inMissionToCauseTrigger(inMissionFromBase + directInMission)` (tag 88): while remaining ≥ 1, +1 cause then `ceil((remaining/2)*100)/100`.
 7. **Keyflare → Create.Posse** (keyflare-to-posse.ts:57): sum tag 37 and tag 155 over `appliedNullTrigger + transfers + derived`; `costPerPosse = max(1, 1000 + Σ155)`; `posseCreated = min(2, floor(Σ37 / costPerPosse))`; synthetic tag 52.
 8. `allTransfers = transfers + derived + keyflarePosseSynth`.
-9. **Cause → When counts** — `sumCauseTotals` over `appliedNullTrigger + allTransfers` (uses provider pool + `layerAContribution`), then `buildTriggerCounts` maps `Cause`→`When` (`88→89`, `126→128`, `142→143`, `52→129`) with `floor(sum)`. Then Lemurian synergy merge.
+9. **Cause → When counts** — `sumCauseTotals` over `appliedNullTrigger + allTransfers` (uses provider pool + `layerAContribution`), then `buildTriggerCounts` maps `Cause`→`When` (`88→89`, `126→128`, `142→143`, `52→129`) with `floor(sum)` and applies presence triggers (`PRESENCE_TRIGGER_TAG_IDS`; same-id When = `floor(total)`). Then Lemurian synergy merge.
 10. **Triggered Layer A** (`appliedTriggered`) — rows with non-null `triggerCondition` that pass the gate at `count > 0`, scaled by `triggerApplyMultiplier`.
 11. `appliedBeforeTentacle = appliedNullTrigger + allTransfers + appliedTriggered`.
 12. **Team Max HP** (team-max-hp.ts:81): `maxHpUpTotal` = sum tag 130 over `appliedBeforeTentacle`; `averageLevel = ceil(Σlevels/4)`; `effectiveHpLevel = accountLevel if account > avg else ceil((account+avg)/2)`; `baseline = ceil(Σcon * HpMultiplier[effectiveHpLevel])`; `bonus = ceil(baseline * maxHpUpTotal)`; `final = baseline + bonus`. Path Carver defaults: account 60, awakener level 60.
@@ -411,6 +412,7 @@ Self-contained per-ATM bonus on the attached ATM's single-hit base. `modifierTag
 | `Support.Create.Posse` | 52 | keyflare-to-posse.ts |
 | `Support.Double Posse` | 53 | double-posse.ts |
 | `Special.When.Posse` | 129 | trigger-condition.ts |
+| `Special.Posse.Drowned Innocence` | 178 | trigger-condition.ts (presence trigger) |
 | `Special.Increase Posse Keyflare Cost` | 155 | keyflare-to-posse.ts |
 | `Special.Increase Base Keyflare` | 131 | awakener-base-stats.ts |
 | `Special.Increase Base ATK` / `DEF` | 153 / 154 | awakener-base-stats.ts |
@@ -423,7 +425,9 @@ Self-contained per-ATM bonus on the attached ATM's single-hit base. `modifierTag
 | Aequor / Benthos realm ids | 4 / 5 | realm.ts |
 | Chaos realm id | 1 | realm.ts |
 
-Cause→When pairs (trigger-condition.ts:29): `88→89`, `126→128`, `142→143`, `52→129`. `Pursuit (109→108)` is intentionally omitted.
+Cause→When pairs (trigger-condition.ts:42): `88→89`, `126→128`, `142→143`, `52→129`. `Pursuit (109→108)` is intentionally omitted.
+
+Presence triggers (`PRESENCE_TRIGGER_TAG_IDS`, trigger-condition.ts): when a listed tag has a non-zero Layer A total, its own id is set as a When count = `floor(total)` — cause id == When id. Currently only `178` (`Special.Posse.Drowned Innocence`), which gates Vortice rows `Attacker.Active Damage.Fixed Damage` (46) and `Support.Tentacle Damage Up.Fixed` (75). Because the posse row's `value_scalar` is doubled by Support.Double Posse, the gate count becomes 2 under that tag.
 
 ---
 
@@ -448,7 +452,7 @@ Cause→When pairs (trigger-condition.ts:29): `88→89`, `126→128`, `142→143
 - **Immune subjects:** `isBaseStatTransfer`, `realm`, `relic`, and Support created bases contribute absolute scalars only; they still act as modifiers in other subjects' cohorts.
 - **Relic** is exempt from the damage-dealer gate and is interaction-immune; **posse** is exempt from the gate but is a normal subject.
 - **Combo realm scaling** multiplies realm effective scalars by `chaosComboStacks`; non-chaos `realm.replace` keeps combo gates (family presence) but Primordia/chaos replacers zero the stacks.
-- **`enemy_max_hp`** never scales for ATM/covenant/wheel/override; it is percent-ceiled to 2 dp because it represents a % of enemy max HP.
+- **`enemy_max_hp`** rows are **never applied** — `evaluateManifestationApply` returns `{ applied: false, reason: "enemy_max_hp" }` before any other gate, so they never reach totals, provider pools, or Layer B. The records are retained for Search-page display only; `scaleValueScalar` still percent-ceils their `value_scalar` to 2 dp (a % of enemy max HP) for that display.
 
 ---
 
