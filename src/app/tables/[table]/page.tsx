@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { Sidebar } from "@/components/admin/sidebar";
 import { TableManager } from "@/components/admin/table-manager";
 import { listRecords } from "@/lib/actions/crud";
-import { isAdminRuntimeEnabled } from "@/lib/admin-runtime";
+import { isAdminLocalRequest } from "@/lib/admin-runtime";
 import {
   TABLE_CONFIG_MAP,
   isValidTableName,
@@ -18,7 +18,7 @@ type PageProps = {
 };
 
 export default async function TablePage({ params }: PageProps) {
-  if (!isAdminRuntimeEnabled()) notFound();
+  if (!(await isAdminLocalRequest())) notFound();
   const { table } = await params;
 
   if (!isValidTableName(table)) {

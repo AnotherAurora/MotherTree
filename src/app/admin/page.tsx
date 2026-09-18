@@ -9,15 +9,15 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { isAdminRuntimeEnabled } from "@/lib/admin-runtime";
+import { isAdminLocalRequest } from "@/lib/admin-runtime";
 import { TABLE_CONFIGS } from "@/lib/schema-config";
 
 export const metadata: Metadata = {
   title: "Admin",
 };
 
-export default function AdminDashboardPage() {
-  if (!isAdminRuntimeEnabled()) notFound();
+export default async function AdminDashboardPage() {
+  if (!(await isAdminLocalRequest())) notFound();
   const sorted = [...TABLE_CONFIGS].sort((a, b) => a.order - b.order);
 
   return (

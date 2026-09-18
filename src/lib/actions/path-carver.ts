@@ -18,7 +18,7 @@ import {
 import type { DesireDemandRow } from "@/lib/simulator/types";
 import {
   adminUnavailableResult,
-  isAdminRuntimeEnabled,
+  isAdminLocalRequest,
 } from "@/lib/admin-runtime";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getSimulatorAwakenerOptions } from "@/lib/actions/simulator";
@@ -54,9 +54,9 @@ function revalidatePathCarverTables(): void {
 export async function getPathCarverDesireBundle(
   desireId: number,
 ): Promise<ActionResult<PathCarverDesireBundle>> {
-  if (!isAdminRuntimeEnabled()) return adminUnavailableResult();
+  if (!(await isAdminLocalRequest())) return adminUnavailableResult();
   try {
-    const supabase = createAdminClient();
+    const supabase = await createAdminClient();
 
     const [desireResult, templateResult, anchorsResult, demandsResult] =
       await Promise.all([
@@ -156,7 +156,7 @@ export async function getPathCarverDesireBundle(
 }
 
 async function syncAnchoredAwakeners(
-  supabase: ReturnType<typeof createAdminClient>,
+  supabase: Awaited<ReturnType<typeof createAdminClient>>,
   desireId: number,
   anchoredAwakeners: SavePathCarverInput["anchoredAwakeners"],
 ): Promise<ActionResult> {
@@ -230,7 +230,7 @@ async function syncAnchoredAwakeners(
 }
 
 async function syncDemands(
-  supabase: ReturnType<typeof createAdminClient>,
+  supabase: Awaited<ReturnType<typeof createAdminClient>>,
   desireId: number,
   demands: SavePathCarverInput["demands"],
   deletedDemandIds: number[],
@@ -280,7 +280,7 @@ async function syncDemands(
 }
 
 async function upsertTemplate(
-  supabase: ReturnType<typeof createAdminClient>,
+  supabase: Awaited<ReturnType<typeof createAdminClient>>,
   desireId: number,
   slots: SavePathCarverInput["slots"],
   posseId: number | null,
@@ -328,7 +328,7 @@ async function upsertTemplate(
 export async function savePathCarverDesire(
   input: SavePathCarverInput,
 ): Promise<ActionResult<{ desireId: number }>> {
-  if (!isAdminRuntimeEnabled()) return adminUnavailableResult();
+  if (!(await isAdminLocalRequest())) return adminUnavailableResult();
   const nameCheck = validateDesireName(input.name);
   if (!nameCheck.valid) {
     return { success: false, error: nameCheck.errors.join("; ") };
@@ -368,7 +368,7 @@ export async function savePathCarverDesire(
   let createdDesireId: number | null = null;
 
   try {
-    const supabase = createAdminClient();
+    const supabase = await createAdminClient();
     let savedDesireId = input.desireId ?? null;
     let existingTemplateId: number | undefined;
 
@@ -441,7 +441,7 @@ export async function savePathCarverDesire(
     return { success: true, data: { desireId: savedDesireId } };
   } catch (error) {
     if (createdDesireId != null) {
-      const supabase = createAdminClient();
+      const supabase = await createAdminClient();
       await supabase
         .from("desire")
         .update({ deleted_at: nowIso(), updated_at: nowIso() } as never)
@@ -461,7 +461,7 @@ export type { ImportTeamResult };
 export async function importIngameTeamCode(
   code: string,
 ): Promise<ActionResult<ImportTeamResult>> {
-  if (!isAdminRuntimeEnabled()) return adminUnavailableResult();
+  if (!(await isAdminLocalRequest())) return adminUnavailableResult();
 
   try {
     const [awakenerOptionsResult, gearOptionsResult] = await Promise.all([

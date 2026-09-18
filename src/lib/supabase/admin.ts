@@ -1,9 +1,9 @@
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
-import { assertAdminRuntime } from "@/lib/admin-runtime";
+import { assertAdminLocalRequest } from "@/lib/admin-runtime";
 
-export function createAdminClient() {
-  assertAdminRuntime();
+export async function createAdminClient() {
+  await assertAdminLocalRequest();
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceRoleKey =

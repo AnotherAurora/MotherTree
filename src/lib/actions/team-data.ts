@@ -5,7 +5,7 @@ import { fetchTeamData } from "@/lib/team-data/load-team-data";
 import type { TeamData, TeamDataInput } from "@/lib/team-data/types";
 import {
   adminUnavailableResult,
-  isAdminRuntimeEnabled,
+  isAdminLocalRequest,
 } from "@/lib/admin-runtime";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -14,9 +14,9 @@ export type { TeamData, TeamDataInput } from "@/lib/team-data/types";
 export async function loadTeamData(
   input: TeamDataInput,
 ): Promise<ActionResult<TeamData>> {
-  if (!isAdminRuntimeEnabled()) return adminUnavailableResult();
+  if (!(await isAdminLocalRequest())) return adminUnavailableResult();
   try {
-    const supabase = createAdminClient();
+    const supabase = await createAdminClient();
     const data = await fetchTeamData(supabase, input);
     return { success: true, data };
   } catch (error) {

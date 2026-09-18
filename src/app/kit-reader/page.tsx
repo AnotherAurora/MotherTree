@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { KitReaderPanel } from "@/components/admin/kit-reader-panel";
 import { Sidebar } from "@/components/admin/sidebar";
-import { isAdminRuntimeEnabled } from "@/lib/admin-runtime";
+import { isAdminLocalRequest } from "@/lib/admin-runtime";
 import {
   listKitReaderAwakeners,
   type KitReaderAtmMode,
@@ -40,7 +40,7 @@ function parseInitialMode(
 }
 
 export default async function KitReaderPage({ searchParams }: PageProps) {
-  if (!isAdminRuntimeEnabled()) notFound();
+  if (!(await isAdminLocalRequest())) notFound();
   const params = await searchParams;
   const initialAwakenerId = parseInitialAwakenerId(params.awakener);
   const initialMode = parseInitialMode(params.mode);
