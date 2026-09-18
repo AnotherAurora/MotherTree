@@ -36,11 +36,6 @@ export default function AboutPage() {
             mechanics, with the ultimate goal of rendering all team-building
             channels obsolete.
           </p>
-          <p>
-            Fruit Version focuses on Morimens&apos; data and the basics of how
-            the game functions. It cannot build teams yet. However, future
-            versions will.
-          </p>
           <div className="space-y-3">
             <p>Tick-tock team-building channels, your days are numbered.</p>
             {/* eslint-disable-next-line @next/next/no-img-element */}
