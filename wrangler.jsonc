@@ -1,0 +1,32 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "app",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-09-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "services": [
+    {
+      "binding": "WORKER_SELF_REFERENCE",
+      // Must match the "name" of this worker.
+      "service": "app"
+    }
+  ],
+  "images": {
+    "binding": "IMAGES"
+  },
+  "vars": {
+    // Public / browser-safe values (also inlined at build time from CI vars).
+    "NEXT_PUBLIC_SUPABASE_URL": "https://brsxrctacuhllumnfwgx.supabase.co",
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJyc3hyY3RhY3VobGx1bW5md2d4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAwNzU2MTMsImV4cCI6MjA5NTY1MTYxM30.Ld1e5BKfOBkDXkHsChtdLqJHiV-n5Ezu-3EdXpYeWTA",
+    // Deploy guards — keep admin off in production regardless of env leakage.
+    "ADMIN_ENABLED": "false",
+    "CF_WORKERS": "true"
+  },
+  "observability": {
+    "enabled": true
+  }
+}

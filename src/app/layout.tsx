@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { Analytics } from "@vercel/analytics/next";
+import Script from "next/script";
 import { Toaster } from "sonner";
 import "./globals.css";
 
@@ -13,6 +13,8 @@ const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
 });
+
+const cfBeaconToken = process.env.NEXT_PUBLIC_CF_WEB_ANALYTICS_TOKEN;
 
 export const metadata: Metadata = {
   title: {
@@ -35,7 +37,13 @@ export default function RootLayout({
       <body className="min-h-full">
         {children}
         <Toaster richColors position="top-right" />
-        <Analytics />
+        {cfBeaconToken ? (
+          <Script
+            src="https://static.cloudflareinsights.com/beacon.min.js"
+            data-cf-beacon={JSON.stringify({ token: cfBeaconToken })}
+            strategy="afterInteractive"
+          />
+        ) : null}
       </body>
     </html>
   );

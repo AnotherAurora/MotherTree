@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import {
   adminUnavailableResult,
-  isAdminRuntimeEnabled,
+  isAdminLocalRequest,
 } from "@/lib/admin-runtime";
 import {
   buildKitPackForAwakener,
@@ -32,10 +32,10 @@ export type KitReaderAwakenerOption = {
 export async function listKitReaderAwakeners(): Promise<
   ActionResult<KitReaderAwakenerOption[]>
 > {
-  if (!isAdminRuntimeEnabled()) return adminUnavailableResult();
+  if (!(await isAdminLocalRequest())) return adminUnavailableResult();
 
   try {
-    const supabase = createAdminClient();
+    const supabase = await createAdminClient();
     const { data: awakeners, error } = await supabase
       .from("awakener")
       .select("id, name")
@@ -140,10 +140,10 @@ export async function listAtmsForAwakener(
   awakenerId: number,
   mode: KitReaderAtmMode = "pending",
 ): Promise<ActionResult<PendingAtmRow[]>> {
-  if (!isAdminRuntimeEnabled()) return adminUnavailableResult();
+  if (!(await isAdminLocalRequest())) return adminUnavailableResult();
 
   try {
-    const supabase = createAdminClient();
+    const supabase = await createAdminClient();
     let query = supabase
       .from("awakener_tag_manifestation")
       .select(
@@ -269,10 +269,10 @@ export async function resolveKitReaderSlug(
     packPath: string;
   }>
 > {
-  if (!isAdminRuntimeEnabled()) return adminUnavailableResult();
+  if (!(await isAdminLocalRequest())) return adminUnavailableResult();
 
   try {
-    const supabase = createAdminClient();
+    const supabase = await createAdminClient();
     const result = await resolveAwakenerKitSlug(supabase, awakenerId);
     return {
       success: true,
@@ -298,10 +298,10 @@ export async function exportKitPackAndPrompt(
     pendingCount: number;
   }>
 > {
-  if (!isAdminRuntimeEnabled()) return adminUnavailableResult();
+  if (!(await isAdminLocalRequest())) return adminUnavailableResult();
 
   try {
-    const supabase = createAdminClient();
+    const supabase = await createAdminClient();
 
     const { count, error: pendingError } = await supabase
       .from("awakener_tag_manifestation")
@@ -347,10 +347,10 @@ export async function exportKitPackAndPrompt(
 export async function verifyPendingAtm(
   manifestationId: number,
 ): Promise<ActionResult<{ id: number }>> {
-  if (!isAdminRuntimeEnabled()) return adminUnavailableResult();
+  if (!(await isAdminLocalRequest())) return adminUnavailableResult();
 
   try {
-    const supabase = createAdminClient();
+    const supabase = await createAdminClient();
     const { data, error } = await supabase
       .from("awakener_tag_manifestation")
       .update({ verified: true, updated_at: nowIso() } as never)
@@ -382,10 +382,10 @@ export async function verifyPendingAtm(
 export async function unverifyAtm(
   manifestationId: number,
 ): Promise<ActionResult<{ id: number }>> {
-  if (!isAdminRuntimeEnabled()) return adminUnavailableResult();
+  if (!(await isAdminLocalRequest())) return adminUnavailableResult();
 
   try {
-    const supabase = createAdminClient();
+    const supabase = await createAdminClient();
     const { data, error } = await supabase
       .from("awakener_tag_manifestation")
       .update({ verified: false, updated_at: nowIso() } as never)
@@ -416,10 +416,10 @@ export async function unverifyAtm(
 export async function verifyAllPendingForAwakener(
   awakenerId: number,
 ): Promise<ActionResult<{ count: number }>> {
-  if (!isAdminRuntimeEnabled()) return adminUnavailableResult();
+  if (!(await isAdminLocalRequest())) return adminUnavailableResult();
 
   try {
-    const supabase = createAdminClient();
+    const supabase = await createAdminClient();
     const { data, error } = await supabase
       .from("awakener_tag_manifestation")
       .update({ verified: true, updated_at: nowIso() } as never)
@@ -445,10 +445,10 @@ export async function verifyAllPendingForAwakener(
 export async function softDeleteAtm(
   manifestationId: number,
 ): Promise<ActionResult<{ id: number }>> {
-  if (!isAdminRuntimeEnabled()) return adminUnavailableResult();
+  if (!(await isAdminLocalRequest())) return adminUnavailableResult();
 
   try {
-    const supabase = createAdminClient();
+    const supabase = await createAdminClient();
     const stamp = nowIso();
 
     const { data, error } = await supabase
@@ -491,10 +491,10 @@ export async function softDeletePendingAtm(
 export async function getAwakenerNotes(
   awakenerId: number,
 ): Promise<ActionResult<{ notes: string | null }>> {
-  if (!isAdminRuntimeEnabled()) return adminUnavailableResult();
+  if (!(await isAdminLocalRequest())) return adminUnavailableResult();
 
   try {
-    const supabase = createAdminClient();
+    const supabase = await createAdminClient();
     const { data, error } = await supabase
       .from("awakener")
       .select("notes")
@@ -516,10 +516,10 @@ export async function saveAwakenerNotes(
   awakenerId: number,
   notes: string | null,
 ): Promise<ActionResult<{ notes: string | null }>> {
-  if (!isAdminRuntimeEnabled()) return adminUnavailableResult();
+  if (!(await isAdminLocalRequest())) return adminUnavailableResult();
 
   try {
-    const supabase = createAdminClient();
+    const supabase = await createAdminClient();
     const { error } = await supabase
       .from("awakener")
       .update({ notes: notes || null, updated_at: nowIso() } as never)

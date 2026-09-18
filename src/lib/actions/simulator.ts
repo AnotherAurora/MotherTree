@@ -7,7 +7,7 @@ import {
 } from "@/lib/team-data/resolve-manifestations";
 import {
   adminUnavailableResult,
-  isAdminRuntimeEnabled,
+  isAdminLocalRequest,
 } from "@/lib/admin-runtime";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -37,9 +37,9 @@ export type SimulatorAwakenerOption = ForeignKeyOption & {
 export async function getSimulatorAwakenerOptions(): Promise<
   ActionResult<SimulatorAwakenerOption[]>
 > {
-  if (!isAdminRuntimeEnabled()) return adminUnavailableResult();
+  if (!(await isAdminLocalRequest())) return adminUnavailableResult();
   try {
-    const supabase = createAdminClient();
+    const supabase = await createAdminClient();
     const { data, error } = await supabase
       .from("awakener")
       .select(
@@ -81,9 +81,9 @@ export async function getSimulatorAwakenerOptions(): Promise<
 export async function getAwakenerRelatedTags(
   awakenerId: number,
 ): Promise<ActionResult<AwakenerRelatedTags>> {
-  if (!isAdminRuntimeEnabled()) return adminUnavailableResult();
+  if (!(await isAdminLocalRequest())) return adminUnavailableResult();
   try {
-    const supabase = createAdminClient();
+    const supabase = await createAdminClient();
 
     const awakenerResult = await supabase
       .from("awakener")

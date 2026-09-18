@@ -2,7 +2,7 @@
 
 **fruit version** — a public Morimens reference: Search, Calculators, and a Manual.
 
-**Live site:** [https://mothertree.vercel.app](https://mothertree.vercel.app)
+**Live site:** [https://app.mothertree.workers.dev](https://app.mothertree.workers.dev)
 
 Game data is sourced from [SKeyDB](https://github.com/dansa/SKeyDB). See [DATA-NOTICE.md](DATA-NOTICE.md) for attribution and licensing (CC BY-NC-SA 4.0).
 
@@ -31,7 +31,7 @@ npm install
 cp .env.example .env.local
 ```
 
-Fill `.env.local` from [`.env.example`](.env.example). Set `ADMIN_ENABLED=true` for local admin. The anon/publishable key is for public SELECT. The service role / secret key is server-only and local-only — never put it in `NEXT_PUBLIC_*`, never put it on Vercel, and never commit it.
+Fill `.env.local` from [`.env.example`](.env.example). Set `ADMIN_ENABLED=true` for local admin. The anon/publishable key is for public SELECT. The service role / secret key is server-only and local-only — never put it in `NEXT_PUBLIC_*`, never put it on Vercel or Cloudflare, and never commit it.
 
 ```bash
 npm run dev
