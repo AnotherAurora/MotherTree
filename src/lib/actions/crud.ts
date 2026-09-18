@@ -29,6 +29,10 @@ export type ForeignKeyOption = {
   assetName?: string;
   /** When set, shown next to the icon instead of label (label still used for search). */
   shortLabel?: string;
+  /** Render dimmed (still selectable). Used to flag unsupported options. */
+  muted?: boolean;
+  /** Small status pill shown on the right of a muted option. */
+  badge?: string;
 };
 
 export type DefaultInteractionSummary = {
@@ -71,6 +75,7 @@ export type ListRecordsResult =
       data: Record<string, unknown>[];
       totalCount: number;
       truncated: boolean;
+      fkLabels: Record<string, string>;
     }
   | { success: false; error: string };
 
@@ -286,11 +291,22 @@ export async function listRecords(
       records = await attachDesireAnchoredAwakenerCounts(supabase, records);
     }
 
+    let fkLabels: Record<string, string> = {};
+    try {
+      const labelResult = await resolveForeignKeyLabels(config.name, records);
+      if (labelResult.success) {
+        fkLabels = labelResult.data;
+      }
+    } catch {
+      /* non-fatal — labels are cosmetic */
+    }
+
     return {
       success: true,
       data: records,
       totalCount: records.length,
       truncated: paged.truncated,
+      fkLabels,
     };
   } catch (error) {
     return {

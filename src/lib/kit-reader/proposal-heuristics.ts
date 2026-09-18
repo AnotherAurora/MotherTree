@@ -271,7 +271,7 @@ function stealPairMatches(
 export function warnStealMissingStrUpPair(
   proposals: readonly StealPairProposalLike[],
 ): StealMissingStrUpWarning[] {
-  const ok = proposals.filter((p) => p.status === "ok");
+  const ok = proposals.filter((p) => p.status !== "unsupported");
   const warnings: StealMissingStrUpWarning[] = [];
 
   for (const proposal of ok) {
@@ -510,7 +510,7 @@ export type DevourProposalLike = {
 export function warnDevourUsingWhenTrigger(
   proposals: readonly DevourProposalLike[],
 ): DevourWhenTriggerWarning[] {
-  const ok = proposals.filter((p) => p.status === "ok");
+  const ok = proposals.filter((p) => p.status !== "unsupported");
   const warnings: DevourWhenTriggerWarning[] = [];
 
   for (const proposal of ok) {

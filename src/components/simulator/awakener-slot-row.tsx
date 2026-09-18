@@ -27,6 +27,10 @@ type AwakenerSlotRowProps = {
   onChange: (slot: SlotState) => void;
   showRelatedTags?: boolean;
   showAnchorToggle?: boolean;
+  /** When true, present a Damage Dealer checkbox instead of the cycling toggle. */
+  damageDealerOnly?: boolean;
+  /** When false, hide the Covenant Stat Set combobox. */
+  showCovenantStatSet?: boolean;
   anchorMode?: AnchorMode;
   onAnchorModeChange?: (mode: AnchorMode) => void;
   anchorDisabled?: boolean;
@@ -89,6 +93,8 @@ export function AwakenerSlotRow({
   onChange,
   showRelatedTags = true,
   showAnchorToggle = false,
+  damageDealerOnly = false,
+  showCovenantStatSet = true,
   anchorMode = "off",
   onAnchorModeChange,
   anchorDisabled = false,
@@ -157,17 +163,37 @@ export function AwakenerSlotRow({
                   className="contents"
                   onSubmit={(e) => e.preventDefault()}
                 >
-                  <button
-                    type="button"
-                    disabled={anchorDisabled}
-                    onClick={() =>
-                      onAnchorModeChange?.(nextAnchorMode(anchorMode))
-                    }
-                    className="rounded border border-zinc-300 px-1.5 py-0.5 text-xs text-zinc-600 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
-                    title="Cycle anchor mode: Off → Anchor → Damage Dealer"
-                  >
-                    {ANCHOR_MODE_LABELS[anchorMode]}
-                  </button>
+                  {damageDealerOnly ? (
+                    <label
+                      className="flex cursor-pointer items-center gap-1.5 text-xs text-zinc-600"
+                      title="Damage Dealer"
+                    >
+                      <input
+                        type="checkbox"
+                        disabled={anchorDisabled}
+                        checked={anchorMode === "damageDealer"}
+                        onChange={(event) =>
+                          onAnchorModeChange?.(
+                            event.target.checked ? "damageDealer" : "off",
+                          )
+                        }
+                        className="h-3.5 w-3.5 rounded border-zinc-300 disabled:cursor-not-allowed disabled:opacity-50"
+                      />
+                      Damage Dealer
+                    </label>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={anchorDisabled}
+                      onClick={() =>
+                        onAnchorModeChange?.(nextAnchorMode(anchorMode))
+                      }
+                      className="rounded border border-zinc-300 px-1.5 py-0.5 text-xs text-zinc-600 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
+                      title="Cycle anchor mode: Off → Anchor → Damage Dealer"
+                    >
+                      {ANCHOR_MODE_LABELS[anchorMode]}
+                    </button>
+                  )}
                 </form>
               )}
             </div>
@@ -189,18 +215,20 @@ export function AwakenerSlotRow({
               assetKind="covenant"
             />
           </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs text-zinc-500">Covenant Stat Set</Label>
-            <ForeignKeyCombobox
-              value={slot.covenantStatSetId}
-              onChange={(covenantStatSetId) =>
-                onChange({ ...slot, covenantStatSetId })
-              }
-              options={covenantStatSetOptions}
-              placeholder="Select covenant stat set..."
-              assetKind="stat"
-            />
-          </div>
+          {showCovenantStatSet && (
+            <div className="space-y-1.5">
+              <Label className="text-xs text-zinc-500">Covenant Stat Set</Label>
+              <ForeignKeyCombobox
+                value={slot.covenantStatSetId}
+                onChange={(covenantStatSetId) =>
+                  onChange({ ...slot, covenantStatSetId })
+                }
+                options={covenantStatSetOptions}
+                placeholder="Select covenant stat set..."
+                assetKind="stat"
+              />
+            </div>
+          )}
           <div className="space-y-1.5">
             <Label className="text-xs text-zinc-500">Wheel</Label>
             <ForeignKeyCombobox

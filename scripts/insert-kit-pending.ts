@@ -6,6 +6,8 @@
  *
  * Requires local ADMIN_ENABLED=true (not Vercel). Inserts new pending ATMs
  * (appends by default). Pass --patch to replace existing pending ATMs.
+ * Inserts status:"ok" and status:"needs_review" rows (unsupported rows are
+ * always skipped).
  */
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { readFileSync } from "node:fs";
@@ -401,8 +403,8 @@ async function main() {
 
   const maps = await loadNameMaps(supabase);
   const sourceLabelIndex = loadKitPackSourceLabelIndex(file.kitPackPath);
-  const ok = file.proposals.filter((p) => p.status === "ok");
-  const skipped = file.proposals.filter((p) => p.status !== "ok");
+  const toInsert = file.proposals.filter((p) => p.status !== "unsupported");
+  const skipped = file.proposals.filter((p) => p.status === "unsupported");
 
   const clientKeyToId = new Map<string, number>();
   const inserted: { clientKey: string; id: number; locals: number }[] = [];
@@ -416,7 +418,7 @@ async function main() {
   const failed: { clientKey: string; reason: string }[] = [];
   const warnings: { clientKey: string; message: string }[] = [];
 
-  for (const proposal of ok) {
+  for (const proposal of toInsert) {
     const warning = warnPercentDepValueScalarLooksLinear(
       proposal.clientKey,
       proposal.dependencyStat,
@@ -432,28 +434,28 @@ async function main() {
     }
   }
 
-  for (const stealWarning of warnStealMissingStrUpPair(ok)) {
+  for (const stealWarning of warnStealMissingStrUpPair(toInsert)) {
     warnings.push({
       clientKey: stealWarning.clientKey,
       message: stealWarning.message,
     });
   }
 
-  for (const devourWarning of warnDevourUsingWhenTrigger(ok)) {
+  for (const devourWarning of warnDevourUsingWhenTrigger(toInsert)) {
     warnings.push({
       clientKey: devourWarning.clientKey,
       message: devourWarning.message,
     });
   }
 
-  const bases = ok.filter((p) => p.replacesClientKey == null);
-  const replacers = ok.filter((p) => p.replacesClientKey != null);
+  const bases = toInsert.filter((p) => p.replacesClientKey == null);
+  const replacers = toInsert.filter((p) => p.replacesClientKey != null);
 
   async function processProposal(proposal: KitAtmProposal) {
     if (isIgnoreListed(proposal)) {
       failed.push({
         clientKey: proposal.clientKey,
-        reason: "ignore-list source slipped through as ok",
+        reason: "ignore-list source slipped through as insertable",
       });
       return;
     }

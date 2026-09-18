@@ -11,7 +11,8 @@ export type ManifestationApplyReason =
   | "realm.mode"
   | "required_awakener"
   | "attacker.not_damage_dealer"
-  | "trigger_condition";
+  | "trigger_condition"
+  | "enemy_max_hp";
 
 export type ManifestationApplyResult = {
   applied: boolean;
@@ -225,6 +226,12 @@ export function evaluateManifestationApply(
   m: Manifestation,
   ctx: ManifestationApplyContext,
 ): ManifestationApplyResult {
+  // enemy_max_hp rows are %-of-enemy-max-HP references kept for the Search page
+  // only; they never enter team totals or interactions.
+  if (m.dependencyStat === "enemy_max_hp") {
+    return { applied: false, reason: "enemy_max_hp", triggerTimes: null };
+  }
+
   if (m.isBaseStatTransfer) {
     return { applied: true, reason: null, triggerTimes: null };
   }
@@ -244,8 +251,12 @@ export function evaluateManifestationApply(
   const base = realmAndRequiredAwakenerPass(m, ctx);
   if (!base.applied) return base;
 
-  // Posse: skip target_type and damage-dealer gates.
-  if (m.sourceKind !== "posse" && isAttackerTag(m.tagName)) {
+  // Posse and relic: skip target_type and damage-dealer gates.
+  if (
+    m.sourceKind !== "posse" &&
+    m.sourceKind !== "relic" &&
+    isAttackerTag(m.tagName)
+  ) {
     const ownerId = m.awakenerId;
     if (
       ownerId == null ||

@@ -1,7 +1,7 @@
 /**
- * Slim dump of wheel / covenant / posse names for SKeyDB asset map generation.
+ * Slim dump of wheel / covenant / posse / relic names for SKeyDB asset map generation.
  *
- * Output: sample-data/skeydb-asset-names/{wheel,covenant,posse}.json
+ * Output: sample-data/skeydb-asset-names/{wheel,covenant,posse,relic}.json
  * Prefer: npm run sync:skeydb-assets (runs this, then bumps pin + regenerates maps)
  * Standalone: npm run db:dump-skeydb-assets
  */
@@ -12,7 +12,7 @@ import type { Database } from "../src/lib/database.types";
 
 const PAGE_SIZE = 1000;
 
-const TABLES = ["wheel", "covenant", "posse"] as const;
+const TABLES = ["wheel", "covenant", "posse", "relic"] as const;
 type AssetNameTable = (typeof TABLES)[number];
 
 type NameRow = { name: string };

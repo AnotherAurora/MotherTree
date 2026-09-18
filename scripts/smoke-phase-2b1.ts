@@ -12,6 +12,7 @@ import {
   computeAwakenerTotalBaseStats,
   REQUIRED_BASE_STAT_TAG_IDS,
   SPECIAL_INCREASE_BASE_ATK_TAG_ID,
+  SPECIAL_INCREASE_BASE_CON_TAG_ID,
   SPECIAL_INCREASE_BASE_DEF_TAG_ID,
   SPECIAL_INCREASE_BASE_KEYFLARE_TAG_ID,
 } from "../src/lib/path-carver/awakener-base-stats";
@@ -25,6 +26,7 @@ import {
   inMissionToCauseTrigger,
 } from "../src/lib/path-carver/death-resist-trigger";
 import { computeReviewTagTotals } from "../src/lib/path-carver/aggregate-tag-scalars";
+import { SPECIAL_ADDITIONAL_TEAM_MAX_HP_TAG_ID } from "../src/lib/path-carver/team-max-hp";
 import {
   createManifestationApplyContext,
   evaluateManifestationApply,
@@ -333,6 +335,68 @@ console.log("\nSpecial.Increase Base DEF stacking (additive on original)");
     applied,
   );
   assert(total.def === 130, `ceil(100 * 1.3) = 130 (got ${total.def})`);
+}
+
+console.log("\nSpecial.Increase Base CON stacking (additive on original)");
+{
+  const awakener = makeAwakener({ id: 1, con: 100 });
+  const specialTag = makeTag(
+    SPECIAL_INCREASE_BASE_CON_TAG_ID,
+    "Special.Increase Base CON",
+  );
+  const applied = [
+    makeManifestation({
+      id: 1,
+      tagId: specialTag.id,
+      tagName: specialTag.tagName,
+      valueScalar: 0.1,
+    }),
+    makeManifestation({
+      id: 2,
+      tagId: specialTag.id,
+      tagName: specialTag.tagName,
+      valueScalar: 0.2,
+    }),
+  ];
+  const [total] = computeAwakenerTotalBaseStats(
+    {
+      awakeners: [awakener],
+      gearStatContributions: [],
+      tagsById: { [specialTag.id]: specialTag },
+    },
+    applied,
+  );
+  assert(total.con === 130, `ceil(100 * 1.3) = 130 (got ${total.con})`);
+}
+
+console.log("\ndependency_stat uses post–Special.Increase con");
+{
+  const awakener = makeAwakener({ id: 1, con: 100 });
+  const specialTag = makeTag(
+    SPECIAL_INCREASE_BASE_CON_TAG_ID,
+    "Special.Increase Base CON",
+  );
+  const applied = [
+    makeManifestation({
+      id: 1,
+      tagId: specialTag.id,
+      tagName: specialTag.tagName,
+      valueScalar: 0.1,
+    }),
+  ];
+  const [total] = computeAwakenerTotalBaseStats(
+    {
+      awakeners: [awakener],
+      gearStatContributions: [],
+      tagsById: { [specialTag.id]: specialTag },
+    },
+    applied,
+  );
+  // ceil(100 * 1.1) = 110; raw 2 * 110 → 220
+  assert(
+    scaleValueScalar(2, "con", total, "awakener") === 220,
+    `con dep after boost: 2 * 110 → 220 (got ${scaleValueScalar(2, "con", total, "awakener")})`,
+  );
 }
 
 console.log("\nSpecial.Increase Base ATK realm fans out to all awakeners");
@@ -766,6 +830,10 @@ console.log("\nDeath Resist full tag 12 (ATM + Base stat) via computeReviewTagTo
     REQUIRED_BASE_STAT_TAG_IDS.includes(DEFENDER_MAX_HP_UP_TAG_ID),
     "required tags include Max HP Up 130",
   );
+  assert(
+    REQUIRED_BASE_STAT_TAG_IDS.includes(SPECIAL_INCREASE_BASE_CON_TAG_ID),
+    "required tags include Special.Increase Base CON 184",
+  );
 
   const baseTag = makeTag(
     DEFENDER_BASE_DEATH_RESIST_TAG_ID,
@@ -836,6 +904,49 @@ console.log("\nDeath Resist full tag 12 (ATM + Base stat) via computeReviewTagTo
   assert(
     synth147?.tagName === inMissionTag.tagName,
     `In Mission name resolved (got ${synth147?.tagName})`,
+  );
+}
+
+console.log("\nSpecial.Additional Team Max HP (tag 185, con-scaled flat)");
+{
+  const addTag = makeTag(
+    SPECIAL_ADDITIONAL_TEAM_MAX_HP_TAG_ID,
+    "Special.Additional Team Max HP",
+    false,
+  );
+  const tagsById: Record<number, Tag> = { [addTag.id]: addTag };
+  const awakener = makeAwakener({ id: 1, con: 117 });
+  const atm = makeManifestation({
+    id: 30,
+    tagId: addTag.id,
+    tagName: addTag.tagName,
+    valueScalar: 15,
+    dependencyStat: "con",
+    targetType: "self",
+    awakenerId: 1,
+  });
+  const teamData: TeamData = {
+    ...createEmptyTeamData(),
+    awakeners: [awakener],
+    manifestations: [atm],
+    tagsById,
+  };
+  const { teamMaxHp, totalsByTagId } = computeReviewTagTotals(
+    teamData,
+    createManifestationApplyContext([awakener], []),
+  );
+  assert(
+    teamMaxHp.additionalMaxHp === 1755,
+    `flat con-scaled 117×15 = 1755 (got ${teamMaxHp.additionalMaxHp})`,
+  );
+  assert(
+    teamMaxHp.finalMaxHp ===
+      teamMaxHp.baselineMaxHp + teamMaxHp.bonusMaxHp + 1755,
+    `final = baseline + bonus + flat (got ${teamMaxHp.finalMaxHp})`,
+  );
+  assert(
+    totalsByTagId.get(addTag.id) === 1755,
+    `tag 185 total 1755 (got ${totalsByTagId.get(addTag.id)})`,
   );
 }
 
@@ -1026,6 +1137,40 @@ console.log("\nTrigger condition gating");
       "Create.Posse totals still counted",
     );
   }
+}
+
+console.log("\nenemy_max_hp rows never applied (Search-page-only reference)");
+{
+  const fixedTag = makeTag(46, "Attacker.Active Damage.Fixed Damage");
+  const awakener = makeAwakener({ id: 1 });
+  const enemyHpRow = makeManifestation({
+    id: 40,
+    tagId: fixedTag.id,
+    tagName: fixedTag.tagName,
+    valueScalar: 0.25,
+    dependencyStat: "enemy_max_hp",
+    sourceKind: "wheel",
+  });
+  const tagsById: Record<number, Tag> = { [fixedTag.id]: fixedTag };
+  const ctx = createManifestationApplyContext([awakener], []);
+  const evalResult = evaluateManifestationApply(enemyHpRow, ctx);
+  assert(evalResult.applied === false, "enemy_max_hp row not applied");
+  assert(
+    evalResult.reason === "enemy_max_hp",
+    "reason is enemy_max_hp",
+  );
+
+  const teamData: TeamData = {
+    ...createEmptyTeamData(),
+    awakeners: [awakener],
+    manifestations: [enemyHpRow],
+    tagsById,
+  };
+  const { totalsByTagId } = computeReviewTagTotals(teamData, ctx);
+  assert(
+    (totalsByTagId.get(fixedTag.id) ?? 0) === 0,
+    "enemy_max_hp tag excluded from team totals",
+  );
 }
 
 console.log("\nAll Phase 2b.1 smoke checks passed.");

@@ -29,7 +29,8 @@ export type ManifestationSourceKind =
   | "wheel"
   | "covenant"
   | "posse"
-  | "realm";
+  | "realm"
+  | "relic";
 
 export type TeamDataSlotInput = {
   awakenerId: number | null;

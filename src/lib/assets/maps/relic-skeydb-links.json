@@ -1,0 +1,717 @@
+{
+  "alfonso's artifact": {
+    "slug": "alfonsos-artifact",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Silver": "relic-variant-0062",
+      "Gold": "relic-variant-0063"
+    }
+  },
+  "arcana archive": {
+    "slug": "arcana-archive",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Silver": "relic-variant-0067",
+      "Gold": "relic-variant-0068"
+    }
+  },
+  "arcana relic": {
+    "slug": "arcana-relic",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Silver": "relic-variant-0070",
+      "Gold": "relic-variant-0071"
+    }
+  },
+  "arcane gloves": {
+    "slug": "arcane-gloves",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Silver": "relic-variant-0072",
+      "Gold": "relic-variant-0073"
+    }
+  },
+  "black candle": {
+    "slug": "black-candle",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Cursed": "relic-variant-0087"
+    }
+  },
+  "blessed blood": {
+    "slug": "blessed-blood",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Silver": "relic-variant-0090",
+      "Gold": "relic-variant-0091"
+    }
+  },
+  "bloody pebble": {
+    "slug": "bloody-pebble",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Silver": "relic-variant-0095",
+      "Gold": "relic-variant-0096"
+    }
+  },
+  "brand-new wallet": {
+    "slug": "brand-new-wallet",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Silver": "relic-variant-0101",
+      "Gold": "relic-variant-0102"
+    }
+  },
+  "celestial astrolabe": {
+    "slug": "celestial-astrolabe",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Silver": "relic-variant-0108",
+      "Gold": "relic-variant-0109"
+    }
+  },
+  "chant of the tides": {
+    "slug": "chant-of-the-tides",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Silver": "relic-variant-0112",
+      "Gold": "relic-variant-0113"
+    }
+  },
+  "chronometric device": {
+    "slug": "chronometric-device",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Silver": "relic-variant-0186",
+      "Gold": "relic-variant-0187"
+    }
+  },
+  "crimson brooch": {
+    "slug": "crimson-brooch",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Silver": "relic-variant-0192",
+      "Gold": "relic-variant-0193"
+    }
+  },
+  "dearest babe": {
+    "slug": "dearest-babe",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Silver": "relic-variant-0197",
+      "Gold": "relic-variant-0198"
+    }
+  },
+  "deceased's chrono": {
+    "slug": "deceaseds-chrono",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Silver": "relic-variant-0200",
+      "Gold": "relic-variant-0201"
+    }
+  },
+  "differential engine": {
+    "slug": "differential-engine",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Silver": "relic-variant-0204",
+      "Gold": "relic-variant-0205"
+    }
+  },
+  "doctor's case": {
+    "slug": "doctors-case",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Silver": "relic-variant-0217",
+      "Gold": "relic-variant-0218"
+    }
+  },
+  "easter moment": {
+    "slug": "easter-moment",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Silver": "relic-variant-0222",
+      "Gold": "relic-variant-0223"
+    }
+  },
+  "eerie hook": {
+    "slug": "eerie-hook",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Cursed": "relic-variant-0228"
+    }
+  },
+  "filigree agate": {
+    "slug": "filigree-agate",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Silver": "relic-variant-0236",
+      "Gold": "relic-variant-0237"
+    }
+  },
+  "fleeting beauty": {
+    "slug": "fleeting-beauty",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Silver": "relic-variant-0242",
+      "Gold": "relic-variant-0243"
+    }
+  },
+  "foreign stamp album": {
+    "slug": "foreign-stamp-album",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Silver": "relic-variant-0245",
+      "Gold": "relic-variant-0246"
+    }
+  },
+  "forgotten loom": {
+    "slug": "forgotten-loom",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Silver": "relic-variant-0248",
+      "Gold": "relic-variant-0249"
+    }
+  },
+  "forgotten prelude": {
+    "slug": "forgotten-prelude",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Silver": "relic-variant-0251",
+      "Gold": "relic-variant-0252"
+    }
+  },
+  "forsaken blood": {
+    "slug": "forsaken-blood",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Silver": "relic-variant-0254",
+      "Gold": "relic-variant-0255"
+    }
+  },
+  "gilded reverie": {
+    "slug": "gilded-reverie",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Silver": "relic-variant-0268",
+      "Gold": "relic-variant-0269"
+    }
+  },
+  "guardian hand": {
+    "slug": "guardian-hand",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Silver": "relic-variant-0274",
+      "Gold": "relic-variant-0275"
+    }
+  },
+  "harford's elixir": {
+    "slug": "harfords-elixir",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Silver": "relic-variant-0278",
+      "Gold": "relic-variant-0279"
+    }
+  },
+  "hierophant's staff": {
+    "slug": "hierophants-staff",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Silver": "relic-variant-0283",
+      "Gold": "relic-variant-0284"
+    }
+  },
+  "highest honor": {
+    "slug": "highest-honor",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Silver": "relic-variant-0286",
+      "Gold": "relic-variant-0287"
+    }
+  },
+  "hyperstring pocketwatch": {
+    "slug": "hyperstring-pocketwatch",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Silver": "relic-variant-0292",
+      "Gold": "relic-variant-0293"
+    }
+  },
+  "in twilight": {
+    "slug": "in-twilight",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Silver": "relic-variant-0295",
+      "Gold": "relic-variant-0296"
+    }
+  },
+  "iron lock": {
+    "slug": "iron-lock",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Silver": "relic-variant-0299",
+      "Gold": "relic-variant-0300"
+    }
+  },
+  "jade imprint": {
+    "slug": "jade-imprint",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Cursed": "relic-variant-0307"
+    }
+  },
+  "kaleidoscope": {
+    "slug": "kaleidoscope",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Silver": "relic-variant-0310",
+      "Gold": "relic-variant-0311"
+    }
+  },
+  "laurel cufflinks": {
+    "slug": "laurel-cufflinks",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Silver": "relic-variant-0318",
+      "Gold": "relic-variant-0319"
+    }
+  },
+  "lemurian delight": {
+    "slug": "lemurian-delight",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Silver": "relic-variant-0321",
+      "Gold": "relic-variant-0322"
+    }
+  },
+  "lucky rabbit's paw": {
+    "slug": "lucky-rabbits-paw",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Silver": "relic-variant-0330",
+      "Gold": "relic-variant-0331"
+    }
+  },
+  "luminous hourglass": {
+    "slug": "luminous-hourglass",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Silver": "relic-variant-0335",
+      "Gold": "relic-variant-0336"
+    }
+  },
+  "malignant child": {
+    "slug": "malignant-child",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Silver": "relic-variant-0338",
+      "Gold": "relic-variant-0339"
+    }
+  },
+  "mind engraving": {
+    "slug": "mind-engraving",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Cursed": "relic-variant-0353"
+    }
+  },
+  "mute jukebox": {
+    "slug": "mute-jukebox",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Silver": "relic-variant-0359",
+      "Gold": "relic-variant-0360"
+    }
+  },
+  "mythag insignia": {
+    "slug": "mythag-insignia",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Silver": "relic-variant-0363",
+      "Gold": "relic-variant-0364"
+    }
+  },
+  "nameless appendage": {
+    "slug": "nameless-appendage",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Silver": "relic-variant-0366",
+      "Gold": "relic-variant-0367"
+    }
+  },
+  "nettle vest": {
+    "slug": "nettle-vest",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Silver": "relic-variant-0369",
+      "Gold": "relic-variant-0370"
+    }
+  },
+  "neurotoxin": {
+    "slug": "neurotoxin",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Silver": "relic-variant-0372",
+      "Gold": "relic-variant-0373"
+    }
+  },
+  "nightmare manifest": {
+    "slug": "nightmare-manifest",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Cursed": "relic-variant-0377"
+    }
+  },
+  "omen ritual bird": {
+    "slug": "omen-ritual-bird",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Cursed": "relic-variant-0384"
+    }
+  },
+  "other tongue": {
+    "slug": "other-tongue",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Silver": "relic-variant-0387",
+      "Gold": "relic-variant-0388"
+    }
+  },
+  "our home": {
+    "slug": "our-home",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Silver": "relic-variant-0390",
+      "Gold": "relic-variant-0391"
+    }
+  },
+  "pathwalker's remains": {
+    "slug": "pathwalkers-remains",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Cursed": "relic-variant-0396"
+    }
+  },
+  "phantom hand": {
+    "slug": "phantom-hand",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Silver": "relic-variant-0398",
+      "Gold": "relic-variant-0399"
+    }
+  },
+  "plague record": {
+    "slug": "plague-record",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Silver": "relic-variant-0401",
+      "Gold": "relic-variant-0402"
+    }
+  },
+  "preserved butterfly": {
+    "slug": "preserved-butterfly",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Silver": "relic-variant-0406",
+      "Gold": "relic-variant-0407"
+    }
+  },
+  "prophet's lamp": {
+    "slug": "prophets-lamp",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Silver": "relic-variant-0410",
+      "Gold": "relic-variant-0411"
+    }
+  },
+  "proto battery": {
+    "slug": "proto-battery",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Silver": "relic-variant-0413",
+      "Gold": "relic-variant-0414"
+    }
+  },
+  "putney morning post": {
+    "slug": "putney-morning-post",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Silver": "relic-variant-0424",
+      "Gold": "relic-variant-0425"
+    }
+  },
+  "radium jawbone": {
+    "slug": "radium-jawbone",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Silver": "relic-variant-0426",
+      "Gold": "relic-variant-0427"
+    }
+  },
+  "relic of the past": {
+    "slug": "relic-of-the-past",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Silver": "relic-variant-0429",
+      "Gold": "relic-variant-0430"
+    }
+  },
+  "rhind papyrus": {
+    "slug": "rhind-papyrus",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Silver": "relic-variant-0432",
+      "Gold": "relic-variant-0433"
+    }
+  },
+  "rite of spring": {
+    "slug": "rite-of-spring",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Silver": "relic-variant-0435",
+      "Gold": "relic-variant-0436"
+    }
+  },
+  "ritual dagger": {
+    "slug": "ritual-dagger",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Silver": "relic-variant-0440",
+      "Gold": "relic-variant-0441"
+    }
+  },
+  "rusted saw": {
+    "slug": "rusted-saw",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Silver": "relic-variant-0444",
+      "Gold": "relic-variant-0445"
+    }
+  },
+  "rusty lancet": {
+    "slug": "rusty-lancet",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Silver": "relic-variant-0449",
+      "Gold": "relic-variant-0450"
+    }
+  },
+  "sacred agony": {
+    "slug": "sacred-agony",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Cursed": "relic-variant-0452"
+    }
+  },
+  "safe passage": {
+    "slug": "safe-passage",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Silver": "relic-variant-0454",
+      "Gold": "relic-variant-0455"
+    }
+  },
+  "salvific limb": {
+    "slug": "salvific-limb",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Cursed": "relic-variant-0458"
+    }
+  },
+  "serpent's husk": {
+    "slug": "serpents-husk",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Silver": "relic-variant-0460",
+      "Gold": "relic-variant-0461"
+    }
+  },
+  "severed head worm": {
+    "slug": "severed-head-worm",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Silver": "relic-variant-0463",
+      "Gold": "relic-variant-0464"
+    }
+  },
+  "silent prelude": {
+    "slug": "silent-prelude",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Silver": "relic-variant-0470",
+      "Gold": "relic-variant-0471"
+    }
+  },
+  "silver tongue": {
+    "slug": "silver-tongue",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Silver": "relic-variant-0474",
+      "Gold": "relic-variant-0475"
+    }
+  },
+  "solar disc": {
+    "slug": "solar-disc",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Silver": "relic-variant-0479",
+      "Gold": "relic-variant-0480"
+    }
+  },
+  "spatial deflector": {
+    "slug": "spatial-deflector",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Silver": "relic-variant-0484",
+      "Gold": "relic-variant-0485"
+    }
+  },
+  "stellar brew": {
+    "slug": "stellar-brew",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Silver": "relic-variant-0489",
+      "Gold": "relic-variant-0490"
+    }
+  },
+  "submersible helm": {
+    "slug": "submersible-helm",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Silver": "relic-variant-0492",
+      "Gold": "relic-variant-0493"
+    }
+  },
+  "swarm mind": {
+    "slug": "swarm-mind",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Cursed": "relic-variant-0498"
+    }
+  },
+  "tilted scales": {
+    "slug": "tilted-scales",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Silver": "relic-variant-0501",
+      "Gold": "relic-variant-0502"
+    }
+  },
+  "time scarab": {
+    "slug": "time-scarab",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Silver": "relic-variant-0504",
+      "Gold": "relic-variant-0505"
+    }
+  },
+  "tiny music box": {
+    "slug": "tiny-music-box",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Silver": "relic-variant-0508",
+      "Gold": "relic-variant-0509"
+    }
+  },
+  "trickster's hat": {
+    "slug": "tricksters-hat",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Cursed": "relic-variant-0511"
+    }
+  },
+  "trigon prism": {
+    "slug": "trigon-prism",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Silver": "relic-variant-0513",
+      "Gold": "relic-variant-0514"
+    }
+  },
+  "true north compass": {
+    "slug": "true-north-compass",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Silver": "relic-variant-0516",
+      "Gold": "relic-variant-0517"
+    }
+  },
+  "truth unbound": {
+    "slug": "truth-unbound",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Silver": "relic-variant-0519",
+      "Gold": "relic-variant-0520"
+    }
+  },
+  "uncanny salve": {
+    "slug": "uncanny-salve",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Silver": "relic-variant-0525",
+      "Gold": "relic-variant-0526"
+    }
+  },
+  "veil of the nameless deity": {
+    "slug": "veil-of-the-nameless-deity",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Silver": "relic-variant-0529",
+      "Gold": "relic-variant-0530"
+    }
+  },
+  "vision corrector": {
+    "slug": "vision-corrector",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Silver": "relic-variant-0532",
+      "Gold": "relic-variant-0533"
+    }
+  },
+  "vitality injection": {
+    "slug": "vitality-injection",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Silver": "relic-variant-0535",
+      "Gold": "relic-variant-0536"
+    }
+  },
+  "voyager's parasol": {
+    "slug": "voyagers-parasol",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Silver": "relic-variant-0538",
+      "Gold": "relic-variant-0539"
+    }
+  },
+  "wailing bell": {
+    "slug": "wailing-bell",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Cursed": "relic-variant-0540"
+    }
+  },
+  "weeping pipe": {
+    "slug": "weeping-pipe",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Silver": "relic-variant-0543",
+      "Gold": "relic-variant-0544"
+    }
+  },
+  "wriggling cord": {
+    "slug": "wriggling-cord",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Cursed": "relic-variant-0550"
+    }
+  },
+  "yellow snail": {
+    "slug": "yellow-snail",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Silver": "relic-variant-0552",
+      "Gold": "relic-variant-0553"
+    }
+  }
+}

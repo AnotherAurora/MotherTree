@@ -26,6 +26,11 @@ import {
   applyBirthRitualSacrificeConversion,
   SPECIAL_BIRTH_RITUAL_TAG_ID,
 } from "@/lib/path-carver/birth-ritual-sacrifice";
+import {
+  applyActiveDamageToBleedConversion,
+  ATTACKER_NON_ACTIVE_DAMAGE_BLEED_DAMAGE_TAG_ID,
+  SPECIAL_ACTIVE_DAMAGE_TO_BLEED_TAG_ID,
+} from "@/lib/path-carver/active-damage-to-bleed";
 import { applyAllTentacleAttackHop } from "@/lib/path-carver/all-tentacle-attack";
 import {
   computeTentacleCritDamage,
@@ -90,6 +95,8 @@ const DEFERRED_STACK_AMPLIFY_SUBJECT_LABEL =
   "Deferred stack amplify (closure0)";
 const DEFERRED_AMPLIFY_SUBJECT_KEY = "deferred-amplify";
 const DEFERRED_AMPLIFY_SUBJECT_LABEL = "Deferred amplify (closure)";
+const AD_TO_BLEED_AMPLIFY_SUBJECT_KEY = "active-damage-to-bleed-amplify";
+const AD_TO_BLEED_AMPLIFY_SUBJECT_LABEL = "Active Damage to Bleed amplify";
 const HIT_TENTACLE_SUBJECT_LABEL = "Hit = Tentacle Attack";
 const TENTACLE_HIT_POISON_SUBJECT_LABEL = "Tentacle Hit = Poison";
 const TENTACLE_TDU_POOL_SUBJECT_LABEL = "Tentacle TDU pool";
@@ -246,6 +253,12 @@ export type ApplyInteractionsInput = {
    * Missing keys (synthetics / transfers) default to 1.
    */
   hitCountByManifestationKey?: ReadonlyMap<string, number>;
+  /**
+   * When false, skip building the debug `steps` trace entirely. Values are
+   * unchanged; callers that only read `totalsByTagId` (e.g. the Relic Picker
+   * ranking sweep) avoid the allocation cost. Defaults to true.
+   */
+  collectSteps?: boolean;
 };
 
 export type ApplyInteractionsResult = {
@@ -279,6 +292,7 @@ function formatHitCountDetail(m: Manifestation, hitCount: number): string {
 
 function ownerKeyFor(m: Manifestation): OwnerKey {
   if (m.sourceKind === "posse") return "posse";
+  if (m.sourceKind === "relic") return "relic";
   if (m.sourceKind === "realm") return REALM_OWNER;
   if (m.awakenerId != null) return `awakener:${m.awakenerId}`;
   return `orphan:${m.sourceKind}:${m.id}`;
@@ -309,12 +323,40 @@ function recordBirthRitualSelf(
   totals.set(owner, current + amount);
 }
 
+/**
+ * A target_type=self tag-181 subject is scoped to its owning awakener.
+ * Only rows that resolve to an awakener qualify — posse / realm (awakenerId
+ * null) are always treated as team scope, even if labeled self.
+ */
+function isSelfActiveDamageToBleedSubject(m: Manifestation): boolean {
+  return (
+    m.tagId === SPECIAL_ACTIVE_DAMAGE_TO_BLEED_TAG_ID &&
+    m.targetType === "self" &&
+    m.awakenerId != null
+  );
+}
+
+/** Accumulate a finished self tag-181 amount into the owner's self bucket. */
+function recordActiveDamageToBleedSelf(
+  totals: Map<OwnerKey, number>,
+  subject: Manifestation,
+  owner: OwnerKey,
+  amount: number,
+): void {
+  if (amount === 0 || !isSelfActiveDamageToBleedSubject(subject)) return;
+  const current = totals.get(owner) ?? 0;
+  totals.set(owner, current + amount);
+}
+
 function sourceLabelFor(
   m: Manifestation,
   awakenerNamesById?: ReadonlyMap<number, string>,
 ): string {
   if (m.sourceKind === "posse") {
     return m.sourceName ?? "posse";
+  }
+  if (m.sourceKind === "relic") {
+    return m.sourceName != null ? `relic:${m.sourceName}` : "relic";
   }
   if (m.sourceKind === "realm") {
     return m.sourceName != null ? `realm:${m.sourceName}` : "realm";
@@ -614,6 +656,9 @@ function buildOwnerStackSnapshot(
   if (owner === "posse") {
     return { ...base, sourceKind: "posse", sourceName: "(aftereffect stack)" };
   }
+  if (owner === "relic") {
+    return { ...base, sourceKind: "relic", sourceName: "(aftereffect stack)" };
+  }
   if (owner === REALM_OWNER) {
     return { ...base, sourceKind: "realm", sourceName: "(aftereffect stack)" };
   }
@@ -632,6 +677,9 @@ function hop4dFinalizedSnapshotId(owner: OwnerKey, tagId: number): number {
   }
   if (owner === "posse") {
     return -(HOP_4D_FINALIZED_SNAPSHOT_ID_OFFSET + 2_000_000 + tagId);
+  }
+  if (owner === "relic") {
+    return -(HOP_4D_FINALIZED_SNAPSHOT_ID_OFFSET + 5_000_000 + tagId);
   }
   if (owner === TEAM_POOL_OWNER) {
     return -(HOP_4D_FINALIZED_SNAPSHOT_ID_OFFSET + 3_000_000 + tagId);
@@ -675,6 +723,7 @@ function tentacleTduPoolManifestationId(owner: OwnerKey): number {
   if (awakenerId != null) return -(TENTACLE_TDU_POOL_ID_OFFSET + 100 + awakenerId);
   if (owner === REALM_OWNER) return -(TENTACLE_TDU_POOL_ID_OFFSET + 1);
   if (owner === "posse") return -(TENTACLE_TDU_POOL_ID_OFFSET + 2);
+  if (owner === "relic") return -(TENTACLE_TDU_POOL_ID_OFFSET + 4);
   return -(TENTACLE_TDU_POOL_ID_OFFSET + 3);
 }
 
@@ -685,6 +734,7 @@ function tentaclePoisonFixedManifestationId(owner: OwnerKey): number {
   }
   if (owner === REALM_OWNER) return -(TENTACLE_POISON_FIXED_ID_OFFSET + 1);
   if (owner === "posse") return -(TENTACLE_POISON_FIXED_ID_OFFSET + 2);
+  if (owner === "relic") return -(TENTACLE_POISON_FIXED_ID_OFFSET + 4);
   return -(TENTACLE_POISON_FIXED_ID_OFFSET + 3);
 }
 
@@ -715,6 +765,15 @@ function buildTentaclePoolSynthetic(
       ...base,
       id: tentacleTduPoolManifestationId(owner),
       sourceKind: "posse",
+      sourceName: TENTACLE_TDU_POOL_SUBJECT_LABEL,
+      sourceType: null,
+    };
+  }
+  if (owner === "relic") {
+    return {
+      ...base,
+      id: tentacleTduPoolManifestationId(owner),
+      sourceKind: "relic",
       sourceName: TENTACLE_TDU_POOL_SUBJECT_LABEL,
       sourceType: null,
     };
@@ -759,6 +818,16 @@ function buildTentaclePoisonFixedSynthetic(
       ...base,
       id: tentaclePoisonFixedManifestationId(owner),
       sourceKind: "posse",
+      sourceName: TENTACLE_HIT_POISON_SUBJECT_LABEL,
+      sourceType: null,
+      metadata: "Special.Tentacle Hit = Poison",
+    };
+  }
+  if (owner === "relic") {
+    return {
+      ...base,
+      id: tentaclePoisonFixedManifestationId(owner),
+      sourceKind: "relic",
       sourceName: TENTACLE_HIT_POISON_SUBJECT_LABEL,
       sourceType: null,
       metadata: "Special.Tentacle Hit = Poison",
@@ -998,6 +1067,7 @@ function applyOpAndRecord(
   leafContext?: SourceType | null,
   uniqueScaling?: "patch" | "invent" | "base_stat" | "direct_modifier",
   presenceBandRank?: number,
+  collectSteps: boolean = true,
 ): void {
   if (op === "presence_multiply" && modifierTagId != null) {
     // Once per (modifier, target tag[, band]) this pass — not per owner bucket.
@@ -1018,6 +1088,7 @@ function applyOpAndRecord(
   );
   if (result.after === before) return;
   setOwnerValue(next, owner, target.id, result.after);
+  if (!collectSteps) return;
   steps.push({
     kind: "op",
     tagId: target.id,
@@ -1447,6 +1518,7 @@ function applyPresenceMultiplyOnce(
   leafContext: SourceType | null | undefined,
   bandRank: number,
   teamMaxHp?: number | null,
+  collectSteps: boolean = true,
 ): void {
   for (const target of targets) {
     const presenceKey = `${modifierTagId}:${target.id}:band${bandRank}`;
@@ -1592,7 +1664,7 @@ function applyPresenceMultiplyOnce(
           )
         : modifierLayer;
 
-    steps.push({
+    if (collectSteps) steps.push({
       kind: "op",
       tagId: target.id,
       tagName: target.tagName,
@@ -1667,6 +1739,7 @@ function applyInteractionOnto(
   bandRank: number,
   awakenerNamesById?: ReadonlyMap<number, string>,
   teamMaxHp?: number | null,
+  collectSteps: boolean = true,
 ): void {
   const modifierTagId = interaction.modifierTagId;
   if (modifierTagId == null) return;
@@ -1726,6 +1799,7 @@ function applyInteractionOnto(
       leafContext,
       bandRank,
       teamMaxHp,
+      collectSteps,
     );
     return;
   }
@@ -1788,6 +1862,9 @@ function applyInteractionOnto(
         modifierLayer,
         buffRestrictionMet,
         leafContext,
+        undefined,
+        undefined,
+        collectSteps,
       );
       continue;
     }
@@ -1850,6 +1927,7 @@ function applyInteractionOnto(
         leafContext,
         override != null ? "patch" : undefined,
         bandRank,
+        collectSteps,
       );
     }
 
@@ -1883,6 +1961,9 @@ function applyInteractionOnto(
           modifierLayer,
           buffRestrictionMet,
           leafContext,
+          undefined,
+          undefined,
+          collectSteps,
         );
       }
     }
@@ -1898,6 +1979,8 @@ type RunInteractionsOptions = {
   awakenerNamesById?: ReadonlyMap<number, string>;
   /** When false, skip recording base steps (caller already recorded them). */
   recordBaseSteps: boolean;
+  /** When false, skip recording all steps (totals-only callers). */
+  collectSteps: boolean;
   /**
    * Phase 3b — invent unique_scaling with no matching default (subject path).
    * Off for Phase 1 unrestricted creates.
@@ -1940,6 +2023,7 @@ function applyUniqueScalingInvents(
   bandRank: number,
   awakenerNamesById?: ReadonlyMap<number, string>,
   teamMaxHp?: number | null,
+  collectSteps: boolean = true,
 ): void {
   for (const m of appliedManifestations) {
     if (m.interactionOverrides.length === 0) continue;
@@ -1966,7 +2050,7 @@ function applyUniqueScalingInvents(
           modifierTag?.tagName ?? local.modifierTagName ?? "direct_modifier";
 
         let modValue = 1;
-        let factor = local.valueScalar ?? 0;
+        const factor = local.valueScalar ?? 0;
         if (local.dependencyStat != null) {
           modValue = baseStatUniqueScalingModifierValue(
             ownerAwakener,
@@ -1994,6 +2078,7 @@ function applyUniqueScalingInvents(
           leafContext,
           "direct_modifier",
           bandRank,
+          collectSteps,
         );
         continue;
       }
@@ -2035,6 +2120,7 @@ function applyUniqueScalingInvents(
           leafContext,
           "base_stat",
           bandRank,
+          collectSteps,
         );
         continue;
       }
@@ -2116,6 +2202,7 @@ function applyUniqueScalingInvents(
         leafContext,
         "invent",
         bandRank,
+        collectSteps,
       );
     }
   }
@@ -2181,7 +2268,7 @@ function runInteractionsForLeafContext(
       m.tagId,
       scalar,
     );
-    if (options.recordBaseSteps) {
+    if (options.recordBaseSteps && options.collectSteps) {
       const sourceLabel = sourceLabelFor(m, options.awakenerNamesById);
       steps.push({
         kind: "base",
@@ -2232,6 +2319,7 @@ function runInteractionsForLeafContext(
           bandRank,
           options.awakenerNamesById,
           options.teamMaxHp,
+          options.collectSteps,
         );
       }
       if (options.applyUniqueScalingInvents) {
@@ -2251,6 +2339,7 @@ function runInteractionsForLeafContext(
           bandRank,
           options.awakenerNamesById,
           options.teamMaxHp,
+          options.collectSteps,
         );
       }
     }
@@ -2264,7 +2353,7 @@ function runInteractionsForLeafContext(
     current = next;
   }
 
-  steps.push(...lastPassOpSteps);
+  if (options.collectSteps) steps.push(...lastPassOpSteps);
 
   return { ownerValues: current, steps };
 }
@@ -2333,6 +2422,48 @@ function buildCreatedBaseManifestation(
     isBaseStatTransfer: false,
     isCreatedBase: true,
     ...NON_REALM_MANIFESTATION_FIELDS,
+  };
+}
+
+/** Distinct id band so tag-181 synthetics never collide with created-base ids. */
+const AD_TO_BLEED_SYNTHETIC_ID_OFFSET = 6_900_000;
+
+function activeDamageToBleedSyntheticId(
+  tagId: number,
+  owner: OwnerKey,
+): number {
+  const awakenerId = awakenerIdFromOwnerKey(owner);
+  if (awakenerId != null) {
+    return -(AD_TO_BLEED_SYNTHETIC_ID_OFFSET + awakenerId * 1000 + tagId);
+  }
+  return -(AD_TO_BLEED_SYNTHETIC_ID_OFFSET + 900_000 + tagId);
+}
+
+/**
+ * Synthetic Bleed Damage base written by Special.Active Damage to Bleed.
+ * Preserves the conversion scope owner (awakener:N vs team/posse) so the thin
+ * trigger amplify reads it at the correct owner key.
+ */
+function buildActiveDamageToBleedSynthetic(
+  tag: Tag,
+  owner: OwnerKey,
+  value: number,
+  targetType: TargetType,
+): Manifestation {
+  const base = buildCreatedBaseManifestation(tag, value);
+  const awakenerId = awakenerIdFromOwnerKey(owner);
+  return {
+    ...base,
+    id: activeDamageToBleedSyntheticId(tag.id, owner),
+    sourceKind:
+      awakenerId != null
+        ? "awakener"
+        : owner === "relic"
+          ? "relic"
+          : "posse",
+    awakenerId,
+    sourceName: "(Active Damage to Bleed)",
+    targetType,
   };
 }
 
@@ -2419,6 +2550,7 @@ export function applyInteractions(
   const awakenersById = input.awakenersById;
   const applied = input.appliedManifestations;
   const steps: ScalarMathStep[] = [];
+  const collectSteps = input.collectSteps !== false;
   const scalarOpts = scalarOptionsFrom(input);
 
   // Record every applied manifestation's base once (raw vs effective).
@@ -2431,6 +2563,7 @@ export function applyInteractions(
       scalarOpts,
     );
     if (scalar === 0) continue;
+    if (!collectSteps) continue;
     const sourceLabel = sourceLabelFor(m, input.awakenerNamesById);
     steps.push({
       kind: "base",
@@ -2500,7 +2633,7 @@ export function applyInteractions(
     (i) => !deferredAmplifyIds.has(i.id),
   );
 
-  if (lookAhead.closure0.size > 0) {
+  if (collectSteps && lookAhead.closure0.size > 0) {
     const closure0Names = tagNamesForIds(
       lookAhead.closure0,
       input.tagsById,
@@ -2516,6 +2649,8 @@ export function applyInteractions(
   const mergedOwnerValues: OwnerTotals = new Map();
   /** target_type=self Birth Ritual finished amounts by owner (hop 4e input). */
   const birthRitualSelfByOwner = new Map<OwnerKey, number>();
+  /** target_type=self tag-181 finished amounts by owner (Active Damage → Bleed). */
+  const adToBleedSelfByOwner = new Map<OwnerKey, number>();
   const opSteps: ScalarMathStep[] = [];
   const aftereffectSteps: ScalarMathStep[] = [];
   const createdSynthetics: Manifestation[] = [];
@@ -2530,7 +2665,8 @@ export function applyInteractions(
       awakenersById,
       leafContext: null,
       awakenerNamesById: input.awakenerNamesById,
-      recordBaseSteps: false,
+            recordBaseSteps: false,
+            collectSteps,
       applyUniqueScalingInvents: false,
       teamMaxHp: input.teamMaxHp,
       realmMasteryTotal: input.realmMasteryTotal,
@@ -2642,27 +2778,29 @@ export function applyInteractions(
         merged,
       );
 
-      aftereffectSteps.push({
-        kind: "aftereffect",
-        tagId: targetId,
-        tagName: target.tagName,
-        owner: writeOwner,
-        op,
-        finishedOnce,
-        factor,
-        contribution,
-        hitCount,
-        merged,
-        before,
-        after: getOwnerValue(mergedOwnerValues, writeOwner, targetId),
-        layer: row.layer,
-        targetType: row.targetType,
-        invented,
-        sourceLabel,
-        subjectKey,
-        subjectLabel: sourceLabel,
-        metadata: subject.metadata,
-      });
+      if (collectSteps) {
+        aftereffectSteps.push({
+          kind: "aftereffect",
+          tagId: targetId,
+          tagName: target.tagName,
+          owner: writeOwner,
+          op,
+          finishedOnce,
+          factor,
+          contribution,
+          hitCount,
+          merged,
+          before,
+          after: getOwnerValue(mergedOwnerValues, writeOwner, targetId),
+          layer: row.layer,
+          targetType: row.targetType,
+          invented,
+          sourceLabel,
+          subjectKey,
+          subjectLabel: sourceLabel,
+          metadata: subject.metadata,
+        });
+      }
     }
   };
 
@@ -2677,6 +2815,7 @@ export function applyInteractions(
 
       const pushHitCountStep = (finishedOnce: number) => {
         if (hitCount === 1 || finishedOnce === 0) return;
+        if (!collectSteps) return;
         hitCountSteps.push({
           kind: "hitCount",
           tagId: subject.tagId,
@@ -2716,6 +2855,12 @@ export function applyInteractions(
             owner,
             scalar * hitCount,
           );
+          recordActiveDamageToBleedSelf(
+            adToBleedSelfByOwner,
+            subject,
+            owner,
+            scalar * hitCount,
+          );
           pushHitCountStep(scalar);
         }
         continue;
@@ -2740,6 +2885,7 @@ export function applyInteractions(
         leafContext: subject.sourceType,
         awakenerNamesById: input.awakenerNamesById,
         recordBaseSteps: false,
+        collectSteps,
         applyUniqueScalingInvents: true,
         uniqueScalingMatchInteractions: input.defaultInteractions,
         teamMaxHp: input.teamMaxHp,
@@ -2789,6 +2935,12 @@ export function applyInteractions(
           owner,
           finishedOnce * hitCount,
         );
+        recordActiveDamageToBleedSelf(
+          adToBleedSelfByOwner,
+          subject,
+          owner,
+          finishedOnce * hitCount,
+        );
         pushHitCountStep(finishedOnce);
       }
     }
@@ -2827,6 +2979,7 @@ export function applyInteractions(
         leafContext: null,
         awakenerNamesById: input.awakenerNamesById,
         recordBaseSteps: false,
+        collectSteps,
         applyUniqueScalingInvents: false,
         teamMaxHp: input.teamMaxHp,
         realmMasteryTotal: input.realmMasteryTotal,
@@ -2885,6 +3038,7 @@ export function applyInteractions(
         leafContext: null,
         awakenerNamesById: input.awakenerNamesById,
         recordBaseSteps: false,
+        collectSteps,
         applyUniqueScalingInvents: false,
         teamMaxHp: input.teamMaxHp,
         realmMasteryTotal: input.realmMasteryTotal,
@@ -2936,7 +3090,8 @@ export function applyInteractions(
       awakenersById,
       leafContext: null,
       awakenerNamesById: input.awakenerNamesById,
-      recordBaseSteps: false,
+            recordBaseSteps: false,
+            collectSteps,
       applyUniqueScalingInvents: false,
       teamMaxHp: input.teamMaxHp,
       realmMasteryTotal: input.realmMasteryTotal,
@@ -3202,6 +3357,7 @@ export function applyInteractions(
           leafContext: null,
           awakenerNamesById: input.awakenerNamesById,
           recordBaseSteps: false,
+        collectSteps,
           applyUniqueScalingInvents: true,
           uniqueScalingMatchInteractions: input.defaultInteractions,
           teamMaxHp: input.teamMaxHp,
@@ -3333,6 +3489,7 @@ export function applyInteractions(
             leafContext: null,
             awakenerNamesById: input.awakenerNamesById,
             recordBaseSteps: false,
+        collectSteps,
             applyUniqueScalingInvents: true,
             uniqueScalingMatchInteractions: input.defaultInteractions,
             teamMaxHp: input.teamMaxHp,
@@ -3470,36 +3627,141 @@ export function applyInteractions(
     });
   }
 
-  steps.push(
-    ...opSteps,
-    ...aftereffectSteps,
-    ...hitCountSteps,
-    ...allTentacleAttackSteps,
-    ...hitTentacleSteps,
-  );
+  if (collectSteps) {
+    steps.push(
+      ...opSteps,
+      ...aftereffectSteps,
+      ...hitCountSteps,
+      ...allTentacleAttackSteps,
+      ...hitTentacleSteps,
+    );
+  }
+
+  // Hop — Special.Active Damage to Bleed (tag 181): convert a fraction of the
+  // finalized Active Damage family (no Tentacle) into Bleed Damage, then apply
+  // the thin Bleed Trigger amplify once to the converted amount. Runs before
+  // Birth Ritual (4e) because both consume the finalized Active Damage totals.
+  const adToBleed = applyActiveDamageToBleedConversion({
+    ownerValues: mergedOwnerValues,
+    selfByOwner: adToBleedSelfByOwner,
+    tagsById: input.tagsById,
+  });
+  if (collectSteps) steps.push(...adToBleed.steps);
+
+  const bleedDamageTag =
+    input.tagsById[ATTACKER_NON_ACTIVE_DAMAGE_BLEED_DAMAGE_TAG_ID];
+  if (bleedDamageTag != null) {
+    const convertedSynthetics: Manifestation[] = [];
+    if (adToBleed.result.team.conversion !== 0) {
+      convertedSynthetics.push(
+        buildActiveDamageToBleedSynthetic(
+          bleedDamageTag,
+          "posse",
+          adToBleed.result.team.conversion,
+          "aoe",
+        ),
+      );
+    }
+    for (const [owner, scope] of adToBleed.result.selfByOwner) {
+      if (scope.conversion === 0) continue;
+      convertedSynthetics.push(
+        buildActiveDamageToBleedSynthetic(
+          bleedDamageTag,
+          owner,
+          scope.conversion,
+          "self",
+        ),
+      );
+    }
+
+    if (convertedSynthetics.length > 0) {
+      const adToBleedAmplifies = amplifyRows.filter((i) =>
+        interactionTargetsTagName(i, bleedDamageTag.tagName),
+      );
+
+      if (adToBleedAmplifies.length > 0) {
+        const thinApplied = [
+          ...applied.filter((m) => m.tagId !== bleedDamageTag.id),
+          ...convertedSynthetics,
+        ];
+        const amplifyResult = runInteractionsForLeafContext({
+          appliedManifestations: thinApplied,
+          defaultInteractions: adToBleedAmplifies,
+          tagsById: input.tagsById,
+          awakenersById,
+          leafContext: null,
+          awakenerNamesById: input.awakenerNamesById,
+          recordBaseSteps: false,
+        collectSteps,
+          applyUniqueScalingInvents: false,
+          teamMaxHp: input.teamMaxHp,
+          realmMasteryTotal: input.realmMasteryTotal,
+          teamRealms: input.teamRealms,
+        });
+
+        for (const synthetic of convertedSynthetics) {
+          const owner = ownerKeyFor(synthetic);
+          mergeOwnerValue(
+            mergedOwnerValues,
+            owner,
+            bleedDamageTag,
+            synthetic.tagId,
+            getOwnerValue(amplifyResult.ownerValues, owner, synthetic.tagId),
+          );
+        }
+
+        const amplifyTargetIds = collectAmplifyTargetIds(
+          adToBleedAmplifies,
+          input.tagsById,
+        );
+        for (const step of amplifyResult.steps) {
+          if (step.kind !== "op") continue;
+          if (!amplifyTargetIds.has(step.tagId)) continue;
+          if (!collectSteps) continue;
+          steps.push({
+            ...step,
+            subjectKey: AD_TO_BLEED_AMPLIFY_SUBJECT_KEY,
+            subjectLabel: AD_TO_BLEED_AMPLIFY_SUBJECT_LABEL,
+          });
+        }
+      } else {
+        for (const synthetic of convertedSynthetics) {
+          mergeOwnerValue(
+            mergedOwnerValues,
+            ownerKeyFor(synthetic),
+            bleedDamageTag,
+            synthetic.tagId,
+            synthetic.valueScalar ?? 0,
+          );
+        }
+      }
+    }
+  }
 
   const { steps: birthRitualSteps } = applyBirthRitualSacrificeConversion({
     ownerValues: mergedOwnerValues,
     selfByOwner: birthRitualSelfByOwner,
     tagsById: input.tagsById,
   });
-  steps.push(...birthRitualSteps);
+  if (collectSteps) steps.push(...birthRitualSteps);
 
   const totalsByTagId = sumOwnerTotalsToTagMap(
     mergedOwnerValues,
     input.tagsById,
   );
 
-  for (const [tagId, total] of totalsByTagId) {
-    const tag = input.tagsById[tagId];
-    steps.push({
-      kind: "total",
-      tagId,
-      tagName: tag?.tagName ?? `#${tagId}`,
-      total,
-      isAdditive: tag?.isAdditive !== false,
-      isPercent: tag?.isPercent === true,
-    });
+  if (collectSteps) {
+    for (const [tagId, total] of totalsByTagId) {
+      const tag = input.tagsById[tagId];
+      steps.push({
+        kind: "total",
+        tagId,
+        tagName: tag?.tagName ?? `#${tagId}`,
+        total,
+        isAdditive: tag?.isAdditive !== false,
+        isPercent: tag?.isPercent === true,
+      });
+    }
   }
 
   return { totalsByTagId, steps };
@@ -3511,6 +3773,7 @@ export function applyInteractionsForTeamData(
   teamMaxHp?: number | null,
   teamRealms?: TeamRealmResolution,
   hitCountByManifestationKey?: ReadonlyMap<string, number>,
+  collectSteps: boolean = true,
 ): ApplyInteractionsResult {
   const awakenerNamesById = new Map<number, string>();
   for (const awakener of teamData.awakeners) {
@@ -3530,5 +3793,6 @@ export function applyInteractionsForTeamData(
     realmMasteryTotal: sumTeamRealmMastery(teamData.awakeners),
     teamRealms,
     hitCountByManifestationKey,
+    collectSteps,
   });
 }

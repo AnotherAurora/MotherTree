@@ -11,6 +11,7 @@ const NAV_ITEMS = [
   { href: "/", label: "Home" },
   { href: "/search", label: "Search" },
   { href: "/calculators", label: "Calculators" },
+  { href: "/relic-picker", label: "Relic Picker" },
   { href: "/manual", label: "Manual" },
   { href: "/about", label: "About Me" },
 ] as const;
@@ -51,7 +52,7 @@ export function SiteHeader() {
         >
           <MotherTreeMark className="text-2xl leading-none" />
           <p className="mt-0.5 text-xs tracking-[0.14em] text-[var(--mt-ink-muted)]">
-            root version
+            fruit version
           </p>
         </Link>
 

@@ -6,6 +6,12 @@ export const DEFAULT_ACCOUNT_LEVEL = 60;
 /** Path Carver default per-awakener level. */
 export const DEFAULT_AWAKENER_LEVEL = 60;
 
+/**
+ * Special.Additional Team Max HP — dependency-scaled flat add to final team Max HP.
+ * Not multiplied by Max HP Up; finalMaxHp = baseline + bonus + additional.
+ */
+export const SPECIAL_ADDITIONAL_TEAM_MAX_HP_TAG_ID = 185;
+
 export type TeamMaxHpResult = {
   totalCon: number;
   accountLevel: number;
@@ -15,6 +21,8 @@ export type TeamMaxHpResult = {
   baselineMaxHp: number;
   maxHpUpTotal: number;
   bonusMaxHp: number;
+  /** Flat Max HP from Special.Additional Team Max HP (dependency-scaled). */
+  additionalMaxHp: number;
   finalMaxHp: number;
 };
 
@@ -67,6 +75,11 @@ export type ComputeTeamMaxHpInput = {
   awakeners: readonly { con: number | null }[];
   /** Sum of Defender.Max HP Up (0.1 = +10%), including DR-reduction synthetic. */
   maxHpUpTotal: number;
+  /**
+   * Flat Max HP added after the Max HP Up bonus (Special.Additional Team Max HP).
+   * Exempt from the Max HP Up multiplier.
+   */
+  additionalMaxHp?: number;
   accountLevel?: number;
   /**
    * Levels for selected awakeners only. Defaults to 60 per selected awakener.
@@ -76,7 +89,8 @@ export type ComputeTeamMaxHpInput = {
 };
 
 /**
- * Team Max HP: baseline from CON × HpMultiplier, plus Max HP Up as a direct % of baseline.
+ * Team Max HP: baseline from CON × HpMultiplier, plus Max HP Up as a direct % of
+ * baseline, plus any dependency-scaled flat addition (Special.Additional Team Max HP).
  */
 export function computeTeamMaxHp(
   input: ComputeTeamMaxHpInput,
@@ -93,6 +107,7 @@ export function computeTeamMaxHp(
   const baselineMaxHp = Math.ceil(totalCon * hpMultiplier);
   const maxHpUpTotal = input.maxHpUpTotal;
   const bonusMaxHp = computeBonusMaxHpFromMaxHpUp(baselineMaxHp, maxHpUpTotal);
+  const additionalMaxHp = input.additionalMaxHp ?? 0;
 
   return {
     totalCon,
@@ -103,6 +118,7 @@ export function computeTeamMaxHp(
     baselineMaxHp,
     maxHpUpTotal,
     bonusMaxHp,
-    finalMaxHp: baselineMaxHp + bonusMaxHp,
+    additionalMaxHp,
+    finalMaxHp: baselineMaxHp + bonusMaxHp + additionalMaxHp,
   };
 }

@@ -21,6 +21,19 @@ export const SUPPORT_CREATE_POSSE_TAG_ID = 52;
 /** Special.When.Posse */
 export const SPECIAL_WHEN_POSSE_TAG_ID = 129;
 
+/** Special.Posse.Drowned Innocence — presence marker from the posse of the same name. */
+export const SPECIAL_POSSE_DROWNED_INNOCENCE_TAG_ID = 178;
+
+/**
+ * Presence-trigger tags: rows whose `trigger_condition` equals the tag id apply
+ * when that same tag has a non-zero Layer A total. Unlike `CAUSE_TO_WHEN`, the
+ * cause id equals the When id; apply-times = `floor(Layer A total)`, so
+ * Support.Double Posse (which doubles posse value_scalar) doubles the count.
+ */
+export const PRESENCE_TRIGGER_TAG_IDS: ReadonlySet<number> = new Set([
+  SPECIAL_POSSE_DROWNED_INNOCENCE_TAG_ID,
+]);
+
 /**
  * Cause tag id → When tag id.
  * Cause Layer A totals become how many times the When condition is met.
@@ -34,7 +47,8 @@ export const CAUSE_TO_WHEN: ReadonlyMap<number, number> = new Map([
 ]);
 
 /**
- * Build When-tag → apply-times from Cause tag Layer A totals.
+ * Build When-tag → apply-times from Cause tag Layer A totals, plus
+ * `PRESENCE_TRIGGER_TAG_IDS` whose own total is the gate.
  * `triggerCount = max(0, floor(sum))`.
  */
 export function buildTriggerCounts(
@@ -43,6 +57,10 @@ export function buildTriggerCounts(
   const counts = new Map<number, number>();
   for (const [causeId, whenId] of CAUSE_TO_WHEN) {
     const sum = causeTotalsByTagId.get(causeId) ?? 0;
+    counts.set(whenId, Math.max(0, Math.floor(sum)));
+  }
+  for (const whenId of PRESENCE_TRIGGER_TAG_IDS) {
+    const sum = causeTotalsByTagId.get(whenId) ?? 0;
     counts.set(whenId, Math.max(0, Math.floor(sum)));
   }
   return counts;

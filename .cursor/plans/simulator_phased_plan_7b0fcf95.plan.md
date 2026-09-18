@@ -1,6 +1,6 @@
 ---
 name: Simulator Phased Plan
-overview: Path Carver–first roadmap. Phase 1–2c.1 + 3a + 3a.1 + 3a.2 + 3a.3 + 3b + 3b.1 + 3c + 3c.1 + 3d + 3e + 3f + 3g + 3h + 3i (Birth Ritual → Sacrifice) done. Next is Phase 4 (desire_demand / radar / simulator, Calculation List layer breakdown). Phase 5 smart recommend.
+overview: Path Carver–first roadmap. Phase 1–2c.1 + 3a + 3a.1 + 3a.2 + 3a.3 + 3b + 3b.1 + 3c + 3c.1 + 3d + 3e + 3f + 3g + 3h + 3i (Birth Ritual → Sacrifice) + 3j (All Tentacle Attack) + 3k (Active Damage to Bleed) done. Next is Phase 4 (desire_demand / radar / simulator, Calculation List layer breakdown). Phase 5 smart recommend.
 todos:
   - id: seed-data
     content: Create scripts/seed-simulator-data.ts with 2-3 desires, demand rows, anchored awakeners; add npm script
@@ -1918,6 +1918,33 @@ Replace zero-base `Attacker.Tentacle` + Generate `unique_scaling` carriers with 
 
 ---
 
+## Phase 3k — Special.Active Damage to Bleed (DONE)
+
+**Depends on:** 3c/3i (finalized Active Damage family + Born Ritual precedent).
+
+### Goal
+
+Convert a fraction of the finalized `Attacker.Active Damage` family (prefix + descendants, **no** `Attacker.Tentacle`) into `Attacker.Non-Active Damage.Bleed Damage` (tag **158**) via tag **181** `Special.Active Damage to Bleed` (`is_percent`), then apply `Attacker.Bleed Trigger` (tag 156) once to the converted amount.
+
+### Locks
+
+- **Rate:** `value_scalar` is a fraction — `ceil(pool × rate)` (0.3 → 30%)
+- **Pool:** all owners' `Attacker.Active Damage` + descendants only; excludes `Attacker.Tentacle`
+- **Scope:** mirrors Birth Ritual — `target_type=self` rows convert that owner's own Active Damage; `aoe` / `single` / null rows convert the all-owner pool
+- **No cap** (unlike Birth Ritual's 75)
+- **Timing:** hop in [`apply-interactions.ts`](src/lib/path-carver/apply-interactions.ts) after the deferred closure / Tentacle hops, **before** Birth Ritual (4e)
+- **Trigger:** dedicated thin amplify hop on the converted `Bleed Damage` synthetics (`amplifyRows` targeting tag 158, e.g. TDI 104); applied once, isolated from the aftereffect closure, so no double-trigger
+- **Merge:** additive via `tag.is_additive` (`combineSameTagScalar`)
+
+### Files
+
+- [`src/lib/path-carver/active-damage-to-bleed.ts`](src/lib/path-carver/active-damage-to-bleed.ts)
+- [`src/lib/path-carver/apply-interactions.ts`](src/lib/path-carver/apply-interactions.ts) — self recording + hop + thin amplify
+- [`src/lib/path-carver/awakener-base-stats.ts`](src/lib/path-carver/awakener-base-stats.ts) — required tags 181 / 158
+- Smoke: `npm run smoke:active-damage-to-bleed`
+
+---
+
 ## Phase 4 — desire_demand, radar, simulator port
 
 **Depends on:** Stable Path Carver math (through Phase **3f** preferably; through 2c minimum).
@@ -1989,5 +2016,8 @@ Path Carver upserts a single `desire_template` per `desire_id`.
 12. **Phase 3f** — Tentacle Crit Rate / Damage after TDU (DONE)
 13. **Phase 3g** — Remove `source_type` tentacle enum (DONE)
 14. **Phase 3h** — `direct_modifier` local interaction mode (DONE)
-15. **Phase 4** — desire_demand / radar / simulator port + Calculation List layer breakdown
-16. **Phase 5** — Smart recommend / search
+15. **Phase 3i** — Special.Birth Ritual → Sacrifice (DONE)
+16. **Phase 3j** — Special.All Tentacle Attack (DONE)
+17. **Phase 3k** — Special.Active Damage to Bleed → Bleed Damage + Bleed Trigger (DONE)
+18. **Phase 4** — desire_demand / radar / simulator port + Calculation List layer breakdown
+19. **Phase 5** — Smart recommend / search

@@ -30,6 +30,10 @@ export function ReviewTagsTeamMaxHpDebug({
       value: formatNum(teamMaxHp.maxHpUpTotal),
     },
     { label: "bonus Max HP", value: String(teamMaxHp.bonusMaxHp) },
+    {
+      label: "additional Max HP",
+      value: String(teamMaxHp.additionalMaxHp),
+    },
     { label: "final Max HP", value: String(teamMaxHp.finalMaxHp) },
   ];
 
@@ -41,7 +45,9 @@ export function ReviewTagsTeamMaxHpDebug({
         </p>
         <p className="font-mono text-xs text-zinc-600">
           baseline = ceil(sum CON × HpMultiplier[effectiveLevel]); bonus =
-          ceil(baseline × Max HP Up) (0.1 = +10%). Used as all_stats.team_max_hp.
+          ceil(baseline × Max HP Up) (0.1 = +10%); additional = flat
+          Special.Additional Team Max HP (dependency-scaled, exempt from Max HP
+          Up). Used as all_stats.team_max_hp.
         </p>
       </div>
 

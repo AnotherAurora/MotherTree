@@ -23,6 +23,10 @@ type ForeignKeyComboboxProps = {
   placeholder?: string;
   disabled?: boolean;
   assetKind?: AssetKind;
+  /** Custom trigger element; when provided, replaces the default button. */
+  trigger?: React.ReactElement;
+  /** `public` applies the warm desert-dusk palette to the dropdown panel. */
+  appearance?: "default" | "public";
 };
 
 function optionDisplayText(option: ForeignKeyOption): string {
@@ -52,49 +56,73 @@ export function ForeignKeyCombobox({
   placeholder = "Select...",
   disabled = false,
   assetKind,
+  trigger,
+  appearance = "default",
 }: ForeignKeyComboboxProps) {
+  const isPublic = appearance === "public";
   const [open, setOpen] = React.useState(false);
   const [search, setSearch] = React.useState("");
 
   const selected = options.find((option) => option.value === value);
-  const filtered = options.filter((option) =>
-    option.label.toLowerCase().includes(search.toLowerCase()),
-  );
+  const filtered = options
+    .filter((option) =>
+      option.label.toLowerCase().includes(search.toLowerCase()),
+    )
+    // Stable-sort muted (unsupported) options to the bottom.
+    .sort((a, b) => Number(Boolean(a.muted)) - Number(Boolean(b.muted)));
   const selectedSrc = selected
     ? optionAssetSrc(assetKind, selected)
     : undefined;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          type="button"
-          variant="outline"
-          role="combobox"
-          aria-expanded={open}
-          disabled={disabled}
-          title={selected?.label}
-          className="w-full justify-between font-normal"
-        >
-          <span className="flex min-w-0 items-center gap-2 truncate">
-            {assetKind ? (
-              <AssetIcon
-                src={selectedSrc}
-                size={assetIconSize(assetKind)}
-                darkChip={assetUsesDarkChip(assetKind)}
-              />
-            ) : null}
-            <span className="min-w-0 truncate">
-              {selected ? optionDisplayText(selected) : placeholder}
+      {trigger ? (
+        <PopoverTrigger asChild>{trigger}</PopoverTrigger>
+      ) : (
+        <PopoverTrigger asChild>
+          <Button
+            type="button"
+            variant="outline"
+            role="combobox"
+            aria-expanded={open}
+            disabled={disabled}
+            title={selected?.label}
+            className="w-full justify-between font-normal"
+          >
+            <span className="flex min-w-0 items-center gap-2 truncate">
+              {assetKind ? (
+                <AssetIcon
+                  src={selectedSrc}
+                  size={assetIconSize(assetKind)}
+                  darkChip={assetUsesDarkChip(assetKind)}
+                />
+              ) : null}
+              <span className="min-w-0 truncate">
+                {selected ? optionDisplayText(selected) : placeholder}
+              </span>
             </span>
-          </span>
-          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="p-0" align="start">
-        <div className="border-b border-border p-2">
+            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+          </Button>
+        </PopoverTrigger>
+      )}
+      <PopoverContent
+        align="start"
+        className={cn(
+          "p-0",
+          isPublic &&
+            "border-[var(--mt-border)] bg-[rgb(255_250_245)] text-[var(--mt-ink)]",
+        )}
+      >
+        <div
+          className={cn("border-b p-2", isPublic ? "border-[var(--mt-border)]" : "border-border")}
+        >
           <input
-            className="flex h-8 w-full rounded-md bg-transparent px-2 text-sm outline-none placeholder:text-zinc-400"
+            className={cn(
+              "flex h-8 w-full rounded-md px-2 text-sm outline-none",
+              isPublic
+                ? "border border-[var(--mt-border)] bg-[rgb(255_245_235_/_0.55)] text-[var(--mt-ink)] placeholder:text-[var(--mt-ink-muted)] focus-visible:ring-2 focus-visible:ring-[var(--mt-ember)]"
+                : "bg-transparent placeholder:text-zinc-400",
+            )}
             placeholder="Search..."
             value={search}
             onChange={(event) => setSearch(event.target.value)}
@@ -103,7 +131,12 @@ export function ForeignKeyCombobox({
         <div className="max-h-64 overflow-y-auto p-1">
           <button
             type="button"
-            className="flex w-full rounded-sm px-2 py-1.5 text-left text-sm hover:bg-zinc-100"
+            className={cn(
+              "flex w-full rounded-sm px-2 py-1.5 text-left text-sm",
+              isPublic
+                ? "hover:bg-[rgb(255_245_235_/_0.9)]"
+                : "hover:bg-zinc-100",
+            )}
             onClick={() => {
               onChange(null);
               setOpen(false);
@@ -113,7 +146,12 @@ export function ForeignKeyCombobox({
             Clear selection
           </button>
           {filtered.length === 0 ? (
-            <p className="px-2 py-6 text-center text-sm text-zinc-500">
+            <p
+              className={cn(
+                "px-2 py-6 text-center text-sm",
+                isPublic ? "text-[var(--mt-ink-muted)]" : "text-zinc-500",
+              )}
+            >
               No results found.
             </p>
           ) : (
@@ -124,8 +162,15 @@ export function ForeignKeyCombobox({
                   key={option.value}
                   type="button"
                   className={cn(
-                    "flex w-full items-center rounded-sm px-2 py-1.5 text-left text-sm hover:bg-zinc-100",
-                    value === option.value && "bg-zinc-100",
+                    "flex w-full items-center rounded-sm px-2 py-1.5 text-left text-sm",
+                    isPublic
+                      ? "hover:bg-[rgb(255_245_235_/_0.9)]"
+                      : "hover:bg-zinc-100",
+                    value === option.value &&
+                      (isPublic
+                        ? "bg-[rgb(255_245_235_/_0.9)]"
+                        : "bg-zinc-100"),
+                    option.muted && "opacity-60",
                   )}
                   onClick={() => {
                     onChange(option.value);
@@ -147,9 +192,30 @@ export function ForeignKeyCombobox({
                       darkChip={assetUsesDarkChip(assetKind)}
                     />
                   ) : null}
-                  <span className="min-w-0 flex-1 truncate" title={option.label}>
+                  <span
+                    className={cn(
+                      "min-w-0 flex-1 truncate",
+                      option.muted &&
+                        (isPublic
+                          ? "text-[var(--mt-ink-muted)]"
+                          : "text-zinc-500"),
+                    )}
+                    title={option.label}
+                  >
                     {optionDisplayText(option)}
                   </span>
+                  {option.muted && option.badge ? (
+                    <span
+                      className={cn(
+                        "ml-2 shrink-0 rounded-full border px-1.5 py-0.5 text-[0.6rem] font-medium uppercase tracking-wide",
+                        isPublic
+                          ? "border-[var(--mt-border)] bg-[rgb(255_245_235_/_0.7)] text-[var(--mt-ink-muted)]"
+                          : "border-zinc-200 bg-zinc-50 text-zinc-500",
+                      )}
+                    >
+                      {option.badge}
+                    </span>
+                  ) : null}
                 </button>
               );
             })

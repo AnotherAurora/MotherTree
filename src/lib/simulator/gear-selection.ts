@@ -62,12 +62,13 @@ export function getSelectedTeamUniqueCovenantIds(
   return ids;
 }
 
-function getSiblingWheelId(
-  slot: SlotState,
-  field: WheelField,
-): number | null {
-  return field === "wheel1Id" ? slot.wheel2Id : slot.wheel1Id;
-}
+// TEMPORARILY DISABLED: getSiblingWheelId helper (SSR-pair filter)
+// function getSiblingWheelId(
+//   slot: SlotState,
+//   field: WheelField,
+// ): number | null {
+//   return field === "wheel1Id" ? slot.wheel2Id : slot.wheel1Id;
+// }
 
 export function wouldViolateSsrRarityPair(
   candidate: WheelGearOption,
@@ -111,18 +112,19 @@ export function filterWheelOptionsForSlot(
   const selectedElsewhere = getSelectedWheelIds(slots, { slotIndex, field });
   const slot = slots[slotIndex];
   const currentId = slot?.[field];
-  const siblingWheelId = slot ? getSiblingWheelId(slot, field) : null;
-  const siblingWheel =
-    siblingWheelId != null ? wheelMap.get(siblingWheelId) : undefined;
-  const siblingBlocksNon15Ssr =
-    siblingWheel != null && isSsrWithoutEnlightenment15(siblingWheel);
+  // TEMPORARILY DISABLED: sibling SSR-without-enlightenment-15 wheel blocks the other slot
+  // const siblingWheelId = slot ? getSiblingWheelId(slot, field) : null;
+  // const siblingWheel =
+  //   siblingWheelId != null ? wheelMap.get(siblingWheelId) : undefined;
+  // const siblingBlocksNon15Ssr =
+  //   siblingWheel != null && isSsrWithoutEnlightenment15(siblingWheel);
 
   return options.filter((option) => {
     if (option.value === currentId) return true;
     if (selectedElsewhere.has(option.value)) return false;
-    if (siblingBlocksNon15Ssr && isSsrWithoutEnlightenment15(option)) {
-      return false;
-    }
+    // if (siblingBlocksNon15Ssr && isSsrWithoutEnlightenment15(option)) {
+    //   return false;
+    // }
     return true;
   });
 }

@@ -31,6 +31,12 @@ export type EditingCellState = {
   fieldName: string;
 } | null;
 
+function inlineFieldWidth(field: FieldConfig) {
+  return field.type === "text" || field.type === "textarea"
+    ? "w-56"
+    : "w-24";
+}
+
 type TagTreeViewProps = {
   config: TableConfig;
   records: Record<string, unknown>[];
@@ -177,7 +183,10 @@ function TreeRow({
         </div>
         {record &&
           inlineFields.map((field) => (
-            <div key={field.name} className="w-24 shrink-0 self-center">
+            <div
+              key={field.name}
+              className={`${inlineFieldWidth(field)} shrink-0 self-center`}
+            >
               {field.inlineEditable && !showDeletedOnly && !isDeleted ? (
                 <EditableCell
                   tableName={config.name}
@@ -361,7 +370,7 @@ export function TagTreeView({
         <div className="flex items-center gap-2 border-b border-border bg-zinc-50 py-2 pl-4 pr-4 text-xs font-medium text-zinc-600">
           <div className="flex-1" />
           {inlineFields.map((field) => (
-            <div key={field.name} className="w-24 shrink-0">
+            <div key={field.name} className={`${inlineFieldWidth(field)} shrink-0`}>
               {field.label}
             </div>
           ))}

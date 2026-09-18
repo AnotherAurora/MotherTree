@@ -11,6 +11,9 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - Run `npm run typecheck` (`tsc --noEmit`) ONLY when the user explicitly requests it. Never run it automatically or as a side effect of other work (including schema or migration changes).
 - If typecheck is run and reports errors, fix them promptly.
 - If database schema or migrations were touched, keep `src/lib/database.types.generated.ts` in sync — but do not auto-run typecheck to confirm; only run it if the user asks.
+- Run `npm run lint` ONLY when the user explicitly requests it. Never run it automatically or as a side effect of other work.
+- When lint is requested, scope it to the files you changed (`npm run lint:changed -- <files>` or `npx eslint --quiet <files>`) instead of the whole repo. `npm run lint` already uses `--quiet`, so only errors are reported.
+- Pre-existing lint diagnostics are out of scope: do not fix or refactor unrelated code to clear them. Only address diagnostics your own change introduced.
 
 # Script & Database Modification Rules
 

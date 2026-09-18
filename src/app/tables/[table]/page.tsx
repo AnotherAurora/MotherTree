@@ -2,10 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Sidebar } from "@/components/admin/sidebar";
 import { TableManager } from "@/components/admin/table-manager";
-import {
-  listRecords,
-  resolveForeignKeyLabels,
-} from "@/lib/actions/crud";
+import { listRecords } from "@/lib/actions/crud";
 import { isAdminRuntimeEnabled } from "@/lib/admin-runtime";
 import {
   TABLE_CONFIG_MAP,
@@ -33,8 +30,7 @@ export default async function TablePage({ params }: PageProps) {
   const records = recordsResult.success ? recordsResult.data : [];
   const totalCount = recordsResult.success ? recordsResult.totalCount : 0;
   const listTruncated = recordsResult.success ? recordsResult.truncated : false;
-  const labelsResult = await resolveForeignKeyLabels(table, records);
-  const fkLabels = labelsResult.success ? labelsResult.data : {};
+  const fkLabels = recordsResult.success ? recordsResult.fkLabels : {};
 
   return (
     <div className="flex min-h-screen">

@@ -19,6 +19,11 @@ import {
   type EffectiveScalarOptions,
 } from "@/lib/path-carver/effective-value-scalar";
 import {
+  POSSE_EFFECT_MULTIPLIER,
+  isDoublePosseActive,
+  scalePosseManifestations,
+} from "@/lib/path-carver/double-posse";
+import {
   SPECIAL_INCREASE_POSSE_KEYFLARE_COST_TAG_ID,
   SUPPORT_KEYFLARE_TAG_ID,
   buildKeyflareToPosseManifestation,
@@ -47,6 +52,7 @@ import {
 } from "@/lib/path-carver/manifestation-apply";
 import {
   DEFAULT_ACCOUNT_LEVEL,
+  SPECIAL_ADDITIONAL_TEAM_MAX_HP_TAG_ID,
   computeTeamMaxHp,
   type TeamMaxHpResult,
 } from "@/lib/path-carver/team-max-hp";
@@ -136,6 +142,30 @@ function sumMaxHpUpTotal(
   return total;
 }
 
+/**
+ * Flat Max HP from Special.Additional Team Max HP (tag 185), dependency-scaled
+ * (e.g. dependency_stat=con → ceil(con × value_scalar)). Added to final team Max
+ * HP without the Max HP Up multiplier.
+ */
+function sumAdditionalMaxHpTotal(
+  manifestations: readonly Manifestation[],
+  awakenersById: ReadonlyMap<number, Awakener>,
+  tagsById: Readonly<Record<number, Tag>>,
+  scalarOpts?: EffectiveScalarOptions,
+): number {
+  let total = 0;
+  for (const m of manifestations) {
+    if (m.tagId !== SPECIAL_ADDITIONAL_TEAM_MAX_HP_TAG_ID) continue;
+    total += effectiveManifestationScalar(
+      m,
+      awakenersById,
+      tagsById,
+      scalarOpts,
+    );
+  }
+  return total;
+}
+
 /** Base Layer A sums only (no interactions). Uses dependency-scaled effective scalars. */
 export function aggregateTagScalarsById(
   manifestations: Manifestation[],
@@ -185,12 +215,38 @@ export function aggregateTagScalarsById(
  * Cause→When counts → Layer A triggered (×N) → team Max HP →
  * Base Tentacle Damage (aequor/benthos) → Layer B.
  */
+export type ReviewTagTotalsOptions = {
+  /**
+   * Skip the returned `steps` array. The engine still computes every total; this
+   * only avoids materializing the debug/display step list for callers (e.g. the
+   * Relic Picker ranking sweep) that never read it.
+   */
+  totalsOnly?: boolean;
+};
+
 export function computeReviewTagTotals(
   teamData: TeamData,
   applyContext: ManifestationApplyContext,
+  options: ReviewTagTotalsOptions = {},
 ): ReviewTagTotals {
+  // Support.Double Posse (tag 53): double the equipped posse's rows up front so
+  // the multiplier flows through provider pools, Cause→When counts, and Layer B.
+  const doublePosseActive = isDoublePosseActive(
+    teamData.manifestations,
+    applyContext,
+  );
+  const manifestations = scalePosseManifestations(
+    teamData.manifestations,
+    doublePosseActive ? POSSE_EFFECT_MULTIPLIER : 1,
+  );
+  const scaledPosseRowCount = doublePosseActive
+    ? manifestations.filter(
+        (m, i) => m.valueScalar !== teamData.manifestations[i]?.valueScalar,
+      ).length
+    : 0;
+
   // Pass 1: null-trigger only (ignore trigger gate — column is null).
-  const appliedNullTrigger = teamData.manifestations.filter(
+  const appliedNullTrigger = manifestations.filter(
     (m) =>
       !m.isBaseStatTransfer &&
       m.triggerCondition == null &&
@@ -308,6 +364,19 @@ export function computeReviewTagTotals(
         ]
       : [];
 
+  const doublePosseSteps: ScalarMathStep[] =
+    scaledPosseRowCount > 0
+      ? [
+          {
+            kind: "special",
+            label: "Support.Double Posse",
+            detail:
+              `posseMultiplier=${POSSE_EFFECT_MULTIPLIER}` +
+              ` posseRows=${scaledPosseRowCount}`,
+          },
+        ]
+      : [];
+
   const causeTotals = sumCauseTotals(
     [...appliedNullTrigger, ...allTransfers],
     awakenersById,
@@ -342,7 +411,7 @@ export function computeReviewTagTotals(
 
   // Pass 2: triggered rows — same Layer A gates + count > 0, scaled ×N.
   const appliedTriggered: Manifestation[] = [];
-  for (const m of teamData.manifestations) {
+  for (const m of manifestations) {
     if (m.isBaseStatTransfer) continue;
     if (m.triggerCondition == null) continue;
     if (!isManifestationApplied(m, applyWithTriggers)) continue;
@@ -363,10 +432,28 @@ export function computeReviewTagTotals(
     teamData.tagsById,
     earlyScalarOpts,
   );
+  // Special.Additional Team Max HP — flat, dependency-scaled, exempt from Max HP Up.
+  const additionalMaxHp = sumAdditionalMaxHpTotal(
+    appliedBeforeTentacle,
+    awakenersById,
+    teamData.tagsById,
+    earlyScalarOpts,
+  );
   const teamMaxHp = computeTeamMaxHp({
     awakeners: totalAwakeners,
     maxHpUpTotal,
+    additionalMaxHp,
   });
+  const additionalMaxHpSteps: ScalarMathStep[] =
+    additionalMaxHp !== 0
+      ? [
+          {
+            kind: "special",
+            label: "Special.Additional Team Max HP",
+            detail: `flat=${additionalMaxHp} (exempt from Max HP Up)`,
+          },
+        ]
+      : [];
 
   // Base Tentacle Damage (aequor / benthos) after team Max HP.
   const tentacleMode = resolveBaseTentacleMode(
@@ -449,7 +536,7 @@ export function computeReviewTagTotals(
     ...teamData,
     awakeners: totalAwakeners,
     manifestations: [
-      ...teamData.manifestations.filter(
+      ...manifestations.filter(
         (m) =>
           !m.isBaseStatTransfer &&
           !(tentacleSynth != null && isSupersededBaseTentacleRtm(m)),
@@ -469,16 +556,21 @@ export function computeReviewTagTotals(
     teamMaxHp.finalMaxHp,
     applyContext.teamRealms,
     hitCountByManifestationKey,
+    options.totalsOnly !== true,
   );
   return {
     totalsByTagId: result.totalsByTagId,
-    steps: [
-      ...harmonySteps,
-      ...keyflareSteps,
-      ...lemurianSteps,
-      ...tentacleSteps,
-      ...result.steps,
-    ],
+    steps: options.totalsOnly
+      ? []
+      : [
+          ...harmonySteps,
+          ...keyflareSteps,
+          ...doublePosseSteps,
+          ...lemurianSteps,
+          ...additionalMaxHpSteps,
+          ...tentacleSteps,
+          ...result.steps,
+        ],
     reviewTeamData,
     triggerCounts,
     teamMaxHp,
