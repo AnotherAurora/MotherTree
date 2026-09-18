@@ -107,7 +107,7 @@ function readStoredResearchInputs(): StoredResearchInputs | null {
       Number.isFinite(o.ownedPosseCount)
         ? clampOwnedPosseCount(o.ownedPosseCount)
         : DEFAULT_OWNED_POSSE_COUNT;
-    const autoUpdate = typeof o.autoUpdate === "boolean" ? o.autoUpdate : true;
+    const autoUpdate = typeof o.autoUpdate === "boolean" ? o.autoUpdate : false;
     const negligiblePercent =
       typeof o.negligiblePercent === "number" &&
       Number.isFinite(o.negligiblePercent)
@@ -224,7 +224,7 @@ export function RelicPicker({
   );
   const [hsr, setHsr] = useState(false);
   const [autoUpdate, setAutoUpdate] = useState(
-    initialResearchInputs?.autoUpdate ?? true,
+    initialResearchInputs?.autoUpdate ?? false,
   );
   const [negligiblePercentText, setNegligiblePercentText] = useState(
     String(
