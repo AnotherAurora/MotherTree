@@ -733,8 +733,10 @@ export function useRelicRanking({
     currentContext != null &&
     contextMatches(outcome.context, currentContext) &&
     (outcome.result != null || outcome.error != null);
+  const noDamageDealer = damageDealerAwakenerIds.length === 0;
   const computing =
-    inFlight || (autoUpdate && currentContext != null && !isCurrent);
+    !noDamageDealer &&
+    (inFlight || (autoUpdate && currentContext != null && !isCurrent));
   const stale =
     !autoUpdate && currentContext != null && outcome != null && !isCurrent;
   // Results are only ever an outcome (a fully settled sweep); partial chunk

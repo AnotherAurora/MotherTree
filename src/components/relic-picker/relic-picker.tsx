@@ -491,7 +491,8 @@ export function RelicPicker({
   // stays expanded so the loader reads as inside the section. In manual mode
   // idle, no sweep is running, so the last results stay interactive.
   const rankingBusy = computing;
-  const impactLoading = hasAwakener && (teamLoading || computing);
+  const impactLoading =
+    hasDamageDealer && (computing || (autoUpdate && teamLoading));
   const canCalculate = activeTeamData != null && relicCatalog != null;
   const calculateDisabled =
     computing || !canCalculate || (!stale && ranking != null);
