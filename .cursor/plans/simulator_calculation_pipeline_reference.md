@@ -241,7 +241,7 @@ Exact sequence (aggregate-tag-scalars.ts:202-533):
 9. **Cause → When counts** — `sumCauseTotals` over `appliedNullTrigger + allTransfers` (uses provider pool + `layerAContribution`), then `buildTriggerCounts` maps `Cause`→`When` (`88→89`, `126→128`, `142→143`, `52→129`) with `floor(sum)` and applies presence triggers (`PRESENCE_TRIGGER_TAG_IDS`; same-id When = `floor(total)`). Then Lemurian synergy merge.
 10. **Triggered Layer A** (`appliedTriggered`) — rows with non-null `triggerCondition` that pass the gate at `count > 0`, scaled by `triggerApplyMultiplier`.
 11. `appliedBeforeTentacle = appliedNullTrigger + allTransfers + appliedTriggered`.
-12. **Team Max HP** (team-max-hp.ts:81): `maxHpUpTotal` = sum tag 130 over `appliedBeforeTentacle`; `averageLevel = ceil(Σlevels/4)`; `effectiveHpLevel = accountLevel if account > avg else ceil((account+avg)/2)`; `baseline = ceil(Σcon * HpMultiplier[effectiveHpLevel])`; `bonus = ceil(baseline * maxHpUpTotal)`; `final = baseline + bonus`. Path Carver defaults: account 60, awakener level 60.
+12. **Team Max HP** (team-max-hp.ts:81): `maxHpUpTotal` = sum tag 130 over `appliedBeforeTentacle`; `additionalMaxHp` = sum tag 185 (`Special.Additional Team Max HP`) over `appliedBeforeTentacle`, dependency-scaled (e.g. `dependency_stat=con` → `ceil(con × value_scalar)`); `averageLevel = ceil(Σlevels/4)`; `effectiveHpLevel = accountLevel if account > avg else ceil((account+avg)/2)`; `baseline = ceil(Σcon * HpMultiplier[effectiveHpLevel])`; `bonus = ceil(baseline * maxHpUpTotal)`; `final = baseline + bonus + additionalMaxHp` (the additional is exempt from the Max HP Up multiplier). Path Carver defaults: account 60, awakener level 60.
 13. **Base Tentacle Damage** (base-tentacle-damage.ts:132): only when effective realm includes Aequor (id 4) or Benthos Aequor (id 5), Benthos preferred.
     - Normal Aequor: `avgAtk = Σ ceil(atk*(1+atkPer/100)) / 4`; `rawAtk = ceil(avgAtk * Ocean[level] * 0.2)`; `hpTerm = ceil(finalMaxHp*0.01) * chaosStacks`; `base = rawAtk + hpTerm`.
     - Benthos: `base = ceil(finalMaxHp*(0.05 + 0.01*chaosStacks))`.
@@ -417,6 +417,7 @@ Self-contained per-ATM bonus on the attached ATM's single-hit base. `modifierTag
 | `Special.Increase Base Keyflare` | 131 | awakener-base-stats.ts |
 | `Special.Increase Base ATK` / `DEF` | 153 / 154 | awakener-base-stats.ts |
 | `Special.Increase Base CON` | 184 | awakener-base-stats.ts |
+| `Special.Additional Team Max HP` | 185 | team-max-hp.ts / aggregate-tag-scalars.ts |
 | `Defender.Base Death Resist` | 12 | death-resist-trigger.ts |
 | `...In Mission Death Resist` | 147 | death-resist-trigger.ts |
 | `Special.Cause.Death Resist Trigger` | 88 | death-resist-trigger.ts |

@@ -52,6 +52,7 @@ import {
 } from "@/lib/path-carver/manifestation-apply";
 import {
   DEFAULT_ACCOUNT_LEVEL,
+  SPECIAL_ADDITIONAL_TEAM_MAX_HP_TAG_ID,
   computeTeamMaxHp,
   type TeamMaxHpResult,
 } from "@/lib/path-carver/team-max-hp";
@@ -131,6 +132,30 @@ function sumMaxHpUpTotal(
   let total = 0;
   for (const m of manifestations) {
     if (m.tagId !== DEFENDER_MAX_HP_UP_TAG_ID) continue;
+    total += effectiveManifestationScalar(
+      m,
+      awakenersById,
+      tagsById,
+      scalarOpts,
+    );
+  }
+  return total;
+}
+
+/**
+ * Flat Max HP from Special.Additional Team Max HP (tag 185), dependency-scaled
+ * (e.g. dependency_stat=con → ceil(con × value_scalar)). Added to final team Max
+ * HP without the Max HP Up multiplier.
+ */
+function sumAdditionalMaxHpTotal(
+  manifestations: readonly Manifestation[],
+  awakenersById: ReadonlyMap<number, Awakener>,
+  tagsById: Readonly<Record<number, Tag>>,
+  scalarOpts?: EffectiveScalarOptions,
+): number {
+  let total = 0;
+  for (const m of manifestations) {
+    if (m.tagId !== SPECIAL_ADDITIONAL_TEAM_MAX_HP_TAG_ID) continue;
     total += effectiveManifestationScalar(
       m,
       awakenersById,
@@ -407,10 +432,28 @@ export function computeReviewTagTotals(
     teamData.tagsById,
     earlyScalarOpts,
   );
+  // Special.Additional Team Max HP — flat, dependency-scaled, exempt from Max HP Up.
+  const additionalMaxHp = sumAdditionalMaxHpTotal(
+    appliedBeforeTentacle,
+    awakenersById,
+    teamData.tagsById,
+    earlyScalarOpts,
+  );
   const teamMaxHp = computeTeamMaxHp({
     awakeners: totalAwakeners,
     maxHpUpTotal,
+    additionalMaxHp,
   });
+  const additionalMaxHpSteps: ScalarMathStep[] =
+    additionalMaxHp !== 0
+      ? [
+          {
+            kind: "special",
+            label: "Special.Additional Team Max HP",
+            detail: `flat=${additionalMaxHp} (exempt from Max HP Up)`,
+          },
+        ]
+      : [];
 
   // Base Tentacle Damage (aequor / benthos) after team Max HP.
   const tentacleMode = resolveBaseTentacleMode(
@@ -524,6 +567,7 @@ export function computeReviewTagTotals(
           ...keyflareSteps,
           ...doublePosseSteps,
           ...lemurianSteps,
+          ...additionalMaxHpSteps,
           ...tentacleSteps,
           ...result.steps,
         ],

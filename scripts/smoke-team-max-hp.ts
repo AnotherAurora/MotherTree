@@ -346,4 +346,40 @@ console.log("\nDR synthetic Max HP Up + computeReviewTagTotals");
   );
 }
 
+console.log("\nSpecial.Additional Team Max HP (flat, exempt from Max HP Up)");
+{
+  const base = computeTeamMaxHp({
+    awakeners: [{ con: 117 }],
+    maxHpUpTotal: 0,
+  });
+  const withFlat = computeTeamMaxHp({
+    awakeners: [{ con: 117 }],
+    maxHpUpTotal: 0,
+    additionalMaxHp: 1755,
+  });
+  assert(
+    withFlat.additionalMaxHp === 1755,
+    `additionalMaxHp surfaced (got ${withFlat.additionalMaxHp})`,
+  );
+  assert(
+    withFlat.finalMaxHp === base.finalMaxHp + 1755,
+    `flat add is not scaled by Max HP Up (got ${withFlat.finalMaxHp})`,
+  );
+
+  const withBonus = computeTeamMaxHp({
+    awakeners: [{ con: 117 }],
+    maxHpUpTotal: 0.1,
+    additionalMaxHp: 1755,
+  });
+  assert(
+    withBonus.bonusMaxHp === Math.ceil(withBonus.baselineMaxHp * 0.1),
+    "Max HP Up bonus only applies to baseline",
+  );
+  assert(
+    withBonus.finalMaxHp ===
+      withBonus.baselineMaxHp + withBonus.bonusMaxHp + 1755,
+    `final = baseline + bonus + flat (got ${withBonus.finalMaxHp})`,
+  );
+}
+
 console.log("\nAll smoke-team-max-hp checks passed.");

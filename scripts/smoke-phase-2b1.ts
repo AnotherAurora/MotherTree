@@ -26,6 +26,7 @@ import {
   inMissionToCauseTrigger,
 } from "../src/lib/path-carver/death-resist-trigger";
 import { computeReviewTagTotals } from "../src/lib/path-carver/aggregate-tag-scalars";
+import { SPECIAL_ADDITIONAL_TEAM_MAX_HP_TAG_ID } from "../src/lib/path-carver/team-max-hp";
 import {
   createManifestationApplyContext,
   evaluateManifestationApply,
@@ -903,6 +904,49 @@ console.log("\nDeath Resist full tag 12 (ATM + Base stat) via computeReviewTagTo
   assert(
     synth147?.tagName === inMissionTag.tagName,
     `In Mission name resolved (got ${synth147?.tagName})`,
+  );
+}
+
+console.log("\nSpecial.Additional Team Max HP (tag 185, con-scaled flat)");
+{
+  const addTag = makeTag(
+    SPECIAL_ADDITIONAL_TEAM_MAX_HP_TAG_ID,
+    "Special.Additional Team Max HP",
+    false,
+  );
+  const tagsById: Record<number, Tag> = { [addTag.id]: addTag };
+  const awakener = makeAwakener({ id: 1, con: 117 });
+  const atm = makeManifestation({
+    id: 30,
+    tagId: addTag.id,
+    tagName: addTag.tagName,
+    valueScalar: 15,
+    dependencyStat: "con",
+    targetType: "self",
+    awakenerId: 1,
+  });
+  const teamData: TeamData = {
+    ...createEmptyTeamData(),
+    awakeners: [awakener],
+    manifestations: [atm],
+    tagsById,
+  };
+  const { teamMaxHp, totalsByTagId } = computeReviewTagTotals(
+    teamData,
+    createManifestationApplyContext([awakener], []),
+  );
+  assert(
+    teamMaxHp.additionalMaxHp === 1755,
+    `flat con-scaled 117×15 = 1755 (got ${teamMaxHp.additionalMaxHp})`,
+  );
+  assert(
+    teamMaxHp.finalMaxHp ===
+      teamMaxHp.baselineMaxHp + teamMaxHp.bonusMaxHp + 1755,
+    `final = baseline + bonus + flat (got ${teamMaxHp.finalMaxHp})`,
+  );
+  assert(
+    totalsByTagId.get(addTag.id) === 1755,
+    `tag 185 total 1755 (got ${totalsByTagId.get(addTag.id)})`,
   );
 }
 
