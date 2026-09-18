@@ -228,7 +228,7 @@ Exact sequence (aggregate-tag-scalars.ts:202-533):
 
 0. **Support.Double Posse** (tag 53) — `isDoublePosseActive` (`double-posse.ts`) checks the team for an applied tag-53 row; when present, a working `manifestations` copy scales every `sourceKind === "posse"` row's `value_scalar` by `POSSE_EFFECT_MULTIPLIER` (2). Presence-only (multiple sources still ×2). This copy replaces `teamData.manifestations` for the rest of the pipeline, so provider pools, Cause→When, hitCount, Layer B, and `reviewTeamData` all see the doubled posse. The Keyflare→Create.Posse synthetic (tag 52) is `sourceKind: "awakener"` and is never scaled by this pre-pass. A `special` debug step `Support.Double Posse` is emitted when at least one posse row was scaled.
 1. **Null-trigger Layer A set** — working `manifestations` filtered to `!isBaseStatTransfer && triggerCondition == null && applied` (`appliedNullTrigger`).
-2. **Total base stats** — `computeAwakenerTotalBaseStats(teamData, appliedNullTrigger)` (awakener-base-stats.ts:261): clone table stats → sum gear `stat`/`stat_amount` → DR (`keyflare` `ceil(15 + 144*(x-15)/(x+129))`; `aliemus` `ceil(x*(1 - (x/0.2)/(x/0.2+360)))`; `realmMastery` ceil) → apply `Special.Increase Base Keyflare/ATK/DEF` (tags 131/153/154) against a **frozen pre-boost snapshot** (additive scalars, `ceil(pre * (1+Σ) - 1e-10)`). Realm/relic increase rows hit every awakener; non-realm hit only the owner.
+2. **Total base stats** — `computeAwakenerTotalBaseStats(teamData, appliedNullTrigger)` (awakener-base-stats.ts:261): clone table stats → sum gear `stat`/`stat_amount` → DR (`keyflare` `ceil(15 + 144*(x-15)/(x+129))`; `aliemus` `ceil(x*(1 - (x/0.2)/(x/0.2+360)))`; `realmMastery` ceil) → apply `Special.Increase Base Keyflare/ATK/DEF/CON` (tags 131/153/154/184) against a **frozen pre-boost snapshot** (additive scalars, `ceil(pre * (1+Σ) - 1e-10)`). Realm/relic increase rows hit every awakener; non-realm hit only the owner.
 3. **Base-stat transfers** — `buildBaseStatTransferManifestations` (tags 16 amp/aoe, 18 crit rate/self, 17 crit dmg/self, 63 realm mastery/aoe, 28 aliemus/self, 12 death resist/aoe), absolute scalars, `isBaseStatTransfer: true`.
 4. **Keyflare Harmony** — `computeKeyflareHarmonyScalar`: `perNonExalted = ceil(avg(keyflareRegen) * 2)`, `valueScalar = perNonExalted * 4`; synthetic `Support.Keyflare` (tag 37), always on.
 5. `transfers = baseTransfers + harmonySynth`. `earlyScalarOpts` has no `teamMaxHp`.
@@ -416,6 +416,7 @@ Self-contained per-ATM bonus on the attached ATM's single-hit base. `modifierTag
 | `Special.Increase Posse Keyflare Cost` | 155 | keyflare-to-posse.ts |
 | `Special.Increase Base Keyflare` | 131 | awakener-base-stats.ts |
 | `Special.Increase Base ATK` / `DEF` | 153 / 154 | awakener-base-stats.ts |
+| `Special.Increase Base CON` | 184 | awakener-base-stats.ts |
 | `Defender.Base Death Resist` | 12 | death-resist-trigger.ts |
 | `...In Mission Death Resist` | 147 | death-resist-trigger.ts |
 | `Special.Cause.Death Resist Trigger` | 88 | death-resist-trigger.ts |

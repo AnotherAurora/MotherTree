@@ -12,6 +12,7 @@ import {
   computeAwakenerTotalBaseStats,
   REQUIRED_BASE_STAT_TAG_IDS,
   SPECIAL_INCREASE_BASE_ATK_TAG_ID,
+  SPECIAL_INCREASE_BASE_CON_TAG_ID,
   SPECIAL_INCREASE_BASE_DEF_TAG_ID,
   SPECIAL_INCREASE_BASE_KEYFLARE_TAG_ID,
 } from "../src/lib/path-carver/awakener-base-stats";
@@ -333,6 +334,68 @@ console.log("\nSpecial.Increase Base DEF stacking (additive on original)");
     applied,
   );
   assert(total.def === 130, `ceil(100 * 1.3) = 130 (got ${total.def})`);
+}
+
+console.log("\nSpecial.Increase Base CON stacking (additive on original)");
+{
+  const awakener = makeAwakener({ id: 1, con: 100 });
+  const specialTag = makeTag(
+    SPECIAL_INCREASE_BASE_CON_TAG_ID,
+    "Special.Increase Base CON",
+  );
+  const applied = [
+    makeManifestation({
+      id: 1,
+      tagId: specialTag.id,
+      tagName: specialTag.tagName,
+      valueScalar: 0.1,
+    }),
+    makeManifestation({
+      id: 2,
+      tagId: specialTag.id,
+      tagName: specialTag.tagName,
+      valueScalar: 0.2,
+    }),
+  ];
+  const [total] = computeAwakenerTotalBaseStats(
+    {
+      awakeners: [awakener],
+      gearStatContributions: [],
+      tagsById: { [specialTag.id]: specialTag },
+    },
+    applied,
+  );
+  assert(total.con === 130, `ceil(100 * 1.3) = 130 (got ${total.con})`);
+}
+
+console.log("\ndependency_stat uses post–Special.Increase con");
+{
+  const awakener = makeAwakener({ id: 1, con: 100 });
+  const specialTag = makeTag(
+    SPECIAL_INCREASE_BASE_CON_TAG_ID,
+    "Special.Increase Base CON",
+  );
+  const applied = [
+    makeManifestation({
+      id: 1,
+      tagId: specialTag.id,
+      tagName: specialTag.tagName,
+      valueScalar: 0.1,
+    }),
+  ];
+  const [total] = computeAwakenerTotalBaseStats(
+    {
+      awakeners: [awakener],
+      gearStatContributions: [],
+      tagsById: { [specialTag.id]: specialTag },
+    },
+    applied,
+  );
+  // ceil(100 * 1.1) = 110; raw 2 * 110 → 220
+  assert(
+    scaleValueScalar(2, "con", total, "awakener") === 220,
+    `con dep after boost: 2 * 110 → 220 (got ${scaleValueScalar(2, "con", total, "awakener")})`,
+  );
 }
 
 console.log("\nSpecial.Increase Base ATK realm fans out to all awakeners");
@@ -765,6 +828,10 @@ console.log("\nDeath Resist full tag 12 (ATM + Base stat) via computeReviewTagTo
   assert(
     REQUIRED_BASE_STAT_TAG_IDS.includes(DEFENDER_MAX_HP_UP_TAG_ID),
     "required tags include Max HP Up 130",
+  );
+  assert(
+    REQUIRED_BASE_STAT_TAG_IDS.includes(SPECIAL_INCREASE_BASE_CON_TAG_ID),
+    "required tags include Special.Increase Base CON 184",
   );
 
   const baseTag = makeTag(

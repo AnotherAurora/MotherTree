@@ -46,7 +46,7 @@ export function ReviewTagsBaseStatsDebug({
         </p>
         <p className="font-mono text-xs text-zinc-600">
           Total base stats per awakener (table + wheels + covenant; keyflare DR;
-          Special.Increase Base Keyflare / ATK / DEF). Same values used for
+          Special.Increase Base Keyflare / ATK / DEF / CON). Same values used for
           dependency_stat.
         </p>
       </div>

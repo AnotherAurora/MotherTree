@@ -30,6 +30,8 @@ export const SPECIAL_INCREASE_BASE_KEYFLARE_TAG_ID = 131;
 export const SPECIAL_INCREASE_BASE_ATK_TAG_ID = 153;
 /** Special.Increase Base DEF — boosts def after gear (+ DR for other stats). */
 export const SPECIAL_INCREASE_BASE_DEF_TAG_ID = 154;
+/** Special.Increase Base CON — boosts con after gear. */
+export const SPECIAL_INCREASE_BASE_CON_TAG_ID = 184;
 
 /**
  * Base stats that become synthetic Support/Defender tags.
@@ -81,6 +83,7 @@ export const REQUIRED_BASE_STAT_TAG_IDS: readonly number[] = [
   SPECIAL_INCREASE_BASE_KEYFLARE_TAG_ID,
   SPECIAL_INCREASE_BASE_ATK_TAG_ID,
   SPECIAL_INCREASE_BASE_DEF_TAG_ID,
+  SPECIAL_INCREASE_BASE_CON_TAG_ID,
   IN_MISSION_DEATH_RESIST_TAG_ID,
   SPECIAL_CAUSE_DEATH_RESIST_TRIGGER_TAG_ID,
   DEFENDER_MAX_HP_UP_TAG_ID,
@@ -256,7 +259,7 @@ function applySpecialIncreaseBaseStat(
 
 /**
  * Per-awakener total base stats: table stats + equipped gear, then DR, then
- * Special.Increase Base Keyflare / ATK / DEF. Result feeds dependency_stat scaling.
+ * Special.Increase Base Keyflare / ATK / DEF / CON. Result feeds dependency_stat scaling.
  */
 export function computeAwakenerTotalBaseStats(
   teamData: Pick<TeamData, "awakeners" | "gearStatContributions" | "tagsById">,
@@ -303,6 +306,17 @@ export function computeAwakenerTotalBaseStats(
     (a) => a.def,
     (a, v) => {
       a.def = v;
+    },
+  );
+  applySpecialIncreaseBaseStat(
+    byId,
+    appliedManifestations,
+    tagsById,
+    preBoostById,
+    SPECIAL_INCREASE_BASE_CON_TAG_ID,
+    (a) => a.con,
+    (a, v) => {
+      a.con = v;
     },
   );
 
