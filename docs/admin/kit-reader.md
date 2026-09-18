@@ -229,6 +229,8 @@ Helpers: [`description-args.ts`](../../src/lib/kit-reader/description-args.ts), 
 
 ## Percent vs linear `dependency_stat`
 
+Canonical agent reference: [`kit-reader-field-rules.md`](kit-reader-field-rules.md) (shared by the kit-reader and kit-reader-review skills).
+
 Kit packs export `lexicon.percentDependencyStats` (`damage_amp`, `crit_rate`, `crit_dmg`, `sigil_yield`, `death_resist`). Path Carver scales these with `(value_scalar×100) × (stat×100)` where awakener stat is a **fraction** (33.6% → `0.336`). Linear stats (`realm_mastery`, `con`, `atk`, …) use `value_scalar × stat` only.
 
 | Kit wording                              | `dependency_stat`        | `value_scalar` formula | Example                                        |

@@ -27,10 +27,11 @@ All paths below are repo-root-relative — read each from the workspace root.
 
 1. The exported kit pack path from the prompt (usually `sample-data/kit-reader/{slug}.kit.json`)
 2. `docs/admin/kit-reader.md`
-3. `docs/admin/atm-and-local-interaction-inputs.md`
-4. `src/lib/kit-reader/proposal-schema.ts`
-5. `src/lib/kit-reader/atm-metadata.ts` — `buildAtmMetadata` / `detectIsAccumulating`
-6. `src/lib/kit-reader/proposal-heuristics.ts` — enjoy detection, Steal STR pairing, **Devour copy provider group**, Tentacle DMG dual locals, aoe tag prefixes, **percent vs linear dependency_stat helpers**
+3. `docs/admin/kit-reader-field-rules.md` — **canonical** percent vs linear `dependency_stat` + `resolvedArgMeta` arg-scaling rules (shared with the review skill)
+4. `docs/admin/atm-and-local-interaction-inputs.md`
+5. `src/lib/kit-reader/proposal-schema.ts`
+6. `src/lib/kit-reader/atm-metadata.ts` — `buildAtmMetadata` / `detectIsAccumulating`
+7. `src/lib/kit-reader/proposal-heuristics.ts` — enjoy detection, Steal STR pairing, **Devour copy provider group**, Tentacle DMG dual locals, aoe tag prefixes, **percent vs linear dependency_stat helpers**
 
 ## Workflow
 
@@ -165,7 +166,7 @@ When **ATM** `tagName` matches any prefix in `lexicon.aoeTagPrefixes` (includes 
 - Prefer `*.Fixed` when both parent and Fixed exist — **except** the `Attacker.Active Damage` tree (rarely fixed). Default Deal DMG → `Attacker.Active Damage`; use Fixed Damage only when kit text says Fixed / Max HP DMG.
 - Ambiguous / unmapped → `status: "needs_review"` (or `unsupported` for ignore-list). Never guess a new tag string.
 - Dependency wording (Aliemus Regen Level, etc.) → `dependencyStat`, not a Support tag, when that is the ATM/local pattern.
-- **Percent vs linear `dependencyStat`:** kit says **“every 1%”** of DR / Damage AMP / Crit Rate / etc. (see pack `lexicon.percentDependencyStats`) → `valueScalarPerPercentPointOfPercentDep(R)` (`R/10000`). Kit says **“every 1”** RM / level / flat unit → `valueScalarPerUnitLinearDep(R)` (`R/100`). **Do not** copy Casiah RM `0.002` onto `death_resist`. Use `previewAtmEffectiveScalar` to sanity-check (e.g. Cinders: 33.6% DR → +1.68% Shield at `0.000005`).
+- **Percent vs linear `dependencyStat`:** kit says **“every 1%”** of DR / Damage AMP / Crit Rate / etc. (see pack `lexicon.percentDependencyStats`) → `valueScalarPerPercentPointOfPercentDep(R)` (`R/10000`). Kit says **“every 1”** RM / level / flat unit → `valueScalarPerUnitLinearDep(R)` (`R/100`). **Do not** copy Casiah RM `0.002` onto `death_resist`. Use `previewAtmEffectiveScalar` to sanity-check (e.g. Cinders: 33.6% DR → +1.68% Shield at `0.000005`). Canonical reference: `docs/admin/kit-reader-field-rules.md`.
 
 ## SKeyDB arg scaling (`resolvedArgMeta`)
 
@@ -183,6 +184,8 @@ Covers **`[Power:Arg]` → STR**, **`[Block:Arg]` → Shield**, **`[Damage:Arg]`
 **“equal {Poison}” / “equal {Bleed}”** — aftereffect local on the damage ATM (same scalar/dep as damage), not a separate arg row.
 
 **“Trigger [ArgN]% {Poison}”** — flat trigger fraction when meta has no `stat`; not stack-application `Attacker.Poison`.
+
+Canonical reference: `docs/admin/kit-reader-field-rules.md`.
 
 ## Ignore list (omit from proposal JSON)
 
