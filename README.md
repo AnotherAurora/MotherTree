@@ -1,6 +1,6 @@
 # Mother Tree
 
-**root version** — a public Morimens reference: Search, Calculators, and a Manual.
+**fruit version** — a public Morimens reference: Search, Calculators, and a Manual.
 
 **Live site:** [https://mothertree.vercel.app](https://mothertree.vercel.app)
 

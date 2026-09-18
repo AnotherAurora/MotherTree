@@ -37,7 +37,7 @@ export default function AboutPage() {
             channels obsolete.
           </p>
           <p>
-            Root Version focuses on Morimens&apos; data and the basics of how
+            Fruit Version focuses on Morimens&apos; data and the basics of how
             the game functions. It cannot build teams yet. However, future
             versions will.
           </p>

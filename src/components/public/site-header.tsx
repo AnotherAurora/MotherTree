@@ -52,7 +52,7 @@ export function SiteHeader() {
         >
           <MotherTreeMark className="text-2xl leading-none" />
           <p className="mt-0.5 text-xs tracking-[0.14em] text-[var(--mt-ink-muted)]">
-            root version
+            fruit version
           </p>
         </Link>
 
