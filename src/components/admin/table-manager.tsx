@@ -289,14 +289,10 @@ export function TableManager({
       return;
     }
 
-    const labelResult = await resolveForeignKeyLabels(config.name, result.data);
-
     setRecords(result.data);
     setTotalCount(result.totalCount);
     setListTruncated(result.truncated);
-    if (labelResult.success) {
-      setFkLabels(labelResult.data);
-    }
+    setFkLabels(result.fkLabels);
     setLoading(false);
   }
 
@@ -522,14 +518,10 @@ export function TableManager({
                     setLoading(true);
                     const result = await listRecords(config.name, deletedOnly);
                     if (result.success) {
-                      const labelResult = await resolveForeignKeyLabels(
-                        config.name,
-                        result.data,
-                      );
                       setRecords(result.data);
                       setTotalCount(result.totalCount);
                       setListTruncated(result.truncated);
-                      if (labelResult.success) setFkLabels(labelResult.data);
+                      setFkLabels(result.fkLabels);
                     }
                     setLoading(false);
                   }}

@@ -75,6 +75,7 @@ export type ListRecordsResult =
       data: Record<string, unknown>[];
       totalCount: number;
       truncated: boolean;
+      fkLabels: Record<string, string>;
     }
   | { success: false; error: string };
 
@@ -290,11 +291,22 @@ export async function listRecords(
       records = await attachDesireAnchoredAwakenerCounts(supabase, records);
     }
 
+    let fkLabels: Record<string, string> = {};
+    try {
+      const labelResult = await resolveForeignKeyLabels(config.name, records);
+      if (labelResult.success) {
+        fkLabels = labelResult.data;
+      }
+    } catch {
+      /* non-fatal — labels are cosmetic */
+    }
+
     return {
       success: true,
       data: records,
       totalCount: records.length,
       truncated: paged.truncated,
+      fkLabels,
     };
   } catch (error) {
     return {
