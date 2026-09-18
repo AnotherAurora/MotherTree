@@ -127,11 +127,7 @@ function formatPercent(value: number | null): string {
 }
 
 function formatTotal(value: number): string {
-  if (Number.isInteger(value)) return value.toLocaleString("en-US");
-  return value.toLocaleString("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
+  return Math.ceil(value).toLocaleString("en-US");
 }
 
 /**
