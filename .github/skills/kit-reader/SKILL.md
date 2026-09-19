@@ -28,7 +28,7 @@ All paths below are repo-root-relative — read each from the workspace root.
 1. The exported kit pack path from the prompt (usually `sample-data/kit-reader/{slug}.kit.json`)
 2. `docs/admin/kit-reader.md`
 3. `docs/admin/kit-reader-field-rules.md` — **canonical** percent vs linear `dependency_stat` + `resolvedArgMeta` arg-scaling rules (shared with the review skill)
-4. `docs/admin/atm-and-local-interaction-inputs.md`
+4. `.reference/atm-and-local-interaction-inputs.md`
 5. `src/lib/kit-reader/proposal-schema.ts`
 6. `src/lib/kit-reader/atm-metadata.ts` — `buildAtmMetadata` / `detectIsAccumulating`
 7. `src/lib/kit-reader/proposal-heuristics.ts` — enjoy detection, Steal STR pairing, **Devour copy provider group**, Tentacle DMG dual locals, aoe tag prefixes, **percent vs linear dependency_stat helpers**

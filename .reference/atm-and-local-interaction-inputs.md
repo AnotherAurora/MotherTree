@@ -338,4 +338,3 @@ if op == "multiply_one_plus":
   - **`amplifies_subject`:** prefix target + exclusion (tag + descendants), unchanged.
   - Local **`aftereffect`:** already exact `target_tag_id` only.
 - Tag percent / additive combine: **`tag.is_percent`**, **`tag.is_additive`**, **`tag.layer`**
-- Full scheduling (closure look-ahead, deferred Trigger): live in Review Tags (Phase 3c); design locks in `.cursor/plans/simulator_phased_plan_7b0fcf95.plan.md`

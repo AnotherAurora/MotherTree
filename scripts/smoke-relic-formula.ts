@@ -3,7 +3,7 @@
  * Run: npx tsx scripts/smoke-relic-formula.ts
  *
  * Formula cases are the SKeyDB resolved defaults documented in
- * `.cursor/plans/relic_astral_reign_research_9f2c4b71.plan.md`
+ * `.reference/relic_astral_reign_research.md`
  * (accountLevel 50, ownedPosseCount 50, no HSR).
  */
 import { computeReviewTagTotals } from "../src/lib/path-carver/aggregate-tag-scalars";
