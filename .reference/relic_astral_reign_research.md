@@ -197,7 +197,7 @@ All 91 Standard Astral Reign relic families with an in-scope variant.
 | 65 | `relic-0261` | Safe Passage | `safe-passage` | N | ASTRAL_REIGN, FADED_LEGACY | Gold | Safe Passage+ |
 | 66 | `relic-0263` | Salvific Limb | `salvific-limb` | - | ASTRAL_REIGN, FADED_LEGACY | Cursed | - |
 | 67 | `relic-0264` | Serpent's Husk | `serpents-husk` | N | ASTRAL_REIGN, FADED_LEGACY | Gold | Serpent's Husk+ |
-| 68 | `relic-0265` | Severed Head Worm | `severed-head-worm` | N | ASTRAL_REIGN, FADED_LEGACY | Gold | Severed Head Worm+ |
+| 68 | `relic-0265` | Sparganum | `severed-head-worm` | N | ASTRAL_REIGN, FADED_LEGACY | Gold | Sparganum+ |
 | 69 | `relic-0269` | Silent Prelude | `silent-prelude` | N | ASTRAL_REIGN, FADED_LEGACY | Gold | Silent Prelude+ |
 | 70 | `relic-0271` | Silver Tongue | `silver-tongue` | N | ASTRAL_REIGN, FADED_LEGACY | Gold | Silver Tongue+ |
 | 71 | `relic-0273` | Solar Disc | `solar-disc` | N | ASTRAL_REIGN, FADED_LEGACY, EVENT | Gold | Solar Disc+ |
@@ -1896,12 +1896,12 @@ Args:
 }
 ```
 
-#### Severed Head Worm - Gold
+#### Sparganum - Gold
 
 - Relic: `relic-0265` | Slug: `severed-head-worm` | Rarity: `N`
-- Variant: `relic-variant-0464` | name: `Severed Head Worm+` | label: `Astral Reign - Gold` | variantType: `STANDARD`
+- Variant: `relic-variant-0464` | name: `Sparganum+` | label: `Astral Reign - Gold` | variantType: `STANDARD`
 - Categories: `ASTRAL_REIGN`, `FADED_LEGACY`
-- Aliases: Severed Head Worm+
+- Aliases: Sparganum+
 
 Template:
 

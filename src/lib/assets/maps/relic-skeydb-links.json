@@ -526,14 +526,6 @@
       "Gold": "relic-variant-0461"
     }
   },
-  "severed head worm": {
-    "slug": "severed-head-worm",
-    "category": "ASTRAL_REIGN",
-    "variants": {
-      "Silver": "relic-variant-0463",
-      "Gold": "relic-variant-0464"
-    }
-  },
   "silent prelude": {
     "slug": "silent-prelude",
     "category": "ASTRAL_REIGN",
@@ -556,6 +548,14 @@
     "variants": {
       "Silver": "relic-variant-0479",
       "Gold": "relic-variant-0480"
+    }
+  },
+  "sparganum": {
+    "slug": "severed-head-worm",
+    "category": "ASTRAL_REIGN",
+    "variants": {
+      "Silver": "relic-variant-0463",
+      "Gold": "relic-variant-0464"
     }
   },
   "spatial deflector": {
