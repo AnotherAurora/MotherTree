@@ -1,5 +1,11 @@
 import type { Enums } from "@/lib/database.types";
 import { ENUM_VALUES } from "@/lib/database.types";
+import {
+  AWAKENER_ENLIGHTENMENT_OPTIONS,
+  formatAwakenerEnlightenmentLabel,
+  isAwakenerEnlightenmentValue,
+  type AwakenerEnlightenmentValue as SearchAwakenerEnlightenmentValue,
+} from "@/lib/enlightenment-options";
 
 export type SearchTagOption = {
   id: number;
@@ -38,11 +44,14 @@ export type SearchFromValue = (typeof SEARCH_FROM_OPTIONS)[number]["value"];
 /** Assumed awakener enlightenment for Search (maps to required_enlightenment). */
 export {
   AWAKENER_ENLIGHTENMENT_OPTIONS as SEARCH_AWAKENER_ENLIGHTENMENT_OPTIONS,
-  DEFAULT_AWAKENER_ENLIGHTENMENT as SEARCH_DEFAULT_AWAKENER_ENLIGHTENMENT,
   formatAwakenerEnlightenmentLabel,
   isAwakenerEnlightenmentValue,
-  type AwakenerEnlightenmentValue as SearchAwakenerEnlightenmentValue,
-} from "@/lib/enlightenment-options";
+  type SearchAwakenerEnlightenmentValue,
+};
+
+/** Search defaults to AA (15) as the assumed awakener enlightenment. */
+export const SEARCH_DEFAULT_AWAKENER_ENLIGHTENMENT: SearchAwakenerEnlightenmentValue =
+  15;
 
 /** Exact dotted segments dropped from Search display labels. */
 export const SEARCH_TAG_LABEL_DROPPED_SEGMENTS = new Set([

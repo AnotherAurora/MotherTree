@@ -58,7 +58,6 @@ const SEARCH_FILTERS_STORAGE_KEY = "mt.search.filters";
 
 type StoredSearchSelections = {
   filters: SearchFilterState;
-  awakenerEnlightenment: SearchAwakenerEnlightenmentValue;
 };
 
 function isSearchTagFamily(value: unknown): value is SearchTagFamily {
@@ -181,12 +180,7 @@ function readStoredSearchSelections(
     if (typeof parsed !== "object" || parsed === null) return null;
     const o = parsed as Record<string, unknown>;
     const filters = normalizeStoredFilters(o.filters, options);
-    const awakenerEnlightenment: SearchAwakenerEnlightenmentValue =
-      typeof o.awakenerEnlightenment === "number" &&
-      isAwakenerEnlightenmentValue(o.awakenerEnlightenment)
-        ? o.awakenerEnlightenment
-        : SEARCH_DEFAULT_AWAKENER_ENLIGHTENMENT;
-    return { filters, awakenerEnlightenment };
+    return { filters };
   } catch {
     return null;
   }
@@ -362,7 +356,6 @@ export function SearchFilters({ options }: SearchFiltersProps) {
       // set-state-in-effect, not a per-change cascade.
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setState(stored.filters);
-      setAwakenerEnlightenment(stored.awakenerEnlightenment);
     }
     setHydrated(true);
   }, [options]);
@@ -372,12 +365,12 @@ export function SearchFilters({ options }: SearchFiltersProps) {
     try {
       window.localStorage.setItem(
         SEARCH_FILTERS_STORAGE_KEY,
-        JSON.stringify({ filters: state, awakenerEnlightenment }),
+        JSON.stringify({ filters: state }),
       );
     } catch {
       // Ignore quota / private-mode failures.
     }
-  }, [state, awakenerEnlightenment, hydrated]);
+  }, [state, hydrated]);
 
   const empty = isSearchFilterEmpty(state);
   const enlightenmentSummary = `Awakener Enlightenment: ${formatAwakenerEnlightenmentLabel(awakenerEnlightenment)}`;
