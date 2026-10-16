@@ -12,7 +12,7 @@ import {
   isValidNumericInputString,
   parseNumericInput,
 } from "@/components/public/diminishing-return-math";
-import { Input } from "@/components/ui/input";
+import { MathInput } from "@/components/public/math-input";
 import {
   computeUltraRealmCalculator,
   type UltraRealmMode,
@@ -227,12 +227,12 @@ export function UltraRealmCalculator() {
           >
             Realm Mastery:
           </label>
-          <Input
+          <MathInput
             id={`${baseId}-rm`}
             inputMode="decimal"
             autoComplete="off"
             value={state.realmMastery}
-            onChange={(e) => onNumericField("realmMastery", e.target.value)}
+            onValueChange={(next) => onNumericField("realmMastery", next)}
             className={inputClassName}
             aria-describedby={resultsId}
           />
@@ -319,12 +319,12 @@ export function UltraRealmCalculator() {
               >
                 Team Max HP:
               </label>
-              <Input
+              <MathInput
                 id={`${baseId}-max-hp`}
                 inputMode="decimal"
                 autoComplete="off"
                 value={state.teamMaxHp}
-                onChange={(e) => onNumericField("teamMaxHp", e.target.value)}
+                onValueChange={(next) => onNumericField("teamMaxHp", next)}
                 className={inputClassName}
                 aria-describedby={resultsId}
               />

@@ -10,7 +10,7 @@ import {
   parseNumericInput,
 } from "@/components/public/diminishing-return-math";
 import { DiminishingReturnStepChart } from "@/components/public/diminishing-return-step-chart";
-import { Input } from "@/components/ui/input";
+import { MathInput } from "@/components/public/math-input";
 import { cn } from "@/lib/utils";
 
 type StoredInputs = {
@@ -112,12 +112,12 @@ export function DiminishingReturnCalculator({
             <label htmlFor={aId} className="sr-only">
               {config.inputALabel}
             </label>
-            <Input
+            <MathInput
               id={aId}
               inputMode="decimal"
               autoComplete="off"
               value={a}
-              onChange={(e) => onNumericChange(e.target.value, setA)}
+              onValueChange={(next) => onNumericChange(next, setA)}
               className={inputClassName}
               aria-describedby={`${resultId} ${nextId}`}
             />
@@ -132,12 +132,12 @@ export function DiminishingReturnCalculator({
             <label htmlFor={bId} className="sr-only">
               {config.inputBLabel}
             </label>
-            <Input
+            <MathInput
               id={bId}
               inputMode="decimal"
               autoComplete="off"
               value={b}
-              onChange={(e) => onNumericChange(e.target.value, setB)}
+              onValueChange={(next) => onNumericChange(next, setB)}
               className={inputClassName}
               aria-describedby={`${resultId} ${nextId}`}
             />

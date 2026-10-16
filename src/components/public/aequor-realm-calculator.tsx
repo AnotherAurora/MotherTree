@@ -11,7 +11,7 @@ import {
   isValidNumericInputString,
   parseNumericInput,
 } from "@/components/public/diminishing-return-math";
-import { Input } from "@/components/ui/input";
+import { MathInput } from "@/components/public/math-input";
 import {
   SOULFORGE_MAX,
   SOULFORGE_MIN,
@@ -310,12 +310,12 @@ export function AequorRealmCalculator() {
           >
             Team Max HP:
           </label>
-          <Input
+          <MathInput
             id={`${baseId}-max-hp`}
             inputMode="decimal"
             autoComplete="off"
             value={state.teamMaxHp}
-            onChange={(e) => onNumericField("teamMaxHp", e.target.value)}
+            onValueChange={(next) => onNumericField("teamMaxHp", next)}
             className={inputClassName}
             aria-describedby={resultsId}
           />
@@ -347,12 +347,12 @@ export function AequorRealmCalculator() {
                       >
                         ATK {slotIndex + 1}
                       </label>
-                      <Input
+                      <MathInput
                         id={atkId}
                         inputMode="decimal"
                         autoComplete="off"
                         value={slot.atk}
-                        onChange={(e) => onAtkChange(slotIndex, e.target.value)}
+                        onValueChange={(next) => onAtkChange(slotIndex, next)}
                         className={inputClassName}
                         aria-describedby={resultsId}
                       />
@@ -393,12 +393,12 @@ export function AequorRealmCalculator() {
           >
             Damage AMP:
           </label>
-          <Input
+          <MathInput
             id={`${baseId}-amp`}
             inputMode="decimal"
             autoComplete="off"
             value={state.damageAmp}
-            onChange={(e) => onNumericField("damageAmp", e.target.value)}
+            onValueChange={(next) => onNumericField("damageAmp", next)}
             className={inputClassName}
             aria-describedby={resultsId}
           />
@@ -414,12 +414,12 @@ export function AequorRealmCalculator() {
           >
             Realm Mastery:
           </label>
-          <Input
+          <MathInput
             id={`${baseId}-rm`}
             inputMode="decimal"
             autoComplete="off"
             value={state.realmMastery}
-            onChange={(e) => onNumericField("realmMastery", e.target.value)}
+            onValueChange={(next) => onNumericField("realmMastery", next)}
             className={inputClassName}
             aria-describedby={resultsId}
           />
@@ -433,12 +433,12 @@ export function AequorRealmCalculator() {
             >
               Account Level:
             </label>
-            <Input
+            <MathInput
               id={`${baseId}-level`}
               inputMode="decimal"
               autoComplete="off"
               value={state.accountLevel}
-              onChange={(e) => onNumericField("accountLevel", e.target.value)}
+              onValueChange={(next) => onNumericField("accountLevel", next)}
               className={inputClassName}
               aria-describedby={resultsId}
             />

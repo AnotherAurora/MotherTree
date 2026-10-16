@@ -6,7 +6,7 @@ import {
   isValidNumericInputString,
   parseNumericInput,
 } from "@/components/public/diminishing-return-math";
-import { Input } from "@/components/ui/input";
+import { MathInput } from "@/components/public/math-input";
 import { computeChaosRealmCalculator } from "@/lib/path-carver/chaos-realm-calculator";
 import { cn } from "@/lib/utils";
 
@@ -106,12 +106,12 @@ export function ChaosRealmCalculator() {
           >
             Realm Mastery:
           </label>
-          <Input
+          <MathInput
             id={`${baseId}-rm`}
             inputMode="decimal"
             autoComplete="off"
             value={state.realmMastery}
-            onChange={(e) => onRealmMasteryChange(e.target.value)}
+            onValueChange={onRealmMasteryChange}
             className={inputClassName}
             aria-describedby={resultsId}
           />
