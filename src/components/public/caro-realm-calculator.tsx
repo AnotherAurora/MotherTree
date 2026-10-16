@@ -12,7 +12,7 @@ import {
   isValidNumericInputString,
   parseNumericInput,
 } from "@/components/public/diminishing-return-math";
-import { Input } from "@/components/ui/input";
+import { MathInput } from "@/components/public/math-input";
 import {
   computeCaroRealmCalculator,
   type CaroRealmMode,
@@ -248,12 +248,12 @@ export function CaroRealmCalculator() {
           >
             Team Max HP:
           </label>
-          <Input
+          <MathInput
             id={`${baseId}-max-hp`}
             inputMode="decimal"
             autoComplete="off"
             value={state.teamMaxHp}
-            onChange={(e) => onTeamMaxHpChange(e.target.value)}
+            onValueChange={onTeamMaxHpChange}
             className={inputClassName}
             aria-describedby={resultsId}
           />
@@ -266,12 +266,12 @@ export function CaroRealmCalculator() {
           >
             Current HP:
           </label>
-          <Input
+          <MathInput
             id={`${baseId}-current-hp`}
             inputMode="decimal"
             autoComplete="off"
             value={state.currentHp}
-            onChange={(e) => onCurrentHpChange(e.target.value)}
+            onValueChange={onCurrentHpChange}
             className={inputClassName}
             aria-describedby={resultsId}
           />
@@ -284,12 +284,12 @@ export function CaroRealmCalculator() {
           >
             Realm Mastery:
           </label>
-          <Input
+          <MathInput
             id={`${baseId}-rm`}
             inputMode="decimal"
             autoComplete="off"
             value={state.realmMastery}
-            onChange={(e) => onRealmMasteryChange(e.target.value)}
+            onValueChange={onRealmMasteryChange}
             className={inputClassName}
             aria-describedby={resultsId}
           />
@@ -374,6 +374,10 @@ export function CaroRealmCalculator() {
                 value={formatScalar(result.propagationFiestaFromRm)}
               />
               <CalculatorStatRow
+                label="RM needed for +1:"
+                value={formatScalar(result.rmNeededForNextPropagationFiesta)}
+              />
+              <CalculatorStatRow
                 label="Total Propagation Fiesta:"
                 value={formatScalar(result.totalPropagationFiesta)}
               />
@@ -393,6 +397,10 @@ export function CaroRealmCalculator() {
             <CalculatorStatRow
               label="Embryo from RM:"
               value={formatScalar(result.propaguleFiestaFromRm)}
+            />
+            <CalculatorStatRow
+              label="RM needed for +1:"
+              value={formatScalar(result.rmNeededForNextPropaguleFiesta)}
             />
             <CalculatorStatRow
               label="Total Embryo:"

@@ -6,7 +6,7 @@ import {
   isValidNumericInputString,
   parseNumericInput,
 } from "@/components/public/diminishing-return-math";
-import { Input } from "@/components/ui/input";
+import { MathInput } from "@/components/public/math-input";
 import {
   SOULFORGE_MAX,
   SOULFORGE_MIN,
@@ -295,12 +295,12 @@ export function TeamMaxHpCalculator() {
                     >
                       CON {slotIndex + 1}
                     </label>
-                    <Input
+                    <MathInput
                       id={conId}
                       inputMode="decimal"
                       autoComplete="off"
                       value={slot.con}
-                      onChange={(e) => onConChange(slotIndex, e.target.value)}
+                      onValueChange={(next) => onConChange(slotIndex, next)}
                       className={inputClassName}
                       aria-describedby={resultsId}
                     />
@@ -340,12 +340,12 @@ export function TeamMaxHpCalculator() {
           >
             Raw Death Resist:
           </label>
-          <Input
+          <MathInput
             id={`${baseId}-raw-dr`}
             inputMode="decimal"
             autoComplete="off"
             value={state.rawDeathResist}
-            onChange={(e) => onRawDeathResistChange(e.target.value)}
+            onValueChange={onRawDeathResistChange}
             className={inputClassName}
             aria-describedby={resultsId}
           />
@@ -414,12 +414,12 @@ export function TeamMaxHpCalculator() {
           >
             Account Level:
           </label>
-          <Input
+          <MathInput
             id={`${baseId}-account-level`}
             inputMode="decimal"
             autoComplete="off"
             value={state.accountLevel}
-            onChange={(e) => onAccountLevelChange(e.target.value)}
+            onValueChange={onAccountLevelChange}
             className={inputClassName}
             aria-describedby={resultsId}
           />
@@ -440,13 +440,13 @@ export function TeamMaxHpCalculator() {
                   >
                     Level {slotIndex + 1}
                   </label>
-                  <Input
+                  <MathInput
                     id={levelId}
                     inputMode="decimal"
                     autoComplete="off"
                     value={level}
-                    onChange={(e) =>
-                      onAwakenerLevelChange(slotIndex, e.target.value)
+                    onValueChange={(next) =>
+                      onAwakenerLevelChange(slotIndex, next)
                     }
                     className={inputClassName}
                     aria-describedby={resultsId}

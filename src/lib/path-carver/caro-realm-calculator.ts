@@ -1,4 +1,5 @@
 import { ceilRealmMastery } from "@/lib/path-carver/effective-value-scalar";
+import { rmNeededForNextStep } from "@/lib/path-carver/realm-rm-needed";
 
 /** RTM 11 — Support.Base Embryo Fusion Regen (full-HP base; ×(1+L)). */
 export const RTM_BASE_EMBRYO_FUSION_REGEN_ID = 11;
@@ -78,9 +79,13 @@ export type CaroRealmCalculatorResult = {
   totalStr: number;
   basePropagationFiesta: number;
   propagationFiestaFromRm: number;
+  /** Extra Realm Mastery so Propagation Fiesta from RM rises by 1. */
+  rmNeededForNextPropagationFiesta: number;
   totalPropagationFiesta: number;
   basePropaguleFiesta: number;
   propaguleFiestaFromRm: number;
+  /** Extra Realm Mastery so Embryo (propagule) Fiesta from RM rises by 1. */
+  rmNeededForNextPropaguleFiesta: number;
   totalPropaguleFiesta: number;
 };
 
@@ -233,6 +238,18 @@ export function computePropagationFiestaFromRm(
   return Math.ceil(RTM_PROPAGATION_FIESTA_FROM_RM_RATE * rm * rateMult);
 }
 
+/** Extra Realm Mastery so Propagation Fiesta from RM rises by 1 (never 0). */
+export function computeRmNeededForNextPropagationFiesta(
+  realmMastery: number,
+  isPure: boolean,
+): number {
+  const rateMult = isPure ? 2 : 1;
+  return rmNeededForNextStep(
+    realmMastery,
+    RTM_PROPAGATION_FIESTA_FROM_RM_RATE * rateMult,
+  );
+}
+
 /** RTM 22 */
 export function computeBasePropaguleFiesta(): number {
   return RTM_BASE_PROPAGULE_FIESTA_SCALAR;
@@ -248,12 +265,26 @@ export function computePropaguleFiestaFromRm(
   return Math.ceil(RTM_PROPAGULE_FIESTA_FROM_RM_RATE * rm * rateMult);
 }
 
+/** Extra Realm Mastery so Embryo (propagule) Fiesta from RM rises by 1 (never 0). */
+export function computeRmNeededForNextPropaguleFiesta(
+  realmMastery: number,
+  isPure: boolean,
+): number {
+  const rateMult = isPure ? 2 : 1;
+  return rmNeededForNextStep(
+    realmMastery,
+    RTM_PROPAGULE_FIESTA_FROM_RM_RATE * rateMult,
+  );
+}
+
 const ZERO_FIESTA = {
   basePropagationFiesta: 0,
   propagationFiestaFromRm: 0,
+  rmNeededForNextPropagationFiesta: 0,
   totalPropagationFiesta: 0,
   basePropaguleFiesta: 0,
   propaguleFiestaFromRm: 0,
+  rmNeededForNextPropaguleFiesta: 0,
   totalPropaguleFiesta: 0,
 } as const;
 
@@ -293,11 +324,15 @@ export function computeCaroRealmCalculator(
       input.realmMastery,
       isPure,
     );
+    const rmNeededForNextPropagationFiesta =
+      computeRmNeededForNextPropagationFiesta(input.realmMastery, isPure);
     const basePropaguleFiesta = computeBasePropaguleFiesta();
     const propaguleFiestaFromRm = computePropaguleFiestaFromRm(
       input.realmMastery,
       isPure,
     );
+    const rmNeededForNextPropaguleFiesta =
+      computeRmNeededForNextPropaguleFiesta(input.realmMastery, isPure);
 
     return {
       mode,
@@ -309,9 +344,11 @@ export function computeCaroRealmCalculator(
       ...ZERO_DEVOUR,
       basePropagationFiesta,
       propagationFiestaFromRm,
+      rmNeededForNextPropagationFiesta,
       totalPropagationFiesta: basePropagationFiesta + propagationFiestaFromRm,
       basePropaguleFiesta,
       propaguleFiestaFromRm,
+      rmNeededForNextPropaguleFiesta,
       totalPropaguleFiesta: basePropaguleFiesta + propaguleFiestaFromRm,
     };
   }

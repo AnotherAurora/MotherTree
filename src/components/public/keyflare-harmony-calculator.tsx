@@ -9,7 +9,7 @@ import {
   neededForNextDiminishedPoint,
   parseNumericInput,
 } from "@/components/public/diminishing-return-math";
-import { Input } from "@/components/ui/input";
+import { MathInput } from "@/components/public/math-input";
 import {
   TEAM_SLOT_COUNT,
   computeKeyflareHarmonyScalar,
@@ -151,13 +151,13 @@ export function KeyflareHarmonyCalculator() {
                     <label htmlFor={aId} className="sr-only">
                       Awakener {slotIndex + 1} {config.inputALabel}
                     </label>
-                    <Input
+                    <MathInput
                       id={aId}
                       inputMode="decimal"
                       autoComplete="off"
                       value={slot.a}
-                      onChange={(e) =>
-                        onSlotChange(slotIndex, "a", e.target.value)
+                      onValueChange={(next) =>
+                        onSlotChange(slotIndex, "a", next)
                       }
                       className={inputClassName}
                       aria-describedby={`${diminishedId} ${neededId}`}
@@ -173,13 +173,13 @@ export function KeyflareHarmonyCalculator() {
                     <label htmlFor={bId} className="sr-only">
                       Awakener {slotIndex + 1} {config.inputBLabel}
                     </label>
-                    <Input
+                    <MathInput
                       id={bId}
                       inputMode="decimal"
                       autoComplete="off"
                       value={slot.b}
-                      onChange={(e) =>
-                        onSlotChange(slotIndex, "b", e.target.value)
+                      onValueChange={(next) =>
+                        onSlotChange(slotIndex, "b", next)
                       }
                       className={inputClassName}
                       aria-describedby={`${diminishedId} ${neededId}`}

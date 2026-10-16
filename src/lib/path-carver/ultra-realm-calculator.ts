@@ -1,4 +1,5 @@
 import { ceilRealmMastery } from "@/lib/path-carver/effective-value-scalar";
+import { rmNeededForNextStep } from "@/lib/path-carver/realm-rm-needed";
 
 export type UltraRealmMode = "ultra" | "singularity";
 
@@ -52,9 +53,13 @@ export type UltraRealmCalculatorResult = {
   ultraAwakenerCritDamage: number;
   baseSingularityBeacon: number;
   singularityBeaconFromRm: number;
+  /** Extra Realm Mastery so Singularity Beacon from RM rises by 1. */
+  rmNeededForNextSingularityBeacon: number;
   totalSingularityBeacon: number;
   baseSingularityPrism: number;
   singularityPrismFromRm: number;
+  /** Extra Realm Mastery so Singularity Prism from RM rises by 1. */
+  rmNeededForNextSingularityPrism: number;
   totalSingularityPrism: number;
 };
 
@@ -120,6 +125,30 @@ export function computeSingularityPrismFromRm(
   return Math.ceil(RTM_SINGULARITY_PRISM_FROM_RM_RATE * pureMult * rm);
 }
 
+/** Extra Realm Mastery so Singularity Beacon from RM rises by 1 (never 0). */
+export function computeRmNeededForNextSingularityBeacon(
+  realmMastery: number,
+  isPure: boolean,
+): number {
+  const pureMult = isPure ? 2 : 1;
+  return rmNeededForNextStep(
+    realmMastery,
+    RTM_SINGULARITY_BEACON_FROM_RM_RATE * pureMult,
+  );
+}
+
+/** Extra Realm Mastery so Singularity Prism from RM rises by 1 (never 0). */
+export function computeRmNeededForNextSingularityPrism(
+  realmMastery: number,
+  isPure: boolean,
+): number {
+  const pureMult = isPure ? 2 : 1;
+  return rmNeededForNextStep(
+    realmMastery,
+    RTM_SINGULARITY_PRISM_FROM_RM_RATE * pureMult,
+  );
+}
+
 /** Public Ultra / Singularity Ultra Realm calculator. */
 export function computeUltraRealmCalculator(
   input: ComputeUltraRealmCalculatorInput,
@@ -148,15 +177,21 @@ export function computeUltraRealmCalculator(
       input.realmMastery,
       isPure,
     );
+    const rmNeededForNextSingularityBeacon =
+      computeRmNeededForNextSingularityBeacon(input.realmMastery, isPure);
+    const rmNeededForNextSingularityPrism =
+      computeRmNeededForNextSingularityPrism(input.realmMastery, isPure);
     return {
       ...combo,
       insightChance: 0,
       baseSingularityBeacon: RTM_BASE_SINGULARITY_BEACON_SCALAR,
       singularityBeaconFromRm,
+      rmNeededForNextSingularityBeacon,
       totalSingularityBeacon:
         RTM_BASE_SINGULARITY_BEACON_SCALAR + singularityBeaconFromRm,
       baseSingularityPrism: RTM_BASE_SINGULARITY_PRISM_SCALAR,
       singularityPrismFromRm,
+      rmNeededForNextSingularityPrism,
       totalSingularityPrism:
         RTM_BASE_SINGULARITY_PRISM_SCALAR + singularityPrismFromRm,
     };
@@ -167,9 +202,11 @@ export function computeUltraRealmCalculator(
     insightChance: computeInsightChance(input.realmMastery, isPure),
     baseSingularityBeacon: 0,
     singularityBeaconFromRm: 0,
+    rmNeededForNextSingularityBeacon: 0,
     totalSingularityBeacon: 0,
     baseSingularityPrism: 0,
     singularityPrismFromRm: 0,
+    rmNeededForNextSingularityPrism: 0,
     totalSingularityPrism: 0,
   };
 }

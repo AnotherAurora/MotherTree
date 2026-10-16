@@ -6,7 +6,7 @@ import {
   DeathResistTriggerChart,
   rawPercentNeededForNextTrigger,
 } from "@/components/public/death-resist-trigger-chart";
-import { Input } from "@/components/ui/input";
+import { MathInput } from "@/components/public/math-input";
 import {
   baseDeathResistReductionToMaxHpUp,
   baseDeathResistToInMission,
@@ -142,12 +142,12 @@ export function DeathResistCalculator() {
             >
               Raw Death Resist:
             </label>
-            <Input
+            <MathInput
               id={`${baseId}-raw-dr`}
               inputMode="decimal"
               autoComplete="off"
               value={state.value}
-              onChange={(e) => onNumericChange(e.target.value)}
+              onValueChange={onNumericChange}
               className={inputClassName}
               aria-describedby={resultsId}
             />
