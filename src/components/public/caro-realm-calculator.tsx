@@ -374,6 +374,10 @@ export function CaroRealmCalculator() {
                 value={formatScalar(result.propagationFiestaFromRm)}
               />
               <CalculatorStatRow
+                label="RM needed for +1:"
+                value={formatScalar(result.rmNeededForNextPropagationFiesta)}
+              />
+              <CalculatorStatRow
                 label="Total Propagation Fiesta:"
                 value={formatScalar(result.totalPropagationFiesta)}
               />
@@ -393,6 +397,10 @@ export function CaroRealmCalculator() {
             <CalculatorStatRow
               label="Embryo from RM:"
               value={formatScalar(result.propaguleFiestaFromRm)}
+            />
+            <CalculatorStatRow
+              label="RM needed for +1:"
+              value={formatScalar(result.rmNeededForNextPropaguleFiesta)}
             />
             <CalculatorStatRow
               label="Total Embryo:"

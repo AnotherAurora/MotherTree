@@ -352,6 +352,10 @@ export function UltraRealmCalculator() {
                 value={formatScalar(result.singularityBeaconFromRm)}
               />
               <CalculatorStatRow
+                label="RM needed for +1:"
+                value={formatScalar(result.rmNeededForNextSingularityBeacon)}
+              />
+              <CalculatorStatRow
                 label="Total Singularity Beacon:"
                 value={formatScalar(result.totalSingularityBeacon)}
               />
@@ -367,6 +371,10 @@ export function UltraRealmCalculator() {
               <CalculatorStatRow
                 label="Singularity Prism from RM:"
                 value={formatScalar(result.singularityPrismFromRm)}
+              />
+              <CalculatorStatRow
+                label="RM needed for +1:"
+                value={formatScalar(result.rmNeededForNextSingularityPrism)}
               />
               <CalculatorStatRow
                 label="Total Singularity Prism:"

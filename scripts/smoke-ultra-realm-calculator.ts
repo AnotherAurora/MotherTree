@@ -5,6 +5,8 @@
 import {
   computeEnemyStrDownBase,
   computeInsightChance,
+  computeRmNeededForNextSingularityBeacon,
+  computeRmNeededForNextSingularityPrism,
   computeSingularityBeaconFromRm,
   computeSingularityPrismFromRm,
   computeTeamStrUpBase,
@@ -105,6 +107,48 @@ assert(
   "Prism RM 434 pure → ceil(6.51)=7",
 );
 
+console.log("\nRM needed for +1 (RTM 54 / 53)");
+assert(
+  computeRmNeededForNextSingularityBeacon(0, false) === 1,
+  "Beacon RM 0 → need 1",
+);
+assert(
+  computeRmNeededForNextSingularityBeacon(434, false) === 47,
+  "Beacon not pure RM434 (fromRm 6) → need 47 to reach ceil RM 481",
+);
+assert(
+  computeRmNeededForNextSingularityBeacon(434, true) === 7,
+  "Beacon pure RM434 (fromRm 11) → need 7 to reach ceil RM 441",
+);
+assert(
+  computeRmNeededForNextSingularityPrism(0, false) === 1,
+  "Prism RM 0 → need 1",
+);
+assert(
+  computeRmNeededForNextSingularityPrism(434, false) === 100,
+  "Prism not pure RM434 (fromRm 4) → need 100 to reach ceil RM 534",
+);
+assert(
+  computeRmNeededForNextSingularityPrism(434, true) === 33,
+  "Prism pure RM434 (fromRm 7) → need 33 to reach ceil RM 467",
+);
+assert(
+  computeRmNeededForNextSingularityBeacon(-5, false) === 1,
+  "Beacon negative RM clamps → need 1",
+);
+assert(
+  computeRmNeededForNextSingularityPrism(Number.NaN, false) === 1,
+  "Prism NaN RM clamps → need 1",
+);
+assert(
+  computeRmNeededForNextSingularityBeacon(1e16, false) === 0.1,
+  "Beacon huge RM float-loss floor → 0.1 (never 0)",
+);
+assert(
+  computeRmNeededForNextSingularityPrism(1e16, false) === 0.1,
+  "Prism huge RM float-loss floor → 0.1 (never 0)",
+);
+
 console.log("\nFull calculator — ultra combo ×N");
 {
   const r = computeUltraRealmCalculator({
@@ -122,6 +166,14 @@ console.log("\nFull calculator — ultra combo ×N");
   assert(r.ultraAwakenerCritDamage === 0, "chaos 0 → Crit 0");
   assert(r.totalSingularityBeacon === 0, "ultra zeros Beacon total");
   assert(r.totalSingularityPrism === 0, "ultra zeros Prism total");
+  assert(
+    r.rmNeededForNextSingularityBeacon === 0,
+    "ultra mode → no Beacon RM-needed row",
+  );
+  assert(
+    r.rmNeededForNextSingularityPrism === 0,
+    "ultra mode → no Prism RM-needed row",
+  );
 }
 {
   const r = computeUltraRealmCalculator({
@@ -176,6 +228,10 @@ console.log("\nFull calculator — singularity mode");
   );
   assert(r.singularityBeaconFromRm === 11, "Beacon from RM pure 11");
   assert(
+    r.rmNeededForNextSingularityBeacon === 7,
+    "Beacon RM-needed pure 7",
+  );
+  assert(
     r.totalSingularityBeacon ===
       RTM_BASE_SINGULARITY_BEACON_SCALAR + r.singularityBeaconFromRm,
     "Beacon total = base + from RM",
@@ -185,6 +241,7 @@ console.log("\nFull calculator — singularity mode");
     "Prism base 15",
   );
   assert(r.singularityPrismFromRm === 7, "Prism from RM pure 7");
+  assert(r.rmNeededForNextSingularityPrism === 33, "Prism RM-needed pure 33");
   assert(
     r.totalSingularityPrism ===
       RTM_BASE_SINGULARITY_PRISM_SCALAR + r.singularityPrismFromRm,

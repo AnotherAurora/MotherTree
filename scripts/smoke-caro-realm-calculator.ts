@@ -18,6 +18,8 @@ import {
   computePropagationEmbryoFusionRegen,
   computePropagationFiestaFromRm,
   computePropaguleFiestaFromRm,
+  computeRmNeededForNextPropagationFiesta,
+  computeRmNeededForNextPropaguleFiesta,
   missingHpFraction,
   resolveCaroRealmFlags,
 } from "../src/lib/path-carver/caro-realm-calculator";
@@ -166,6 +168,52 @@ assert(
   "52 RM 8.1→9 not pure → ceil(0.18)=1",
 );
 
+console.log("\nRM needed for +1 (RTM 51 / 52)");
+assert(
+  computeRmNeededForNextPropagationFiesta(0, false) === 1,
+  "51 RM 0 → need 1",
+);
+assert(
+  computeRmNeededForNextPropagationFiesta(434, false) === 67,
+  "51 not pure RM434 (fromRm 5) → need 67 to reach ceil RM 501",
+);
+assert(
+  computeRmNeededForNextPropagationFiesta(100, false) === 1,
+  "51 not pure RM100 (fromRm 1) → need 1",
+);
+assert(
+  computeRmNeededForNextPropagationFiesta(434, true) === 17,
+  "51 pure RM434 (fromRm 9) → need 17 to reach ceil RM 451",
+);
+assert(
+  computeRmNeededForNextPropagationFiesta(50, true) === 1,
+  "51 pure RM50 (fromRm 1) → need 1",
+);
+assert(
+  computeRmNeededForNextPropaguleFiesta(434, false) === 17,
+  "52 not pure RM434 (fromRm 9) → need 17",
+);
+assert(
+  computeRmNeededForNextPropaguleFiesta(8.1, false) === 42.9,
+  "52 not pure RM 8.1 (fromRm 1) → need 42.9 to reach ceil RM 51",
+);
+assert(
+  computeRmNeededForNextPropaguleFiesta(434, true) === 17,
+  "52 pure RM434 (fromRm 18) → need 17 to reach ceil RM 451",
+);
+assert(
+  computeRmNeededForNextPropagationFiesta(-5, false) === 1,
+  "51 negative RM clamps → need 1",
+);
+assert(
+  computeRmNeededForNextPropagationFiesta(Number.NaN, false) === 1,
+  "51 NaN RM clamps → need 1",
+);
+assert(
+  computeRmNeededForNextPropagationFiesta(1e16, false) === 0.1,
+  "51 huge RM float-loss floor → 0.1 (never 0)",
+);
+
 console.log("\nIntegration — full HP");
 {
   const r = computeCaroRealmCalculator({
@@ -187,6 +235,14 @@ console.log("\nIntegration — full HP");
   assert(r.totalStr === 200, "total str");
   assert(r.totalPropagationFiesta === 0, "caro fiesta 0");
   assert(r.totalPropaguleFiesta === 0, "caro propagule 0");
+  assert(
+    r.rmNeededForNextPropagationFiesta === 0,
+    "caro mode → no fiesta RM-needed row",
+  );
+  assert(
+    r.rmNeededForNextPropaguleFiesta === 0,
+    "caro mode → no propagule RM-needed row",
+  );
 }
 
 console.log("\nIntegration — 0 HP + pure + RM");
@@ -263,9 +319,17 @@ console.log("\nIntegration — Propagation mode");
   assert(r.totalStr === 0, "no devour str");
   assert(r.basePropagationFiesta === 20, "fiesta base 20");
   assert(r.propagationFiestaFromRm === 9, "fiesta RM pure 9");
+  assert(
+    r.rmNeededForNextPropagationFiesta === 17,
+    "fiesta RM-needed pure 17",
+  );
   assert(r.totalPropagationFiesta === 29, "fiesta total 29");
   assert(r.basePropaguleFiesta === 40, "propagule base 40");
   assert(r.propaguleFiestaFromRm === 18, "propagule RM pure 18");
+  assert(
+    r.rmNeededForNextPropaguleFiesta === 17,
+    "propagule RM-needed pure 17",
+  );
   assert(r.totalPropaguleFiesta === 58, "propagule total 58");
 }
 
