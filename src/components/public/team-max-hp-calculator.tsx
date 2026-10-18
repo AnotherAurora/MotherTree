@@ -26,6 +26,8 @@ const STORAGE_KEY = "mt.calculators.team-max-hp";
 
 const CHAOS_AWAKENER_RAW_DEATH_RESIST_BONUS = 100;
 
+const PROPAGATION_CARO_MAX_HP_BONUS = 0.1;
+
 type ConSlotState = {
   con: string;
   soulforge: number;
@@ -34,6 +36,7 @@ type ConSlotState = {
 type StoredState = {
   conSlots: ConSlotState[];
   rawDeathResist: string;
+  propagationCaro: boolean;
   primordiaChaos: boolean;
   chaosAwakenerExist: boolean;
   accountLevel: string;
@@ -55,6 +58,7 @@ function defaultState(): StoredState {
   return {
     conSlots: emptyConSlots(),
     rawDeathResist: "0",
+    propagationCaro: false,
     primordiaChaos: false,
     chaosAwakenerExist: false,
     accountLevel: "60",
@@ -116,6 +120,10 @@ function readStored(): StoredState | null {
     const o = parsed as Record<string, unknown>;
     const defaults = defaultState();
 
+    const propagationCaro =
+      typeof o.propagationCaro === "boolean"
+        ? o.propagationCaro
+        : defaults.propagationCaro;
     const primordiaChaos =
       typeof o.primordiaChaos === "boolean"
         ? o.primordiaChaos
@@ -131,6 +139,7 @@ function readStored(): StoredState | null {
         o.rawDeathResist,
         defaults.rawDeathResist,
       ),
+      propagationCaro,
       primordiaChaos,
       chaosAwakenerExist: primordiaChaos ? false : chaosAwakenerExist,
       accountLevel: readNumericString(o.accountLevel, defaults.accountLevel),
@@ -256,7 +265,11 @@ export function TeamMaxHpCalculator() {
   const finalMaxHp =
     baselineMaxHp == null || bonusMaxHp == null
       ? null
-      : baselineMaxHp + bonusMaxHp;
+      : Math.ceil(
+          (baselineMaxHp + bonusMaxHp) *
+            (1 +
+              (state.propagationCaro ? PROPAGATION_CARO_MAX_HP_BONUS : 0)),
+        );
 
   const soulforgeOptions = Array.from(
     { length: SOULFORGE_MAX - SOULFORGE_MIN + 1 },
@@ -352,6 +365,34 @@ export function TeamMaxHpCalculator() {
           <span className="text-base text-[var(--mt-ink)]" aria-hidden>
             %
           </span>
+        </div>
+
+        <div className="space-y-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <label
+              htmlFor={`${baseId}-prop-caro`}
+              className="min-w-[11rem] text-base text-[var(--mt-ink)]"
+            >
+              Propagation Caro:
+            </label>
+            <input
+              id={`${baseId}-prop-caro`}
+              type="checkbox"
+              checked={state.propagationCaro}
+              onChange={(e) =>
+                setState((prev) => ({
+                  ...prev,
+                  propagationCaro: e.target.checked,
+                }))
+              }
+              className="size-4 accent-[var(--mt-ember)]"
+            />
+          </div>
+          {state.propagationCaro ? (
+            <p className="text-sm text-[var(--mt-ink-muted)]">
+              10% Max HP was added
+            </p>
+          ) : null}
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -481,7 +522,7 @@ export function TeamMaxHpCalculator() {
           </span>
         </p>
         <p>
-          Max HP increase:{" "}
+          Max HP increase from DR:{" "}
           <span className="font-semibold tabular-nums">
             {formatPercent(maxHpUpPercent)}
           </span>
