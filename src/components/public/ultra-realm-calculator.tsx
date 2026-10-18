@@ -164,9 +164,13 @@ export function UltraRealmCalculator() {
     }
   }
 
+  // Team Max HP only matters once there is at least one Chaos Awakener
+  // (it scales the Chaos Symbiosis combo rows). While hidden, treat it as 0.
+  const showTeamMaxHp = state.chaosAwakeners > 0;
+
   const result = computeUltraRealmCalculator({
     mode: state.mode,
-    teamMaxHp: parseNumericInput(state.teamMaxHp),
+    teamMaxHp: showTeamMaxHp ? parseNumericInput(state.teamMaxHp) : 0,
     realmMastery: parseNumericInput(state.realmMastery),
     primordiaChaos: state.primordiaChaos,
     pureRealm: state.pureRealm,
@@ -312,23 +316,25 @@ export function UltraRealmCalculator() {
               </select>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
-              <label
-                htmlFor={`${baseId}-max-hp`}
-                className="min-w-[11rem] text-base text-[var(--mt-ink)]"
-              >
-                Team Max HP:
-              </label>
-              <MathInput
-                id={`${baseId}-max-hp`}
-                inputMode="decimal"
-                autoComplete="off"
-                value={state.teamMaxHp}
-                onValueChange={(next) => onNumericField("teamMaxHp", next)}
-                className={inputClassName}
-                aria-describedby={resultsId}
-              />
-            </div>
+            {showTeamMaxHp ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <label
+                  htmlFor={`${baseId}-max-hp`}
+                  className="min-w-[11rem] text-base text-[var(--mt-ink)]"
+                >
+                  Team Max HP:
+                </label>
+                <MathInput
+                  id={`${baseId}-max-hp`}
+                  inputMode="decimal"
+                  autoComplete="off"
+                  value={state.teamMaxHp}
+                  onValueChange={(next) => onNumericField("teamMaxHp", next)}
+                  className={inputClassName}
+                  aria-describedby={resultsId}
+                />
+              </div>
+            ) : null}
           </>
         ) : null}
       </div>
