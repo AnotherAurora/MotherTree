@@ -11,7 +11,7 @@
 
 /** Pin to a specific SKeyDB commit so source paths stay stable.
  *  Refresh with: npm run sync:skeydb-assets (see docs/admin/updating-skeydb-assets.md). */
-export const SKEYDB_COMMIT = "d4c5a90f24a7e95745a92b8d1098aff77d6f1510";
+export const SKEYDB_COMMIT = "495de2ad7b6b99b208404b84ca8f7ebf62f90527";
 
 const SKEYDB_ASSET_ROOT = `https://raw.githubusercontent.com/dansa/SKeyDB/${SKEYDB_COMMIT}/src/assets`;
 
