@@ -18,6 +18,7 @@ import {
 } from "../src/lib/path-carver/hit-tentacle-attack";
 import type {
   Awakener,
+  AwakenerLocalManifestationInteraction,
   DefaultInteraction,
   Layer,
   Manifestation,
@@ -199,6 +200,27 @@ const corrosionToDamage = makeInteraction({
   createsBase: true,
   amplifiesSubject: false,
 });
+function makeLocal(
+  partial: Partial<AwakenerLocalManifestationInteraction> & {
+    id: number;
+    mode: AwakenerLocalManifestationInteraction["mode"];
+  },
+): AwakenerLocalManifestationInteraction {
+  return {
+    modifierTagId: null,
+    modifierTagName: "",
+    targetTagId: null,
+    targetTagName: null,
+    layer: null,
+    mathOperation: null,
+    valueScalar: null,
+    targetType: "self",
+    dependencyStat: null,
+    isDisabled: false,
+    ...partial,
+  };
+}
+
 const embersToDamage = makeInteraction({
   id: 112,
   modifierTagId: embersDebuffTag.id,
@@ -759,10 +781,99 @@ console.log("Part G3 — Increase Gain.Corrosion amplifies debuff");
     (result.totalsByTagId.get(debuffTag.id) ?? 0) === 150,
     `Corrosion debuff 100×1.5=150 (got ${result.totalsByTagId.get(debuffTag.id)})`,
   );
-  // Phase 1 create uses Layer A debuff (100); amplify is a later subject hop.
+  // Debuff stack is deferred: damage reads the finalized (amplified) stack.
   assert(
-    (result.totalsByTagId.get(corrosionDmgTag.id) ?? 0) === 300,
-    `Corrosion damage 100×3=300 (got ${result.totalsByTagId.get(corrosionDmgTag.id)})`,
+    (result.totalsByTagId.get(corrosionDmgTag.id) ?? 0) === 450,
+    `Corrosion damage 150×3=450 (got ${result.totalsByTagId.get(corrosionDmgTag.id)})`,
+  );
+}
+
+console.log("Part G4 — Corrosion copies reach the damage create");
+{
+  const awakener = makeAwakener({ id: 1 });
+  const debuff = makeManifestation({
+    id: 1,
+    tagId: debuffTag.id,
+    tagName: debuffTag.tagName,
+    valueScalar: 100,
+    baseCopies: 2,
+  });
+  const manifests = [debuff];
+  const tagsById: Record<number, Tag> = {
+    ...coreTags,
+    [debuffTag.id]: debuffTag,
+    [corrosionDmgTag.id]: corrosionDmgTag,
+  };
+  const result = applyInteractions({
+    manifestations: manifests,
+    appliedManifestations: manifests,
+    defaultInteractions: [corrosionToDamage],
+    tagsById,
+    awakenersById: buildAwakenersById([awakener]),
+    hitCountByManifestationKey: new Map([
+      [manifestationHitCountKey(debuff), 2],
+    ]),
+  });
+  assert(
+    (result.totalsByTagId.get(debuffTag.id) ?? 0) === 200,
+    `Corrosion debuff 100×2 copies=200 (got ${result.totalsByTagId.get(debuffTag.id)})`,
+  );
+  assert(
+    (result.totalsByTagId.get(corrosionDmgTag.id) ?? 0) === 600,
+    `Corrosion damage 200×3=600 (got ${result.totalsByTagId.get(corrosionDmgTag.id)})`,
+  );
+}
+
+console.log("Part G5 — Corrosion local unique_scaling reaches the damage create");
+{
+  const awakener = makeAwakener({ id: 1 });
+  const strUpTag = makeTag(306, "Support.STR Up");
+  const debuff = makeManifestation({
+    id: 1,
+    tagId: debuffTag.id,
+    tagName: debuffTag.tagName,
+    valueScalar: 100,
+    interactionOverrides: [
+      makeLocal({
+        id: 1,
+        mode: "unique_scaling",
+        modifierTagId: strUpTag.id,
+        modifierTagName: strUpTag.tagName,
+        mathOperation: "multiply",
+        valueScalar: 0.5,
+        targetType: "self",
+      }),
+    ],
+  });
+  const strUp = makeManifestation({
+    id: 2,
+    tagId: strUpTag.id,
+    tagName: strUpTag.tagName,
+    valueScalar: 10,
+    targetType: "aoe",
+  });
+  const manifests = [debuff, strUp];
+  const tagsById: Record<number, Tag> = {
+    ...coreTags,
+    [debuffTag.id]: debuffTag,
+    [corrosionDmgTag.id]: corrosionDmgTag,
+    [strUpTag.id]: strUpTag,
+  };
+  const result = applyInteractions({
+    manifestations: manifests,
+    appliedManifestations: manifests,
+    defaultInteractions: [corrosionToDamage],
+    tagsById,
+    awakenersById: buildAwakenersById([awakener]),
+  });
+  // Debuff 100 × (STR 10 × 0.5) = 500; damage 500×3 = 1500.
+  assert(
+    (result.totalsByTagId.get(debuffTag.id) ?? 0) === 500,
+    `Corrosion debuff 100×(10×0.5)=500 (got ${result.totalsByTagId.get(debuffTag.id)})`,
+  );
+  assert(
+    (result.totalsByTagId.get(corrosionDmgTag.id) ?? 0) === 1500,
+    `Corrosion damage 500×3=1500 (got ${result.totalsByTagId.get(corrosionDmgTag.id)})`,
   );
 }
 

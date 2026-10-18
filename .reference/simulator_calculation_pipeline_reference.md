@@ -261,8 +261,8 @@ Exact sequence (aggregate-tag-scalars.ts:202-533):
 ### 6.0 Setup
 - Record a `base` step per applied manifestation (raw vs effective scalar).
 - Classify interactions (see §2.4).
-- **Look-ahead closure** (`buildAftereffectClosure`, apply-interactions.ts:541):
-  - `closure0` = set of `target_tag_id` from every non-disabled `aftereffect` row on applied manifestations.
+- **Look-ahead closure** (`buildAftereffectClosure`, apply-interactions.ts:582):
+  - `closure0` = set of `target_tag_id` from every non-disabled `aftereffect` row on applied manifestations, **plus** the debuff stacks whose `creates_base` edge converts them to damage and that are present on the team: `Support.Debuff.Corrosion` and `Support.Debuff.Ancient Embers` (`collectDebuffStackCreateSeeds`). The debuff seed ensures the ×3 damage create reads the finalized stack (Increase Gain + local `unique_scaling` + `hitCount` copies), not the Layer A single-hit scalar.
   - If `closure0` empty → no deferred work (pure 3b behavior).
   - Expand `closure` via `creates_base` edges whose `modifierTagId` is already in the closure; collect those edges as `deferredCreates` and add their exact `targetTagId`.
   - `deferredStackAmplifies` = amplifies whose prefix target intersects `closure0` (e.g. `Increase Gain.Poison → Poison`).
@@ -467,6 +467,7 @@ These are places where `simulator_phased_plan_7b0fcf95.plan.md` no longer matche
 3. **Birth Ritual is uncapped in the code.** `computeSacrificeAmount` (birth-ritual-sacrifice.ts:121) uses the raw Birth Ritual value; there is no `min(raw, 75)`. The plan's Phase 3i "capped at 75 team-wide" is not implemented here. Confirm intent before "fixing".
 4. **Relic exemption:** `evaluateManifestationApply` skips the damage-dealer gate for both posse and relic, and `isInteractionImmuneSubject` marks relic immune. The plan usually mentions only posse.
 5. **`Manifestation.targetType` is nullable** in TS although the DB enum/default is `aoe`; code treats null as non-self.
+6. **Corrosion / Ancient Embers debuff stacks ARE an engine special-case now.** The plan's "No engine special-case" is stale: `buildAftereffectClosure` seeds `closure0` with `Support.Debuff.Corrosion` / `Support.Debuff.Ancient Embers` (`collectDebuffStackCreateSeeds`) so their ×3 `creates_base` damage reads the finalized stack (Increase Gain + local `unique_scaling` + `hitCount` copies) instead of the Layer A single-hit scalar.
 
 ---
 

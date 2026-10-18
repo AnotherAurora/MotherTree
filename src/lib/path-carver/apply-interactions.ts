@@ -108,6 +108,19 @@ const TENTACLE_POISON_FIXED_ID_OFFSET = 6_200_000;
 const ATTACKER_POISON_FIXED = "Attacker.Poison.Fixed";
 const TENTACLE = "Attacker.Tentacle";
 
+const DEBUFF_CORROSION = "Support.Debuff.Corrosion";
+const DEBUFF_ANCIENT_EMBERS = "Support.Debuff.Ancient Embers";
+/**
+ * Debuff stacks converted to damage via `creates_base` (debuff ×3 → damage).
+ * Their damage create must defer past the subject loop so it reads the
+ * finalized stack — Increase Gain, local unique_scaling, hitCount copies —
+ * not the Layer A single-hit scalar. Scoped to Corrosion / Ancient Embers.
+ */
+const DEFERRED_DEBUFF_STACK_TAG_NAMES = new Set<string>([
+  DEBUFF_CORROSION,
+  DEBUFF_ANCIENT_EMBERS,
+]);
+
 type OwnerKey = string;
 type OwnerTotals = Map<OwnerKey, Map<number, number>>;
 
@@ -505,6 +518,32 @@ function collectClosure0(applied: Manifestation[]): Set<number> {
   return closure0;
 }
 
+/**
+ * Debuff stacks converted to damage via `creates_base` (Corrosion / Ancient
+ * Embers). Their damage create must run after the subject loop so it reads the
+ * finalized stack (Increase Gain + local unique_scaling + hitCount copies),
+ * not the Layer A single-hit scalar. Seeded only when the debuff is on the team.
+ */
+function collectDebuffStackCreateSeeds(
+  applied: Manifestation[],
+  defaultInteractions: DefaultInteraction[],
+  tagsById: Record<number, Tag>,
+): Set<number> {
+  const seeds = new Set<number>();
+  for (const interaction of defaultInteractions) {
+    if (!isCreatesBaseEdge(interaction)) continue;
+    const modifierTagId = interaction.modifierTagId;
+    if (modifierTagId == null) continue;
+    const tagName = tagsById[modifierTagId]?.tagName;
+    if (tagName == null || !DEFERRED_DEBUFF_STACK_TAG_NAMES.has(tagName)) {
+      continue;
+    }
+    if (!applied.some((m) => m.tagId === modifierTagId)) continue;
+    seeds.add(modifierTagId);
+  }
+  return seeds;
+}
+
 function amplifyTargetIntersectsClosure(
   interaction: DefaultInteraction,
   closure: ReadonlySet<number>,
@@ -532,8 +571,10 @@ type AftereffectClosure = {
 };
 
 /**
- * Option A look-ahead: closure0 = aftereffect targets; expand via creates_base
- * (exact modifier match; invent target = exact target_tag_id). Split amplifies:
+ * Option A look-ahead: closure0 = aftereffect targets, plus the debuff stacks
+ * (Corrosion / Ancient Embers) that create damage via `creates_base`; expand via
+ * creates_base (exact modifier match; invent target = exact target_tag_id).
+ * Split amplifies:
  * - stack: target intersects closure0 (run on combined stack before create)
  * - create: target intersects closure\closure0 (thin hop on Damage synthetics)
  * Empty closure0 → pull nothing (3b path).
@@ -545,6 +586,13 @@ function buildAftereffectClosure(
   tagsById: Record<number, Tag>,
 ): AftereffectClosure {
   const closure0 = collectClosure0(applied);
+  for (const seedTagId of collectDebuffStackCreateSeeds(
+    applied,
+    defaultInteractions,
+    tagsById,
+  )) {
+    closure0.add(seedTagId);
+  }
   if (closure0.size === 0) {
     return {
       closure0,
@@ -2535,8 +2583,9 @@ function collectAmplifyTargetIds(
  *    Skip TDU-family TDI on Tentacle subjects; remaining Tentacle TDI
  *    (Vulnerability) runs on post-crit pooled synthetics against finalized
  *    non-Tentacle snapshots, then merge. Tentacle Crit Rate is display-only.
- *    Corrosion / Ancient Embers are ordinary creates_base interactions
- *    (debuff ×3 → damage); no engine special-case.
+ *    Corrosion / Ancient Embers are creates_base interactions (debuff ×3 →
+ *    damage), but their stacks are deferred (closure seed) so the create reads
+ *    the finalized debuff — Increase Gain, local unique_scaling, hitCount copies.
  *
  * Phase 2b.1: isBaseStatTransfer / realm / Support isCreatedBase subjects contribute
  * absolute scalar only (no inbound ops) but remain in other subjects' cohorts as modifiers.
