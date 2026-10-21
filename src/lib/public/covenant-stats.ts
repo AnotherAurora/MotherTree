@@ -41,7 +41,7 @@ export const MAIN_STAT_VALUES: Record<CovenantStatId, number> = {
   keyflare: 6,
   damage_amp: 4,
   sigil_yield: 3,
-  death_resist: 17,
+  death_resist: 14,
   aliemus_regen: 2,
   realm_mastery: 10,
 };
