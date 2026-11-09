@@ -1306,6 +1306,85 @@ export type Database = {
           },
         ]
       }
+      search_solo_totals: {
+        Row: {
+          awakener_id: number
+          enlightenment: number
+          has_realm_gimmick: boolean
+          id: number
+          metadata_display: string | null
+          realm_id: number
+          synced_at: string
+          tag_id: number
+          target_type_display: string | null
+          value: number
+        }
+        Insert: {
+          awakener_id: number
+          enlightenment: number
+          has_realm_gimmick?: boolean
+          id?: number
+          metadata_display?: string | null
+          realm_id: number
+          synced_at?: string
+          tag_id: number
+          target_type_display?: string | null
+          value: number
+        }
+        Update: {
+          awakener_id?: number
+          enlightenment?: number
+          has_realm_gimmick?: boolean
+          id?: number
+          metadata_display?: string | null
+          realm_id?: number
+          synced_at?: string
+          tag_id?: number
+          target_type_display?: string | null
+          value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "search_solo_totals_awakener_id_fkey"
+            columns: ["awakener_id"]
+            isOneToOne: false
+            referencedRelation: "awakener"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "search_solo_totals_realm_id_fkey"
+            columns: ["realm_id"]
+            isOneToOne: false
+            referencedRelation: "realm"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "search_solo_totals_tag_id_fkey"
+            columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "tag"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      search_solo_totals_meta: {
+        Row: {
+          id: boolean
+          synced_at: string
+          tag_ids: number[]
+        }
+        Insert: {
+          id?: boolean
+          synced_at?: string
+          tag_ids?: number[]
+        }
+        Update: {
+          id?: boolean
+          synced_at?: string
+          tag_ids?: number[]
+        }
+        Relationships: []
+      }
       tag: {
         Row: {
           created_at: string | null

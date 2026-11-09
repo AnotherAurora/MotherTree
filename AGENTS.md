@@ -22,3 +22,4 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - **No Ad-Hoc Scripts**: Never create or generate ad-hoc/one-time database migration or patch scripts in `scripts/` (e.g. `scripts/apply-*.ts`, `scripts/patch-*.ts`).
 - For Kit Reader proposals/updates, always use proposal JSON with `scripts/insert-kit-pending.ts` (`--patch` or `--append`) or the local UI (`/kit-reader`).
 - For general script maintenance, use existing parameterized CLI tools or application APIs.
+- **Search precompute**: Public Search simulated-tag values live in `public.search_solo_totals` and are never computed in the Worker. After editing `tag`, `awakener`, ATMs, RTMs, `tag_default_interaction`, or `awakener_local_manifestation_interaction` — and especially after flipping `tag.is_search_simulated` — run `npm run sync:search-totals` (`-- --dry-run` to preview). Search shows a "pending sync" notice for a simulated tag the last sync did not include.

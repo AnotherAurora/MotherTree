@@ -12,14 +12,15 @@ import {
   type SearchRequiredRealmId,
 } from "@/lib/public/search-filter-options";
 import {
-  collectSoloTagDisplayFields,
-  computeSoloAwakenerTotals,
   isMultiRealmSearchAwakener,
   normalizeAwakenerSearchName,
   realmSimsForAwakener,
   shouldRunSoloAwakenerTotals,
-  type SoloTotalsCache,
-} from "@/lib/public/solo-awakener-totals";
+} from "@/lib/public/solo-search-routing";
+import {
+  soloTotalLookupKey,
+  type PrecomputedSoloTotal,
+} from "@/lib/public/solo-totals";
 import { matchesDemandTag } from "@/lib/simulator/tag-matching";
 import { applyManifestationReplacements } from "@/lib/team-data/resolve-manifestations";
 import type { AllStats, Awakener } from "@/lib/team-data/types";
@@ -80,6 +81,12 @@ export type SearchResultsInput = {
   wheelManifestations: PublicRow<"wheel_tag_manifestation">[];
   posseManifestations: PublicRow<"posse_tag_manifestation">[];
   covenantManifestations: PublicRow<"covenant_tag_manifestation">[];
+  /**
+   * Precomputed solo totals for `is_search_simulated` tags (from
+   * `search_solo_totals`). Never compute the engine here — see
+   * `src/lib/public/solo-totals.ts`.
+   */
+  soloTotals?: readonly PrecomputedSoloTotal[];
 };
 
 export type SearchResultsOutput = {
@@ -350,48 +357,36 @@ export function buildSearchResults(
 
   if (sources.includes("awakener")) {
     const runSolo = shouldRunSoloAwakenerTotals(matchingTagIds, tagsById);
-    const soloCache: SoloTotalsCache = new Map();
-    const soloCatalog = {
-      tags: input.tags,
-      realms: input.realms,
-      realmManifestations: input.realmManifestations ?? [],
-      defaultInteractions: input.defaultInteractions ?? [],
-      awakenerManifestations: input.awakenerManifestations,
-      awakenerLocalInteractions: input.awakenerLocalInteractions,
-      copyProviderMembers: input.copyProviderMembers ?? [],
-    };
 
-    // Phase 7: simulated-tag values from solo-kit Review Tags totals.
-    if (runSolo) {
-      for (const awakener of input.awakeners) {
-        const realmSims = realmSimsForAwakener(
-          awakener,
-          filters.requiredRealmId,
+    // Phase 7 simulated-tag values are precomputed offline
+    // (`npm run sync:search-totals`); this path only joins stored rows.
+    if (runSolo && matchingTagIds != null) {
+      const soloTotalsByKey = new Map<string, PrecomputedSoloTotal>();
+      for (const row of input.soloTotals ?? []) {
+        soloTotalsByKey.set(
+          soloTotalLookupKey(row.awakenerId, row.realmId, row.tagId),
+          row,
         );
+      }
+      const simulatedTagIds = [...matchingTagIds]
+        .filter((tagId) => tagsById.get(tagId)?.is_search_simulated === true)
+        .sort((a, b) => a - b);
+
+      for (const awakener of input.awakeners) {
+        const realmSims = realmSimsForAwakener(awakener, filters.requiredRealmId);
         const multiRealm =
           isMultiRealmSearchAwakener(awakener) && realmSims.length > 1;
         for (const realmSim of realmSims) {
-          const { totalsByTagId, hasAppliedRealmManifestation } =
-            computeSoloAwakenerTotals(
-              awakener,
-              realmSim,
-              filters.awakenerEnlightenment,
-              soloCatalog,
-              soloCache,
+          for (const tagId of simulatedTagIds) {
+            const stored = soloTotalsByKey.get(
+              soloTotalLookupKey(awakener.id, realmSim, tagId),
             );
-          for (const [tagId, total] of totalsByTagId) {
+            if (stored == null) continue;
             const tag = tagsById.get(tagId);
-            if (!tag || !tag.is_search_simulated) continue;
-            if (matchingTagIds != null && !matchingTagIds.has(tagId)) continue;
-            if (
-              filters.requiredRealmId != null &&
-              realmSim !== filters.requiredRealmId
-            ) {
-              continue;
-            }
+            if (!tag) continue;
 
             const isPercent = tag.is_percent === true;
-            const value = ceilSearchValue(total, isPercent);
+            const value = ceilSearchValue(stored.value, isPercent);
             const realmLabel = formatRequiredRealmSingle(realmSim, realmsById);
             const normalizedName = normalizeAwakenerSearchName(awakener.name);
             const baseName =
@@ -400,17 +395,6 @@ export function buildSearchResults(
               multiRealm && realmLabel !== EMPTY_DISPLAY
                 ? `${baseName} · ${realmLabel}`
                 : baseName;
-            const display = collectSoloTagDisplayFields({
-              awakenerId: awakener.id,
-              tagId,
-              realmSim,
-              enlightenment: filters.awakenerEnlightenment,
-              awakenerManifestations: input.awakenerManifestations,
-              awakenerLocalInteractions: input.awakenerLocalInteractions,
-              defaultInteractions: input.defaultInteractions ?? [],
-              formatTargetType: formatSearchTargetTypeLabel,
-              hasAppliedRealmManifestation,
-            });
 
             rows.push({
               id: `awakener-solo:${awakener.id}:${tagId}:${realmSim}`,
@@ -419,7 +403,7 @@ export function buildSearchResults(
               name,
               assetName: baseName !== EMPTY_DISPLAY ? baseName : undefined,
               tag: formatSearchTagLabel(tag.tag_name),
-              targetType: display.targetType ?? EMPTY_DISPLAY,
+              targetType: stored.targetType ?? EMPTY_DISPLAY,
               dependencyStat: EMPTY_DISPLAY,
               value,
               valueDisplay: formatValueDisplay(value, isPercent),
@@ -427,7 +411,7 @@ export function buildSearchResults(
               everyTurn: EMPTY_DISPLAY,
               triggerCondition: EMPTY_DISPLAY,
               requiredRealm: realmLabel,
-              metadata: display.metadata,
+              metadata: stored.metadata,
             });
           }
         }

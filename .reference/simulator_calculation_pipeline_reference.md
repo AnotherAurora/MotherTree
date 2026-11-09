@@ -41,7 +41,7 @@ computeReviewTagTotals(teamData, applyContext, options?)      aggregate-tag-scal
 
 Consumers of the engine:
 - `src/components/path-carver/review-tags-step.tsx:120` — Path Carver Review Tags (primary validation surface).
-- `src/lib/public/solo-awakener-totals.ts:457` — public solo-awakener totals.
+- `src/lib/public/solo-awakener-totals.ts:457` — public solo-awakener totals. Search uses it only from the offline `npm run sync:search-totals` precompute; the request path reads `search_solo_totals` instead.
 - `src/lib/path-carver/relic-candidates.ts:130` — relic picker ranking sweep.
 - Smoke scripts under `scripts/smoke-*.ts`.
 
