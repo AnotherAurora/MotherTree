@@ -11,10 +11,6 @@ import {
 } from "@/lib/path-carver/manifestation-apply";
 import { ENUM_VALUES } from "@/lib/database.types";
 import type { PublicRow } from "@/lib/public-read/allowlist";
-import {
-  SEARCH_REQUIRED_REALM_IDS,
-  type SearchRequiredRealmId,
-} from "@/lib/public/search-filter-options";
 import { applyManifestationReplacements } from "@/lib/team-data/resolve-manifestations";
 import {
   DEFAULT_COPY_INSTANCE_FIELDS,
@@ -36,43 +32,15 @@ const TARGET_TYPE_ORDER = new Map(
   ENUM_VALUES.target_type.map((value, index) => [value, index]),
 );
 
-/** Multi-realm Search exception (display name without edge quotes). */
-export const MULTI_REALM_AWAKENER_NAME = "24";
-
-/** Match DB names like `"24"` the same way asset slug lookup strips edge quotes. */
-export function normalizeAwakenerSearchName(
-  name: string | null | undefined,
-): string {
-  return (name ?? "").trim().replace(/^["']|["']$/g, "");
-}
-
-export function isMultiRealmSearchAwakener(
-  awakener: Pick<PublicRow<"awakener">, "name">,
-): boolean {
-  return (
-    normalizeAwakenerSearchName(awakener.name) === MULTI_REALM_AWAKENER_NAME
-  );
-}
-
-/**
- * Realm ids to simulate for one awakener.
- * Non-"24": native realm only (empty if null / filtered out).
- * "24": all search realms, or the Required Realm filter alone.
- */
-export function realmSimsForAwakener(
-  awakener: PublicRow<"awakener">,
-  requiredRealmId: SearchRequiredRealmId | null,
-): number[] {
-  if (isMultiRealmSearchAwakener(awakener)) {
-    if (requiredRealmId != null) return [requiredRealmId];
-    return [...SEARCH_REQUIRED_REALM_IDS];
-  }
-  if (awakener.realm == null) return [];
-  if (requiredRealmId != null && awakener.realm !== requiredRealmId) {
-    return [];
-  }
-  return [awakener.realm];
-}
+// Routing helpers live in a light module so the Search Worker does not pull the
+// Path Carver engine into its bundle.
+export {
+  MULTI_REALM_AWAKENER_NAME,
+  isMultiRealmSearchAwakener,
+  normalizeAwakenerSearchName,
+  realmSimsForAwakener,
+  shouldRunSoloAwakenerTotals,
+} from "@/lib/public/solo-search-routing";
 
 export type SoloAwakenerCatalog = {
   tags: readonly PublicRow<"tag">[];
@@ -431,6 +399,7 @@ export function computeSoloAwakenerTotals(
   enlightenment: number,
   catalog: SoloAwakenerCatalog,
   cache?: SoloTotalsCache,
+  options: { totalsOnly?: boolean } = {},
 ): SoloAwakenerTotalsResult {
   const key = cacheKey(awakenerRow.id, simulatedRealmId, enlightenment);
   if (cache?.has(key)) {
@@ -454,31 +423,15 @@ export function computeSoloAwakenerTotals(
     teamData.manifestations,
     applyContext,
   );
-  const { totalsByTagId } = computeReviewTagTotals(teamData, applyContext);
+  const { totalsByTagId } = computeReviewTagTotals(teamData, applyContext, {
+    totalsOnly: options.totalsOnly === true,
+  });
   const result: SoloAwakenerTotalsResult = {
     totalsByTagId,
     hasAppliedRealmManifestation,
   };
   cache?.set(key, result);
   return result;
-}
-
-/**
- * True when Search should run solo sims. Only runs when a specific tag
- * filter is active and the expanded matching set contains at least one tag
- * flagged `is_search_simulated`. With no tag filter set (browse-all), solo
- * sims never run, so flagged tags' aggregate rows are excluded from results;
- * unflagged tags are served by direct per-manifestation rows instead.
- */
-export function shouldRunSoloAwakenerTotals(
-  matchingTagIds: Set<number> | null,
-  tagsById: ReadonlyMap<number, PublicRow<"tag">>,
-): boolean {
-  if (matchingTagIds == null) return false;
-  for (const id of matchingTagIds) {
-    if (tagsById.get(id)?.is_search_simulated === true) return true;
-  }
-  return false;
 }
 
 function atmAppliesInRealmSim(

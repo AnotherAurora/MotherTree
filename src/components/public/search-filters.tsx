@@ -331,6 +331,8 @@ type SearchResultsState =
       truncated: boolean;
       sourceTruncated: boolean;
       resultsTruncated: boolean;
+      pendingSyncTags: string[];
+      simulationSyncedAt: string | null;
     };
 
 export function SearchFilters({ options }: SearchFiltersProps) {
@@ -422,6 +424,8 @@ export function SearchFilters({ options }: SearchFiltersProps) {
         truncated: result.truncated,
         sourceTruncated: result.sourceTruncated,
         resultsTruncated: result.resultsTruncated,
+        pendingSyncTags: result.pendingSyncTags,
+        simulationSyncedAt: result.simulationSyncedAt,
       });
     });
   }
@@ -855,6 +859,24 @@ export function SearchFilters({ options }: SearchFiltersProps) {
               ? "1 record"
               : `${results.rows.length} records`}
             {results.resultsTruncated ? " (top 500 by value)" : ""}
+            {results.simulationSyncedAt
+              ? ` · Simulation data refreshed ${new Date(
+                  results.simulationSyncedAt,
+                ).toLocaleString()}`
+              : ""}
+          </p>
+        ) : null}
+
+        {!loading &&
+        results.status === "success" &&
+        results.pendingSyncTags.length > 0 ? (
+          <p
+            role="alert"
+            className="rounded-md border border-[var(--mt-border)] bg-[rgb(255_245_235_/_0.35)] px-4 py-3 text-sm text-[var(--mt-ink)]"
+          >
+            Simulation data is pending a data sync for{" "}
+            {results.pendingSyncTags.join(", ")}. Those values will appear after
+            the next refresh.
           </p>
         ) : null}
 

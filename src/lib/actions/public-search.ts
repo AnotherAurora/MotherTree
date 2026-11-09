@@ -6,10 +6,19 @@ import { checkPublicRateLimit } from "@/lib/public-read/rate-limit";
 import type { PublicRow } from "@/lib/public-read/allowlist";
 import {
   buildSearchResults,
+  expandTagIdsForSearch,
   type SearchQueryFilters,
   type SearchResultRow,
 } from "@/lib/public/search-results";
-import type { SearchFromValue } from "@/lib/public/search-filter-options";
+import {
+  fetchPrecomputedSoloTotals,
+  type PrecomputedSoloTotal,
+} from "@/lib/public/solo-totals";
+import { shouldRunSoloAwakenerTotals } from "@/lib/public/solo-search-routing";
+import {
+  formatSearchTagLabel,
+  type SearchFromValue,
+} from "@/lib/public/search-filter-options";
 
 export type RunPublicSearchResult =
   | {
@@ -21,6 +30,10 @@ export type RunPublicSearchResult =
       sourceTruncated: boolean;
       /** More than 500 matching rows after sort; top 500 by Value shown. */
       resultsTruncated: boolean;
+      /** Simulated tags selected but absent from the last precompute sync. */
+      pendingSyncTags: string[];
+      /** Timestamp of the last successful precompute sync, if any. */
+      simulationSyncedAt: string | null;
     }
   | { success: false; error: string };
 
@@ -220,7 +233,7 @@ export async function runPublicSearch(
     return { success: false, error: "Could not load search data." };
   }
 
-  const sourceTruncated =
+  const catalogTruncated =
     tagsResult.truncated ||
     realmsResult.truncated ||
     awakenersResult.truncated ||
@@ -235,6 +248,48 @@ export async function runPublicSearch(
     wtmResult.truncated ||
     ptmResult.truncated ||
     ctmResult.truncated;
+
+  // Simulated tags are served from precomputed rows. Never run the Path Carver
+  // engine here — a full simulated search is ~19 s CPU (Workers Free is 10 ms).
+  const tagsById = new Map(tagsResult.data.map((tag) => [tag.id, tag]));
+  const matchingTagIds =
+    filters.tagId != null
+      ? expandTagIdsForSearch(tagsResult.data, filters.tagId)
+      : null;
+  const runSolo =
+    needAwakener && shouldRunSoloAwakenerTotals(matchingTagIds, tagsById);
+
+  let soloTotals: PrecomputedSoloTotal[] | undefined;
+  let soloTotalsTruncated = false;
+  let simulationSyncedAt: string | null = null;
+  let pendingSyncTags: string[] = [];
+
+  if (runSolo && matchingTagIds != null) {
+    const simulatedMatchingTagIds = [...matchingTagIds].filter(
+      (tagId) => tagsById.get(tagId)?.is_search_simulated === true,
+    );
+    const totals = await fetchPrecomputedSoloTotals({
+      tagIds: simulatedMatchingTagIds,
+      enlightenment: filters.awakenerEnlightenment,
+    });
+    if (!totals.success) {
+      return { success: false, error: totals.error };
+    }
+
+    soloTotals = totals.rows;
+    soloTotalsTruncated = totals.truncated;
+    simulationSyncedAt = totals.syncedAt;
+    const syncedTagIds = new Set(totals.syncedTagIds ?? []);
+    pendingSyncTags = simulatedMatchingTagIds
+      .filter((tagId) => !syncedTagIds.has(tagId))
+      .map((tagId) => {
+        const tag = tagsById.get(tagId);
+        return tag ? formatSearchTagLabel(tag.tag_name) : `#${tagId}`;
+      })
+      .sort((a, b) => a.localeCompare(b));
+  }
+
+  const sourceTruncated = catalogTruncated || soloTotalsTruncated;
 
   const built = buildSearchResults({
     filters: { ...filters, from },
@@ -252,6 +307,7 @@ export async function runPublicSearch(
     wheelManifestations: wtmResult.data,
     posseManifestations: ptmResult.data,
     covenantManifestations: ctmResult.data,
+    soloTotals,
   });
 
   return {
@@ -260,5 +316,7 @@ export async function runPublicSearch(
     sourceTruncated,
     resultsTruncated: built.truncated,
     truncated: built.truncated || sourceTruncated,
+    pendingSyncTags,
+    simulationSyncedAt,
   };
 }

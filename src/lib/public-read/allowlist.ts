@@ -19,6 +19,8 @@ export const PUBLIC_READ_TABLES = [
   "tag",
   "tag_default_interaction",
   "copy_provider_group_member",
+  "search_solo_totals",
+  "search_solo_totals_meta",
 ] as const;
 
 export type PublicReadTable = (typeof PUBLIC_READ_TABLES)[number];
@@ -194,6 +196,19 @@ export const PUBLIC_TABLE_COLUMNS = {
     "amplifies_subject",
   ],
   copy_provider_group_member: ["id", "group_id", "tag_id"],
+  search_solo_totals: [
+    "id",
+    "awakener_id",
+    "realm_id",
+    "enlightenment",
+    "tag_id",
+    "value",
+    "has_realm_gimmick",
+    "target_type_display",
+    "metadata_display",
+    "synced_at",
+  ],
+  search_solo_totals_meta: ["id", "synced_at", "tag_ids"],
 } as const satisfies {
   [K in PublicReadTable]: readonly (keyof PublicRow<K> & string)[];
 };

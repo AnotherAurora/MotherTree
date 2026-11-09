@@ -2,17 +2,109 @@
  * Phase 7 — Public Search solo-kit Attacker/Defender totals.
  * Run: npx tsx scripts/smoke-public-solo-search-totals.ts
  */
-import { buildSearchResults } from "../src/lib/public/search-results";
+import {
+  buildSearchResults,
+  expandTagIdsForSearch,
+  type SearchResultsInput,
+  type SearchResultsOutput,
+} from "../src/lib/public/search-results";
 import {
   REALM_GIMMICK_METADATA,
+  collectSoloTagDisplayFields,
   computeSoloAwakenerTotals,
   isMultiRealmSearchAwakener,
   realmSimsForAwakener,
   shouldRunSoloAwakenerTotals,
+  type SoloAwakenerCatalog,
   type SoloTotalsCache,
 } from "../src/lib/public/solo-awakener-totals";
+import { formatSearchTargetTypeLabel } from "../src/lib/public/search-filter-options";
+import type { PrecomputedSoloTotal } from "../src/lib/public/solo-totals";
 import type { PublicRow } from "../src/lib/public-read/allowlist";
 import { AEQUOR_REALM_ID, CHAOS_REALM_ID } from "../src/lib/team-data/realm";
+
+/**
+ * Test-only stand-in for the production precompute step: derive the
+ * `search_solo_totals` rows the sync script would store, then let
+ * `buildSearchResults` join them exactly as the Worker does.
+ */
+function computeSoloTotalsForSearch(
+  input: SearchResultsInput,
+): PrecomputedSoloTotal[] {
+  const tagsById = new Map(input.tags.map((tag) => [tag.id, tag]));
+  const matchingTagIds =
+    input.filters.tagId != null
+      ? expandTagIdsForSearch(input.tags, input.filters.tagId)
+      : null;
+  if (
+    matchingTagIds == null ||
+    !shouldRunSoloAwakenerTotals(matchingTagIds, tagsById)
+  ) {
+    return [];
+  }
+
+  const catalog: SoloAwakenerCatalog = {
+    tags: input.tags,
+    realms: input.realms,
+    realmManifestations: input.realmManifestations ?? [],
+    defaultInteractions: input.defaultInteractions ?? [],
+    awakenerManifestations: input.awakenerManifestations,
+    awakenerLocalInteractions: input.awakenerLocalInteractions,
+    copyProviderMembers: input.copyProviderMembers ?? [],
+  };
+  const simulatedTagIds = [...matchingTagIds]
+    .filter((tagId) => tagsById.get(tagId)?.is_search_simulated === true)
+    .sort((a, b) => a - b);
+
+  const out: PrecomputedSoloTotal[] = [];
+  for (const awakener of input.awakeners) {
+    const realmSims = realmSimsForAwakener(
+      awakener,
+      input.filters.requiredRealmId,
+    );
+    for (const realmSim of realmSims) {
+      const { totalsByTagId, hasAppliedRealmManifestation } =
+        computeSoloAwakenerTotals(
+          awakener,
+          realmSim,
+          input.filters.awakenerEnlightenment,
+          catalog,
+        );
+      for (const tagId of simulatedTagIds) {
+        const value = totalsByTagId.get(tagId);
+        if (value == null) continue;
+        const display = collectSoloTagDisplayFields({
+          awakenerId: awakener.id,
+          tagId,
+          realmSim,
+          enlightenment: input.filters.awakenerEnlightenment,
+          awakenerManifestations: input.awakenerManifestations,
+          awakenerLocalInteractions: input.awakenerLocalInteractions,
+          defaultInteractions: input.defaultInteractions ?? [],
+          formatTargetType: formatSearchTargetTypeLabel,
+          hasAppliedRealmManifestation,
+        });
+        out.push({
+          awakenerId: awakener.id,
+          realmId: realmSim,
+          tagId,
+          value,
+          targetType: display.targetType,
+          metadata: display.metadata,
+          syncedAt: "test",
+        });
+      }
+    }
+  }
+  return out;
+}
+
+function runSearch(input: SearchResultsInput): SearchResultsOutput {
+  return buildSearchResults({
+    ...input,
+    soloTotals: computeSoloTotalsForSearch(input),
+  });
+}
 
 function assert(cond: unknown, msg: string): asserts cond {
   if (!cond) throw new Error(`FAIL: ${msg}`);
@@ -304,7 +396,7 @@ assert(
 assert(!chaosTotals.totalsByTagId.has(2), "chaos has no Poison");
 
 console.log("buildSearchResults — Poison filter for 24");
-const poisonSearch = buildSearchResults({
+const poisonSearch = runSearch({
   filters: { ...filtersBase, tagId: 2 },
   tags,
   realms,
@@ -354,7 +446,7 @@ assert(
 );
 
 console.log("buildSearchResults — multi-realm expand emit-if-present");
-const damageSearch = buildSearchResults({
+const damageSearch = runSearch({
   filters: { ...filtersBase, tagId: 1 },
   tags,
   realms,
@@ -385,7 +477,7 @@ assert(
 );
 
 console.log("Support stays raw");
-const supportSearch = buildSearchResults({
+const supportSearch = runSearch({
   filters: { ...filtersBase, tagId: 3 },
   tags,
   realms,
@@ -468,7 +560,7 @@ assert(
   "unflagged AD tag does not trigger solo sim",
 );
 
-const slashSearch = buildSearchResults({
+const slashSearch = runSearch({
   filters: { ...filtersBase, tagId: 5 },
   tags: tagsWithDirectAd,
   realms,
@@ -511,7 +603,7 @@ const enemyFixedAtm = {
   target_type: "aoe",
 } as PublicRow<"awakener_tag_manifestation">;
 
-const enemyFixedSearch = buildSearchResults({
+const enemyFixedSearch = runSearch({
   filters: { ...filtersBase, tagId: 6 },
   tags: tagsWithEnemyFixed,
   realms,
@@ -536,7 +628,7 @@ assert(
 );
 
 console.log("flag routing — browse-all (no tag) excludes flagged sim rows");
-const mixedSearch = buildSearchResults({
+const mixedSearch = runSearch({
   filters: { ...filtersBase },
   tags: tagsWithDirectAd,
   realms,
@@ -579,7 +671,7 @@ const dualAtms = [
     value_scalar: 0.5,
   },
 ] as PublicRow<"awakener_tag_manifestation">[];
-const dualSearch = buildSearchResults({
+const dualSearch = runSearch({
   filters: { ...filtersBase, tagId: 1 },
   tags,
   realms,
@@ -607,7 +699,7 @@ const emptyMetaAtm = {
   metadata: "   ",
   target_type: "aoe",
 } as PublicRow<"awakener_tag_manifestation">;
-const emptyMetaSearch = buildSearchResults({
+const emptyMetaSearch = runSearch({
   filters: { ...filtersBase, tagId: 1 },
   tags,
   realms,
@@ -653,7 +745,7 @@ const mixedOrderAtms = [
     value_scalar: 0.2,
   },
 ] as PublicRow<"awakener_tag_manifestation">[];
-const mixedOrderSearch = buildSearchResults({
+const mixedOrderSearch = runSearch({
   filters: { ...filtersBase, tagId: 1 },
   tags,
   realms,
@@ -698,7 +790,7 @@ assert(
   "chaos sim does not apply aequor RTM",
 );
 
-const gimmickPoisonSearch = buildSearchResults({
+const gimmickPoisonSearch = runSearch({
   filters: { ...filtersBase, tagId: 2 },
   tags,
   realms,
@@ -723,7 +815,7 @@ const chaosGimmickDamage = gimmickPoisonSearch.rows.find(
 );
 assert(!chaosGimmickDamage, "no Poison solo row in chaos (ATM gated)");
 
-const noRtmPoisonSearch = buildSearchResults({
+const noRtmPoisonSearch = runSearch({
   filters: { ...filtersBase, tagId: 2 },
   tags,
   realms,
@@ -742,7 +834,7 @@ assert(
 );
 
 console.log("realm gimmick — uniqueness with existing notes");
-const dualWithGimmickSearch = buildSearchResults({
+const dualWithGimmickSearch = runSearch({
   filters: { ...filtersBase, tagId: 1 },
   tags,
   realms,
@@ -761,7 +853,7 @@ assert(
   `notes then Realm gimmick once (got ${JSON.stringify(dualWithGimmickRow.metadata)})`,
 );
 
-const blankMetaWithGimmickSearch = buildSearchResults({
+const blankMetaWithGimmickSearch = runSearch({
   filters: { ...filtersBase, tagId: 1 },
   tags,
   realms,
@@ -827,7 +919,7 @@ const crimsonCreatesHealTdi = {
   amplifies_subject: false,
 } as PublicRow<"tag_default_interaction">;
 
-const healCreatesBaseSearch = buildSearchResults({
+const healCreatesBaseSearch = runSearch({
   filters: { ...filtersBase, tagId: 8 },
   tags: tagsWithHeal,
   realms,
@@ -850,7 +942,7 @@ assert(
   `Heal value includes creates_base invent (got ${healCaroRow.value})`,
 );
 
-const healWithRtmSearch = buildSearchResults({
+const healWithRtmSearch = runSearch({
   filters: { ...filtersBase, tagId: 8 },
   tags: tagsWithHeal,
   realms,
@@ -956,7 +1048,7 @@ assert(
   `Active Damage 10 × hitCount 9 = 90 (got ${copyProviderTotals.totalsByTagId.get(1)})`,
 );
 
-const copyProviderSearch = buildSearchResults({
+const copyProviderSearch = runSearch({
   filters: { ...filtersBase, tagId: 1, from: "awakener" },
   tags: tagsWithProvider,
   realms,

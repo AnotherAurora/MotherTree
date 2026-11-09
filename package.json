@@ -32,6 +32,7 @@
     "smoke:damage-relevance-real": "tsx --env-file=.env.local scripts/smoke-damage-relevance-real.ts",
     "smoke:relic-ranking-shards": "tsx --env-file=.env.local scripts/smoke-relic-ranking-shards.ts",
     "sync:damage-relevance": "tsx --env-file=.env.local scripts/sync-tag-damage-relevance.ts",
+    "sync:search-totals": "tsx --env-file=.env.local scripts/sync-search-solo-totals.ts",
     "db:dump-skeydb-assets": "tsx --env-file=.env.local scripts/export-skeydb-asset-names.ts",
     "db:seed-simulator": "tsx --env-file=.env.local scripts/seed-simulator-data.ts",
     "db:unseed-simulator": "tsx --env-file=.env.local scripts/unseed-simulator-data.ts",
